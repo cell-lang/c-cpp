@@ -1,0 +1,409 @@
+implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
+  String* native_code(Instr* instrs, Maybe[Nat] block_id) =
+    join((native_code(instr, block_id) : instr <- instrs));
+
+
+  String* native_code(Instr instr, Maybe[Nat] block_id) =
+    init_stream(v?)       = (native_new_call(v, "System.Collections.Generic.List<Obj>", ())),
+    append()              = (native_method_call(instr.stream, "Add", (instr.obj))),
+    array_alloc()         = array_alloc_native_code(instr.var, instr.size),
+    array_write()         = array_write_native_code(instr.var, instr.idx, instr.value),
+    array_append()        = array_append_native_code(instr.array_var, instr.size_var, instr.value),
+    array_set_var()       = (native_assignment_code(instr.target, instr.source)),
+    write_rec_field()     = write_rec_field_native_code(instr.var, instr.label, instr.value, instr.optional),
+    finish_init()         = (native_expr(instr.var) & ".FinishInit();"),
+    get_seq_iter()        = (native_method_call(instr.var, instr.src, "GetSeqIter", ())),
+    get_set_iter()        = (native_method_call(instr.var, instr.src, "GetSetIter", ())),
+    get_bin_rel_iter()    = (native_get_bin_rel_iter_code(instr.var, instr.src, instr.args)),
+    get_tern_rel_iter()   = (native_get_tern_rel_iter_code(instr.var, instr.src, instr.args)),
+    move_forward(v?)      = (native_method_call(v, "Next", ())),
+    set_var()             = native_set_var_code(instr.var, instr.value),
+    set_bvar()            |
+    set_ivar()            |
+    set_ivar32()          |
+    set_fvar()            = (native_assignment_code(instr.var, instr.value)),
+    set_rc_var()          = (native_code(instr.value, instr.var)),
+    init_memb_var()       = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
+    reset_memb_var()      = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
+    clear_loc_var(v?)     = (native_var_ref_name(v) & " = NullObj.singleton;"),
+    nullify_var(v?)       = (native_var_ref_name(v) & " = null;"),
+    terminate()           = { type_str = if instr.hard_fail then "Hard" else "Soft";
+                              return ("throw ErrorHandler." & type_str & "Fail();");
+                            },
+    add_ref(v?)           = undefined,
+    release(v?)           = undefined,
+    print_obj()           = (native_static_call("ObjPrinter.Print", (instr.obj))),
+    ret_val(e?)           = ("return " & native_expr(e) & ";"),
+    no_op                 = (),
+    repeat(body?)         = native_repeat_code(body, block_id),
+    foreach()             = native_foreach_code(instr, block_id),
+    break_loop            = ("break;"),
+    execute_block(body?)  = { new_block_id = new_unique_id(:unused);
+                              body_code = native_code(body, just(new_block_id));
+                              block_exit_point = block_label(new_block_id) & ":;";
+                              return ("{") & indent_lines(body_code) & ("}", block_exit_point);
+                            },
+    exit_block            = ("goto " & block_label(value_unsafe(block_id)) & ";"),
+    switch_on_nat()       = native_nat_switch_code(instr.value, instr.cases, block_id),
+    symb_switch()         = native_symb_switch_code(instr.value, instr.cases, instr.else, block_id),
+    call_proc()           = if instr.name == proc_symbol(:load)
+                              then native_load_state_code(if instr.var? then instr.var else undefined, only_unsafe(instr.args), left(only_unsafe(instr.rel_auto_args)), right(only_unsafe(instr.rel_auto_args)))
+                              else native_call_proc_code(if instr.var? then just(instr.var) else nothing, instr.name, instr.args, instr.cls_args, instr.rel_auto_args, instr.react_auto_args, block_id),
+    call_cls()            = (native_cls_call_code(instr.cls_var, instr.var, instr.args)),
+    push_call_info()      = (native_push_call_info_code(instr.fn_name, instr.args) if debug_mode),
+    pop_call_info         = (native_static_call("Debug.PopCallInfo", ()) if debug_mode),
+    log_runtime_failure() = native_log_runtime_failure_code(instr.is_assert, instr.file, instr.line, instr.text, instr.vars),
+    branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
+    _                     = auto_instr_native_code(instr, block_id);
+
+
+  String* write_rec_field_native_code(OptTagRecVar var, Symbol label, AnyTypeExpr value, Bool optional) {
+    path = native_expr(var) & ".";
+    has_set_test_var = optional and not is_nullable(low_level_repr(value));
+
+    return (
+      native_assignment_code(path & opt_rec_field_name(label), value),
+      native_assignment_code(path & opt_rec_field_nonempty_test_var(label), true) if has_set_test_var
+    );
+  }
+
+
+  String* array_alloc_native_code(ArrayVar var, Int32Expr size) {
+    elt_type = native_elt_type(var);
+    var_name = native_var_name(var);
+    return (var_name & " = new " & elt_type & "[" & native_expr(size) & "];");
+  }
+
+
+  String* array_write_native_code(ArrayVar var, Int32Expr idx, AnyTypeExpr value) {
+    idx_str = native_expr(idx, false);
+    value_str = native_expr(value);
+    value_str = match (var.repr)
+      int8    |
+      nat8    = "Array.AsByte(" & value_str & ")",
+      int16   = "Array.AsShort(" & value_str & ")",
+      int32   = "Array.AsInt(" & value_str & ")",
+      _       = value_str;
+    return (native_var_name(var) & "[" & idx_str & "] = " & value_str & ";");
+
+
+  }
+
+
+  String* array_append_native_code(ArrayVar array_var, Int32Var size_var, AnyTypeExpr value) =
+    (native_static_call(array_var, "Array.Append", (array_var, native_var_ref_name(size_var) & "++", value)));
+
+
+  String native_cls_call_code(AnyClsVar cls_var, WriteObjVar var, AtomicExpr+ args) =
+    ## NO NEED FOR NOW TO HANDLE THE CASE cls_var(Nat), AS THOSE VARIABLES ARE NEVER "CALLED", ONLY PASSED ON
+    cls_var(<+> symb?) | capt_cls_var(symb?) = native_method_call(var, cls_var, "Invoke", (args | "env"));
+
+
+  String native_push_call_info_code(<FnId, ProcSymbol, MethodSymbol> fn_name, ObjExpr* args) {
+    fn_name_str = printed(user_repr(fn_name));
+    args_strs = (native_expr(a) : a <- args);
+    argv_str = if args != () then "new Obj[] {" & append(args_strs, ", ") & "}" else "null";
+    return native_static_call("Debug.PushCallInfo", (fn_name_str, argv_str));
+  }
+
+
+  String native_get_bin_rel_iter_code(BinRelItVar var, AtomicExpr src, (Maybe[AtomicExpr], Maybe[AtomicExpr]) args) =
+    match (args)
+      (nothing,   nothing)    = native_method_call(var, src, "GetBinRelIter", ()),
+      (just(a0?), nothing)    = native_method_call(var, src, "GetBinRelIterByCol1", (a0)),
+      (nothing,   just(a1?))  = native_method_call(var, src, "GetBinRelIterByCol2", (a1));
+
+
+  String native_get_tern_rel_iter_code(TernRelItVar var, AtomicExpr src, (Maybe[AtomicExpr], Maybe[AtomicExpr], Maybe[AtomicExpr]) args) =
+    match (args)
+      (nothing,   nothing,   nothing)     = native_method_call(var, src, "GetTernRelIter", ()),
+      (just(a0?), nothing,   nothing)     = native_method_call(var, src, "GetTernRelIterByCol1",  (a0)),
+      (nothing,   just(a1?), nothing)     = native_method_call(var, src, "GetTernRelIterByCol2",  (a1)),
+      (nothing,   nothing,   just(a2?))   = native_method_call(var, src, "GetTernRelIterByCol3",  (a2)),
+      (just(a0?), just(a1?), nothing)     = native_method_call(var, src, "GetTernRelIterByCol12", (a0, a1)),
+      (just(a0?), nothing,   just(a2?))   = native_method_call(var, src, "GetTernRelIterByCol13", (a0, a2)),
+      (nothing,   just(a1?), just(a2?))   = native_method_call(var, src, "GetTernRelIterByCol23", (a1, a2));
+
+
+  String* native_repeat_code(Instr+ body, Maybe[Nat] block_id) {
+    head = body(0);
+    if head :: <branch(cond: BoolExpr, when_true: (<break_loop>), when_false: ())> {
+      cond_str = native_expr(neg(head.cond));
+      body_text = indent_lines(native_code(tail(body), block_id)) & ("}");
+      return ("while (" & cond_str & ") {",) & body_text;
+    }
+    else {
+      body_text = indent_lines(native_code(body, block_id)) & ("}");
+      return ("for ( ; ; ) {") & body_text;
+    }
+  }
+
+
+  String* native_foreach_code(ForeachInstr instr, Maybe[Nat] block_id) {
+    seq_name        = native_var_ref_name(instr.seq);
+    src_array_name  = native_var_ref_name(instr.src_array);
+    count_var_name  = native_var_ref_name(instr.count_var);
+    idx_var_name    = native_var_ref_name(instr.idx_var);
+    it_var_name     = native_var_ref_name(instr.it_var);
+
+    src_repr = low_level_repr(instr.it_var);
+
+    method_name = match (src_repr)
+      bool    = "GetBoolArray",
+      int     = "GetLongArray",
+      float   = "GetDoubleArray",
+      _       = "GetObjArray";
+
+    buffer_arg = if instr.tmp_buffer? and src_repr == instr.tmp_buffer.repr
+      then native_var_ref_name(instr.tmp_buffer)
+      else "";
+
+    elt_native_type = native_type(src_repr);
+    possible_cast = if instr.it_var :: OptTagRecVar then "(" & elt_native_type & ") " else "";
+
+    header = (
+      ## WHAT IF elt_native_type IS SOMETHING LIKE Obj_MyType?
+      src_array_name & " = " & seq_name & "." & method_name & "(" & buffer_arg & ");",
+      "for (" & idx_var_name & " = 0 ; " & idx_var_name & " < " & count_var_name & " ; " & idx_var_name & "++) {",
+      "  " & it_var_name & " = " & possible_cast & src_array_name & "[" & idx_var_name & "];"
+    );
+
+    return header & indent_lines(native_code(instr.body, block_id)) & ("}");
+  }
+
+
+  String* gen_cache_clearing_code(ImplArg arg) {
+    code = ();
+    for fn_id <- isort(lookup(cached_semi_consts_by_impl_arg, arg, [])) {
+      cache_var_name = memo_var_name(fn_id);
+      code = (code | "env." & cache_var_name & " = null;");
+    }
+    return code;
+  }
+
+
+  String* native_set_var_code(<WriteObjVar, LocOptTagRecVar> var, ObjExpr value) =
+    (native_assignment_code(var, value));
+
+  String* native_set_var_code(ImplArg var, ObjExpr value) =
+    (native_assignment_code(var, value)) & gen_cache_clearing_code(var);
+
+
+  ## BUG BUG BUG: IF THERE IS INSIDE ONE OF THE CASES A BREAK STATEMENT MEANT TO
+  ## TERMINATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
+  String* native_nat_switch_code(IntExpr value, Instr*+ cases, Maybe[Nat] block_id) {
+    cases_code = (
+      ("case " & printed(i) & ":",) & indent_lines((native_code(c, block_id) | "break;", ""))
+      : c @ i <- cases
+    );
+    default_code = ("default:", "  throw ErrorHandler.HardFail();");
+    switch_body = join(cases_code) & default_code;
+    return ("switch ((int) (" & native_expr(value) & ")) {",) & indent_lines(switch_body) & ("}");
+  }
+
+
+  ## BUG BUG BUG: IF THERE IS INSIDE ONE OF THE CASES A BREAK STATEMENT MEANT TO
+  ## TERMIMATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
+  String* native_symb_switch_code(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, Maybe[Nat] block_id) {
+    value_str = match (value)
+      get_tag(tag_obj?)   = native_expr(tag_obj) & ".GetTagId()",
+      _                   = native_expr(value) & ".GetSymbId()";
+
+    body_code = (
+      ("" if i > 0) &
+      ("case " & symb_idx_name(a) & ":" : a <- isort(as)) &
+      indent_lines(native_code(is, block_id)) &
+      ("  break;" if in(falls_through, code_outcomes(is)))
+      : as, is @ i <- isort(cases)
+    );
+
+    if else != () {
+      default_code = indent_lines(native_code(else, block_id));
+      body_code = (body_code | ("", "default:") & default_code & ("  break;")) if else != ();
+    }
+
+    return ("switch (" & value_str & ") {",) & indent_lines(join(body_code)) & ("}");
+  }
+
+
+  String native_code(RefObjExpr expr, WriteObjVar var) =
+    mk_set_from_stream()        = native_static_call(var, "Cell.Runtime.Builder.CreateSet",        (expr.stream)),
+    mk_set()                    = native_static_call(var, "Cell.Runtime.Builder.CreateSet",        (expr.elems, expr.size)),
+    mk_set_from_array()         = native_static_call(var, "Cell.Runtime.Builder.CreateSet",        (expr.array, value(expr.size) if expr.size != nothing)),
+    mk_seq_from_stream()        = native_static_call(var, "Cell.Runtime.Builder.CreateSeq",        (expr.stream)),
+    mk_seq()                    = native_static_call(var, "Cell.Runtime.Builder.CreateSeq",        (expr.elems, expr.size)),
+    mk_seq_from_array()         = native_mk_seq_from_array_code(expr.array, expr.size, var),
+    build_const_int_seq()       = native_build_const_int_seq_code(expr.seq_id, var),
+    mk_map_from_streams()       = native_static_call(var, "Cell.Runtime.Builder.CreateMap",        (expr.key_stream, expr.value_stream)),
+    mk_map()                    = native_static_call(var, "Cell.Runtime.Builder.CreateMap",        (expr.keys, expr.values, expr.size)),
+    mk_bin_rel_from_streams()   = native_static_call(var, "Cell.Runtime.Builder.CreateBinRel",     expr.streams),
+    mk_bin_rel()                = native_static_call(var, "Cell.Runtime.Builder.CreateBinRel",     (expr.cols | expr.size)),
+    mk_bin_rel_from_arrays()    = native_mk_bin_rel(var, expr.col1, expr.col2, expr.size, expr.is_map),
+    mk_tern_rel_from_streams()  = native_static_call(var, "Cell.Runtime.Builder.CreateTernRel",    expr.streams),
+    mk_tern_rel()               = native_static_call(var, "Cell.Runtime.Builder.CreateTernRel",    (expr.cols | expr.size)),
+    mk_tern_rel_from_arrays()   = native_static_call(var, "Cell.Runtime.Builder.CreateTernRel",    (expr.col1, expr.col2, expr.col3, value(expr.size) if expr.size != nothing)),
+    mk_tagged_obj()             = native_mk_tagged_obj_code(expr.tag, expr.obj, var),
+    mk_record()                 = native_mk_record_code(expr.fields, var),
+    get_seq_slice()             = native_method_call(var, expr.seq,  "GetSlice",      (expr.idx_first, expr.len)),
+    append_to_seq()             = native_method_call(var, expr.seq,  "Append",        (expr.new_elem)),
+    update_seq_at()             = native_method_call(var, expr.seq,  "UpdatedAt",     (expr.idx, expr.value)),
+    join_seqs()                 = native_method_call(var, expr.left, "Concat",        (expr.right)),
+    rev_seq()                   = native_method_call(var, expr.seq,  "Reverse",       ()),
+    internal_sort()             = native_method_call(var, expr.set,  "InternalSort",  ()),
+    insert_elt()                = native_method_call(var, expr.set,  "Insert",        (expr.elt)),
+    remove_elt()                = native_method_call(var, expr.set,  "Remove",        (expr.elt)),
+    set_key_value()             = native_method_call(var, expr.map,  "SetKeyValue",   (expr.key, expr.value)),
+    drop_key()                  = native_method_call(var, expr.map,  "DropKey",       (expr.key)),
+    parse_value()               = native_static_call(var, "Parse",                    (expr.value)),
+    print_value()               = native_method_call(var, expr.value,"Printed",       ()),
+    _                           = auto_expr_native_code(expr, var);
+
+
+  String native_mk_seq_from_array_code(ArrayVar array, Int32Expr size, WriteObjVar var) {
+    return native_static_call(var, "Cell.Runtime.Builder.CreateSeq", (array, size));
+  }
+
+
+  String native_mk_bin_rel(WriteObjVar var, ArrayVar col1, ArrayVar col2, Maybe[IntExpr] size, Bool is_map) {
+    ctor_name = if is_map then "Cell.Runtime.Builder.CreateMap" else "Cell.Runtime.Builder.CreateBinRel";
+    return native_static_call(var, ctor_name, (col1, col2, value(size) if size != nothing));
+  }
+
+
+  String native_code(RefObjExpr expr, OptTagRecVar var) =
+    inst_opt_tag_rec() = native_new_call(var, opt_tag_rec_name(expr.tag, expr.repr_idx), ());
+
+
+  String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
+    type, len = item(int_seqs_types_and_lengths, seq_id);
+    seq_name = const_int_seq_name(seq_id);
+    return native_var_ref_name(var) & " = Cell.Runtime.Builder.CreateSeq(" & seq_name & ");";
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////
+
+  String native_mk_tagged_obj_code(ObjExpr tag, ObjExpr value, WriteObjVar var) {
+    tag_expr = match (tag)
+      object(<+> s?)  = symb_idx_name(s),
+      _               = native_expr(tag) & ".GetSymbId()";
+    return match (value)
+      int_obj(e?) = native_static_call(var, "Cell.Runtime.Builder.CreateTaggedIntObj", (tag_expr, e)),
+      _           = native_static_call(var, "Cell.Runtime.Builder.CreateTaggedObj",    (tag_expr, value));
+  }
+
+
+  String native_mk_record_code([+SymbObj -> AtomicExpr] fields, WriteObjVar var) {
+    ord_labels, index = symbols_sets_info([untag(l) : l _ <- fields], !);
+    label_set_name = const_symb_seq_name(index);
+    values_strs = (native_expr(fields(object(l), !)) : l <- ord_labels);
+    value_array_expr = "new Obj[] {" & append(values_strs, ", ") & "}";
+    return native_static_call(var, "Cell.Runtime.Builder.CreateRecord", (label_set_name, value_array_expr));
+  }
+
+
+  String *native_load_state_code(AnyWriteVar var, AnyTypeExpr arg, LocDBVar auto_var, DBSymbol auto_type) {
+    auto_type_name = native_name(auto_type);
+    updater_name = updater_var_ref_name(auto_var);
+
+    return (
+      "{ " & auto_type_name & " instance = new " & auto_type_name & "(env);",
+      "  bool succeeded = " & native_static_call("AutoMisc.Load", (arg, "instance", updater_name)),
+      "  " & native_var_ref_name(var) & " = SymbObj.Get(succeeded);",
+      "  if (succeeded) {",
+      "    " & native_var_ref_name(auto_var) & " = instance;",
+      "    " & updater_name & " = instance.NewUpdater();",
+      "  }",
+      "}"
+    );
+  }
+
+
+  String* native_call_proc_code(Maybe[AnyWriteVar] var, ObjFnName name, AnyTypeExpr* args, AnyLambdaExpr* cls_args, (LocDBVar, DBSymbol)* rel_auto_args, LocAutoVar* react_auto_args, Maybe[Nat] block_id) {
+    cls_setup_code, cls_args_refs = unzip((gen_cls_info(c) : c <- cls_args));
+    rel_args = join(((native_var_ref_name(v), updater_var_ref_name(v)) : v, _ <- rel_auto_args));
+    react_args = (native_var_ref_name(v) : v <- react_auto_args);
+    args_list = args & cls_args_refs & rel_args & react_args;
+    args_list = (args_list | "env") if not name :: ConvFnId;
+    name_str = native_fn_name(name);
+    call_code = if var != nothing
+      then native_static_call(value(var), name_str, args_list)
+      else native_static_call(name_str, args_list);
+    return (join(cls_setup_code) | call_code);
+
+
+    (String*, AnyClsVar) gen_cls_info(AnyClsVar cls) = ((), cls);
+
+
+    (String*, AnyClsVar) gen_cls_info(LambdaExpr lambda) {
+      id = new_unique_id(:unused);
+      var = cls_var(id);
+      name = native_expr(var);
+
+      type = "Lambda" & printed(index_first(lambda, sorted_lambda_exprs));
+      code = (type & " " & name & " = new " & type & "();");
+
+      if lambda.capt_auto != nothing
+        code = (code | name & ".capt_auto = this;");
+
+      for v @ i <- lambda.capt_vars
+        code = (code | name & "." & native_var_ref_name(capt_var(i)) & " = " & native_expr(v) & ";");
+
+      for v @ i <- lambda.capt_cls_vars
+        code = (code | name & "." & native_var_ref_name(capt_cls_var(i)) & " = " & native_expr(v) & ";");
+
+      return (code, var);
+    }
+  }
+
+
+  String* native_branch_code(BoolExpr cond, Instr+ when_true, Instr* when_false, Maybe[Nat] block_id) {
+    conds = (cond);
+    bodies = (when_true);
+    else_code = when_false;
+    loop {
+      break if |else_code| != 1;
+      else_instr = only(else_code);
+      maybe_branch = match (else_instr)
+        branch()  = just(else_instr),
+        _         = nothing;
+      break if maybe_branch == nothing;
+      branch = value(maybe_branch);
+      conds = (conds | branch.cond);
+      bodies = (bodies | branch.when_true);
+      else_code = branch.when_false;
+    }
+
+    code = ();
+    for c @ i <- conds {
+      opt_else = if i > 0 then "else " else "";
+      if_line = opt_else & "if (" & native_expr(c) & ") {";
+      body = indent_lines(native_code(bodies(i), block_id));
+      code = code & (if_line) & body & ("}");
+    }
+
+    if else_code != ()
+      code = code & ("else {") & indent_lines(native_code(else_code, block_id)) & ("}");
+
+    return code;
+  }
+
+
+  String* native_log_runtime_failure_code(Bool is_assert, String file, NzNat line, Maybe[String] text, (<StdVar, ImplArg>, ObjExpr)* vars) {
+    vars_dump = (
+      "Debug.DumpVar(" & printed(user_repr(v)) & ", " & native_code(e) & ");"
+      : v, e <- vars
+    );
+    filename_str = _print_(file); ## WHAT HAPPENS WHEN WE HAVE NON-ASCII CHARACTERS?
+    if is_assert {
+      text_arg = if text != nothing then _print_(value(text)) else "null";
+      msg_print_instr = native_static_call("Debug.PrintAssertionFailedMsg", (filename_str, line, text_arg));
+      return (msg_print_instr) & vars_dump;
+    }
+    else {
+      msg_print_instr = native_static_call("Debug.PrintFailReachedMsg", (filename_str, line));
+      return ("if (Debug.debugMode) {", "  " & msg_print_instr) &
+             indent_lines(vars_dump) &
+             ("}");
+    }
+  }
+}

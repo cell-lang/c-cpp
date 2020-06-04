@@ -1,0 +1,246 @@
+implicit prg : CompiledPrg, context : <core> {
+  String** native_opt_type_decls {
+    return join(((native_tag_rec_type_decl(s, r, i) : r @ i <- rs) : s, rs <- isort(prg.opt_reprs)));
+  }
+
+
+  String* native_tag_rec_type_decl(Symbol tag, OptRecRepr repr, Nat idx) {
+    class_name        = opt_tag_rec_name(tag, idx);
+    fields            = untag(repr);
+    labels            = keys(fields);
+    ord_labels, index = symbols_sets_info(labels, !);
+    ord_mand_labels   = (l : l <- ord_labels, not fields(l, !).optional);
+    ord_opt_labels    = (l : l <- ord_labels, fields(l, !).optional);
+    opt_labels        = set(ord_opt_labels);
+    has_opt_fields    = opt_labels != [];
+
+    // Content variables declarations
+    native_types  = (native_type(fields(l, !).repr) : l <- ord_labels);
+    types_lengths = (length(s) : s <- native_types);
+    max_type_len  = max(types_lengths);
+    spaces        = (nat(max_type_len - l + 1) * " " : l <- types_lengths);
+    vars_names    = (opt_rec_field_name(l) : l <- ord_labels);
+    body          = ("public " & native_types(i) & spaces(i) & v & ";" : v @ i <- vars_names);
+
+    // Test variables declarations
+    set_test_labels = isort([l : l f <- fields, f.optional, not is_nullable(f.repr)]);
+    if set_test_labels != () {
+      test_vars_decls = ("public bool " & opt_rec_field_nonempty_test_var(l) & ";" : l <- set_test_labels);
+      body = (body | "") & test_vars_decls;
+    }
+
+    // Actual labels array declaration
+    body = (body | "", "ushort[] labels;") if has_opt_fields;
+
+    // Methods
+    reprs = [l -> fields(l, !).repr : l <- labels];
+    let tag = tag, ord_labels = ord_labels, opt_labels = opt_labels, reprs = reprs {
+      methods_defs = (
+        finish_init_def(ord_mand_labels, ord_opt_labels, idx),
+        has_field_def,
+        lookup_field_def,
+        internal_order_def(class_name, ord_mand_labels, ord_opt_labels),
+        count_fields_def,
+        get_labels_def(index)
+      );
+    }
+    body = body & ("", "") & join(intermix(methods_defs, ("")));
+
+    // Class definition
+    header_line = "public sealed class " & class_name & " : OptTagRecObj {";
+    return (header_line) & indent_lines(body) & ("}");
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// Methods generation //////////////////////////////
+
+implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Symbol], reprs : [Symbol -> LowLevelRepr] {
+  String* finish_init_def(Symbol* ord_mand_labels, Symbol* ord_opt_labels, Nat idx) {
+    code = ("public void FinishInit() {");
+
+    if ord_opt_labels != () {
+      code = (code | "  ushort mask = 0;");
+      for l @ i <- ord_opt_labels {
+        code = code & (
+          "  if (" & set_check_expr(reprs(l, !), l, "", false) & ")",
+          "    mask |= 1 << " & printed(i) & ";"
+        );
+      }
+      mask = "mask";
+    }
+    else {
+      mask = "0";
+    }
+
+    set_data_instr = "  data = OptTagRecObjData(" & symb_idx_name(tag) & ", " & mask & ");";
+    set_extra_data_instr = "  extraData = OptTagRecObjExtraData(" & printed(idx) & ");";
+
+    return (code | set_data_instr, set_extra_data_instr, "}");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* has_field_def {
+    has_field_exprs = (
+      if opt_labels(l)
+        then "(" & set_check_expr(reprs(l, !), l, "", false) & " & id == " & symb_idx_name(l) & ")"
+        else "id == " & symb_idx_name(l)
+      : l <- ord_labels
+    );
+
+    return (
+      "public override bool HasField(ushort id) {",
+      "  return " & append(has_field_exprs, " | ") & ";",
+      "}"
+    );
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* lookup_field_def {
+    cases = ((
+        "" if i != 0,
+        "case " & symb_idx_name(l) & ":",
+        "  return " & native_obj_expr(reprs(l, !), opt_rec_field_name(l)) & ";"
+      ) : l @ i <- ord_labels
+    );
+
+    return (
+      "public override Obj LookupField(ushort id) {",
+      "  Debug.Assert(HasField(id));",
+      "  switch (id) {"
+    ) & indent_lines(indent_lines(join(cases))) & (
+      "  }",
+      "  throw ErrorHandler.InternalFail();",
+      "}"
+    );
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* internal_order_def(String class_name, Symbol* ord_mand_labels, Symbol* ord_opt_labels) {
+    body = (class_name & " otherOpt = (" & class_name & ") other;");
+
+    if ord_opt_labels != () {
+      body = (body | "");
+      for l <- ord_opt_labels {
+        repr = reprs(l, !);
+        test_expr = set_check_expr(repr, l, "", true);
+        other_test_expr = set_check_expr(repr, l, "otherOpt.", true);
+        body = (body | "Debug.Assert(" & test_expr & " == " & other_test_expr & ");");
+      }
+    }
+
+    for l @ i <- ord_mand_labels {
+      field_name = opt_rec_field_name(l);
+      comp_expr = comparison_expr(reprs(l, !), field_name, "otherOpt." & field_name);
+      if i == |ord_labels| - 1 {
+        body = (body | "return " & comp_expr & ";");
+      }
+      else {
+        maybe_var_type = if i == 0 then "int " else "";
+        body = (body |
+          "",
+          maybe_var_type & "res = " & comp_expr & ";",
+          "if (res != 0)",
+          "  return res;"
+        );
+      }
+    }
+
+    for l <- ord_opt_labels {
+      repr = reprs(l, !);
+      field_name = opt_rec_field_name(l);
+      comp_expr = comparison_expr(repr, field_name, "otherOpt." & field_name);
+      test_var_name = set_check_expr(repr, l, "", false);
+      maybe_var_type = if ord_mand_labels == () then "int " else "";
+      body = (body |
+        "",
+        "if (" & test_var_name & ") {",
+        "  " & maybe_var_type & "res = " & comp_expr & ";",
+        "  if (res != 0)",
+        "    return res;",
+        "}"
+      );
+    }
+
+    body = (body | "", "return 0;") if ord_opt_labels != ();
+
+    return ("public override int InternalOrder(Obj other) {") & indent_lines(body) & ("}");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* count_fields_def {
+    opt_fields_bits = ("(" & set_check_expr(reprs(l, !), l, "", false) & " ? 1 : 0)" : l <- isort(opt_labels));
+    count_fields_exprs = (printed(|ord_labels| - |opt_labels|)) & opt_fields_bits;
+
+    return (
+      "protected override int CountFields() {",
+      "  return " & append(count_fields_exprs, " + ") & ";",
+      "}"
+    );
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* get_labels_def(Nat symb_seq_index) {
+    if opt_labels != [] {
+      body = (
+        "if (labels == null) {",
+        "  int count = CountFields();",
+        "  labels = new ushort[count];",
+        "  int idx = 0;"
+      );
+
+      for l <- ord_labels {
+        label_code = ("  labels[idx++] = " & symb_idx_name(l) & ";");
+        if opt_labels(l) {
+          if_line = "  if (" & set_check_expr(reprs(l, !), l, "", false) & ")";
+          label_code = (if_line) & indent_lines(label_code);
+        }
+        body = body & label_code;
+      }
+
+      body = (body | "}", "return labels;");
+    }
+    else {
+      body = ("return " & const_symb_seq_name(symb_seq_index) & ";");
+    }
+
+    return ("protected override ushort[] GetFieldIds() {") & indent_lines(body) & ("}");
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+String set_check_expr(LowLevelRepr repr, Symbol label, String path, Bool parenthesized) =
+  if is_nullable(repr)
+    then parenthesize( path & opt_rec_field_name(label) & " != null", parenthesized)
+    else path & opt_rec_field_nonempty_test_var(label);
+
+
+String native_obj_expr(LowLevelRepr repr, String expr) =
+  bool    = "SymbObj.Get(" & expr & ")",
+  int     = "IntObj.Get(" & expr & ")",
+  float   = "new FloatObj(" & expr & ")",
+  symbol  |
+  object  = expr;
+
+
+String obj_data_expr(LowLevelRepr repr, String expr) =
+  bool    = "BoolObjData(" & expr & ")",
+  int     = expr,
+  float   = "FloatObjData(" & expr & ")",
+  symbol  |
+  object  = expr & ".data";
+
+
+String comparison_expr(LowLevelRepr repr, String expr1, String expr2) =
+  bool    = "SymbObj.CompBools(" & expr1 & ", " & expr2 & ")",
+  int     = "IntObj.Compare(" & expr1 & ", " & expr2 & ")",
+  float   = "FloatObj.Compare(" & expr1 & ", " & expr2 & ")",
+  symbol  |
+  object  = expr1 & ".QuickOrder(" & expr2 & ")";

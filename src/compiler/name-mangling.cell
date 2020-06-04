@@ -1,0 +1,657 @@
+//  A     Atom integer representation
+//  B     AnyRelVar
+//  C     ClsVar
+//  D
+//  E     Cached no-positional-argument function value
+//  F     Function
+//  G     Aggregate function
+//  H
+//  I
+//  J
+//  K     null_locks_count_var()
+//  L     Optimized record field
+//  M     MembVar                                                     MethodId
+//  N     Reactive automaton named nodes
+//  O
+//  P                                                                             ProcSymbol
+//  Q
+//  R     AnyAutoVar                                                              AutoSymbol
+//  S     SignalVar
+//  T     AnyDBVar                                                                DBSymbol
+//  U     up_to_date_var()                                            UpdateId
+//  V     StdVar, env. + ImplArg, internal var + description
+//  W
+//  X     update_source_var()
+//  Y     shadow_array_var()
+//  Z
+
+type QualifiableVars    = ObjVar, PendingInputVar, BoolVar, IntVar, Int32Var, FloatVar,
+                          AnyAutoVar, AnyDBVar, AnyTableVar, AnyValueStoreId;
+
+type UnqualifiableVars  = OptTagRecVar, VecVar, ArrayVar, ItVar, StreamVar, AnyClsVar;
+
+
+implicit context : NativeContext {
+  String native_var_name(LocOptTagRecVar var) =
+    match (var.id)
+      <+>     = printed(var.id) & "_Vr_" & printed(var.tag),
+      <*..*>  = "r" & printed(var.id) & "_" & printed(var.index) & "_" & printed(var.tag);
+
+
+  String native_var_name(OptTagRecFnArg var) = "a" & printed(var.id);
+
+  String opt_tag_rec_name(Symbol tag, Nat idx) {
+    idx_str = if idx != 0 then "_" & printed(idx) else "";
+    str = "Obj_" & upper_camel_case(tag) & idx_str;
+    return match (context)
+      core    = str,
+      wrapper = "Cell.Generated.Static." & str;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String symb_idx_name(Atom symb) {
+    str = _print_(symb) & "_A";
+    return match (context)
+      core    = str,
+      wrapper = "Cell.Generated.Static." & str;
+  }
+
+  String symb_idx_name(SymbObj symb) =
+    object(a?)  = symb_idx_name(a);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_var_decl_name(QualifiableVars v) = native_var_name(v, false);
+  String native_var_ref_name(QualifiableVars v)  = native_var_name(v, true);
+
+  String native_var_decl_name(UnqualifiableVars v) = native_var_name(v);
+  String native_var_ref_name(UnqualifiableVars v)  = native_var_name(v);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_var_decl_name(MembIntVectVar v) =
+    nodes_to_update_vect_var()  = "nodesToUpdate" & printed(v.level),
+    changed_outputs()           = "changedOutputs";
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_var_name(VecVar v)        = "vec" & printed(v.id);
+  String native_var_name(SeqItVar v)      = "seqIt" & printed(bare_id_2(v));
+  String native_var_name(SetItVar v)      = "setIt" & printed(bare_id_2(v));
+  String native_var_name(BinRelItVar v)   = "binRelIt" & printed(bare_id_2(v));
+  String native_var_name(TernRelItVar v)  = "ternRelIt" & printed(bare_id_2(v));
+  String native_var_name(StreamVar v)     = "stream" & printed(bare_id_2(v));
+
+  String native_var_name(ArrayVar var) =
+    avar()              = "y" & printed(var.id) & "_" & native_type(var.repr, context = :core),
+    shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
+
+  String native_var_name(TableItVar v) {
+    prefix = match (v.arity, v.symmetric)
+      1,  false   = "unary",
+      2,  false   = "bin",
+      2,  true    = "symBin",
+      3,  false   = "tern",
+      3,  true    = "symTern";
+
+    return prefix & "TableIt" & printed(v.id);
+  }
+
+  String native_var_name(ColumnItVar var) {
+    prefix = match (var.repr)
+      object  = "obj",
+      int     = "int",
+      float   = "float";
+    return prefix & "ColIt" & printed(var.id);
+  }
+
+  String native_var_name(AnyClsVar v) =
+    cls_var(<+> a?)     = _print_(a) & "_C",
+    cls_var(<*..*> n?)  = "cls_" & printed(n),
+    capt_cls_var(n?)    = "capt_cls_" & printed(n);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_var_name(<ObjVar, PendingInputVar> var, Bool add_prefix) {
+    assert match (var)
+      qual_signal_var() |
+      qual_memb_var()   = add_prefix,
+      _                 = true;
+
+    prefix = if add_prefix
+      then match (var)
+        impl_arg()          = "env.",
+        prev_var_value()    = "this.",
+        pending_state_var() = "updater.",
+        _                   = "this."
+      else "";
+
+    return match (var)
+      var(<+> a?)                   = { match (hidden_var_id(a))
+                                          just(n?)  = "h" & _print_(n),
+                                          nothing   = _print_(a) & "_V"
+                                      },
+      fn_arg(<*..*> n?)             = "a" & printed(n),
+      impl_arg(<+> a?)              = prefix & _print_(a) & "_V",
+      capt_var(<*..*> n?)           = "capt_var_"  & printed(n),
+      memb_var(<+> a?)              = prefix & _print_(a) & "_M",
+      signal_var(a?)                = prefix & _print_(a) & "_S",
+      qual_signal_var()             = native_var_name(var.auto_var, true) & "." & native_var_name(var.memb_var, false),
+      qual_memb_var()               = native_var_name(var.db_var, true) & "." & native_var_name(var.memb_var, false),
+      watched_signal_value_var(a?)  = prefix & _print_(a) & "_Sw",
+      prev_var_value(v?)            = prefix & ad_hoc_var_name(v) & "d",
+      pending_state_var(a?)         = prefix & _print_(a) & "_Mp",
+      lvar(<*..*> n?)               = "v" & printed(n),
+      evar()                        = "vec" & printed(var.id) & "[(int)(" & native_idx_expr(var.idx) & ")]",
+      pending_input_var(<+> a?)     = prefix & _print_(a) & "_Sp";
+
+
+    String ad_hoc_var_name(SignalVar var)     = native_var_decl_name(var);
+    String ad_hoc_var_name(QualSignalVar var) = ad_hoc_var_name(var.auto_var) & "_" & ad_hoc_var_name(var.memb_var);
+    String ad_hoc_var_name(NestedAutoVar var) = native_var_name(var, false);
+    String ad_hoc_var_name(LocAutoVar)        = undefined;
+  }
+
+
+  String native_var_name(BoolVar var, Bool add_prefix) {
+    prefix = if add_prefix then "this." else "";
+    return match (var)
+      bvar(<+> s?)                                  = { match (hidden_var_id(s))
+                                                          just(n?)  = "hb" & _print_(n),
+                                                          nothing   = printed(s) & "_Vb"
+                                                      },
+      bvar(<*..*> n?)                               = "b" & printed(n),
+      bool_arg(n?)                                  = "a" & printed(n),
+      cond_value_var(n?)                            = prefix & "cond_" & printed(n),
+      cond_is_def_var(n?)                           = prefix & "cond_def_" & printed(n),
+      watched_signal_up_to_date_var(a?)             = prefix & _print_(a) & "_Uw",
+      up_to_date_var(std_block_node_id(a?))         = prefix & _print_(a) & "_U",
+      up_to_date_var(cond_node_id(n?))              = prefix & "cond_up_to_date_" & printed(n),
+      up_to_date_var(nested_auto_node_id(a?))       = prefix & _print_(a) & "_Ua",
+      up_to_date_var(nested_auto_input_id() id?)    = prefix & _print_(id.auto) & "_Ua_" & _print_(id.input),
+      is_new                                        = prefix & "is_new",
+      qual_bool_var() = native_var_name(var.auto_var, add_prefix) & "." & native_var_name(var.memb_var, false);
+  }
+
+
+  String native_var_name(IntVar v, Bool add_prefix) {
+    assert match (v)
+      changed_output()  |
+      elapsed_time()    = add_prefix,
+      _                 = true;
+
+    prefix = if add_prefix then "this." else "";
+    return match (v)
+      ivar(<+> s?)                        = printed(s) & "_Vl",
+      ivar(<*..*> n?)                     = "l" & printed(n),
+      int_arg(n?)                         = "a" & printed(n),
+      curr_time                           = "curr_time",
+      update_time                         = "update_time",
+      update_expr_index                   = "update_expr_index",
+      update_source_var(a?)               = prefix & _print_(a) & "_V_update_source",
+      null_locks_count_var(a?)            = prefix & _print_(a) & "_V_null_locks_count",
+      update_count_var(l?)                = prefix & "updateCount" & printed(l),
+      nodes_to_update_var()               = prefix & "nodesToUpdate" & printed(v.level) & "[(int) (" & native_idx_expr(v.index) & ")]",
+      next_trigger_time_var(a?)           = prefix & _print_(a) & "_V_next_trigger_time",
+      curr_time_slot_var(a?)              = prefix & _print_(a) & "_V_curr_time_slot",
+      time_triggers_count_var             = prefix & "time_triggers_count",
+      trigger_times_heap_var(i?)          = prefix & "trigger_times_heap[" & printed(i) & "]",
+      time_varying_cond_ids_heap_var(i?)  = prefix & "time_varying_cond_ids_heap[" & printed(i) & "]",
+      last_update_time                    = prefix & "last_update_time",
+      elapsed_time                        = prefix & "elapsed_time",
+      changed_outputs_count               = prefix & "changedOutputsCount",
+      changed_output()                    = prefix & "changedOutputs[(int) (" & native_idx_expr(v.index) & ")]",
+      elapsed_time(av?)                   = native_var_name(av, false) & ".elapsed_time",
+      nested_auto_int_var()               = native_var_name(v.auto_var, true) & "." & native_var_name(v.memb_var, false);
+  }
+
+
+  String native_var_name(Int32Var, Bool add_prefix) =
+    ivar32(n?)                = "i" & printed(n),
+    shadow_surr_var(v?)       = _print_(bare_id(v)) & "_Vs",
+    shadow_array_size_var(s?) = _print_(s) & "_Yc";
+
+
+  String native_var_name(FloatVar v, Bool add_prefix) =
+    fvar(<+> s?)    = printed(s) & "_Vf",
+    fvar(<*..*> n?) = "f" & printed(n),
+    float_arg(n?)   = "a" & printed(n);
+
+
+  String native_var_name(AnyAutoVar v, Bool add_prefix) =
+    loc_auto_var(a?)    = _print_(a) & "_R",
+    nested_auto_var(a?) = {if add_prefix then "this." else ""} & _print_(a) & "_R";
+
+
+  String native_var_name(AnyDBVar v, Bool add_prefix) =
+    loc_db_var(a?)    = _print_(a) & "_T",
+    linked_db_var(n?) = {if add_prefix then "this." else ""} & "linkedAuto" & printed(n),
+    qual_db_var()     = native_var_name(v.outer, add_prefix) & "." & native_var_name(v.inner, false);
+
+
+  String native_var_name(AnyTableVar var, Bool add_prefix) {
+    return match (var)
+      table_var(v?)             = {if add_prefix then "this." else ""} & native_name(v),
+      qual_table_var()          = native_var_name(var.db_var, add_prefix) & "." & native_var_name(var.table_var, false),
+      capt_table_var(v?)        = { assert add_prefix; return "this.capt_auto." & native_var_name(v, false);};
+
+    String native_name(PhysRelVar) =
+      phys_rel_var(s?)      = _print_(s) & "_B",
+      split_rel_var(v?, n?) = native_name(v) & "_" & _print_(n);
+  }
+
+
+  String native_var_name(AnyValueStoreId v, Bool add_prefix) =
+    value_store_id(n?)        = {if add_prefix then "this." else ""} & "valueStore" & printed(n),
+    nested_value_store_id()   = { assert add_prefix;
+                                  db_var_str = native_var_name(v.db_var, true);
+                                  return db_var_str & "." & native_var_name(v.store_id, false);
+                                },
+    capt_value_store_id(id?)  = { assert add_prefix;
+                                  return "this.capt_auto." & native_var_name(id, false);
+                                };
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_idx_expr(Nat n)                             = printed(n);
+  String native_idx_expr(IntVar v)                          = native_var_ref_name(v);
+  String native_idx_expr(<add(val1: IntVar, val2: Nat)> e)  = native_var_ref_name(e.val1) & " + " & printed(e.val2);
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_surr_obj_mapper_name(ValueStoreId v) =
+    value_store_id(n?)  = "surrToObj" & printed(n);
+
+
+  String pending_updates_var_decl_name(TableVar var) {
+    return match (var)
+      table_var(v?) = native_name(v);
+
+    String native_name(PhysRelVar) =
+      phys_rel_var(s?)      = _print_(s) & "_Bp",
+      split_rel_var(v?, n?) = native_name(v) & "_" & _print_(n);
+  }
+
+  String pending_updates_var_ref_name(TableVar table_var) = "updater." & pending_updates_var_decl_name(table_var);
+
+  String dependee_msg_var_decl_name(LinkedDBVar) =
+    linked_db_var(i?)   = "linkedAutoMsg" & _print_(i);
+
+  String dependee_msg_var_ref_name(LinkedDBVar var) = "updater." & dependee_msg_var_decl_name(var);
+
+  String dependee_apply_code_var_decl_name(LinkedDBVar) =
+    linked_db_var(i?) = "linkedAutoApplyCode" & _print_(i);
+
+  String dependee_apply_code_var_ref_name(LinkedDBVar var) = "updater." & dependee_apply_code_var_decl_name(var);
+
+  String updater_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
+
+  String updater_var_decl_name(LinkedDBVar db_var) =
+    linked_db_var(i?)   = "linkedUpdater" & _print_(i);
+
+  String updater_var_ref_name(LocDBVar db_var) = updater_var_decl_name(db_var);
+
+  String updater_var_ref_name(LinkedDBVar db_var) = "updater." & updater_var_decl_name(db_var);
+
+  String updater_var_decl_name(ValueStoreId vs) =
+    value_store_id(n?)  = "valueStoreUpdater" & printed(n);
+
+  String updater_var_ref_name(ValueStoreId vs) = "updater." & updater_var_decl_name(vs);
+
+  String foreign_key_checker_decl_name(BlockForeignKey key) {
+    suffix = foreign_key_checker_suffix(key.type);
+    origin = native_var_decl_name(key.origin);
+    target = native_var_decl_name(key.target);
+    return "foreignKeyChecker" & suffix & "_" & origin & "_" & target;
+  }
+
+  String foreign_key_checker_ref_name(BlockForeignKey key) =
+    "updater." & foreign_key_checker_decl_name(key);
+
+  String native_foreign_key_checker_type(BlockForeignKey key, Table, Table) =
+    "ForeignKeyChecker" & foreign_key_checker_suffix(key.type);
+
+  String native_foreign_key_checker_type(BlockForeignKey key, Table origin, Column target) {
+    assert key.type == :unary_binary;
+    fail;
+  }
+
+  String native_foreign_key_checker_type(BlockForeignKey key, Column origin, Table target) {
+    assert key.type == binary_unary(0);
+    suffix = match (origin.repr)
+      object  = "OCU",
+      int     = "ICU",
+      float   = "FCU";
+    return "ForeignKeyChecker" & suffix;
+  }
+
+  String native_foreign_key_checker_type(BlockForeignKey key, Column, Column) = undefined;
+
+  String foreign_key_checker_suffix(ForeignKeyType) =
+    unary_unary             = "UU",
+    unary_binary(i?)        = "UB" & printed(i+1),
+    unary_ternary(i?)       = "UT" & printed(i+1),
+
+    binary_unary(i?)        = "BU" & printed(i+1),
+    binary_ternary          = "BT",
+
+    ternary_unary(i?)       = "TU" & printed(i+1),
+    ternary_binary          = "TB",
+
+    unary_sym_binary        = "USB",
+    unary_sym_ternary_12    = "UST12",
+    unary_sym_ternary_3     = "UST3",
+
+    sym_binary_unary        = "SBU",
+    sym_ternary_unary_12    = "ST12U",
+    sym_ternary_unary_3     = "ST3U",
+
+    sym_binary_sym_ternary  = "SBST",
+    sym_ternary_sym_binary  = "STSB";
+
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String var_decl(AnyVar v) =
+    vvar() = "Obj[] " & native_var_decl_name(v) & " = new Obj[" & printed(v.size) & "];",
+    _      = native_var_type(v) & " " & native_var_decl_name(v) & ";";
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  String time_slots_table_name(AutoSymbol auto_name, Atom table_id) =
+    native_name(auto_name) & "_" & _print_(table_id) & "_Bt";
+
+
+  String native_var_type(ObjVar)            = qualify("Obj");
+  String native_var_type(IntVar)            = "long";
+  String native_var_type(Int32Var)          = "int";
+  String native_var_type(MembIntVectVar)    = "long[]";
+  String native_var_type(BoolVar)           = "bool";
+  String native_var_type(FloatVar)          = "double";
+
+  String native_var_type(OptTagRecVar var) = opt_tag_rec_name(var.tag, var.index);
+
+  String native_var_type(SeqItVar v)     = qualify("SeqIter");
+  String native_var_type(SetItVar v)     = qualify("SetIter");
+  String native_var_type(BinRelItVar v)  = qualify("BinRelIter");
+  String native_var_type(TernRelItVar v) = qualify("TernRelIter");
+  String native_var_type(StreamVar v)    = "System.Collections.Generic.List<Obj>";
+
+  String native_var_type(VecVar v)       = undefined;
+  String native_var_type(TableItVar v)   = table_it_var_type(v);
+  String native_var_type(ColumnItVar v)  = column_it_var_type(v);
+  String native_var_type(ArrayVar v)     = native_elt_type(v) & "[]";
+
+
+  String native_elt_type(ArrayVar var) = native_type(var.repr);
+
+
+  String native_type(LowLevelEltRepr) =
+    bool      = "bool",
+    int8      = "byte",
+    nat8      = "byte",
+    int16     = "short",
+    int32     = "int",
+    int       = "long",
+    float     = "double",
+    symbol    |
+    object    = qualify("Obj"),
+    array()   = undefined;
+
+
+  String native_type(OptTagRecRepr repr) = opt_tag_rec_name(repr.tag, repr.index);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_fn_name(<FnId, MembTestPredId, SubAggrFnId, ProcSymbol, ConvFnId> id) {
+    str = native_fn_name(id);
+    return match (context)
+      core    = str,
+      wrapper = "Cell.Generated.Static." & str;
+
+
+    String native_fn_name(FnId id) =
+      fn_family_id()    = native_fn_symb_name(id.symbol, id.arity),
+      unique_fn_id()    = native_fn_name(id.family) & uppercase_encoding(id.id),
+      nested_fn_id()    = native_fn_name(id.outer) & "_" & native_fn_name(id.inner);
+
+    String native_fn_name(MembTestPredId) =
+      memb_test(<+> a?)         = "is" & upper_camel_case(a),
+      memb_test(<*..*> n?)      = "is_type_" & printed(n),
+      memb_test(a1?, <+> a2?)   = "is" & upper_camel_case(a2) & "_" & upper_camel_case(a1),
+      memb_test(a?, <*..*> n?)  = "is" & upper_camel_case(a) & "_" & printed(n);
+
+    String native_fn_name(SubAggrFnId) =
+      red_var_init(id?, v?)   = native_fn_base_name(id) & "i_" & _print_(_untag_(v)),
+      red_vars_merge(id?, v?) = native_fn_base_name(id) & "m_" & _print_(_untag_(v)),
+      final_value_yield(id?)  = native_fn_base_name(id) & "f",
+      null_value(id?)         = native_fn_base_name(id) & "e";
+
+    String native_fn_name(ProcSymbol proc_symb) {
+      bare_symb = match (proc_symb) proc_symbol(s?) = s;
+      name = upper_camel_case(bare_symb) & "_P";
+      if proc_symb == proc_symbol(:error) or proc_symb == proc_symbol(:save)
+        name = "AutoProcs." & name;
+      else if builtin_procs_map(proc_symb, _)
+        name = "Procs." & name;
+      return name;
+    }
+
+    String native_fn_name(ConvFnId fn_id) =
+      any_tag_obj_conv          = "ConvertGenericTaggedValue",
+      tag_rec_conv(t?)          = "ConvertTaggedValue_" & upper_camel_case(t),
+      tag_rec_repr_conv(t?, i?) = "ConvertTaggedValue_" & upper_camel_case(t) & "_" & printed(i);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String memo_var_name(<ProcSymbol, MembTestPredId, SubAggrFnId, ConvFnId>) = undefined;
+
+  String memo_var_name(FnId id) =
+    fn_family_id()  = native_fn_symb_name(id.symbol) & "_E",
+    unique_fn_id()  = memo_var_name(id.family) & printed(id.id),
+    nested_fn_id()  = native_fn_name(id.outer) & "_" & memo_var_name(id.inner);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+String native_fn_symb_name(FnSymbol fn_symb, Nat arity) =
+  fn_symbol(symb?)    = _print_(symb) & "_F" & printed(arity),
+  op_symbol(op?)      = _print_(op);
+
+String native_fn_symb_name(FnSymbol fn_symb) =
+  fn_symbol(symb?)    = _print_(symb),
+  op_symbol(op?)      = _print_(op);
+
+String native_fn_base_name(AggrFnId) =
+  aggr_fn_id(s?)            = _print_(s) & "_G",
+  unique_aggr_fn_id(s?, i?) = _print_(s) & "_G" & uppercase_encoding(i);
+
+////////////////////////////////////////////////////////////////////////////////
+
+String opt_rec_field_name(Symbol label) = printed(label) & "_L";
+
+String opt_rec_field_nonempty_test_var(Symbol label) = printed(label) & "_Ls";
+
+////////////////////////////////////////////////////////////////////////////////
+
+String block_label(Int id) = "block" & printed(id);
+
+////////////////////////////////////////////////////////////////////////////////
+
+Bool is_nullable(LowLevelEltRepr) =
+  bool      |
+  int8      |
+  nat8      |
+  int16     |
+  int32     |
+  int       |
+  float     = false,
+  symbol    |
+  object    = true,
+  array()   = undefined;
+
+Bool is_nullable(OptTagRecRepr) = true;
+
+
+String native_table_type(Table table) =
+  match (arity(table), table.symmetric)
+    1,  false   = "UnaryTable",
+    2,  false   = "BinaryTable",
+    2,  true    = "SymBinaryTable",
+    3,  false   = "TernaryTable",
+    3,  true    = "Sym12TernaryTable";
+
+String native_table_type(Column column) =
+  match (column.repr)
+    object    = "ObjColumn",
+    int       = "IntColumn",
+    float     = "FloatColumn";
+
+
+String native_table_base_type(Table table)    = native_table_type(table);
+String native_table_base_type(Column column)  = "ColumnBase";
+
+
+String table_it_var_type(TableItVar var) =
+  match (var.arity, var.symmetric)
+    1,  false   = "UnaryTable.Iter",
+    2,  false   = "BinaryTable.Iter",
+    2,  true    = "SymBinaryTable.Iter",
+    3,  false   = "TernaryTable.Iter",
+    3,  true    = "Sym12TernaryTable.Iter";
+
+String column_it_var_type(ColumnItVar var) =
+  match (var.repr)
+    object    = "ObjColumn.Iter",
+    int       = "IntColumn.Iter",
+    float     = "FloatColumn.Iter";
+
+String pending_updates_var_type(Table table) =
+  match (arity(table), table.symmetric)
+    1,  false   = "UnaryTableUpdater",
+    2,  false   = "BinaryTableUpdater",
+    2,  true    = "SymBinaryTableUpdater",
+    3,  false   = "TernaryTableUpdater",
+    3,  true    = "Sym12TernaryTableUpdater";
+
+String pending_updates_var_type(Column column) =
+  match (column.repr)
+    object    = "ObjColumnUpdater",
+    int       = "IntColumnUpdater",
+    float     = "FloatColumnUpdater";
+
+
+String native_name(ValueStoreType) =
+  integer               |
+  mono_tagged_integer() = "IntStore",
+  object                = "ObjStore";
+
+String native_updater_type(ValueStoreType vs) = native_name(vs) & "Updater";
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+String native_const(<blank, undefined> state) =
+  {if state == :blank then "BlankObj" else "NullObj"} & ".singleton";
+
+////////////////////////////////////////////////////////////////////////////////
+
+String native_name(AutoSymbol) = auto_symbol(a?) = upper_camel_case(a) & "_R";
+
+String native_name(DBSymbol) = db_symbol(a?) = upper_camel_case(a) & "_T";
+
+String native_updater_name(<AutoSymbol, DBSymbol> symb) = native_name(symb) & "x";
+
+String native_name(MethodId meth_id) {
+  id_str = if meth_id.id? then uppercase_encoding(meth_id.id) else "";
+  return _print_(bare_id(meth_id.symbol)) & "_M" & printed(meth_id.arity) & id_str;
+}
+
+String native_name(UpdateId id) =
+  main_handler    = "MsgHandler",
+  handler_id(n?)  = "MsgHandler_" & uppercase_encoding(n),
+  update_id()     = { id_str = if id.id? then uppercase_encoding(id.id) else "";
+                      return _print_(bare_id(id.symbol)) & "_U" & printed(id.arity) & id_str;
+                    };
+
+String native_apply_method_name(<main_handler>) = "MsgHandlerApply";
+
+String native_apply_method_name(<handler_id(Nat)> id) = "MsgHandlerApply_" & uppercase_encoding(_untag_(id));
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+## THE PARAMETER SHOULD BE REMOVED...
+
+String copy_state_proc_name         (DBSymbol db_type) = "CopyState";
+String write_state_proc_name        (DBSymbol db_type) = "WriteState";
+String set_state_proc_name          (DBSymbol db_type) = "SetState";
+String load_state_proc_name         (DBSymbol db_type) = "LoadState";
+String updater_creation_proc_name   (DBSymbol db_type) = "NewUpdater";
+String updater_reset_proc_name      (DBSymbol db_type) = "ResetUpdater";
+String updates_copy_proc_name       (DBSymbol db_type) = "Copy";
+String updates_apply_proc_name      (DBSymbol db_type) = "Apply";
+String updates_finish_proc_name     (DBSymbol db_type) = "Finish";
+String updates_check_proc_name      (DBSymbol db_type) = "Check";
+String full_check_proc_name         (DBSymbol db_type) = "FullCheck";
+String update_entry_point_name      (DBSymbol db_type) = "UpdateEntryPoint";
+String init_method_name             (DBSymbol db_type) = "Init";
+String cleanup_method_name          (DBSymbol db_type) = "Cleanup";
+
+String state_is_def_proc_name(AutoSymbol auto_type) = "StateIsDef";
+
+String set_state_proc_name(AutoSymbol auto_type) = "SetState";
+
+String copy_state_proc_name     (AutoSymbol auto_type) = "CopyState";
+String pre_init_method_name     (AutoSymbol auto_type) = "Preinit";
+String apply_method_name        (AutoSymbol auto_type) = "Apply";
+String cleanup_method_name      (AutoSymbol auto_type) = "Cleanup";
+String insert_timer_method_name (AutoSymbol auto_type) = "InsertTimer";
+String clear_timer_method_name  (AutoSymbol auto_type) = "ClearTimer";
+
+String update_name(DBSymbol db, UpdateId id) = native_name(id);
+String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = native_name(method);
+
+String input_set_method_name(AutoSymbol auto, Atom input) = _print_(input) & "_S_set";
+
+String node_update_method_name(AutoSymbol auto_type,  BlockNodeId node_id) = node_specific_method_name_prefix(node_id, auto_type) & "_update";
+String queue_node_update_method_name(AutoSymbol auto_type, BlockNodeId node_id) = node_specific_method_name_prefix(node_id, auto_type) & "_invalidate";
+
+String node_specific_method_name_prefix(BlockNodeId id, AutoSymbol auto) =
+  std_block_node_id(a?)   = _print_(a) & "_N",
+  cond_node_id(n?)        = "cond_node_" & printed(n),
+  nested_auto_node_id(a?) = _print_(a) & "_Na",
+  nested_auto_input_id()  = _print_(id.auto) & "_Na_" & _print_(id.input);
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+String const_int_seq_name(Nat seq_id) = "constIntSeq" & printed(seq_id);
+
+String const_symb_seq_name(Nat seq_id) = "constSymbolSeq" & printed(seq_id);
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+String lower_camel_case(Atom a) = lower_camel_case(_print_(a), false);
+
+String lower_camel_case(String s, Bool keep_underscores) {
+  first = false;
+  res = ();
+  for ch @ i <- chars(s) {
+    tr_ch = ch;
+    if ch == ascii_underscore {
+      first = true;
+    }
+    else {
+      tr_ch = nat(ch - ascii_lower_a + ascii_upper_a) if ch >= ascii_lower_a and ch <= ascii_lower_z and first; ## CREATE PRELUDE FUNCTION is_lower()/is_upper() AND to_lower()/to_upper()
+      first = false;
+    }
+    res = res & (tr_ch if tr_ch != ascii_underscore or keep_underscores);
+  }
+  return string(res);
+}

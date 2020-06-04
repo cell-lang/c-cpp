@@ -1,0 +1,581 @@
+implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]],
+    generated : [BasicTypeSymbol], debug_mode : Bool {
+
+  [String -> String*] generated_code(Bool include_runtime) {
+    assert |program_symbols| <= 64 * 1024; ## IMPLEMENT PROPERLY
+
+    has_main = (p <- prg.procs : p.name == proc_symbol(:main));
+    has_static_autos = prg.static_blocks != [];
+
+    return [
+      "generated.cs" -> flatten(generated_content),
+      "runtime.cs"   -> flatten(runtime_content(has_static_autos)) if include_runtime,
+      "typedefs.cs"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
+      "automata.cs"  -> flatten(wrappers_content) if not has_main,
+      "automata.txt" -> flatten(automata_docs) if not has_main
+    ];
+
+
+    Text runtime_content(Bool has_static_autos) = (
+      ( "using System;",
+        "using System.IO;",
+        "using System.Text;",
+        "using System.Collections.Generic;",
+        "using System.Runtime.CompilerServices;",
+        "",
+        ""
+      ),
+      core_runtime,
+      table_runtime if has_static_autos
+    );
+
+
+    Text generated_content = (
+      "using Cell.Runtime;",
+      "",
+      "#pragma warning disable 162, 164, 168, 169, 219",
+      "",
+      "",
+      "namespace Cell.Generated {",
+      ( "public class Static {",
+        symbol_decls, "", "",
+        symbol_table, "", "",
+        env_decl, "", "",
+        abstract_closure_class_decl, "", "",
+        native_opt_type_decls(context = :core), "", "",
+        proc_defs, "", "",
+        custom_parser, "", "",
+        main_method_if_requested, "", "",
+        int_seqs_decls, "", "",
+        symb_seqs_decls,
+        "}"
+      ),
+      "}"
+    );
+
+
+    Text symbol_decls {
+      let context = :core
+        code = ("public const ushort " & symb_idx_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
+      return code;
+    }
+
+
+    Text symbol_table {
+      code = (
+        "public static readonly string[] embeddedSymbols = {",
+        ("\"" & _print_(bare_obj(s)) & "\"," : s <- program_symbols),
+        "};"
+      );
+      return code;
+    }
+
+
+    Text env_decl {
+      all_impl_args = union([p.impl_args : p <- prg.procs]);
+      semi_consts_cache_vars = isort([p.name : p <- prg.procs, p.cached and p.impl_args != []]);
+
+      let context = :core
+        env_decl = (
+          "public class Env {",
+          ("public Obj " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
+          ("public Obj " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
+          "}"
+        );
+
+      return env_decl;
+    }
+
+
+    Text abstract_closure_class_decl {
+      arities = [p.arity : pd <- prg.procs, p <- pd.cls_args];
+      return () if arities == [];
+
+      return (
+        "public class Lambda {",
+        ## BAD: INDENTATION IS  WRONG HERE
+        ( ( "" if i > 0,
+            "public virtual Obj Invoke(" & append(("Obj a" & printed(j) : j < a), ", ") & ", Env env) {",
+            "  throw ErrorHandler.HardFail();",
+            "}"
+          ) : a @ i <- isort(arities)
+        ),
+        "}"
+      );
+    }
+
+
+    Text int_seqs_decls {
+      return (("", "") & gen_int_seq_code(s, i) : s @ i <- prg.int_seqs);
+    }
+
+
+    Text symb_seqs_decls {
+      return symbols_arrays_decls(values(symbols_sets_info));
+    }
+
+
+    Text proc_defs = native_code(
+      isort(prg.procs),
+      isort(prg.bool_procs),
+      sorted_lambda_exprs,
+      ord_react_blocks,
+      ord_static_blocks,
+      prg.int_seqs,
+      context = :core
+    );
+
+
+    Text main_method_if_requested {
+      has_main = (p <- prg.procs : p.name == proc_symbol(:main));
+      return if has_main then main_method(debug_mode) else ();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Generated interface type declarations
+    Text data_exchange_types {
+      decls = gen_inter_types_decls(typedefs = prg.typedefs);
+      return () if decls == ();
+      return (
+        "namespace Cell.Typedefs {",
+        decls,
+        "}"
+      );
+    }
+
+    Text wrappers_content {
+      content = (
+        "#pragma warning disable 162, 164, 168, 169, 219",
+        "",
+        "namespace Cell.Automata {"
+      );
+
+      if rel_auto_wrappers != ()
+        content = (content | ("// Facades for relational automata", "", rel_auto_wrappers));
+
+      if react_auto_wrappers != ()
+        content = (content | "// Facades for reactive automata", "", react_auto_wrappers);
+
+      content = (content | "}");
+
+      let typedefs = prg.typedefs {
+        types_decls, hierarchy = inter_types_decls;
+        if types_decls != [] {
+          conv_fns = decl_types_export_functs(types_decls, hierarchy);
+          content = (
+            content |
+            "",
+            "",
+            "namespace Cell.Generated {",
+            ( "// Conversion functions for declared interface types",
+              "public static class Convert {",
+              conv_fns,
+              "}"
+            ),
+            "}"
+          );
+        }
+      }
+
+      return content;
+    }
+
+
+    Text react_auto_wrappers {
+      let typedefs = prg.typedefs
+        react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
+      return (code : _, code, _ <- react_auto_wrappers);
+    }
+
+
+    Text rel_auto_wrappers {
+      let typedefs = prg.typedefs {
+        react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
+        rel_auto_wrappers = (static_auto_wrapper(b) : b <- ord_static_blocks);
+      }
+      return (code : _, code, _ <- rel_auto_wrappers);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    Text automata_docs {
+      docs = ();
+
+      let typedefs = prg.typedefs
+        all_docs = (static_auto_wrapper(b)(2) : b <- ord_static_blocks);
+      rel_auto_docs = insert_seps(all_docs, (""));
+
+      if rel_auto_docs != () {
+        docs = (docs | "// Facades for relational automata", "");
+        docs = docs & rel_auto_docs;
+      }
+
+      let typedefs = prg.typedefs
+        react_auto_docs = (react_auto_wrapper(b)(2) : b <- ord_react_blocks);
+
+      if react_auto_docs != () {
+        docs = (docs | "") if docs != ();
+        docs = (docs | "// Facades for reactive automata", "");
+        docs = docs & react_auto_docs;
+      }
+
+      return docs;
+    }
+  }
+}
+
+
+implicit prg : CompiledPrg {
+  StaticBlock* ord_static_blocks {
+    // Static blocks sorted in topological order
+    static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
+    ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
+    static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
+    return (static_blocks_by_name(b, !) : b <- ord_static_block_names);
+  }
+
+  ReactBlock* ord_react_blocks {
+    // Reactive blocks sorted in topological order
+    react_blocks_dep_map = [b.name -> [t : _ t <- b.nested_auto_vars] : b <- prg.react_blocks];
+    ord_react_blocks_names = join((isort(bs) : bs <- topological_sort(react_blocks_dep_map)));
+    react_blocks_by_name = [b.name -> b : b <- prg.react_blocks];
+    return (react_blocks_by_name(b, !) : b <- ord_react_blocks_names);
+  }
+}
+
+
+String* private_class_def(String* class_def) = (
+    if take(l, 8) == "package " or take(l, 7) == "import "
+      then ""
+    else if take(l, 16) == "public interface"
+      then drop(l, 7)
+    else if take(l, 12) == "public class"
+      then drop(l, 7)
+    else l
+  : l <- class_def
+);
+
+
+String native_int_type(Int min_val, Int max_val) {
+  for lb, up, type_name <- type_bounds
+    return type_name if min_val >= lb and max_val < up;
+  return "long";
+
+
+  (Int, Int, String)+ type_bounds = (
+    (-pow(2, 7),    pow(2, 7),    "byte"),
+    (-pow(2, 15),   pow(2, 15),   "short"),
+    (-pow(2, 31),   pow(2, 31),   "int")
+  );
+}
+
+
+String* gen_int_seq_code(Int+ int_seq, Nat seq_id) {
+  min_elem = min(int_seq);
+  max_elem = max(int_seq);
+
+  type_name = native_int_type(min_elem, max_elem);
+
+  sgn = "  public static " & type_name & "[] " & const_int_seq_name(seq_id) & " = {";
+
+  strs = (printed(n) : n <- int_seq);
+  total_len = sum((length(s) : s <- strs)) + 2 * |strs|;
+
+  if total_len < 60 {
+    code = (sgn & append(strs, ", ") & "};");
+  }
+  else {
+    max_len = nat(max((length(printed(n)) : n <- (min_elem, max_elem))));
+    last_idx = |int_seq| - 1;
+    strs = (align_text(s, max_len, ascii_space) & if i != last_idx then ", " else "" : s @ i <- strs);
+    cont_lines = ("    " & append(ss) : ss <- split_into_groups(strs, nz_nat(100 / (max_len + 2))));
+    code = (sgn) & cont_lines & ("  };");
+  }
+
+  return code;
+
+
+  T+* split_into_groups(T+ items, NzNat max_group_size) {
+    len = |items|;
+    num_of_comp_groups = len / max_group_size;
+    comp_groups_total_size = num_of_comp_groups * max_group_size;
+    last_group_size = len - comp_groups_total_size;
+    groups = (nonempty(subseq(items, i * max_group_size, max_group_size)) : i < num_of_comp_groups);
+    groups = (groups | nonempty(subseq(items, comp_groups_total_size, last_group_size))) if last_group_size > 0;
+    return groups;
+  }
+
+
+  String align_text(String str, Nat len, Nat filler) {
+    str_len = length(str);
+    filling = if len >= str_len then string(nat(len-str_len) * (filler)) else "";
+    return filling & str;
+  }
+}
+
+
+String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
+  ord_symbs_seqs = sort_set(symbs_seqs, right($a) < right($b));
+  return (symbols_array_decl(ss, i) : ss, i <- ord_symbs_seqs);
+
+  String symbols_array_decl(Symbol+ symbs, Nat index) {
+    name = const_symb_seq_name(index);
+    let context = :core
+      symbs_strs = (symb_idx_name(s) : s <- symbs);
+    return "public static ushort[] " & name & " = {" & append(symbs_strs, ", ") & "};";
+  }
+}
+
+
+implicit context : NativeContext {
+  String* gen_vars_decls(Instr* body, [AnyVar] exclusions) {
+    vars_to_decl = [v : v <- vars_to_declare(body), not exclusions(v), not v :: AuxVar];
+
+    vector_vars = [v : v <- vars_to_decl, v :: VecVar];
+    scalar_vars = vars_to_decl - vector_vars;
+
+    scalar_vars_by_type = group_by(scalar_vars, native_var_type);
+    scalar_vars_decls = (
+      t & " " & append((native_var_decl_name(v) : v <- isort(vs)), ", ") & ";"
+      : t, vs <- isort(scalar_vars_by_type)
+    );
+
+    vec_vars_by_id = group_by(vector_vars, $.id);
+    new_vec_vars = [vvar(id, nz_nat(max([v.size : v <- vs]))) : id vs <- vec_vars_by_id];
+    vec_vars_decls = (var_decl(v) : v <- isort(new_vec_vars));
+
+    assert {
+      vec_var_ids  = [v.id : v <- vector_vars];
+      ref_new_vec_vars = [vvar(id, nz_nat(max(nonempty([v.size : v <- vector_vars, v.id == id])))) : id <- vec_var_ids];
+      return new_vec_vars == ref_new_vec_vars;
+    };
+
+    return scalar_vars_decls & vec_vars_decls;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
+  String* native_code(ObjProcDef* obj_proc_defs, BoolProcDef* bool_proc_defs, LambdaExpr* lambda_exprs, ReactBlock* react_blocks, StaticBlock* static_blocks, Int+* int_seqs) {
+    type_checking_fns = join((native_code(d) & ("", "") : d <- bool_proc_defs)) & 4 * ("");
+    closures = join((gen_lambda(d, i) & ("", "") : d @ i <- lambda_exprs)) & 4 * ("");
+    functions = join((native_code(d) & ("", "") : d <- obj_proc_defs));
+
+    static_blocks_code = join((("", "") & native_static_block_decl(b) : b <- static_blocks));
+    react_blocks_code = join((("", "") & native_react_block_decl(b) : b <- react_blocks));
+
+    return join((
+      type_checking_fns,
+      closures,
+      functions,
+      static_blocks_code,
+      react_blocks_code
+    ));
+  }
+
+
+  String* native_code(ProcDef pd) {
+    cached = pd.cached? and pd.cached;
+
+    fn_name = native_fn_name(pd.name);
+
+    suffix = if cached then "_calculate" else "";
+
+    args_list = gen_args_list(pd);
+    args_list_str = append(args_list, ", ");
+
+    signature = "static " & ret_type_str(pd) & " " & fn_name & suffix & "(" & args_list_str & ")";
+
+    body = pd.body;
+    auto_vars_types = if pd.loc_auto_vars? then pd.loc_auto_vars else [];
+    db_vars_types = if pd.loc_db_vars? then pd.loc_db_vars else [];
+
+    var_decls = gen_vars_decls(body, if pd.args? then set(pd.args) else []);
+
+    auto_vars = isort(keys(auto_vars_types));
+    auto_var_decls = (native_name(auto_vars_types[v]) & " " & native_var_decl_name(v) & ";" : v <- auto_vars);
+
+    db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
+    aux_db_vars_decls = (native_updater_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
+
+    comp_body = native_code(body, nothing);
+
+    has_var_decls = var_decls != () or auto_var_decls != () or db_vars_decls != ();
+    code = (visibility(pd) & signature & " {",) & indent_lines(var_decls) & indent_lines(auto_var_decls) &
+           indent_lines(db_vars_decls) & indent_lines(aux_db_vars_decls) &
+           ("" if has_var_decls) & indent_lines(comp_body) & ("}");
+
+    if cached {
+      is_real_const = pd.cached? and pd.impl_args == [];
+      cache_var_name = if is_real_const then fn_name & "__CV" else "env." & memo_var_name(pd.name);
+      needs_set_flag = is_real_const and pd.ret_val_repr? and not is_nullable(pd.ret_val_repr);
+      set_flag_name = if needs_set_flag then fn_name & "__CI" else "???"; ## UGLY UGLY UGLY
+      ret_type_name = ret_type_str(pd);
+      cast = if ret_type_name != "Obj" then " (" & ret_type_name & ")" else "";
+
+      wrapper_code = (
+        "",
+        "",
+        "static " & ret_type_name & " " & cache_var_name & ";" if is_real_const,
+        "static bool " & set_flag_name & ";" if needs_set_flag,
+        "" if is_real_const,
+        visibility(pd) & "static " & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
+        "  if (" & cache_var_name & " == null)" if not needs_set_flag,
+        "  if (!" & set_flag_name & ") {" if needs_set_flag,
+        "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
+        "    " & set_flag_name & " = true;" if needs_set_flag,
+        "  }" if needs_set_flag,
+        "  return" & cast & " " & cache_var_name & ";",
+        "}"
+      );
+      code = code & wrapper_code;
+    }
+
+    return code;
+
+
+    Nat arity(ProcDef pd) =
+      obj_proc_def()    = in_arity(pd),
+      bool_proc_def()   = pd.arity;
+
+    String ret_type_str(ProcDef proc_def) =
+      obj_proc_def()    = native_type(proc_def.ret_val_repr),
+      bool_proc_def()   = "bool";
+
+    String visibility(ProcDef pd) =
+      bool_proc_def()   = "public ",
+      obj_proc_def()    = if pd.name :: ConvFnId then "public " else "";
+
+    String* gen_args_list(ObjProcDef pd) {
+      args = (native_var_type(v) & " " & native_var_decl_name(v) : v <- pd.args);
+      cls_args = ("Lambda " & native_var_decl_name(a.var) : a <- pd.cls_args);
+      rel_auto_args = join((
+        ( native_name(a.type) & " " & native_var_decl_name(a.var),
+          native_updater_name(a.type) & " " & updater_var_decl_name(a.var)
+        ) : a <- pd.rel_auto_args
+      ));
+      react_auto_args = (native_name(a.type) & " " & native_var_decl_name(a.var) : a <- pd.react_auto_args);
+      args_list = args & cls_args & rel_auto_args & react_auto_args;
+      args_list = (args_list | "Env env") if not pd.name :: ConvFnId;
+      return args_list;
+    }
+
+    String* gen_args_list(BoolProcDef pd) = ("Obj " & native_var_decl_name(fn_arg(n)) : n < arity(pd));
+  }
+
+
+  String* gen_lambda(LambdaExpr lambda, Nat id) {
+    body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
+    vars_decls = gen_vars_decls(body, []);
+    comp_body = native_code(body, nothing);
+    full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
+
+    code = (
+      "class Lambda" & printed(id) & " : Lambda {",
+      "  public " & native_name(value(lambda.capt_auto)) & " capt_auto;" if lambda.capt_auto != nothing
+    );
+    for i < |lambda.capt_vars|
+      code = (code | "  public Obj " & native_var_decl_name(capt_var(i)) & ";");
+    for i < |lambda.capt_cls_vars|
+      code = (code | "  public Lambda " & native_var_name(capt_cls_var(i)) & ";");
+
+    return (code |
+      "",
+      "  public override Obj Invoke(" & append(("Obj a" & printed(i) & ", " : i < lambda.cls.arity)) & "Env env) {"
+    ) & indent_lines(indent_lines(full_body)) &
+    ( "  }",
+      "}"
+    );
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+type NonStringEncodable = blank_obj, ObjExpr, ElemVar, PendingInputVar, VecVar, ArrayVar, BoolExpr,
+                          IntExpr, Int32Expr, FloatExpr, ItVar, StreamVar, AnyClsVar, AnyTableVar,
+                          AnyValueStoreId, AnyAutoVar, AnyDBVar;
+
+type Encodable = NonStringEncodable, String;
+
+
+implicit context : NativeContext {
+  String native_code(NonStringEncodable enc) = native_expr(enc);
+  String native_code(String str) = str;
+
+
+  String native_method_call_expr(Encodable target, String method_name, Encodable* args) =
+    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
+
+  String native_method_call(Encodable target, String method_name, Encodable* args) =
+    native_method_call_expr(target, method_name, args) & ";";
+
+  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
+    native_code(res) & " = " & native_method_call(target, method_name, args);
+
+  String native_static_call(String static_name, Encodable* args) =
+    static_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
+
+  String native_static_call(Encodable res, String static_name, Encodable* args) =
+    native_code(res) & " = " & native_static_call(static_name, args);
+
+  String native_new_call(Encodable res, String obj_type, Encodable* args) =
+    native_code(res) & " = new " & obj_type & "(" & append((native_code(a) : a <- args), ", ") & ");";
+
+  String native_assignment_code(Encodable var, Encodable value) =
+    native_code(var) & " = " & native_code(value) & ";";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+String* custom_parser = (
+  "",
+  "",
+  "public sealed class Parser : Cell.Runtime.Parser {",
+  "  public Parser(TokenStream tokens) : base(tokens) {",
+  "",
+  "  }",
+  "",
+  " protected override Obj CreateTaggedObj(ushort tagId, Obj obj) {",
+  "    return ConvertGenericTaggedValue(SymbObj.Get(tagId), obj);",
+  "  }",
+  "}",
+  "",
+  "",
+  "public static Obj Parse(Obj text) {",
+  "  return Parse(new System.IO.StringReader(text.GetString()));",
+  "}",
+  "",
+  "",
+  "public static Obj Parse(System.IO.TextReader reader) {",
+  "  try {",
+  "    TokenStream tokens = new Tokenizer(new CharStream(reader));",
+  "    Parser parser = new Parser(tokens);",
+  "    Obj obj = parser.ParseObj();",
+  "    parser.CheckEof();",
+  "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
+  "  }",
+  "  catch (Cell.Runtime.ParsingException e) {",
+  "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(new int[] {e.line, e.col}));",
+  "  }",
+  "}"
+);
+
+
+String* main_method(Bool debug_mode) = (
+  "",
+  "",
+  "public static int Main(string[] args) {",
+  "  Obj[] cellArgs = new Obj[args.Length];",
+  "  for (int i=0 ; i < args.Length ; i++)",
+  "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
+  "  Env env = new Env();",
+  "  Debug.debugMode = true;" if debug_mode,
+  "  Obj res = Main_P(Builder.CreateSeq(cellArgs), env);",
+  "  Debug.OnProcessEnd();",
+  "  return res.IsInt() ? (int) res.GetLong() : 0;",
+  "}"
+);
