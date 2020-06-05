@@ -155,20 +155,6 @@ int64 float_bits(OBJ obj) {
   return *((int64 *) &x);
 }
 
-int64 mantissa(OBJ obj) {
-  int64 mantissa;
-  int32 dec_exp;
-  mantissa_and_dec_exp(get_float(obj), mantissa, dec_exp);
-  return mantissa;
-}
-
-int64 dec_exp(OBJ obj) {
-  int64 mantissa;
-  int32 dec_exp;
-  mantissa_and_dec_exp(get_float(obj), mantissa, dec_exp);
-  return dec_exp;
-}
-
 int64 rand_nat(int64 max) {
   assert(max > 0);
   return rand() % max; //## BUG: THE FUNCTION rand() ONLY GENERATES A LIMITED RANGE OF INTEGERS

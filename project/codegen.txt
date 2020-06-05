@@ -1,0 +1,63 @@
+../compiler/src/stdlib/prelude.cell
+../compiler/src/stdlib/prelude-deprecated.cell
+../compiler/src/stdlib/printing.cell
+../compiler/src/stdlib/algorithms.cell
+../compiler/src/stdlib/utf-8.cell
+
+
+// Type definitions
+
+../compiler/src/types-2-core.cell
+../compiler/src/types-3-proc.cell
+
+
+// Contructor definitions
+
+../compiler/src/ctors-2.cell
+../compiler/src/ctors-3.cell
+
+
+// Method definitions
+
+../compiler/src/stage-2/methods.cell
+../compiler/src/stage-3/methods.cell
+
+
+// Utilities
+
+../compiler/src/utils.cell
+
+../compiler/src/stage-2/utils.cell
+../compiler/src/stage-2/pseudotypes.cell
+../compiler/src/stage-2/hacks.cell
+../compiler/src/stage-3/utils.cell
+../compiler/src/stage-3/search.cell
+
+
+// Compiler steps
+
+../compiler/src/E-type-checking/utils.cell
+../compiler/src/E-type-checking/type-subset.cell
+../compiler/src/E-type-checking/type-accessors.cell
+
+../compiler/src/H-code-generation/low-level-signs.cell
+../compiler/src/H-code-generation/ad-hoc-records.cell
+
+../compiler/src/I-code-optimization/dead-code-removal.cell
+
+src/compiler/exprs.cell
+src/compiler/instrs.cell
+src/compiler/inter-lang-utils.cell
+src/compiler/name-mangling.cell
+src/compiler/native-code-gen.cell
+src/compiler/opt-types.cell
+
+
+// Main file
+
+src/compiler/main-cg.cell
+
+
+// Runtime source code
+
+../java/runtime/runtime-sources-empty.cell
