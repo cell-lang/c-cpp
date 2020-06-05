@@ -355,7 +355,7 @@ implicit context : NativeContext {
   //////////////////////////////////////////////////////////////////////////////
 
   String var_decl(AnyVar v) =
-    vvar() = "Obj[] " & native_var_decl_name(v) & " = new Obj[" & printed(v.size) & "];",
+    vvar() = "OBJ[] " & native_var_decl_name(v) & " = new OBJ[" & printed(v.size) & "];",
     _      = native_var_type(v) & " " & native_var_decl_name(v) & ";";
 
   //////////////////////////////////////////////////////////////////////////////
@@ -365,20 +365,20 @@ implicit context : NativeContext {
     native_name(auto_name) & "_" & _print_(table_id) & "_Bt";
 
 
-  String native_var_type(ObjVar)            = qualify("Obj");
-  String native_var_type(IntVar)            = "long";
-  String native_var_type(Int32Var)          = "int";
-  String native_var_type(MembIntVectVar)    = "long[]";
+  String native_var_type(ObjVar)            = qualify("OBJ");
+  String native_var_type(IntVar)            = "int64";
+  String native_var_type(Int32Var)          = "int32";
+  String native_var_type(MembIntVectVar)    = "int64[]";
   String native_var_type(BoolVar)           = "bool";
   String native_var_type(FloatVar)          = "double";
 
   String native_var_type(OptTagRecVar var) = opt_tag_rec_name(var.tag, var.index);
 
-  String native_var_type(SeqItVar v)     = qualify("SeqIter");
-  String native_var_type(SetItVar v)     = qualify("SetIter");
-  String native_var_type(BinRelItVar v)  = qualify("BinRelIter");
-  String native_var_type(TernRelItVar v) = qualify("TernRelIter");
-  String native_var_type(StreamVar v)    = "System.Collections.Generic.List<Obj>";
+  String native_var_type(SeqItVar v)     = qualify("SEQ_ITER");
+  String native_var_type(SetItVar v)     = qualify("SET_ITER");
+  String native_var_type(BinRelItVar v)  = qualify("BIN_REL_ITER");
+  String native_var_type(TernRelItVar v) = qualify("TERN_REL_ITER");
+  String native_var_type(StreamVar v)    = qualify("STREAM");
 
   String native_var_type(VecVar v)       = undefined;
   String native_var_type(TableItVar v)   = table_it_var_type(v);
@@ -391,14 +391,14 @@ implicit context : NativeContext {
 
   String native_type(LowLevelEltRepr) =
     bool      = "bool",
-    int8      = "byte",
-    nat8      = "byte",
-    int16     = "short",
-    int32     = "int",
-    int       = "long",
+    int8      = "int8",
+    nat8      = "uint8",
+    int16     = "int16",
+    int32     = "int32",
+    int       = "int64",
     float     = "double",
     symbol    |
-    object    = qualify("Obj"),
+    object    = qualify("OBJ"),
     array()   = undefined;
 
 
@@ -630,9 +630,9 @@ String node_specific_method_name_prefix(BlockNodeId id, AutoSymbol auto) =
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-String const_int_seq_name(Nat seq_id) = "constIntSeq" & printed(seq_id);
+String const_int_seq_name(Nat seq_id) = "const_int_seq" & printed(seq_id);
 
-String const_symb_seq_name(Nat seq_id) = "constSymbolSeq" & printed(seq_id);
+String const_symb_seq_name(Nat seq_id) = "const_symb_seq" & printed(seq_id);
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////

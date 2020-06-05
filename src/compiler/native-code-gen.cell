@@ -8,10 +8,10 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     has_static_autos = prg.static_blocks != [];
 
     return [
-      "generated.cs" -> flatten(generated_content),
-      "runtime.cs"   -> flatten(runtime_content(has_static_autos)) if include_runtime,
-      "typedefs.cs"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
-      "automata.cs"  -> flatten(wrappers_content) if not has_main,
+      "generated.cpp" -> flatten(generated_content(include_runtime)),
+      "runtime.cpp"   -> flatten(runtime_content(has_static_autos)) if include_runtime,
+      "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
+      "automata.cpp"  -> flatten(wrappers_content) if not has_main,
       "automata.txt" -> flatten(automata_docs) if not has_main
     ];
 
@@ -30,40 +30,36 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     );
 
 
-    Text generated_content = (
-      "using Cell.Runtime;",
-      "",
-      "#pragma warning disable 162, 164, 168, 169, 219",
-      "",
-      "",
-      "namespace Cell.Generated {",
-      ( "public class Static {",
-        symbol_decls, "", "",
-        symbol_table, "", "",
-        env_decl, "", "",
-        abstract_closure_class_decl, "", "",
-        native_opt_type_decls(context = :core), "", "",
-        proc_defs, "", "",
-        custom_parser, "", "",
-        main_method_if_requested, "", "",
-        int_seqs_decls, "", "",
-        symb_seqs_decls,
-        "}"
-      ),
-      "}"
+    Text generated_content(Bool include_runtime) = (
+      ( "#include \"lib.h\"",
+        "#include \"iolib.h\"",
+        "",
+        ""
+      ) if not include_runtime,
+
+      symbol_decls, "", "",
+      symbol_table, "", "",
+      int_seqs_decls, "", "",
+      symb_seqs_decls, "", "",
+      env_decl, "", "",
+      abstract_closure_class_decl, "", "",
+      native_opt_type_decls(context = :core), "", "",
+      proc_defs, "", "",
+      custom_parser, "", "",
+      main_method_if_requested, "", ""
     );
 
 
     Text symbol_decls {
       let context = :core
-        code = ("public const ushort " & symb_idx_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
+        code = ("const uint16 " & symb_idx_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
       return code;
     }
 
 
     Text symbol_table {
       code = (
-        "public static readonly string[] embeddedSymbols = {",
+        "const char *map_symb_to_str[" & _print_(|program_symbols|) & "] = {",
         ("\"" & _print_(bare_obj(s)) & "\"," : s <- program_symbols),
         "};"
       );
@@ -77,10 +73,11 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
       let context = :core
         env_decl = (
-          "public class Env {",
-          ("public Obj " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
-          ("public Obj " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
-          "}"
+          "typedef struct {",
+          ("OBJ " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
+          ("" if all_impl_args != [] and semi_consts_cache_vars != ()),
+          ("OBJ " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
+          "} ENV;"
         );
 
       return env_decl;
@@ -92,21 +89,22 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       return () if arities == [];
 
       return (
-        "public class Lambda {",
-        ## BAD: INDENTATION IS  WRONG HERE
-        ( ( "" if i > 0,
-            "public virtual Obj Invoke(" & append(("Obj a" & printed(j) : j < a), ", ") & ", Env env) {",
-            "  throw ErrorHandler.HardFail();",
-            "}"
-          ) : a @ i <- isort(arities)
+        "struct CLS {",
+        ( "union {",
+          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, ENV &env);"
+            : a @ i <- isort(arities)
+          ),
+          "};",
+          "const OBJ *data;",
+          "const CLS *cls;"
         ),
-        "}"
+        "};"
       );
     }
 
 
     Text int_seqs_decls {
-      return (("", "") & gen_int_seq_code(s, i) : s @ i <- prg.int_seqs);
+      return (("") & gen_int_seq_code(s, i) : s @ i <- prg.int_seqs);
     }
 
 
@@ -264,9 +262,12 @@ String native_int_type(Int min_val, Int max_val) {
 
 
   (Int, Int, String)+ type_bounds = (
-    (-pow(2, 7),    pow(2, 7),    "byte"),
-    (-pow(2, 15),   pow(2, 15),   "short"),
-    (-pow(2, 31),   pow(2, 31),   "int")
+    (0,             pow(2, 8),    "uint8"),
+    (-pow(2, 7),    pow(2, 7),    "int8"),
+    (0,             pow(2, 16),   "uint16"),
+    (-pow(2, 15),   pow(2, 15),   "int16"),
+    (0,             pow(2, 32),   "uint32"),
+    (-pow(2, 31),   pow(2, 31),   "int32")
   );
 }
 
@@ -277,7 +278,7 @@ String* gen_int_seq_code(Int+ int_seq, Nat seq_id) {
 
   type_name = native_int_type(min_elem, max_elem);
 
-  sgn = "  public static " & type_name & "[] " & const_int_seq_name(seq_id) & " = {";
+  sgn = type_name & " " & const_int_seq_name(seq_id) & "[" & _print_(|int_seq|) & "] = {";
 
   strs = (printed(n) : n <- int_seq);
   total_len = sum((length(s) : s <- strs)) + 2 * |strs|;
@@ -323,7 +324,7 @@ String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
     name = const_symb_seq_name(index);
     let context = :core
       symbs_strs = (symb_idx_name(s) : s <- symbs);
-    return "public static ushort[] " & name & " = {" & append(symbs_strs, ", ") & "};";
+    return "uint16 " & name & "[" & _print_(|symbs|) & "] = {" & append(symbs_strs, ", ") & "};";
   }
 }
 
@@ -387,7 +388,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     args_list = gen_args_list(pd);
     args_list_str = append(args_list, ", ");
 
-    signature = "static " & ret_type_str(pd) & " " & fn_name & suffix & "(" & args_list_str & ")";
+    signature = ret_type_str(pd) & " " & fn_name & suffix & "(" & args_list_str & ")";
 
     body = pd.body;
     auto_vars_types = if pd.loc_auto_vars? then pd.loc_auto_vars else [];
@@ -445,9 +446,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       obj_proc_def()    = native_type(proc_def.ret_val_repr),
       bool_proc_def()   = "bool";
 
-    String visibility(ProcDef pd) =
-      bool_proc_def()   = "public ",
-      obj_proc_def()    = if pd.name :: ConvFnId then "public " else "";
+    String visibility(ProcDef pd) = "";
+      // bool_proc_def()   = "public ",
+      // obj_proc_def()    = if pd.name :: ConvFnId then "public " else "";
 
     String* gen_args_list(ObjProcDef pd) {
       args = (native_var_type(v) & " " & native_var_decl_name(v) : v <- pd.args);
