@@ -42,7 +42,7 @@ implicit context : NativeContext {
 
   String opt_tag_rec_name(Symbol tag, Nat idx) {
     idx_str = if idx != 0 then "_" & printed(idx) else "";
-    str = "Obj_" & upper_camel_case(tag) & idx_str;
+    str = "OBJ_" & upper_camel_case(tag) & idx_str;
     return match (context)
       core    = str,
       wrapper = "Cell.Generated.Static." & str;

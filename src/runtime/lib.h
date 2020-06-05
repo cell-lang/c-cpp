@@ -300,6 +300,7 @@ double get_float(OBJ);
 uint32 get_seq_length(OBJ);
 uint16 get_tag_idx(OBJ);
 OBJ    get_inner_obj(OBJ);
+int64  get_inner_long(OBJ);
 
 OBJ make_blank_obj();
 OBJ make_null_obj();

@@ -361,14 +361,16 @@ implicit context : NativeContext {
 
 implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
   String* native_code(ObjProcDef* obj_proc_defs, BoolProcDef* bool_proc_defs, LambdaExpr* lambda_exprs, ReactBlock* react_blocks, StaticBlock* static_blocks, Int+* int_seqs) {
-    type_checking_fns = join((native_code(d) & ("", "") : d <- bool_proc_defs)) & 4 * ("");
+    type_checking_fns_decls = join((native_code(d, true) : d <- bool_proc_defs)) & 4 * ("");
+    type_checking_fns = join((native_code(d, false) & ("", "") : d <- bool_proc_defs)) & 4 * ("");
     closures = join((gen_lambda(d, i) & ("", "") : d @ i <- lambda_exprs)) & 4 * ("");
-    functions = join((native_code(d) & ("", "") : d <- obj_proc_defs));
+    functions = join((native_code(d, false) & ("", "") : d <- obj_proc_defs));
 
     static_blocks_code = join((("", "") & native_static_block_decl(b) : b <- static_blocks));
     react_blocks_code = join((("", "") & native_react_block_decl(b) : b <- react_blocks));
 
     return join((
+      type_checking_fns_decls,
       type_checking_fns,
       closures,
       functions,
@@ -378,17 +380,19 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
   }
 
 
-  String* native_code(ProcDef pd) {
+  String* native_code(ProcDef pd, Bool decl_only) {
     cached = pd.cached? and pd.cached;
 
     fn_name = native_fn_name(pd.name);
 
-    suffix = if cached then "_calculate" else "";
+    suffix = if cached and not decl_only then "_calculate" else "";
 
     args_list = gen_args_list(pd);
     args_list_str = append(args_list, ", ");
 
     signature = ret_type_str(pd) & " " & fn_name & suffix & "(" & args_list_str & ")";
+
+    return (signature & ";") if decl_only;
 
     body = pd.body;
     auto_vars_types = if pd.loc_auto_vars? then pd.loc_auto_vars else [];
@@ -415,7 +419,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       needs_set_flag = is_real_const and pd.ret_val_repr? and not is_nullable(pd.ret_val_repr);
       set_flag_name = if needs_set_flag then fn_name & "__CI" else "???"; ## UGLY UGLY UGLY
       ret_type_name = ret_type_str(pd);
-      cast = if ret_type_name != "Obj" then " (" & ret_type_name & ")" else "";
+      cast = if ret_type_name != "OBJ" then " (" & ret_type_name & ")" else "";
 
       wrapper_code = (
         "",
@@ -464,7 +468,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       return args_list;
     }
 
-    String* gen_args_list(BoolProcDef pd) = ("Obj " & native_var_decl_name(fn_arg(n)) : n < arity(pd));
+    String* gen_args_list(BoolProcDef pd) = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < arity(pd));
   }
 
 
@@ -479,13 +483,13 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       "  public " & native_name(value(lambda.capt_auto)) & " capt_auto;" if lambda.capt_auto != nothing
     );
     for i < |lambda.capt_vars|
-      code = (code | "  public Obj " & native_var_decl_name(capt_var(i)) & ";");
+      code = (code | "  public OBJ " & native_var_decl_name(capt_var(i)) & ";");
     for i < |lambda.capt_cls_vars|
       code = (code | "  public Lambda " & native_var_name(capt_cls_var(i)) & ";");
 
     return (code |
       "",
-      "  public override Obj Invoke(" & append(("Obj a" & printed(i) & ", " : i < lambda.cls.arity)) & "Env env) {"
+      "  public override OBJ Invoke(" & append(("OBJ a" & printed(i) & ", " : i < lambda.cls.arity)) & "Env env) {"
     ) & indent_lines(indent_lines(full_body)) &
     ( "  }",
       "}"
@@ -516,11 +520,11 @@ implicit context : NativeContext {
   String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
     native_code(res) & " = " & native_method_call(target, method_name, args);
 
-  String native_static_call(String static_name, Encodable* args) =
+  String native_call(String static_name, Encodable* args) =
     static_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
 
-  String native_static_call(Encodable res, String static_name, Encodable* args) =
-    native_code(res) & " = " & native_static_call(static_name, args);
+  String native_call(Encodable res, String static_name, Encodable* args) =
+    native_code(res) & " = " & native_call(static_name, args);
 
   String native_new_call(Encodable res, String obj_type, Encodable* args) =
     native_code(res) & " = new " & obj_type & "(" & append((native_code(a) : a <- args), ", ") & ");";
@@ -540,22 +544,22 @@ String* custom_parser = (
   "",
   "  }",
   "",
-  " protected override Obj CreateTaggedObj(ushort tagId, Obj obj) {",
+  " protected override OBJ CreateTaggedObj(ushort tagId, OBJ obj) {",
   "    return ConvertGenericTaggedValue(SymbObj.Get(tagId), obj);",
   "  }",
   "}",
   "",
   "",
-  "public static Obj Parse(Obj text) {",
+  "public static OBJ Parse(OBJ text) {",
   "  return Parse(new System.IO.StringReader(text.GetString()));",
   "}",
   "",
   "",
-  "public static Obj Parse(System.IO.TextReader reader) {",
+  "public static OBJ Parse(System.IO.TextReader reader) {",
   "  try {",
   "    TokenStream tokens = new Tokenizer(new CharStream(reader));",
   "    Parser parser = new Parser(tokens);",
-  "    Obj obj = parser.ParseObj();",
+  "    OBJ obj = parser.ParseObj();",
   "    parser.CheckEof();",
   "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
   "  }",
@@ -570,12 +574,12 @@ String* main_method(Bool debug_mode) = (
   "",
   "",
   "public static int Main(string[] args) {",
-  "  Obj[] cellArgs = new Obj[args.Length];",
+  "  OBJ[] cellArgs = new OBJ[args.Length];",
   "  for (int i=0 ; i < args.Length ; i++)",
   "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
   "  Env env = new Env();",
   "  Debug.debugMode = true;" if debug_mode,
-  "  Obj res = Main_P(Builder.CreateSeq(cellArgs), env);",
+  "  OBJ res = Main_P(Builder.CreateSeq(cellArgs), env);",
   "  Debug.OnProcessEnd();",
   "  return res.IsInt() ? (int) res.GetLong() : 0;",
   "}"

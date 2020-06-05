@@ -1,53 +1,42 @@
 type NativeContext = core, wrapper;
 
 implicit context : NativeContext {
-  String qualify(String str) = if context == :wrapper then "Cell.Runtime." & str else str;
-
-  String null_obj_class       = qualify("NullObj");
-  String blank_obj_class      = qualify("BlankObj");
-  String symb_obj_class       = qualify("SymbObj");
-  String int_obj_class        = qualify("IntObj");
-  String float_obj_class      = qualify("FloatObj");
-  String empty_seq_obj_class  = qualify("EmptySeqObj");
-  String empty_rel_obj_class  = qualify("EmptyRelObj");
-  String array_class          = qualify("Array");
-  String miscellanea_class    = qualify("Miscellanea");
-  String io_class             = qualify("IO");
+  String qualify(String str) = str;
 
 
   String native_expr(InlineObj) =
-    object(s?)  = symb_obj_class & ".Get(" & symb_idx_name(s) & ")",
-    empty_seq   = empty_seq_obj_class & ".singleton",
-    empty_rel   = empty_rel_obj_class & ".singleton";
+    object(s?)  = "make_symb(" & symb_idx_name(s) & ")",
+    empty_seq   = "make_empty_seq()",
+    empty_rel   = "make_empty_rel()";
 
 
   String native_expr(StdObjVar var) = native_var_ref_name(var);
 
 
   String native_expr(ObjNatOp expr) =
-    at()                = native_expr(expr.seq)    & ".GetObjAt(" & native_expr(expr.idx) & ")",
-    array_at()          = array_class & ".At(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")",
-    lookup()            = native_expr(expr.rel)    & ".Lookup(" & native_expr(expr.key) & ")",
+    at()                = "at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
+    array_at()          = "array_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")",
+    lookup()            = "lookup(" & native_expr(expr.rel) & ", " & native_expr(expr.key) & ")",
     lookup_field()      = native_lookup_field_expr(expr.record, expr.field, expr.repr),
-    get_tag(e?)         = native_expr(e)           & ".GetTag()",
-    get_inner_obj(e?)   = native_expr(e)           & ".GetInnerObj()",
-    get_curr_obj(v?)    = native_var_ref_name(v)   & ".Get()",
-    bool_obj(e?)        = symb_obj_class & ".Get(" & native_expr(e, true) & " ? " & symb_idx_name(true) & " : " & symb_idx_name(false) & ")",
-    int_obj(e?)         = int_obj_class & ".Get("  & native_expr(e) & ")",
-    float_obj(e?)       = "new " & float_obj_class & "(" & native_expr(e) & ")",
+    get_tag(e?)         = "get_tag(" & native_expr(e) & ")",
+    get_inner_obj(e?)   = "get_inner_obj(" & native_expr(e) & ")",
+    get_curr_obj(v?)    = "get_curr_obj(" & native_var_ref_name(v)   & ")",
+    bool_obj(e?)        = "make_bool(" & native_expr(e, true) & ")",
+    int_obj(e?)         = "make_int(" & native_expr(e) & ")",
+    float_obj(e?)       = "make_float(" & native_expr(e) & ")",
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
     surr_to_value()     = native_var_ref_name(expr.store) & ".SurrToValue(" & native_expr(expr.surrogate) & ")",
     column_lookup()     = native_column_lookup_expr(expr.var, expr.key, expr.repr),
-    get_value()         = native_var_ref_name(expr.var) & ".GetValue()",
-    rand_elem(e?)       = native_expr(e)           & ".RandElem()";
+    get_value()         = undefined, //native_var_ref_name(expr.var) & ".GetValue()",
+    rand_elem(e?)       = "rand_set_elem(" & native_expr(e) & ")";
 
 
   String native_column_lookup_expr(AnyTableVar var, Int32Var key, ColumnRepr repr) {
     expr = native_var_ref_name(var) & ".Lookup(" & native_expr(key) & ")";
     return match (repr)
       object  = expr,
-      int     = int_obj_class & ".Get(" & expr & ")",
-      float   = "new " & float_obj_class & "(" & expr & ")";
+      int     = "make_int(" & expr & ")",
+      float   = "make_float(" & expr & ")";
   }
 
 
@@ -55,25 +44,28 @@ implicit context : NativeContext {
     if record :: OptTagRecExpr and repr != nothing {
       expr_str = native_expr(record) & "." & opt_rec_field_name(untag(field));
       return match (value(repr))
-        bool    = symb_obj_class & ".Get(" & expr_str & ")",
-        int     = int_obj_class & ".Get(" & expr_str & ")",
-        float   = "new " & float_obj_class & "(" & expr_str & ")",
+        bool    = "make_bool(" & expr_str & ")",
+        int     = "make_int(" & expr_str & ")",
+        float   = "make_float(" & expr_str & ")",
         symbol  |
         object  = expr_str;
     }
 
-    return native_expr(record) & ".LookupField(" & symb_idx_name(field) & ")";
+    return "lookup_field(" & native_expr(record) & ", " & symb_idx_name(field) & ")";
   }
 
 
   String native_get_curr_arg_expr(BinRelItVar var, <0..2> arg) {
     assert arg != 2;
-    return native_var_ref_name(var) & ".Get" & printed(arg+1) & "()";
+    arg_name = if arg == 0 then "left" else "right";
+    return "get_curr_" & arg_name & "_arg(" & native_var_ref_name(var) & ")";
   }
 
 
-  String native_get_curr_arg_expr(TernRelItVar var, <0..2> arg) =
-    native_var_ref_name(var) & ".Get" & printed(arg+1) & "()";
+  String native_get_curr_arg_expr(TernRelItVar var, <0..2> arg) {
+    arg_name = if arg == 0 then "left" else if arg == 1 then "mid" else "right";
+    return "tern_rel_it_get_" & arg_name & "_arg(" & native_var_ref_name(var) & ")";
+  }
 
 
   String native_expr(BoolExpr expr)       = native_expr(expr, false);
@@ -86,17 +78,17 @@ implicit context : NativeContext {
       true                  = "true",
       false                 = "false",
 
-      is_symb(e?)           = native_expr(e) & ".IsSymb()",
-      is_int(e?)            = native_expr(e) & ".IsInt()",
-      is_float(e?)          = native_expr(e) & ".IsFloat()",
-      is_ne_seq(e?)         = native_expr(e) & ".IsNeSeq()",
-      is_ne_int_seq(e?)     = native_expr(e) & ".IsNeIntSeq()",
-      is_ne_float_seq(e?)   = native_expr(e) & ".IsNeFloatSeq()",
-      is_ne_set(e?)         = native_expr(e) & ".IsNeSet()",
-      is_ne_map(e?)         = native_expr(e) & ".IsNeMap()",
-      is_ne_bin_rel(e?)     = native_expr(e) & ".IsNeBinRel()",
-      is_ne_tern_rel(e?)    = native_expr(e) & ".IsNeTernRel()",
-      is_tagged_obj(e?)     = native_expr(e) & ".IsTagged()",
+      is_symb(e?)           = "is_symb(" & native_expr(e) & ")",
+      is_int(e?)            = "is_int(" & native_expr(e) & ")",
+      is_float(e?)          = "is_float(" & native_expr(e) & ")",
+      is_ne_seq(e?)         = "is_ne_seq(" & native_expr(e) & ")",
+      is_ne_int_seq(e?)     = "is_ne_int_seq(" & native_expr(e) & ")",
+      is_ne_float_seq(e?)   = "is_ne_float_seq(" & native_expr(e) & ")",
+      is_ne_set(e?)         = "is_ne_set(" & native_expr(e) & ")",
+      is_ne_map(e?)         = "is_ne_map(" & native_expr(e) & ")",
+      is_ne_bin_rel(e?)     = "is_ne_bin_rel(" & native_expr(e) & ")",
+      is_ne_tern_rel(e?)    = "is_ne_tern_rel(" & native_expr(e) & ")",
+      is_tagged_obj(e?)     = "is_tag_obj(" & native_expr(e) & ")",
 
       are_eq(e1?, e2?)      = native_eq_expr(e1, e2, parenthesized),
 
@@ -107,12 +99,12 @@ implicit context : NativeContext {
       is_flt(e1?, e2?)      = native_nary_op(" < ",  (e1, e2), parenthesized),
       is_fle(e1?, e2?)      = native_nary_op(" <= ", (e1, e2), parenthesized),
 
-      is_out_of_range(v?)   = native_var_ref_name(v) & ".Done()",
+      is_out_of_range(v?)   = "is_out_of_range(" & native_var_ref_name(v) & ")",
 
-      is_blank(v?)          = native_var_ref_name(v) & ".IsBlankObj()",
-      is_null(v?)           = native_var_ref_name(v) & ".IsNullObj()",
+      is_blank(v?)          = "is_blank_obj(" & native_var_ref_name(v) & ")",
+      is_null(v?)           = "is_null_obj(" & native_var_ref_name(v) & ")",
 
-      has_field()           = native_expr(expr.record) & ".HasField(" & symb_idx_name(expr.field) & ")",
+      has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_idx_name(expr.field) & ")",
 
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
       table_contains()      = native_table_contains(expr.table, expr.tuple, expr.symmetric),
@@ -134,15 +126,15 @@ implicit context : NativeContext {
     default = native_nary_op(" && ", exprs, parenthesized);
 
     return match (exprs)
-      (is_tagged_obj(e1?), is_int(get_inner_obj(e2?))) =
-        if e1 == e2
-          then native_expr(e1, true) & ".IsTaggedInt()"
-          else default,
+      // (is_tagged_obj(e1?), is_int(get_inner_obj(e2?))) =
+      //   if e1 == e2
+      //     then native_expr(e1, true) & ".IsTaggedInt()"
+      //     else default,
 
-      (is_tagged_obj(e1?), is_int(get_inner_obj(e2?)), are_eq(get_tag(e3?), object(s?))) =
-        if e1 == e2 and e2 == e3
-          then native_expr(e1, true) & ".IsTaggedInt(" & symb_idx_name(s) & ")"
-          else default,
+      // (is_tagged_obj(e1?), is_int(get_inner_obj(e2?)), are_eq(get_tag(e3?), object(s?))) =
+      //   if e1 == e2 and e2 == e3
+      //     then native_expr(e1, true) & ".IsTaggedInt(" & symb_idx_name(s) & ")"
+      //     else default,
 
       _ = default;
   }
@@ -200,30 +192,30 @@ implicit context : NativeContext {
     int_obj(e1?),       int_obj(e2?)      = native_nary_op(" == ", (e1, e2), parenthesized),
     int_obj(e1?),       column_lookup()   = if expr2.repr == :int
                                               then native_column_lookup_eq(expr2.var, expr2.key, e1)
-                                              else native_expr(expr1) & ".IsEq(" & native_expr(expr2) & ")",
+                                              else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
     column_lookup(),    int_obj(e2?)      = if expr1.repr == :int
                                               then native_column_lookup_eq(expr1.var, expr1.key, e2)
-                                              else native_expr(expr1) & ".IsEq(" & native_expr(expr2) & ")",
-    int_obj(e1?),       _                 = native_expr(expr2) & ".IsInt(" & native_expr(e1) & ")",
-    _,                  int_obj(e2?)      = native_expr(expr1) & ".IsInt(" & native_expr(e2) & ")",
+                                              else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
+    int_obj(e1?),       _                 = "is_int(" & native_expr(expr2) & ", " & native_expr(e1) & ")",
+    _,                  int_obj(e2?)      = "is_int(" & native_expr(expr1) & ", " & native_expr(e2) & ")",
 
     lookup_field(),     object(true)      = if expr1.repr == just(:bool) and expr1.record :: OptTagRecExpr
                                               then native_expr(expr1.record) & "." & opt_rec_field_name(untag(expr1.field))
-                                              else native_expr(expr1) & ".IsEq(" & native_expr(expr2) & ")",
+                                              else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
 
-    get_tag(e?),        object(s?)        = parenthesize(native_expr(e) & ".GetTagId() == " & symb_idx_name(s), parenthesized),
-    object(s?),         get_tag(e?)       = parenthesize(native_expr(e) & ".GetTagId() == " & symb_idx_name(s), parenthesized),
+    get_tag(e?),        object(s?)        = parenthesize("get_tag_idx(" & native_expr(e) & ") == " & symb_idx_name(s), parenthesized),
+    object(s?),         get_tag(e?)       = parenthesize("get_tag_idx(" & native_expr(e) & ") == " & symb_idx_name(s), parenthesized),
 
-    object(s?),         _                 = native_expr(expr2) & ".IsSymb(" & symb_idx_name(s) & ")",
-    _,                  object(s?)        = native_expr(expr1) & ".IsSymb(" & symb_idx_name(s) & ")",
+    object(s?),         _                 = "is_symb(" & native_expr(expr2) & ", " & symb_idx_name(s) & ")",
+    _,                  object(s?)        = "is_symb(" & native_expr(expr1) & ", " & symb_idx_name(s) & ")",
 
-    empty_seq,          _                 = native_expr(expr2) & ".IsEmptySeq()",
-    _,                  empty_seq         = native_expr(expr1) & ".IsEmptySeq()",
+    empty_seq,          _                 = "is_empty_seq(" & native_expr(expr2) & ")",
+    _,                  empty_seq         = "is_empty_seq(" & native_expr(expr1) & ")",
 
-    empty_rel,          _                 = native_expr(expr2) & ".IsEmptyRel()",
-    _,                  empty_rel         = native_expr(expr1) & ".IsEmptyRel()",
+    empty_rel,          _                 = "is_empty_rel(" & native_expr(expr2) & ")",
+    _,                  empty_rel         = "is_empty_rel(" & native_expr(expr1) & ")",
 
-    _,                  _                 = native_expr(expr1) & ".IsEq(" & native_expr(expr2) & ")";
+    _,                  _                 = "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")";
 
 
   String native_column_lookup_eq(AnyTableVar var, Int32Expr key, IntExpr value) =
@@ -270,27 +262,27 @@ implicit context : NativeContext {
     bitwise_and(e1?, e2?) = native_nary_op(" & ", (e1, e2), parenthesized),
     bitwise_or(e1?, e2?)  = native_nary_op(" | ", (e1, e2), parenthesized),
     bitwise_xor(e1?, e2?) = native_nary_op(" ^ ", (e1, e2), parenthesized),
-    float_bits(e?)        = float_obj_class & ".Bits(" & native_expr(e) & ")",
-    round(e?)             = float_obj_class & ".Round(" & native_expr(e) & ")",
+    float_bits(e?)        = "float_bits(" & native_expr(e) & ")",
+    round(e?)             = "float_round(" & native_expr(e) & ")",
     upcast_int32(e?)      = parenthesize("(long) " & native_expr(e, true), parenthesized),
     surr_to_int_value()   = native_method_call_expr(expr.store, "SurrToValue", (expr.surrogate)),
-    rand_nat(e?)          = miscellanea_class & ".RandNat(" & native_expr(e) & ")",
-    unique_nat            = miscellanea_class & ".UniqueNat()",
-    ticks                 = io_class & ".UnixTimeMs()";
+    rand_nat(e?)          = "rand_nat(" & native_expr(e) & ")",
+    unique_nat            = "unique_nat()",
+    ticks                 = "get_tick_count()";
 
 
   String native_get_int_val_expr(ObjExpr expr, Bool parenthesized) {
     return match (expr)
-      at()                = native_expr(expr.seq) & ".GetLongAt(" & native_expr(expr.idx) & ")",
+      at()                = "get_int_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
       lookup_field()      = if expr.repr == just(:int) and expr.record :: OptTagRecExpr
                               then native_expr(expr.record) & "." & opt_rec_field_name(untag(expr.field))
-                              else native_expr(expr) & ".GetLong()",
-      get_inner_obj(e?)   = native_expr(e) & ".GetInnerLong()",
+                              else "get_int(" & native_expr(expr) & ")",
+      get_inner_obj(e?)   = "get_inner_long(" & native_expr(e) & ")",
       array_at()          = native_get_int_val_array_at_expr(expr.array, expr.size, expr.idx),
       column_lookup()     = if expr.repr == :int
                               then native_var_ref_name(expr.var) & ".Lookup(" & native_expr(expr.key) & ")"
-                              else native_expr(expr) & ".GetLong()",
-      _                   = native_expr(expr) & ".GetLong()";
+                              else "get_int(" & native_expr(expr) & ")",
+      _                   = "get_int(" & native_expr(expr) & ")";
 
 
     String native_get_int_val_array_at_expr(ArrayVar array, Int32Var size, IntExpr idx) {
@@ -300,12 +292,12 @@ implicit context : NativeContext {
       args_str  = "(" & array_str & ", " & size_str & ", " & idx_str & ")";
 
       return match (array.repr)
-        int8    |
-        int16   |
-        int32   |
-        int     = array_class & ".LongAt" & args_str,
-        nat8    = array_class & ".UnsignedAt" & args_str,
-        _       = array_class & ".At" & args_str & ".GetLong()";
+        // int8    |
+        // int16   |
+        // int32   |
+        // int     = undefined, // array_class & ".LongAt" & args_str,
+        // nat8    = undefined, // array_class & ".UnsignedAt" & args_str,
+        _       = "get_int(at" & args_str & ")";
     }
   }
 
@@ -314,10 +306,10 @@ implicit context : NativeContext {
 
   String native_expr(Int32NatOp expr, Bool parenthesized) =
     bool_to_bit(e?)       = "(" & native_expr(e, false) & " ? 1 : 0)",
-    get_size(e?)          = native_expr(e) & ".GetSize()",
+    get_size(e?)          = "get_size(" & native_expr(e) & ")",
     get_count()           = native_get_count_expr(expr.table, expr.args, expr.symmetric),
     table_lookup()        = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
-    cast_int32(e?)        = miscellanea_class & ".CastLongToInt(" & native_expr(e, false) & ")",
+    cast_int32(e?)        = "cast_int32(" & native_expr(e, false) & ")",
     add32(e1?, e2?)       = native_nary_op(" + ", (e1, e2), parenthesized),
     value_to_surr()       = native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
     get_unknown_arg()     = if expr.iter.arity == 1
@@ -397,22 +389,22 @@ implicit context : NativeContext {
     sub_floats(e1?, e2?)  = native_nary_op(" - ", (e1, e2), parenthesized),
     mult_floats(e1?, e2?) = native_nary_op(" * ", (e1, e2), parenthesized),
     div_floats(e1?, e2?)  = native_nary_op(" / ", (e1, e2), parenthesized),
-    exp_floats(e1?, e2?)  = float_obj_class & ".Pow(" & native_expr(e1, false) & ", " & native_expr(e2, false) & ")",
-    square_root(e?)       = float_obj_class & ".Sqrt(" & native_expr(e, false) & ")";
+    exp_floats(e1?, e2?)  = "float_pow(" & native_expr(e1, false) & ", " & native_expr(e2, false) & ")",
+    square_root(e?)       = "float_sqrt(" & native_expr(e, false) & ")";
 
 
   String native_float_value_expr(ObjExpr expr, Bool parenthesized) =
     at()            = native_expr(expr.seq) & ".GetDoubleAt(" & native_expr(expr.idx) & ")",
     lookup_field()  = if expr.repr == just(:float) and expr.record :: OptTagRecExpr
                         then native_expr(expr.record) & "." & opt_rec_field_name(untag(expr.field))
-                        else native_expr(expr) & ".GetDouble()",
+                        else "get_float(" & native_expr(expr) & ")",
     array_at()      = if expr.array.repr == :float
-                        then array_class & ".FloatAt(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
-                        else native_expr(expr) & ".GetDouble()",
+                        then "get_float_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
+                        else "get_float(" & native_expr(expr) & ")",
     column_lookup() = if expr.repr == :float
                         then native_var_ref_name(expr.var) & ".Lookup(" & native_expr(expr.key) & ")"
-                        else native_expr(expr) & ".GetDouble()",
-    _               = native_expr(expr) & ".GetDouble()";
+                        else "get_float(" & native_expr(expr) & ")",
+    _               = "get_float(" & native_expr(expr) & ")";
 
 
   String native_expr(FloatLit literal, Bool parenthesized) {
@@ -435,8 +427,8 @@ implicit context : NativeContext {
     <ElemVar, VecVar, ArrayVar, ItVar, StreamVar, AnyClsVar, AnyTableVar, AnyValueStoreId, AnyAutoVar, AnyDBVar> var
   ) = native_var_ref_name(var);
 
-  String native_expr(<blank_obj>) = blank_obj_class & ".singleton";
-  String native_expr(<null_obj>) = null_obj_class & ".singleton";
+  String native_expr(<blank_obj>) = "make_blank_obj()";
+  String native_expr(<null_obj>)  = "make_null_obj()";
 
   // String native_expr(ClsVar v) = native_var_ref_name(v);
 
