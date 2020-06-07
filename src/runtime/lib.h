@@ -324,6 +324,8 @@ OBJ make_tag_obj(uint16 tag_idx, OBJ obj);
 uint32 get_seq_offset(OBJ);
 OBJ* get_seq_buffer_ptr(OBJ);
 
+int64* get_long_array(OBJ seq, int64 *buffer, int32 size);
+
 // Purely physical representation functions
 
 OBJ repoint_to_std_mem_copy(OBJ obj, void *new_ptr);
@@ -407,6 +409,7 @@ void init(STREAM &s);
 void append(STREAM &s, OBJ obj);                // obj must be already reference-counted
 OBJ build_seq(OBJ* elems, uint32 length);       // Objects in elems must be already reference-counted
 OBJ build_seq(STREAM &s);
+OBJ build_seq(int64* array, int32 size);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ build_tagged_obj(OBJ tag, OBJ obj);         // obj must be already reference-counted

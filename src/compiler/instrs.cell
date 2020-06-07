@@ -94,9 +94,13 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     (native_call(array_var, "Array.Append", (array_var, native_var_ref_name(size_var) & "++", value)));
 
 
-  String native_cls_call_code(AnyClsVar cls_var, WriteObjVar var, AtomicExpr+ args) =
-    ## NO NEED FOR NOW TO HANDLE THE CASE cls_var(Nat), AS THOSE VARIABLES ARE NEVER "CALLED", ONLY PASSED ON
-    cls_var(<+> symb?) | capt_cls_var(symb?) = native_method_call(var, cls_var, "Invoke", (args | "env"));
+  String native_cls_call_code(AnyClsVar cls_var, WriteObjVar var, AtomicExpr+ args) {
+    cls_var_name = native_var_name(cls_var);
+
+    return native_var_ref_name(var) & " = " & cls_var_name & ".fn_ptr_" & _print_(|args|) &
+      "(" & append((native_expr(a) & ", " : a <- args)) & cls_var_name & ".capt_vars, " &
+      cls_var_name & ".capt_cls, " & cls_var_name & ".capt_auto, env);";
+  }
 
 
   String native_push_call_info_code(<FnId, ProcSymbol, MethodSymbol> fn_name, ObjExpr* args) {
@@ -148,10 +152,10 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     src_repr = low_level_repr(instr.it_var);
 
     method_name = match (src_repr)
-      bool    = "GetBoolArray",
-      int     = "GetLongArray",
-      float   = "GetDoubleArray",
-      _       = "GetObjArray";
+      bool    = "get_bool_array",
+      int     = "get_long_array",
+      float   = "get_double_array",
+      _       = "get_obj_array";
 
     buffer_arg = if instr.tmp_buffer? and src_repr == instr.tmp_buffer.repr
       then native_var_ref_name(instr.tmp_buffer)
@@ -162,7 +166,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
     header = (
       ## WHAT IF elt_native_type IS SOMETHING LIKE Obj_MyType?
-      src_array_name & " = " & seq_name & "." & method_name & "(" & buffer_arg & ");",
+      src_array_name & " = " & method_name & "(" & seq_name & ", " & buffer_arg & ", " & count_var_name & ");",
       "for (" & idx_var_name & " = 0 ; " & idx_var_name & " < " & count_var_name & " ; " & idx_var_name & "++) {",
       "  " & it_var_name & " = " & possible_cast & src_array_name & "[" & idx_var_name & "];"
     );
@@ -354,13 +358,13 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
           code = (code | "OBJ " & var_name & "[" & printed(|lambda.capt_vars|) & "];");
           for v @ i <- lambda.capt_vars
             code = (code | var_name & "[" & printed(i) & "] = " & native_expr(v) & ";");
-          code = (code | name & ".data = " & var_name & ";");
+          code = (code | name & ".capt_vars = " & var_name & ";");
         }
         else
-          code = (code | name & ".data = &" & native_expr(only(lambda.capt_vars)) & ";");
+          code = (code | name & ".capt_vars = &" & native_expr(only(lambda.capt_vars)) & ";");
       }
       else
-        code = (code | name & ".data = 0;");
+        code = (code | name & ".capt_vars = 0;");
 
       if lambda.capt_cls_vars != () {
         if |lambda.capt_cls_vars| != 1 {
@@ -368,16 +372,16 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
           code = (code | "CLS " & var_name & "[" & printed(|lambda.capt_cls_vars|) & "];");
           for v @ i <- lambda.capt_cls_vars
             code = (code | var_name & "[" & printed(i) & "] = " & native_expr(v) & ";");
-          code = (code | name & ".cls = " & var_name & ";");
+          code = (code | name & ".capt_cls = " & var_name & ";");
         }
         else
-          code = (code | name & ".cls = &" & native_expr(only(lambda.capt_cls_vars)) & ";");
+          code = (code | name & ".capt_cls = &" & native_expr(only(lambda.capt_cls_vars)) & ";");
       }
       else
-        code = (code | name & ".cls = 0;");
+        code = (code | name & ".capt_cls = 0;");
 
-      if lambda.capt_auto != nothing
-        code = (code | name & ".capt_auto = ????;");
+      capt_auto_str = if lambda.capt_auto != nothing then "?????" else "0";
+      code = (code | name & ".capt_auto = " & capt_auto_str & ";");
 
       return (code, var);
     }

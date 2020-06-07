@@ -91,12 +91,13 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       return (
         "struct CLS {",
         ( "union {",
-          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, void *, ENV &env);"
+          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, const void *, ENV &env);"
             : a @ i <- isort(arities)
           ),
           "};",
-          "const OBJ *data;",
-          "const CLS *cls;"
+          "const OBJ  *capt_vars;",
+          "const CLS  *capt_cls;",
+          "const void *capt_auto;"
         ),
         "};"
       );
@@ -334,12 +335,19 @@ implicit context : NativeContext {
     vars_to_decl = [v : v <- vars_to_declare(body), not exclusions(v), not v :: AuxVar];
 
     vector_vars = [v : v <- vars_to_decl, v :: VecVar];
-    scalar_vars = vars_to_decl - vector_vars;
+    array_vars = [v : v <- vars_to_decl, v :: ArrayVar];
+    scalar_vars = vars_to_decl - vector_vars - array_vars;
 
     scalar_vars_by_type = group_by(scalar_vars, native_var_type);
     scalar_vars_decls = (
       t & " " & append((native_var_decl_name(v) : v <- isort(vs)), ", ") & ";"
       : t, vs <- isort(scalar_vars_by_type)
+    );
+
+    array_vars_by_type = group_by(array_vars, native_type($.repr));
+    array_vars_decls = (
+      t & " " & append(("*" & native_var_decl_name(v) : v <- isort(vs)), ", ") & ";"
+      : t, vs <- isort(array_vars_by_type)
     );
 
     vec_vars_by_id = group_by(vector_vars, $.id);
@@ -355,7 +363,7 @@ implicit context : NativeContext {
       return new_vec_vars == ref_new_vec_vars;
     };
 
-    return scalar_vars_decls & ptr_vars_decls & vec_vars_decls;
+    return scalar_vars_decls & ptr_vars_decls & array_vars_decls & vec_vars_decls;
   }
 }
 
@@ -463,7 +471,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     String* gen_args_list(ObjProcDef pd) {
       args = (native_var_type(v) & " " & native_var_decl_name(v) : v <- pd.args);
-      cls_args = ("CLS &" & native_var_decl_name(a.var) : a <- pd.cls_args);
+      cls_args = ("const CLS &" & native_var_decl_name(a.var) : a <- pd.cls_args);
       rel_auto_args = join((
         ( native_name(a.type) & " " & native_var_decl_name(a.var),
           native_updater_name(a.type) & " " & updater_var_decl_name(a.var)
@@ -486,7 +494,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
 
     std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
-    extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "void *capt_auto", "ENV &env"); ## BAD
+    extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "const void *capt_auto", "ENV &env"); ## BAD
     signature = "OBJ lambda_" & printed(id) & "(" & append(std_args & extra_args, ", ") & ")";
 
     return (signature & ";") if decl_only;
