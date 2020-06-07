@@ -5,7 +5,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
   String* native_code(Instr instr, Maybe[Nat] block_id) =
     init_stream(v?)       = (native_call("init", (v))),
-    append()              = (native_method_call(instr.stream, "Add", (instr.obj))),
+    append()              = (native_call("append", (instr.stream, instr.obj))),
     array_alloc()         = array_alloc_native_code(instr.var, instr.size),
     array_write()         = array_write_native_code(instr.var, instr.idx, instr.value),
     array_append()        = array_append_native_code(instr.array_var, instr.size_var, instr.value),
@@ -159,7 +159,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
     buffer_arg = if instr.tmp_buffer? and src_repr == instr.tmp_buffer.repr
       then native_var_ref_name(instr.tmp_buffer)
-      else "";
+      else "NULL";
 
     elt_native_type = native_type(src_repr);
     possible_cast = if instr.it_var :: OptTagRecVar then "(" & elt_native_type & ") " else "";
@@ -232,7 +232,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   String native_code(RefObjExpr expr, WriteObjVar var) =
     mk_set_from_stream()        = native_call(var, "build_set",         (expr.stream)),
     mk_set()                    = native_call(var, "build_set",         (expr.elems, expr.size)),
-    mk_set_from_array()         = native_call(var, "build_set",         (expr.array, value(expr.size) if expr.size != nothing)),
+    mk_set_from_array()         = native_call(var, "build_set",         (expr.array, expr.size)),
     mk_seq_from_stream()        = native_call(var, "build_seq",         (expr.stream)),
     mk_seq()                    = native_call(var, "build_seq",         (expr.elems, expr.size)),
     mk_seq_from_array()         = native_mk_seq_from_array_code(expr.array, expr.size, var),
