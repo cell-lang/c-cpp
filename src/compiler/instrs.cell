@@ -24,12 +24,12 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     set_ivar()            |
     set_ivar32()          |
     set_fvar()            = (native_assignment_code(instr.var, instr.value)),
-    set_rc_var()          = (native_code(instr.value, instr.var)),
+    set_rc_var()          = set_rc_var_native_code(instr.value, instr.var),
     init_memb_var()       = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
     reset_memb_var()      = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
     clear_loc_var(v?)     = (native_var_ref_name(v) & " = make_null_obj();"),
     nullify_var(v?)       = (native_var_ref_name(v) & " = NULL;"),
-    terminate()           = (if instr.hard_fail then "internal_fail();" else "soft_fail();"),
+    terminate()           = (if instr.hard_fail then "internal_fail();" else "soft_fail(NULL);"),
     add_ref(v?)           = undefined,
     release(v?)           = undefined,
     print_obj()           = (native_call("print_value", (instr.obj))),
@@ -55,6 +55,11 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     log_runtime_failure() = native_log_runtime_failure_code(instr.is_assert, instr.file, instr.line, instr.text, instr.vars),
     branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
     _                     = auto_instr_native_code(instr, block_id);
+
+
+  String* set_rc_var_native_code(RefObjExpr value, <WriteObjVar, LocOptTagRecVar> var) =
+    mk_record()   = if var :: WriteObjVar then native_mk_record_code(value.fields, var) else undefined,
+    _             = (native_code(value, var));
 
 
   String* write_rec_field_native_code(OptTagRecVar var, Symbol label, AnyTypeExpr value, Bool optional) {
@@ -244,9 +249,9 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     mk_bin_rel_from_arrays()    = native_mk_bin_rel(var, expr.col1, expr.col2, expr.size, expr.is_map),
     mk_tern_rel_from_streams()  = native_call(var, "build_tern_rel",    expr.streams),
     mk_tern_rel()               = native_call(var, "build_tern_rel",    (expr.cols | expr.size)),
-    mk_tern_rel_from_arrays()   = native_call(var, "build_tern_rel",    (expr.col1, expr.col2, expr.col3, value(expr.size) if expr.size != nothing)),
+    mk_tern_rel_from_arrays()   = native_call(var, "build_tern_rel",    (expr.col1, expr.col2, expr.col3, expr.size)),
     mk_tagged_obj()             = native_mk_tagged_obj_code(expr.tag, expr.obj, var),
-    mk_record()                 = native_mk_record_code(expr.fields, var),
+    mk_record()                 = undefined,
     get_seq_slice()             = native_call(var, "get_seq_slice",     (expr.seq, expr.idx_first, expr.len)),
     append_to_seq()             = native_call(var, "append_to_seq",     (expr.seq, expr.new_elem)),
     update_seq_at()             = native_call(var, "update_seq_at",     (expr.seq, expr.idx, expr.value)),
@@ -267,9 +272,9 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   }
 
 
-  String native_mk_bin_rel(WriteObjVar var, ArrayVar col1, ArrayVar col2, Maybe[IntExpr] size, Bool is_map) {
+  String native_mk_bin_rel(WriteObjVar var, ArrayVar col1, ArrayVar col2, Int32Expr size, Bool is_map) {
     ctor_name = if is_map then "build_map" else "build_bin_rel";
-    return native_call(var, ctor_name, (col1, col2, value(size) if size != nothing));
+    return native_call(var, ctor_name, (col1, col2, size));
   }
 
 
@@ -284,7 +289,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
     type, len = item(int_seqs_types_and_lengths, seq_id);
     seq_name = const_int_seq_name(seq_id);
-    return native_var_ref_name(var) & " = build_seq(" & seq_name & ");";
+    return native_var_ref_name(var) & " = build_seq(" & seq_name & ", " & _print_(len) & ");";
   }
 
   ///////////////////////////////////////////////////////////////////////////////
@@ -299,12 +304,19 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   }
 
 
-  String native_mk_record_code([+SymbObj -> AtomicExpr] fields, WriteObjVar var) {
+  String* native_mk_record_code([+SymbObj -> AtomicExpr] fields, WriteObjVar var) {
     ord_labels, index = symbols_sets_info([untag(l) : l _ <- fields], !);
     label_set_name = const_symb_seq_name(index);
     values_strs = (native_expr(fields(object(l), !)) : l <- ord_labels);
-    value_array_expr = "new Obj[] {" & append(values_strs, ", ") & "}";
-    return native_call(var, "build_record", (label_set_name, value_array_expr));
+
+    id = new_unique_id(:unused);
+    var_name = "labels_" & _print_(id);
+
+    code = ("OBJ " & var_name & "[" & _print_(|fields|) & "];");
+    code = code & (var_name & "[" & _print_(i) & "] = " & vs & ";" : vs @ i <- values_strs);
+    code = (code | native_call(var, "build_record", (label_set_name, var_name, |fields|)));
+
+    return code;
   }
 
 

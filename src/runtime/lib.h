@@ -325,6 +325,7 @@ uint32 get_seq_offset(OBJ);
 OBJ* get_seq_buffer_ptr(OBJ);
 
 int64* get_long_array(OBJ seq, int64 *buffer, int32 size);
+OBJ*   get_obj_array(OBJ seq, OBJ* buffer, int32 size);
 
 // Purely physical representation functions
 
@@ -459,6 +460,8 @@ OBJ build_bin_rel(STREAM &strm1, STREAM &strm2);
 
 OBJ build_map(OBJ* keys, OBJ* values, uint32 size);
 OBJ build_map(STREAM &key_stream, STREAM &value_stream);
+
+OBJ build_record(uint16 *labels, OBJ *value, int32 count);
 
 void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel);
 void get_bin_rel_iter_0(BIN_REL_ITER &it, OBJ rel, OBJ arg1);
