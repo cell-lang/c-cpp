@@ -42,7 +42,7 @@ implicit context : NativeContext {
 
   String native_lookup_field_expr(ObjExpr record, SymbObj field, Maybe[LowLevelRepr] repr) {
     if record :: OptTagRecExpr and repr != nothing {
-      expr_str = native_expr(record) & "." & opt_rec_field_name(untag(field));
+      expr_str = native_ptr_expr(record) & "->" & opt_rec_field_name(untag(field));
       return match (value(repr))
         bool    = "make_bool(" & expr_str & ")",
         int     = "make_int(" & expr_str & ")",
@@ -163,20 +163,20 @@ implicit context : NativeContext {
 
 
   String native_rel_obj_contains_expr(ObjExpr rel, Maybe[ObjExpr]+ args) {
-    fn_name = "Contains" & match (args)
-      (just())                    = "",
-      (just(),  just())           = "",
-      (just(),  just(),  just())  = "",
-      (just(),  nothing)          = "1",
-      (nothing, just())           = "2",
-      (just(),  nothing, nothing) = "1",
-      (nothing, just(),  nothing) = "2",
-      (nothing, nothing, just())  = "3",
-      (just(),  just(),  nothing) = "12",
-      (just(),  nothing, just())  = "13",
-      (nothing, just(),  just())  = "23";
+    fn_name = match (args)
+      (just())                    = "has_elem",
+      (just(),  just())           = "has_pair",
+      (just(),  just(),  just())  = "has_triple",
+      (just(),  nothing)          = "bin_rel_contains_1",
+      (nothing, just())           = "bin_rel_contains_2",
+      (just(),  nothing, nothing) = "tern_rel_contains_1",
+      (nothing, just(),  nothing) = "tern_rel_contains_2",
+      (nothing, nothing, just())  = "tern_rel_contains_3",
+      (just(),  just(),  nothing) = "tern_rel_contains_12",
+      (just(),  nothing, just())  = "tern_rel_contains_13",
+      (nothing, just(),  just())  = "tern_rel_contains_23";
 
-    return native_method_call_expr(rel, fn_name, values(args));
+    return native_call_expr(fn_name, (rel) & values(args));
   }
 
 
@@ -200,7 +200,7 @@ implicit context : NativeContext {
     _,                  int_obj(e2?)      = "is_int(" & native_expr(expr1) & ", " & native_expr(e2) & ")",
 
     lookup_field(),     object(true)      = if expr1.repr == just(:bool) and expr1.record :: OptTagRecExpr
-                                              then native_expr(expr1.record) & "." & opt_rec_field_name(untag(expr1.field))
+                                              then native_ptr_expr(expr1.record) & "->" & opt_rec_field_name(untag(expr1.field))
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
 
     get_tag(e?),        object(s?)        = parenthesize("get_tag_idx(" & native_expr(e) & ") == " & symb_idx_name(s), parenthesized),
@@ -275,7 +275,7 @@ implicit context : NativeContext {
     return match (expr)
       at()                = "get_int_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
       lookup_field()      = if expr.repr == just(:int) and expr.record :: OptTagRecExpr
-                              then native_expr(expr.record) & "." & opt_rec_field_name(untag(expr.field))
+                              then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                               else "get_int(" & native_expr(expr) & ")",
       get_inner_obj(e?)   = "get_inner_long(" & native_expr(e) & ")",
       array_at()          = native_get_int_val_array_at_expr(expr.array, expr.size, expr.idx),
@@ -396,7 +396,7 @@ implicit context : NativeContext {
   String native_float_value_expr(ObjExpr expr, Bool parenthesized) =
     at()            = native_expr(expr.seq) & ".GetDoubleAt(" & native_expr(expr.idx) & ")",
     lookup_field()  = if expr.repr == just(:float) and expr.record :: OptTagRecExpr
-                        then native_expr(expr.record) & "." & opt_rec_field_name(untag(expr.field))
+                        then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                         else "get_float(" & native_expr(expr) & ")",
     array_at()      = if expr.array.repr == :float
                         then "get_float_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
@@ -418,10 +418,15 @@ implicit context : NativeContext {
   String native_expr(OptTagRecExpr expr) =
     opt_tag_rec_var()     |
     opt_tag_rec_fn_arg()  = native_var_name(expr),
-    cast_opt_tag_rec()    = { type_name = opt_tag_rec_name(expr.tag, expr.index);
-                              expr_str = native_expr(expr.expr, true);
-                              return "((" & type_name & ") " & expr_str & ")";
-                            };
+    cast_opt_tag_rec()    = native_expr(expr.expr);
+
+
+  String native_ptr_expr(OptTagRecExpr expr) {
+    type_name = opt_tag_rec_name(expr.tag, expr.index);
+    expr_str = native_expr(expr);
+    return "((" & type_name & " *) get_void_ptr(" & expr_str & "))";
+  }
+
 
   String native_expr(
     <ElemVar, VecVar, ArrayVar, ItVar, StreamVar, AnyClsVar, AnyTableVar, AnyValueStoreId, AnyAutoVar, AnyDBVar> var

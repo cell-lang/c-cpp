@@ -37,8 +37,16 @@ implicit context : NativeContext {
       <+>     = printed(var.id) & "_Vr_" & printed(var.tag),
       <*..*>  = "r" & printed(var.id) & "_" & printed(var.index) & "_" & printed(var.tag);
 
-
   String native_var_name(OptTagRecFnArg var) = "a" & printed(var.id);
+
+
+  String native_ptr_var_name(LocOptTagRecVar var) =
+    match (var.id)
+      <+>     = printed(var.id) & "_Vrp_" & printed(var.tag),
+      <*..*>  = "rp" & printed(var.id) & "_" & printed(var.index) & "_" & printed(var.tag);
+
+  String native_ptr_var_name(OptTagRecFnArg var) = "ap" & printed(var.id);
+
 
   String opt_tag_rec_name(Symbol tag, Nat idx) {
     idx_str = if idx != 0 then "_" & printed(idx) else "";
@@ -134,7 +142,7 @@ implicit context : NativeContext {
                                       },
       fn_arg(<*..*> n?)             = "a" & printed(n),
       impl_arg(<+> a?)              = prefix & _print_(a) & "_V",
-      capt_var(<*..*> n?)           = "capt_var_"  & printed(n),
+      capt_var(<*..*> n?)           = "capt_vars["  & printed(n) & "]",
       memb_var(<+> a?)              = prefix & _print_(a) & "_M",
       signal_var(a?)                = prefix & _print_(a) & "_S",
       qual_signal_var()             = native_var_name(var.auto_var, true) & "." & native_var_name(var.memb_var, false),
@@ -372,7 +380,7 @@ implicit context : NativeContext {
   String native_var_type(BoolVar)           = "bool";
   String native_var_type(FloatVar)          = "double";
 
-  String native_var_type(OptTagRecVar var) = opt_tag_rec_name(var.tag, var.index);
+  String native_var_type(OptTagRecVar var) = qualify("OBJ"); // opt_tag_rec_name(var.tag, var.index);
 
   String native_var_type(SeqItVar v)     = qualify("SEQ_ITER");
   String native_var_type(SetItVar v)     = qualify("SET_ITER");
@@ -402,7 +410,11 @@ implicit context : NativeContext {
     array()   = undefined;
 
 
-  String native_type(OptTagRecRepr repr) = opt_tag_rec_name(repr.tag, repr.index);
+  String native_type(OptTagRecRepr repr) = qualify("OBJ"); // opt_tag_rec_name(repr.tag, repr.index);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_ptr_type(OptTagRecVar var) = opt_tag_rec_name(var.tag, var.index);
 
   //////////////////////////////////////////////////////////////////////////////
 

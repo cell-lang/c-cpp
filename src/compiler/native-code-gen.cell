@@ -46,7 +46,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       native_opt_type_decls(context = :core), "", "",
       proc_defs, "", "",
       custom_parser, "", "",
-      main_method_if_requested, "", ""
+      main_fn_if_req, "", ""
     );
 
 
@@ -91,7 +91,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       return (
         "struct CLS {",
         ( "union {",
-          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, ENV &env);"
+          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, void *, ENV &env);"
             : a @ i <- isort(arities)
           ),
           "};",
@@ -124,9 +124,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     );
 
 
-    Text main_method_if_requested {
+    Text main_fn_if_req {
       has_main = (p <- prg.procs : p.name == proc_symbol(:main));
-      return if has_main then main_method(debug_mode) else ();
+      return if has_main then main_fn(debug_mode) else ();
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -346,13 +346,16 @@ implicit context : NativeContext {
     new_vec_vars = [vvar(id, nz_nat(max([v.size : v <- vs]))) : id vs <- vec_vars_by_id];
     vec_vars_decls = (var_decl(v) : v <- isort(new_vec_vars));
 
+    opt_tag_rec_vars = isort([v : v <- scalar_vars, v :: OptTagRecVar]);
+    ptr_vars_decls = (native_ptr_type(v) & " *" & native_ptr_var_name(v) & ";" : v <- opt_tag_rec_vars);
+
     assert {
       vec_var_ids  = [v.id : v <- vector_vars];
       ref_new_vec_vars = [vvar(id, nz_nat(max(nonempty([v.size : v <- vector_vars, v.id == id])))) : id <- vec_var_ids];
       return new_vec_vars == ref_new_vec_vars;
     };
 
-    return scalar_vars_decls & vec_vars_decls;
+    return scalar_vars_decls & ptr_vars_decls & vec_vars_decls;
   }
 }
 
@@ -363,7 +366,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
   String* native_code(ObjProcDef* obj_proc_defs, BoolProcDef* bool_proc_defs, LambdaExpr* lambda_exprs, ReactBlock* react_blocks, StaticBlock* static_blocks, Int+* int_seqs) {
     type_checking_fns_decls = join((native_code(d, true) : d <- bool_proc_defs)) & 4 * ("");
     type_checking_fns = join((native_code(d, false) & ("", "") : d <- bool_proc_defs)) & 4 * ("");
-    closures = join((gen_lambda(d, i) & ("", "") : d @ i <- lambda_exprs)) & 4 * ("");
+    cls_decls = join((gen_lambda(d, i, true) : d @ i <- lambda_exprs)) & 4 * ("");
+    closures = join((gen_lambda(d, i, false) & ("", "") : d @ i <- lambda_exprs)) & 4 * ("");
+    fns_decls = join((native_code(d, true) : d <- obj_proc_defs)) & 4 * ("");
     functions = join((native_code(d, false) & ("", "") : d <- obj_proc_defs));
 
     static_blocks_code = join((("", "") & native_static_block_decl(b) : b <- static_blocks));
@@ -371,6 +376,8 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     return join((
       type_checking_fns_decls,
+      cls_decls,
+      fns_decls,
       type_checking_fns,
       closures,
       functions,
@@ -456,7 +463,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     String* gen_args_list(ObjProcDef pd) {
       args = (native_var_type(v) & " " & native_var_decl_name(v) : v <- pd.args);
-      cls_args = ("Lambda " & native_var_decl_name(a.var) : a <- pd.cls_args);
+      cls_args = ("CLS &" & native_var_decl_name(a.var) : a <- pd.cls_args);
       rel_auto_args = join((
         ( native_name(a.type) & " " & native_var_decl_name(a.var),
           native_updater_name(a.type) & " " & updater_var_decl_name(a.var)
@@ -464,7 +471,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       ));
       react_auto_args = (native_name(a.type) & " " & native_var_decl_name(a.var) : a <- pd.react_auto_args);
       args_list = args & cls_args & rel_auto_args & react_auto_args;
-      args_list = (args_list | "Env env") if not pd.name :: ConvFnId;
+      args_list = (args_list | "ENV env") if not pd.name :: ConvFnId;
       return args_list;
     }
 
@@ -472,28 +479,19 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
   }
 
 
-  String* gen_lambda(LambdaExpr lambda, Nat id) {
+  String* gen_lambda(LambdaExpr lambda, Nat id, Bool decl_only) {
     body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
     vars_decls = gen_vars_decls(body, []);
     comp_body = native_code(body, nothing);
     full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
 
-    code = (
-      "class Lambda" & printed(id) & " : Lambda {",
-      "  public " & native_name(value(lambda.capt_auto)) & " capt_auto;" if lambda.capt_auto != nothing
-    );
-    for i < |lambda.capt_vars|
-      code = (code | "  public OBJ " & native_var_decl_name(capt_var(i)) & ";");
-    for i < |lambda.capt_cls_vars|
-      code = (code | "  public Lambda " & native_var_name(capt_cls_var(i)) & ";");
+    std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
+    extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "void *capt_auto", "ENV &env"); ## BAD
+    signature = "OBJ lambda_" & printed(id) & "(" & append(std_args & extra_args, ", ") & ")";
 
-    return (code |
-      "",
-      "  public override OBJ Invoke(" & append(("OBJ a" & printed(i) & ", " : i < lambda.cls.arity)) & "Env env) {"
-    ) & indent_lines(indent_lines(full_body)) &
-    ( "  }",
-      "}"
-    );
+    return (signature & ";") if decl_only;
+
+    return ({signature & " {"}) & indent_lines(full_body) & ("}");
   }
 }
 
@@ -510,6 +508,9 @@ implicit context : NativeContext {
   String native_code(NonStringEncodable enc) = native_expr(enc);
   String native_code(String str) = str;
 
+
+  String native_call_expr(String method_name, Encodable* args) =
+    method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
 
   String native_method_call_expr(Encodable target, String method_name, Encodable* args) =
     native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
@@ -536,51 +537,97 @@ implicit context : NativeContext {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-String* custom_parser = (
-  "",
-  "",
-  "public sealed class Parser : Cell.Runtime.Parser {",
-  "  public Parser(TokenStream tokens) : base(tokens) {",
-  "",
-  "  }",
-  "",
-  " protected override OBJ CreateTaggedObj(ushort tagId, OBJ obj) {",
-  "    return ConvertGenericTaggedValue(SymbObj.Get(tagId), obj);",
-  "  }",
-  "}",
-  "",
-  "",
-  "public static OBJ Parse(OBJ text) {",
-  "  return Parse(new System.IO.StringReader(text.GetString()));",
-  "}",
-  "",
-  "",
-  "public static OBJ Parse(System.IO.TextReader reader) {",
-  "  try {",
-  "    TokenStream tokens = new Tokenizer(new CharStream(reader));",
-  "    Parser parser = new Parser(tokens);",
-  "    OBJ obj = parser.ParseObj();",
-  "    parser.CheckEof();",
-  "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
-  "  }",
-  "  catch (Cell.Runtime.ParsingException e) {",
-  "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(new int[] {e.line, e.col}));",
-  "  }",
-  "}"
-);
+String* custom_parser = ();
+
+// String* custom_parser = (
+//   "",
+//   "",
+//   "public sealed class Parser : Cell.Runtime.Parser {",
+//   "  public Parser(TokenStream tokens) : base(tokens) {",
+//   "",
+//   "  }",
+//   "",
+//   " protected override OBJ CreateTaggedObj(ushort tagId, OBJ obj) {",
+//   "    return ConvertGenericTaggedValue(SymbObj.Get(tagId), obj);",
+//   "  }",
+//   "}",
+//   "",
+//   "",
+//   "public static OBJ Parse(OBJ text) {",
+//   "  return Parse(new System.IO.StringReader(text.GetString()));",
+//   "}",
+//   "",
+//   "",
+//   "public static OBJ Parse(System.IO.TextReader reader) {",
+//   "  try {",
+//   "    TokenStream tokens = new Tokenizer(new CharStream(reader));",
+//   "    Parser parser = new Parser(tokens);",
+//   "    OBJ obj = parser.ParseObj();",
+//   "    parser.CheckEof();",
+//   "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
+//   "  }",
+//   "  catch (Cell.Runtime.ParsingException e) {",
+//   "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(new int[] {e.line, e.col}));",
+//   "  }",
+//   "}"
+// );
 
 
-String* main_method(Bool debug_mode) = (
+// String* main_method(Bool debug_mode) = (
+//   "",
+//   "",
+//   "public static int Main(string[] args) {",
+//   "  OBJ[] cellArgs = new OBJ[args.Length];",
+//   "  for (int i=0 ; i < args.Length ; i++)",
+//   "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
+//   "  ENV env;",
+//   "  Debug.debugMode = true;" if debug_mode,
+//   "  OBJ res = Main_P(Builder.CreateSeq(cellArgs), env);",
+//   "  Debug.OnProcessEnd();",
+//   "  return res.IsInt() ? (int) res.GetLong() : 0;",
+//   "}"
+// );
+
+String* main_fn(Bool debug_mode) = (
+  // "",
+  // "#include <stdio.h>",
   "",
   "",
-  "public static int Main(string[] args) {",
-  "  OBJ[] cellArgs = new OBJ[args.Length];",
-  "  for (int i=0 ; i < args.Length ; i++)",
-  "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
-  "  Env env = new Env();",
-  "  Debug.debugMode = true;" if debug_mode,
-  "  OBJ res = Main_P(Builder.CreateSeq(cellArgs), env);",
-  "  Debug.OnProcessEnd();",
-  "  return res.IsInt() ? (int) res.GetLong() : 0;",
+  "int main(int argc, char **argv) {",
+  "  OBJ args = make_empty_seq();",
+  "  if (argc > 1) {",
+  "    OBJ *arg_buff = new OBJ[argc-1];",
+  "    for (int i=0 ; i < argc-1 ; i++)",
+  "      arg_buff[i] = str_to_obj(argv[i+1]);",
+  "    args = build_seq(arg_buff, argc-1);",
+  "  }",
+  "",
+  "  ENV env;",
+  "  memset(&env, 0, sizeof(ENV));",
+  "",
+  "  OBJ res = Main_P(args, env);",
+  "",
+  // "  release(args);",
+  // "  release(res);",
+  // "",
+  // "  release_all_cached_objs();",
+  // "",
+  // "#ifndef NDEBUG",
+  // "  if (get_live_objs_count() != 0) {",
+  // "    fprintf(stderr, \"\\nMEMORY LEAK DETECTED!\\n\");",
+  // "",
+  // "    fprintf(stderr, \"\\nNumber of live objects: %d\\n\", get_live_objs_count());",
+  // "    fprintf(stderr, \"Max number of live objects: %d\\n\", get_max_live_objs_count());",
+  // "    fprintf(stderr, \"Total number of allocated objects: %d\\n\", get_total_objs_count());",
+  // "",
+  // "    // fprintf(stderr, \"\\nLive memory usage: %d\\n\", get_live_mem_usage());",
+  // "    // fprintf(stderr, \"Max live memory usage: %d\\n\", get_max_live_mem_usage());",
+  // "    // fprintf(stderr, \"Total memory requested: %d\\n\", get_total_mem_requested());",
+  // "",
+  // "    // print_all_live_objs();",
+  // "  }",
+  // "#endif",
+  // "",
+  "  return is_int(res) ? get_int_val(res) : 0;",
   "}"
 );

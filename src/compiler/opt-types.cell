@@ -68,7 +68,7 @@ implicit prg : CompiledPrg, context : <core> {
 
 implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Symbol], reprs : [Symbol -> LowLevelRepr] {
   String* finish_init_def(String struct_name, Symbol* ord_mand_labels, Symbol* ord_opt_labels, Nat idx) {
-    code = ("void " & struct_name & "_finish_init(" & struct_name & " *self) {");
+    code = ("OBJ " & struct_name & "_finish_init(" & struct_name & " *self) {");
 
     // if ord_opt_labels != () {
     //   code = (code | "  ushort mask = 0;");

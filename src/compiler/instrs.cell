@@ -11,7 +11,9 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     array_append()        = array_append_native_code(instr.array_var, instr.size_var, instr.value),
     array_set_var()       = (native_assignment_code(instr.target, instr.source)),
     write_rec_field()     = write_rec_field_native_code(instr.var, instr.label, instr.value, instr.optional),
-    finish_init()         = (native_call("finish_init", (native_expr(instr.var)))),
+    finish_init()         = { fn_name = opt_tag_rec_name(instr.var.tag, instr.var.index) & "_finish_init";
+                              return (native_call(instr.var, fn_name, (native_ptr_var_name(instr.var))));
+                            },
     get_seq_iter()        = (native_call("get_seq_iter", (instr.var, instr.src))),
     get_set_iter()        = (native_call("get_set_iter", (instr.var, instr.src))),
     get_bin_rel_iter()    = (native_get_bin_rel_iter_code(instr.var, instr.src, instr.args)),
@@ -56,7 +58,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
 
   String* write_rec_field_native_code(OptTagRecVar var, Symbol label, AnyTypeExpr value, Bool optional) {
-    path = native_expr(var) & ".";
+    path = native_ptr_var_name(var) & "->";
     has_set_test_var = optional and not is_nullable(low_level_repr(value));
 
     return (
@@ -203,7 +205,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   ## TERMIMATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
   String* native_symb_switch_code(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, Maybe[Nat] block_id) {
     value_str = match (value)
-      get_tag(tag_obj?)   = "get_tag_id(" & native_expr(tag_obj) & ")",
+      get_tag(tag_obj?)   = "get_tag_idx(" & native_expr(tag_obj) & ")",
       _                   = "get_symb_idx(" & native_expr(value) & ")";
 
     body_code = (
@@ -268,7 +270,11 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
 
   String native_code(RefObjExpr expr, OptTagRecVar var) =
-    inst_opt_tag_rec() = native_new_call(var, opt_tag_rec_name(expr.tag, expr.repr_idx), ());
+    inst_opt_tag_rec()  = { ptr_var_name = native_ptr_var_name(var);
+                            rec_type_name = opt_tag_rec_name(expr.tag, expr.repr_idx);
+                            return ptr_var_name & " = new " & rec_type_name & ";";
+                          },
+    _                   = undefined;
 
 
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
@@ -336,17 +342,42 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       var = cls_var(id);
       name = native_expr(var);
 
-      type = "Lambda" & printed(index_first(lambda, sorted_lambda_exprs));
-      code = (type & " " & name & " = new " & type & "();");
+      fn_name = "lambda_" & printed(index_first(lambda, sorted_lambda_exprs));
+      code = (
+        "CLS " & name & ";",
+        name & ".fn_ptr_" & _print_(lambda.cls.arity) & " = " & fn_name & ";"
+      );
+
+      if lambda.capt_vars != () {
+        if |lambda.capt_vars| != 1 {
+          var_name = "capt_vars_" & printed(id);
+          code = (code | "OBJ " & var_name & "[" & printed(|lambda.capt_vars|) & "];");
+          for v @ i <- lambda.capt_vars
+            code = (code | var_name & "[" & printed(i) & "] = " & native_expr(v) & ";");
+          code = (code | name & ".data = " & var_name & ";");
+        }
+        else
+          code = (code | name & ".data = &" & native_expr(only(lambda.capt_vars)) & ";");
+      }
+      else
+        code = (code | name & ".data = 0;");
+
+      if lambda.capt_cls_vars != () {
+        if |lambda.capt_cls_vars| != 1 {
+          var_name = "capt_cls_" & printed(id);
+          code = (code | "CLS " & var_name & "[" & printed(|lambda.capt_cls_vars|) & "];");
+          for v @ i <- lambda.capt_cls_vars
+            code = (code | var_name & "[" & printed(i) & "] = " & native_expr(v) & ";");
+          code = (code | name & ".cls = " & var_name & ";");
+        }
+        else
+          code = (code | name & ".cls = &" & native_expr(only(lambda.capt_cls_vars)) & ";");
+      }
+      else
+        code = (code | name & ".cls = 0;");
 
       if lambda.capt_auto != nothing
-        code = (code | name & ".capt_auto = this;");
-
-      for v @ i <- lambda.capt_vars
-        code = (code | name & "." & native_var_ref_name(capt_var(i)) & " = " & native_expr(v) & ";");
-
-      for v @ i <- lambda.capt_cls_vars
-        code = (code | name & "." & native_var_ref_name(capt_cls_var(i)) & " = " & native_expr(v) & ";");
+        code = (code | name & ".capt_auto = ????;");
 
       return (code, var);
     }

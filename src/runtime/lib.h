@@ -335,6 +335,7 @@ SET_OBJ*      get_set_ptr(OBJ);
 BIN_REL_OBJ*  get_bin_rel_ptr(OBJ);
 TERN_REL_OBJ* get_tern_rel_ptr(OBJ);
 TAG_OBJ*      get_tag_obj_ptr(OBJ);
+void*         get_void_ptr(OBJ);
 
 MEM_LAYOUT get_mem_layout(OBJ);
 
@@ -362,6 +363,15 @@ bool has_key(OBJ rel, OBJ arg1);
 bool has_field(OBJ rec, uint16 field_symb_idx);
 bool has_pair(OBJ rel, OBJ arg1, OBJ arg2);
 bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3);
+bool bin_rel_contains_1(OBJ rel, OBJ arg1);
+bool bin_rel_contains_2(OBJ rel, OBJ arg2);
+bool tern_rel_contains_1(OBJ rel, OBJ arg1);
+bool tern_rel_contains_2(OBJ rel, OBJ arg2);
+bool tern_rel_contains_3(OBJ rel, OBJ arg3);
+bool tern_rel_contains_12(OBJ rel, OBJ arg1, OBJ arg2);
+bool tern_rel_contains_13(OBJ rel, OBJ arg1, OBJ arg3);
+bool tern_rel_contains_23(OBJ rel, OBJ arg2, OBJ arg3);
+
 
 int64 get_int_val(OBJ);
 uint32 get_size(OBJ set);
@@ -373,6 +383,11 @@ int64 unique_nat();         // Non-deterministic
 
 OBJ obj_neg(OBJ);
 OBJ at(OBJ seq, int64 idx);
+
+//## IS THIS THE RIGHT PLACE?
+int64  get_int_at(OBJ seq, int64 idx);
+double get_float_at(OBJ seq, int64 idx);
+
 OBJ get_tag(OBJ);
 OBJ get_curr_obj(SET_ITER &it);
 OBJ get_curr_obj(SEQ_ITER &it);
@@ -395,6 +410,7 @@ OBJ build_seq(STREAM &s);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ build_tagged_obj(OBJ tag, OBJ obj);         // obj must be already reference-counted
+OBJ build_tagged_obj(uint16 tag, OBJ obj);
 // OBJ make_float(double val); // Already defined in mem_utils.cpp
 OBJ neg_float(OBJ val);
 OBJ add_floats(OBJ val1, OBJ val2);
