@@ -280,7 +280,7 @@ implicit context : NativeContext {
       get_inner_obj(e?)   = "get_inner_long(" & native_expr(e) & ")",
       array_at()          = native_get_int_val_array_at_expr(expr.array, expr.size, expr.idx),
       column_lookup()     = if expr.repr == :int
-                              then native_var_ref_name(expr.var) & ".Lookup(" & native_expr(expr.key) & ")"
+                              then "int_col_lookup(" & native_var_ref_name(expr.var) & ", " & native_expr(expr.key) & ")"
                               else "get_int(" & native_expr(expr) & ")",
       _                   = "get_int(" & native_expr(expr) & ")";
 
@@ -292,11 +292,11 @@ implicit context : NativeContext {
       args_str  = "(" & array_str & ", " & size_str & ", " & idx_str & ")";
 
       return match (array.repr)
-        // int8    |
-        // int16   |
-        // int32   |
-        // int     = undefined, // array_class & ".LongAt" & args_str,
-        // nat8    = undefined, // array_class & ".UnsignedAt" & args_str,
+        int8    |
+        nat8    |
+        int16   |
+        int32   |
+        int     = "int_array_at" & args_str,
         _       = "get_int(array_at" & args_str & ")";
     }
   }
@@ -399,10 +399,10 @@ implicit context : NativeContext {
                         then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                         else "get_float(" & native_expr(expr) & ")",
     array_at()      = if expr.array.repr == :float
-                        then "get_float_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
+                        then "float_array_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
                         else "get_float(" & native_expr(expr) & ")",
     column_lookup() = if expr.repr == :float
-                        then native_var_ref_name(expr.var) & ".Lookup(" & native_expr(expr.key) & ")"
+                        then "float_col_lookup(" & native_var_ref_name(expr.var) & ", " & native_expr(expr.key) & ")"
                         else "get_float(" & native_expr(expr) & ")",
     _               = "get_float(" & native_expr(expr) & ")";
 

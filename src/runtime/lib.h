@@ -14,21 +14,22 @@ typedef unsigned long long  uint64;
 
 enum OBJ_TYPE {
   // Always inline
-  TYPE_BLANK_OBJ  = 0,
-  TYPE_NULL_OBJ   = 1,
-  TYPE_SYMBOL     = 2,
-  TYPE_INTEGER    = 3,
-  TYPE_FLOAT      = 4,
+  TYPE_BLANK_OBJ    = 0,
+  TYPE_NULL_OBJ     = 1,
+  TYPE_SYMBOL       = 2,
+  TYPE_INTEGER      = 3,
+  TYPE_FLOAT        = 4,
   // Inline if empty, references otherwise
-  TYPE_SEQUENCE   = 5,
-  TYPE_SET        = 6,
-  TYPE_BIN_REL    = 7,
-  TYPE_TERN_REL   = 8,
+  TYPE_SEQUENCE     = 5,
+  TYPE_SET          = 6,
+  TYPE_BIN_REL      = 7,
+  TYPE_TERN_REL     = 8,
   // Always references
-  TYPE_TAG_OBJ    = 9,
-  TYPE_SLICE      = 10,
-  TYPE_MAP        = 11,
-  TYPE_LOG_MAP    = 12
+  TYPE_TAG_OBJ      = 9,
+  TYPE_SLICE        = 10,
+  TYPE_MAP          = 11,
+  TYPE_LOG_MAP      = 12,
+  TYPE_OPT_TAG_REC  = 13
 };
 
 // Heap object can never be of the following types: TYPE_SLICE, TYPE_LOG_MAP
@@ -387,10 +388,6 @@ int64 unique_nat();         // Non-deterministic
 OBJ obj_neg(OBJ);
 OBJ at(OBJ seq, int64 idx);
 
-//## IS THIS THE RIGHT PLACE?
-int64  get_int_at(OBJ seq, int64 idx);
-double get_float_at(OBJ seq, int64 idx);
-
 OBJ get_tag(OBJ);
 OBJ get_curr_obj(SET_ITER &it);
 OBJ get_curr_obj(SEQ_ITER &it);
@@ -601,8 +598,26 @@ int32 as_int(int64);
 OBJ *array_append(OBJ*, int32, OBJ);
 int8 *array_append(int8*, int32, int8);
 
-OBJ array_at(OBJ*, int32, int32);
-OBJ array_at(bool*, int32, int32);
-OBJ array_at(int64 *array, int32, int64);
+OBJ array_at(OBJ*,    int32, int32);
+OBJ array_at(bool*,   int32, int32);
+OBJ array_at(int64*,  int32, int32);
+OBJ array_at(int32*,  int32, int32);
+OBJ array_at(uint32*, int32, int32);
+OBJ array_at(int16*,  int32, int32);
+OBJ array_at(uint16*, int32, int32);
+OBJ array_at(int8*,   int32, int32);
+OBJ array_at(uint8*,  int32, int32);
+
+bool bool_array_at(bool*, int32, int32);
+double double_array_at(double*, int32, int32);
+
+int64 int_array_at(int64*,  int32, int32);
+int64 int_array_at(int32*,  int32, int32);
+int64 int_array_at(uint32*, int32, int32);
+int64 int_array_at(int16*,  int32, int32);
+int64 int_array_at(uint16*, int32, int32);
+int64 int_array_at(int8*,   int32, int32);
+int64 int_array_at(uint8*,  int32, int32);
 
 double get_float_at(OBJ, int64);
+int64  get_int_at(OBJ, int64);
