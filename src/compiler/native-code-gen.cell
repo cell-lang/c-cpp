@@ -73,11 +73,13 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
       let context = :core
         env_decl = (
-          "typedef struct {",
+          "struct ENV_ {",
           ("OBJ " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
           ("" if all_impl_args != [] and semi_consts_cache_vars != ()),
           ("OBJ " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
-          "} ENV;"
+          "};",
+          "",
+          "typedef struct ENV_ ENV;"
         );
 
       return env_decl;
@@ -442,8 +444,8 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
         "static " & ret_type_name & " " & cache_var_name & ";" if is_real_const,
         "static bool " & set_flag_name & ";" if needs_set_flag,
         "" if is_real_const,
-        visibility(pd) & "static " & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
-        "  if (" & cache_var_name & " == null)" if not needs_set_flag,
+        visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
+        "  if (is_null_obj(" & cache_var_name & "))" if not needs_set_flag,
         "  if (!" & set_flag_name & ") {" if needs_set_flag,
         "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
         "    " & set_flag_name & " = true;" if needs_set_flag,
@@ -479,7 +481,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       ));
       react_auto_args = (native_name(a.type) & " " & native_var_decl_name(a.var) : a <- pd.react_auto_args);
       args_list = args & cls_args & rel_auto_args & react_auto_args;
-      args_list = (args_list | "ENV env") if not pd.name :: ConvFnId;
+      args_list = (args_list | "ENV &env") if not pd.name :: ConvFnId;
       return args_list;
     }
 

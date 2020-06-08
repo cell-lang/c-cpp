@@ -85,9 +85,9 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     value_str = native_expr(value);
     value_str = match (var.repr)
       int8    |
-      nat8    = "Array.AsByte(" & value_str & ")",
-      int16   = "Array.AsShort(" & value_str & ")",
-      int32   = "Array.AsInt(" & value_str & ")",
+      nat8    = "as_byte(" & value_str & ")",
+      int16   = "as_short(" & value_str & ")",
+      int32   = "as_int(" & value_str & ")",
       _       = value_str;
     return (native_var_name(var) & "[" & idx_str & "] = " & value_str & ";");
 
@@ -96,7 +96,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
 
   String* array_append_native_code(ArrayVar array_var, Int32Var size_var, AnyTypeExpr value) =
-    (native_call(array_var, "Array.Append", (array_var, native_var_ref_name(size_var) & "++", value)));
+    (native_call(array_var, "array_append", (array_var, native_var_ref_name(size_var) & "++", value)));
 
 
   String native_cls_call_code(AnyClsVar cls_var, WriteObjVar var, AtomicExpr+ args) {
@@ -184,7 +184,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     code = ();
     for fn_id <- isort(lookup(cached_semi_consts_by_impl_arg, arg, [])) {
       cache_var_name = memo_var_name(fn_id);
-      code = (code | "env." & cache_var_name & " = null;");
+      code = (code | "env." & cache_var_name & " = make_null_obj();"); ## make_blank_obj()?
     }
     return code;
   }
@@ -365,15 +365,16 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       );
 
       if lambda.capt_vars != () {
-        if |lambda.capt_vars| != 1 {
+        if |lambda.capt_vars| == 1 and only(lambda.capt_vars) :: ObjVar {
+          code = (code | name & ".capt_vars = &" & native_expr(only(lambda.capt_vars)) & ";");
+        }
+        else {
           var_name = "capt_vars_" & printed(id);
           code = (code | "OBJ " & var_name & "[" & printed(|lambda.capt_vars|) & "];");
           for v @ i <- lambda.capt_vars
             code = (code | var_name & "[" & printed(i) & "] = " & native_expr(v) & ";");
           code = (code | name & ".capt_vars = " & var_name & ";");
         }
-        else
-          code = (code | name & ".capt_vars = &" & native_expr(only(lambda.capt_vars)) & ";");
       }
       else
         code = (code | name & ".capt_vars = 0;");
@@ -434,20 +435,18 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
   String* native_log_runtime_failure_code(Bool is_assert, String file, NzNat line, Maybe[String] text, (<StdVar, ImplArg>, ObjExpr)* vars) {
     vars_dump = (
-      "Debug.DumpVar(" & printed(user_repr(v)) & ", " & native_code(e) & ");"
+      "dump_var(" & printed(user_repr(v)) & ", " & native_code(e) & ");"
       : v, e <- vars
     );
     filename_str = _print_(file); ## WHAT HAPPENS WHEN WE HAVE NON-ASCII CHARACTERS?
     if is_assert {
-      text_arg = if text != nothing then _print_(value(text)) else "null";
-      msg_print_instr = native_call("Debug.PrintAssertionFailedMsg", (filename_str, line, text_arg));
+      text_arg = if text != nothing then _print_(value(text)) else "NULL";
+      msg_print_instr = native_call("print_assertion_failed_msg", (filename_str, line, text_arg));
       return (msg_print_instr) & vars_dump;
     }
     else {
-      msg_print_instr = native_call("Debug.PrintFailReachedMsg", (filename_str, line));
-      return ("if (Debug.debugMode) {", "  " & msg_print_instr) &
-             indent_lines(vars_dump) &
-             ("}");
+      msg_print_instr = native_call("print_fail_reached_msg", (filename_str, line));
+      return (msg_print_instr) & vars_dump;
     }
   }
 }

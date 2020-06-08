@@ -2,12 +2,10 @@
 #include "os-interface.h"
 
 
-namespace generated {
-  struct ENV;
-}
+struct ENV_;
 
 
-OBJ FileRead_P(OBJ filename, generated::ENV &) {
+OBJ FileRead_P(OBJ filename, struct ENV_ &) {
   char *fname = obj_to_str(filename);
   int size;
   char *data = file_read(fname, size);
@@ -29,7 +27,7 @@ OBJ FileRead_P(OBJ filename, generated::ENV &) {
 }
 
 
-OBJ FileWrite_P(OBJ filename, OBJ data, generated::ENV &) {
+OBJ FileWrite_P(OBJ filename, OBJ data, struct ENV_ &) {
   char *fname = obj_to_str(filename);
   uint32 size;
   char *buffer = obj_to_byte_array(data, size);
@@ -47,7 +45,7 @@ OBJ FileWrite_P(OBJ filename, OBJ data, generated::ENV &) {
 }
 
 
-OBJ Print_P(OBJ str_obj, generated::ENV &env) {
+OBJ Print_P(OBJ str_obj, struct ENV_ &env) {
   char *str = obj_to_str(str_obj);
   fputs(str, stdout);
   fflush(stdout);
@@ -56,7 +54,7 @@ OBJ Print_P(OBJ str_obj, generated::ENV &env) {
 }
 
 
-OBJ GetChar_P(generated::ENV &env) {
+OBJ GetChar_P(struct ENV_ &env) {
   int ch = getchar();
   if (ch == EOF)
     return make_symb(symb_idx_nothing);

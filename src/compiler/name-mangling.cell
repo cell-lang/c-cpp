@@ -444,12 +444,7 @@ implicit context : NativeContext {
 
     String native_fn_name(ProcSymbol proc_symb) {
       bare_symb = match (proc_symb) proc_symbol(s?) = s;
-      name = upper_camel_case(bare_symb) & "_P";
-      if proc_symb == proc_symbol(:error) or proc_symb == proc_symbol(:save)
-        name = "AutoProcs." & name;
-      else if builtin_procs_map(proc_symb, _)
-        name = "Procs." & name;
-      return name;
+      return upper_camel_case(bare_symb) & "_P";
     }
 
     String native_fn_name(ConvFnId fn_id) =

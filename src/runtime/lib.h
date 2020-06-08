@@ -411,6 +411,14 @@ void append(STREAM &s, OBJ obj);                // obj must be already reference
 OBJ build_seq(OBJ* elems, uint32 length);       // Objects in elems must be already reference-counted
 OBJ build_seq(STREAM &s);
 OBJ build_seq(int64* array, int32 size);
+OBJ build_seq(uint64* array, int32 size);
+OBJ build_seq(int32* array, int32 size);
+OBJ build_seq(uint32* array, int32 size);
+OBJ build_seq(int16* array, int32 size);
+OBJ build_seq(uint16* array, int32 size);
+OBJ build_seq(int8* array, int32 size);
+OBJ build_seq(uint8* array, int32 size);
+OBJ build_seq(bool* array, int32 size);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ build_tagged_obj(OBJ tag, OBJ obj);         // obj must be already reference-counted
@@ -575,3 +583,26 @@ uint64 get_tick_count();   // Impure
 ////////////////////////////////// hashing.cpp /////////////////////////////////
 
 uint32 compute_hash_code(OBJ obj);
+
+///////////////////////////// not implemented yet //////////////////////////////
+
+double float_pow(double, double);
+double float_sqrt(double);
+int32 cast_int32(int64);
+bool *get_bool_array(OBJ, bool*, int32);
+OBJ set_insert(OBJ, OBJ);
+OBJ set_key_value(OBJ, OBJ, OBJ);
+OBJ tag_int(uint16, int64);
+
+uint8 as_byte(int64);
+int16 as_short(int64);
+int32 as_int(int64);
+
+OBJ *array_append(OBJ*, int32, OBJ);
+int8 *array_append(int8*, int32, int8);
+
+OBJ array_at(OBJ*, int32, int32);
+OBJ array_at(bool*, int32, int32);
+OBJ array_at(int64 *array, int32, int64);
+
+double get_float_at(OBJ, int64);

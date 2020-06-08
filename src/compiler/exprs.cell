@@ -297,7 +297,7 @@ implicit context : NativeContext {
         // int32   |
         // int     = undefined, // array_class & ".LongAt" & args_str,
         // nat8    = undefined, // array_class & ".UnsignedAt" & args_str,
-        _       = "get_int(at" & args_str & ")";
+        _       = "get_int(array_at" & args_str & ")";
     }
   }
 
@@ -394,7 +394,7 @@ implicit context : NativeContext {
 
 
   String native_float_value_expr(ObjExpr expr, Bool parenthesized) =
-    at()            = native_expr(expr.seq) & ".GetDoubleAt(" & native_expr(expr.idx) & ")",
+    at()            = "get_float_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
     lookup_field()  = if expr.repr == just(:float) and expr.record :: OptTagRecExpr
                         then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                         else "get_float(" & native_expr(expr) & ")",
