@@ -4,3 +4,5 @@ main.cpp
 src/compiler/main-cg.cell
 src/external/
 code.txt
+tiny-code.txt
+generated.cpp
