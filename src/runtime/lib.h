@@ -363,7 +363,6 @@ bool has_field(OBJ rec, uint16 field_symb_idx);
 bool has_pair(OBJ rel, OBJ arg1, OBJ arg2);
 bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3);
 
-int64 get_int_val(OBJ);
 uint32 get_size(OBJ set);
 int64 float_bits(OBJ);
 int64 mantissa(OBJ);
@@ -394,17 +393,6 @@ OBJ build_seq(OBJ* elems, uint32 length);       // Objects in elems must be alre
 OBJ build_seq(STREAM &s);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
-OBJ build_tagged_obj(OBJ tag, OBJ obj);         // obj must be already reference-counted
-// OBJ make_float(double val); // Already defined in mem_utils.cpp
-OBJ neg_float(OBJ val);
-OBJ add_floats(OBJ val1, OBJ val2);
-OBJ sub_floats(OBJ val1, OBJ val2);
-OBJ mult_floats(OBJ val1, OBJ val2);
-OBJ div_floats(OBJ val1, OBJ val2);
-OBJ exp_floats(OBJ val1, OBJ val2);
-OBJ square_root(OBJ val);
-OBJ floor(OBJ val);
-OBJ ceiling(OBJ val);
 OBJ int_to_float(OBJ val);
 OBJ blank_array(int64 size);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
@@ -558,10 +546,12 @@ uint32 compute_hash_code(OBJ obj);
 
 int64  get_inner_long(OBJ);
 
-int64* get_long_array(OBJ seq, int64 *buffer, int32 size);
-OBJ*   get_obj_array(OBJ seq, OBJ* buffer, int32 size);
+OBJ*    get_obj_array(OBJ seq, OBJ* buffer, int32 size);
+int64*  get_long_array(OBJ seq, int64 *buffer, int32 size);
+double* get_double_array(OBJ seq, double *buffer, int32 size);
+bool*   get_bool_array(OBJ seq, bool *buffer, int32 size);
 
-void*         get_void_ptr(OBJ);
+void* get_void_ptr(OBJ);
 
 bool bin_rel_contains_1(OBJ rel, OBJ arg1);
 bool bin_rel_contains_2(OBJ rel, OBJ arg2);
@@ -573,36 +563,44 @@ bool tern_rel_contains_13(OBJ rel, OBJ arg1, OBJ arg3);
 bool tern_rel_contains_23(OBJ rel, OBJ arg2, OBJ arg3);
 
 OBJ build_seq(int64* array, int32 size);
-OBJ build_seq(uint64* array, int32 size);
 OBJ build_seq(int32* array, int32 size);
 OBJ build_seq(uint32* array, int32 size);
 OBJ build_seq(int16* array, int32 size);
 OBJ build_seq(uint16* array, int32 size);
 OBJ build_seq(int8* array, int32 size);
 OBJ build_seq(uint8* array, int32 size);
-OBJ build_seq(bool* array, int32 size);
 
-OBJ build_tagged_obj(uint16 tag, OBJ obj);
+OBJ build_seq(bool* array, int32 size);
+OBJ build_seq(double* array, int32 size);
 
 OBJ build_record(uint16 *labels, OBJ *value, int32 count);
 
 double float_pow(double, double);
 double float_sqrt(double);
+int64 float_round(double);
 int32 cast_int32(int64);
-bool *get_bool_array(OBJ, bool*, int32);
 OBJ set_insert(OBJ, OBJ);
 OBJ set_key_value(OBJ, OBJ, OBJ);
-OBJ tag_int(uint16, int64);
+OBJ make_tag_int(uint16, int64);
 
 uint8 as_byte(int64);
 int16 as_short(int64);
 int32 as_int(int64);
 
-OBJ *array_append(OBJ*, int32, OBJ);
-int8 *array_append(int8*, int32, int8);
+OBJ    *array_append(OBJ*,    int32, int32&, OBJ);
+bool   *array_append(bool*,   int32, int32&, bool);
+double *array_append(double*, int32, int32&, double);
+int64  *array_append(int64*,  int32, int32&, int64);
+int32  *array_append(int32*,  int32, int32&, int32);
+uint32 *array_append(uint32*, int32, int32&, uint32);
+int16  *array_append(int16*,  int32, int32&, int16);
+uint16 *array_append(uint16*, int32, int32&, uint16);
+int8   *array_append(int8*,   int32, int32&, int8);
+uint8  *array_append(uint8*,  int32, int32&, uint8);
 
 OBJ array_at(OBJ*,    int32, int32);
 OBJ array_at(bool*,   int32, int32);
+OBJ array_at(double*, int32, int32);
 OBJ array_at(int64*,  int32, int32);
 OBJ array_at(int32*,  int32, int32);
 OBJ array_at(uint32*, int32, int32);
@@ -612,7 +610,7 @@ OBJ array_at(int8*,   int32, int32);
 OBJ array_at(uint8*,  int32, int32);
 
 bool bool_array_at(bool*, int32, int32);
-double double_array_at(double*, int32, int32);
+double float_array_at(double*, int32, int32);
 
 int64 int_array_at(int64*,  int32, int32);
 int64 int_array_at(int32*,  int32, int32);

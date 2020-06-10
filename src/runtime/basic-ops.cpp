@@ -126,12 +126,6 @@ bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-int64 get_int_val(OBJ obj) {
-  assert(is_int(obj));
-
-  return get_int(obj);
-}
-
 uint32 get_size(OBJ coll) {
   assert(is_seq(coll) | is_set(coll) | is_bin_rel(coll) | is_tern_rel(coll));
 

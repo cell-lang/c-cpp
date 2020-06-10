@@ -20,7 +20,7 @@ bool is_str(uint16 tag_idx, OBJ obj) {
     if (!is_int(elem))
       return false;
 
-    int64 value = get_int_val(elem);
+    int64 value = get_int(elem);
     if (value < 0 | value >= 65536)
       return false;
   }
@@ -58,7 +58,7 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
   OBJ *chars = get_seq_buffer_ptr(char_seq);
 
   for (uint32 i=0 ; i < len ; i++) {
-    int64 ch = get_int_val(chars[i]);
+    int64 ch = get_int(chars[i]);
     assert(ch >= 0 & ch < 65536);
     if (ch >= ' ' & ch <= '~') {
       buffer[0] = '\\';

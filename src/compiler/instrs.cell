@@ -8,7 +8,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     append()              = (native_call("append", (instr.stream, instr.obj))),
     array_alloc()         = array_alloc_native_code(instr.var, instr.size),
     array_write()         = array_write_native_code(instr.var, instr.idx, instr.value),
-    array_append()        = array_append_native_code(instr.array_var, instr.size_var, instr.value),
+    array_append()        = array_append_native_code(instr.array_var, instr.size_var, instr.capacity_var, instr.value),
     array_set_var()       = (native_assignment_code(instr.target, instr.source)),
     write_rec_field()     = write_rec_field_native_code(instr.var, instr.label, instr.value, instr.optional),
     finish_init()         = { fn_name = opt_tag_rec_name(instr.var.tag, instr.var.index) & "_finish_init";
@@ -95,8 +95,8 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   }
 
 
-  String* array_append_native_code(ArrayVar array_var, Int32Var size_var, AnyTypeExpr value) =
-    (native_call(array_var, "array_append", (array_var, native_var_ref_name(size_var) & "++", value)));
+  String* array_append_native_code(ArrayVar array_var, Int32Var size_var, Int32Var capacity_var, AnyTypeExpr value) =
+    (native_call(array_var, "array_append", (array_var, native_var_ref_name(size_var) & "++", capacity_var, value)));
 
 
   String native_cls_call_code(AnyClsVar cls_var, WriteObjVar var, AtomicExpr+ args) {
@@ -299,8 +299,8 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       object(<+> s?)  = symb_idx_name(s),
       _               = "get_symb_idx(" & native_expr(tag) & ")";
     return match (value)
-      int_obj(e?) = native_call(var, "tag_int",          (tag_expr, e)),
-      _           = native_call(var, "build_tagged_obj", (tag_expr, value));
+      int_obj(e?) = native_call(var, "make_tag_int", (tag_expr, e)),
+      _           = native_call(var, "make_tag_obj", (tag_expr, value));
   }
 
 

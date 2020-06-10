@@ -45,8 +45,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       abstract_closure_class_decl, "", "",
       native_opt_type_decls(context = :core), "", "",
       proc_defs, "", "",
-      custom_parser, "", "",
-      main_fn_if_req, "", ""
+      custom_parser,
+      runtime_callbacks(|program_symbols|),
+      main_fn_if_req
     );
 
 
@@ -598,9 +599,20 @@ String* custom_parser = ();
 //   "}"
 // );
 
+String* runtime_callbacks(Nat symbs_count) = (
+  "",
+  "",
+  "const char *symb_repr(uint16 idx) {",
+  "  return map_symb_to_str[idx];",
+  "}",
+  "",
+  "uint32 embedded_symbs_count() {",
+  "  return " & printed(symbs_count) & ";",
+  "}"
+);
+
+
 String* main_fn(Bool debug_mode) = (
-  // "",
-  // "#include <stdio.h>",
   "",
   "",
   "int main(int argc, char **argv) {",
@@ -617,27 +629,6 @@ String* main_fn(Bool debug_mode) = (
   "",
   "  OBJ res = Main_P(args, env);",
   "",
-  // "  release(args);",
-  // "  release(res);",
-  // "",
-  // "  release_all_cached_objs();",
-  // "",
-  // "#ifndef NDEBUG",
-  // "  if (get_live_objs_count() != 0) {",
-  // "    fprintf(stderr, \"\\nMEMORY LEAK DETECTED!\\n\");",
-  // "",
-  // "    fprintf(stderr, \"\\nNumber of live objects: %d\\n\", get_live_objs_count());",
-  // "    fprintf(stderr, \"Max number of live objects: %d\\n\", get_max_live_objs_count());",
-  // "    fprintf(stderr, \"Total number of allocated objects: %d\\n\", get_total_objs_count());",
-  // "",
-  // "    // fprintf(stderr, \"\\nLive memory usage: %d\\n\", get_live_mem_usage());",
-  // "    // fprintf(stderr, \"Max live memory usage: %d\\n\", get_max_live_mem_usage());",
-  // "    // fprintf(stderr, \"Total memory requested: %d\\n\", get_total_mem_requested());",
-  // "",
-  // "    // print_all_live_objs();",
-  // "  }",
-  // "#endif",
-  // "",
-  "  return is_int(res) ? get_int_val(res) : 0;",
+  "  return is_int(res) ? get_int(res) : 0;",
   "}"
 );

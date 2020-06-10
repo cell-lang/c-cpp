@@ -61,7 +61,7 @@ OBJ str_to_obj(const char *c_str) {
 int64 to_utf8(const OBJ *chars, uint32 len, char *output) {
   int offset = 0;
   for (uint32 i=0 ; i < len ; i++) {
-    int64 cp = get_int_val(chars[i]);
+    int64 cp = get_int(chars[i]);
     if (cp < 0x80) {
       if (output != NULL)
         output[offset] = cp;
@@ -131,7 +131,7 @@ char *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
   OBJ *elems = get_seq_buffer_ptr(byte_seq_obj);
   char *buffer = new_byte_array(len);
   for (uint32 i=0 ; i < len ; i++) {
-    long long val = get_int_val(elems[i]);
+    long long val = get_int(elems[i]);
     assert(val >= 0 && val <= 255);
     buffer[i] = (char) val;
   }

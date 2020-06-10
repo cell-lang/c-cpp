@@ -216,9 +216,10 @@ implicit context : NativeContext {
 
 
   String native_var_name(Int32Var, Bool add_prefix) =
-    ivar32(n?)                = "i" & printed(n),
-    shadow_surr_var(v?)       = _print_(bare_id(v)) & "_Vs",
-    shadow_array_size_var(s?) = _print_(s) & "_Yc";
+    ivar32(n?)                    = "i" & printed(n),
+    shadow_surr_var(v?)           = _print_(bare_id(v)) & "_Vs",
+    shadow_array_size_var(s?)     = _print_(s) & "_Ys",
+    shadow_array_capacity_var(s?) = _print_(s) & "_Yc";
 
 
   String native_var_name(FloatVar v, Bool add_prefix) =

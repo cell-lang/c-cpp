@@ -82,49 +82,8 @@ OBJ build_set(STREAM &s) {
   return set;
 }
 
-OBJ build_tagged_obj(OBJ tag, OBJ obj) {
-  assert(is_symb(tag));
-  return make_tag_obj(get_symb_idx(tag), obj);
-}
-
-OBJ neg_float(OBJ obj) {
-  return make_float(-get_float(obj));
-}
-
-OBJ add_floats(OBJ obj1, OBJ obj2) {
-  return make_float(get_float(obj1) + get_float(obj2));
-}
-
-OBJ sub_floats(OBJ obj1, OBJ obj2) {
-  return make_float(get_float(obj1) - get_float(obj2));
-}
-
-OBJ mult_floats(OBJ obj1, OBJ obj2) {
-  return make_float(get_float(obj1) * get_float(obj2));
-}
-
-OBJ div_floats(OBJ obj1, OBJ obj2) {
-  return make_float(get_float(obj1) / get_float(obj2));
-}
-
-OBJ exp_floats(OBJ obj1, OBJ obj2) {
-  return make_float(pow(get_float(obj1), get_float(obj2)));
-}
-
-OBJ square_root(OBJ obj) {
-  return make_float(sqrt(get_float(obj)));
-}
-
-OBJ floor(OBJ obj) {
-  impl_fail("_floor_() not implemented");
-}
-
-OBJ ceiling(OBJ obj) {
-  impl_fail("_ceiling_() not implemented");
-}
-
 OBJ int_to_float(OBJ obj) {
-  return make_float(get_int_val(obj));
+  return make_float(get_int(obj));
 }
 
 OBJ blank_array(int64 size) {
@@ -215,7 +174,7 @@ OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
 
 OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already reference counted
   uint32 len = get_seq_length(seq);
-  int64 int_idx = get_int_val(idx);
+  int64 int_idx = get_int(idx);
 
   if (int_idx < 0 | int_idx >= len)
     soft_fail("Invalid sequence index");
