@@ -90,7 +90,7 @@ struct OBJ {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct REF_OBJ {
-  uint32 ref_count;
+
 };
 
 
@@ -221,13 +221,6 @@ void print_all_live_objs();
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 
-void add_ref(REF_OBJ *);
-void add_ref(OBJ);
-void release(OBJ);
-
-void vec_add_ref(OBJ* objs, uint32 len);
-void vec_release(OBJ* objs, uint32 len);
-
 OBJ* get_left_col_array_ptr(BIN_REL_OBJ*);
 OBJ* get_right_col_array_ptr(BIN_REL_OBJ*);
 uint32 *get_right_to_left_indexes(BIN_REL_OBJ*);
@@ -235,38 +228,29 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ*);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
 
-SET_OBJ*      new_set(uint32 size);       // Sets ref_count and size
-SEQ_OBJ*      new_seq(uint32 length);     // Sets ref_count, length, capacity, used_capacity and elems
-BIN_REL_OBJ*  new_map(uint32 size);       // Sets ref_count and size, and clears rev_idxs
-BIN_REL_OBJ*  new_bin_rel(uint32 size);   // Sets ref_count and size
-TERN_REL_OBJ* new_tern_rel(uint32 size);  // Sets ref_count and size
-TAG_OBJ*      new_tag_obj();              // Sets ref_count
-
-SET_OBJ* shrink_set(SET_OBJ* set, uint32 new_size);
+SET_OBJ      *new_set(uint32 size);       // Sets size
+SEQ_OBJ      *new_seq(uint32 length);     // Sets length, capacity, used_capacity and elems
+BIN_REL_OBJ  *new_map(uint32 size);       // Sets size, and clears rev_idxs
+BIN_REL_OBJ  *new_bin_rel(uint32 size);   // Sets size
+TERN_REL_OBJ *new_tern_rel(uint32 size);  // Sets size
+TAG_OBJ      *new_tag_obj();
 
 OBJ* new_obj_array(uint32 size);
-void delete_obj_array(OBJ* buffer, uint32 size);
 OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
 
-uint32 *new_uint32_array(uint32 size);
-void delete_uint32_array(uint32 *buffer, uint32 size);
+bool *new_bool_array(uint32 size);
+double *new_double_array(uint32 size);
 
-int32* new_int32_array(uint32 size);
-void delete_int32_array(int32* buffer, uint32 size);
+int64  *new_int64_array(uint32 size);
+int32  *new_int32_array(uint32 size);
+uint32 *new_uint32_array(uint32 size);
+int16  *new_int16_array(uint32 size);
+uint16 *new_uint16_array(uint32 size);
+int8   *new_int8_array(uint32 size);
+uint8  *new_uint8_array(uint32 size);
 
 char *new_byte_array(uint32 size);
-void delete_byte_array(char* buffer, uint32 size);
-
-void** new_ptr_array(uint32 size);
-void delete_ptr_array(void** buffer, uint32 size);
-
 void *new_void_array(uint32 size);
-void delete_void_array(void* buffer, uint32 size);
-
-//uint32 get_ref_count(OBJ);
-
-//bool is_valid(OBJ);
-//bool are_valid(OBJ* objs, uint32 count);
 
 //////////////////////////////// mem-utils.cpp /////////////////////////////////
 
@@ -470,7 +454,7 @@ void index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sor
 
 /////////////////////////////////// algs.cpp ///////////////////////////////////
 
-uint32 sort_and_release_dups(OBJ* objs, uint32 size);
+uint32 sort_unique(OBJ* objs, uint32 size);
 uint32 sort_and_check_no_dups(OBJ* keys, OBJ* values, uint32 size);
 void sort_obj_array(OBJ* objs, uint32 len);
 
@@ -485,7 +469,6 @@ int comp_objs(OBJ obj1, OBJ obj2);
 /////////////////////////////// inter-utils.cpp ////////////////////////////////
 
 void add_obj_to_cache(OBJ);
-void release_all_cached_objs();
 
 uint16 lookup_symb_idx(const char *, uint32);
 

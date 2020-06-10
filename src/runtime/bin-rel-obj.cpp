@@ -60,10 +60,8 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
       left_col_is_unique = false;
     }
     else {
-      // Duplicate tuple, marking the entry as duplicate and releasing the objects
+      // Duplicate tuple, marking it as such
       index[i] = INVALID_INDEX;
-      release(vals1[idx]);
-      release(vals2[idx]);
     }
   }
 
@@ -105,8 +103,6 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   }
 #endif
 
-  delete_uint32_array(index, size);
-
   return left_col_is_unique ? make_log_map(rel) : make_bin_rel(rel);
 }
 
@@ -118,12 +114,7 @@ OBJ build_bin_rel(STREAM &stream1, STREAM &stream2) {
   if (stream1.count == 0)
     return make_empty_rel();
 
-  OBJ rel = build_bin_rel(stream1.buffer, stream2.buffer, stream1.count);
-
-  delete_obj_array(stream1.buffer, stream1.capacity);
-  delete_obj_array(stream2.buffer, stream2.capacity);
-
-  return rel;
+  return build_bin_rel(stream1.buffer, stream2.buffer, stream1.count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,12 +144,7 @@ OBJ build_map(STREAM &key_stream, STREAM &value_stream) {
   if (key_stream.count == 0)
     return make_empty_rel();
 
-  OBJ map = build_map(key_stream.buffer, value_stream.buffer, key_stream.count);
-
-  delete_obj_array(key_stream.buffer, key_stream.capacity);
-  delete_obj_array(value_stream.buffer, value_stream.capacity);
-
-  return map;
+  return build_map(key_stream.buffer, value_stream.buffer, key_stream.count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

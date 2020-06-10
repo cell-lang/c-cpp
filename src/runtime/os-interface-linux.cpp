@@ -30,7 +30,7 @@ char *file_read(const char *fname, int &size) {
   int read = fread(buff, 1, size, fp);
   fclose(fp);
   if (read != size) {
-    delete_byte_array(buff, size);
+    // delete_byte_array(buff, size);
     size = -1;
     return NULL;
   }

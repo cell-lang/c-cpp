@@ -107,7 +107,7 @@ void print_float(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void 
 void print_symb(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   OBJ str = to_str(obj);
   print_bare_str(str, emit, data);
-  release(str);
+  //## RELEASE str?
 }
 
 
@@ -345,8 +345,7 @@ void init(PRINT_BUFFER *pb) {
 
 
 void cleanup(PRINT_BUFFER *pb) {
-  delete_byte_array(pb->buffer, pb->buff_size);
-  delete_void_array(pb->fragments, pb->frags_buff_size);
+
 }
 
 
@@ -359,7 +358,6 @@ void adjust_buff_capacity(PRINT_BUFFER *pb, uint32 extra_capacity) {
       new_capacity *= 2;
     char *new_buff = new_byte_array(new_capacity);
     memcpy(new_buff, pb->buffer, pb->str_len+1);
-    delete_byte_array(pb->buffer, buff_size);
     pb->buffer = new_buff;
     pb->buff_size = new_capacity;
   }
@@ -373,7 +371,6 @@ TEXT_FRAG *insert_new_fragment(PRINT_BUFFER *pb) {
   if (curr_capacity < min_capacity) {
     TEXT_FRAG *new_frags = (TEXT_FRAG *) new_void_array(2 * curr_capacity);
     memcpy(new_frags, pb->fragments, sizeof(TEXT_FRAG) * frags_count);
-    delete_void_array(pb->fragments, curr_capacity);
     pb->fragments = new_frags;
     pb->frags_buff_size = 2 * curr_capacity;
   }
@@ -490,7 +487,6 @@ void emit_known(PRINT_BUFFER *pb, void (*emit)(void *, const char *, uint32), vo
       emit(data, buff + f->start, len);
     }
   }
-  delete_int32_array(ls, pb->frags_count);
 }
 
 

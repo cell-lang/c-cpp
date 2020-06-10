@@ -10,7 +10,6 @@ OBJ FileRead_P(OBJ filename, ENV &) {
   char *fname = obj_to_str(filename);
   int size;
   char *data = file_read(fname, size);
-  delete_byte_array(fname, strlen(fname)+1);
 
   if (size == -1)
     return make_symb(symb_idx_nothing);
@@ -20,7 +19,6 @@ OBJ FileRead_P(OBJ filename, ENV &) {
     SEQ_OBJ *seq = new_seq(size);
     for (uint32 i=0 ; i < size ; i++)
       seq->buffer[i] = make_int((uint8) data[i]);
-    delete_byte_array(data, size);
     seq_obj = make_seq(seq, size);
   }
 
@@ -35,13 +33,11 @@ OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
   bool res;
   if (size > 0) {
     res = file_write(fname, buffer, size, false);
-    delete_byte_array(buffer, size);
   }
   else {
     char empty_buff[1];
     res = file_write(fname, empty_buff, 0, false);
   }
-  delete_byte_array(fname, strlen(fname)+1);
   return make_bool(res);
 }
 
@@ -50,7 +46,6 @@ OBJ Print_P(OBJ str_obj, ENV &env) {
   char *str = obj_to_str(str_obj);
   fputs(str, stdout);
   fflush(stdout);
-  delete_byte_array(str, strlen(str)+1);
   return make_blank_obj();
 }
 

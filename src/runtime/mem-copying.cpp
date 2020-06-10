@@ -26,9 +26,8 @@ SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
     return seq_copy;
   }
   else {
-    // The object has already been copied. We just return a (reference-counted) pointer to the copy
+    // The object has already been copied. We just return a pointer to the copy
     SEQ_OBJ *seq_copy = * (SEQ_OBJ **) seq->buffer;
-    add_ref((REF_OBJ *) seq_copy);
     return seq_copy;
   }
 }
@@ -52,9 +51,8 @@ SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set) {
     return set_copy;
   }
   else {
-    // The object has already been copied. We just return a (reference-counted) pointer to the copy
+    // The object has already been copied. We just return a pointer to the copy
     SET_OBJ *set_copy = * (SET_OBJ **) set->buffer;
-    add_ref((REF_OBJ *) set_copy);
     return set_copy;
   }
 }
@@ -82,9 +80,8 @@ BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
     return rel_copy;
   }
   else {
-    // The object has already been copied. We just return a (reference-counted) pointer to the copy
+    // The object has already been copied. We just return a pointer to the copy
     BIN_REL_OBJ *rel_copy = * (BIN_REL_OBJ **) rel->buffer;
-    add_ref((REF_OBJ *) rel_copy);
     return rel_copy;
   }
 
@@ -109,9 +106,8 @@ BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map) {
     return map_copy;
   }
   else {
-    // The object has already been copied. We just return a (reference-counted) pointer to the copy
+    // The object has already been copied. We just return a pointer to the copy
     BIN_REL_OBJ *map_copy = * (BIN_REL_OBJ **) map->buffer;
-    add_ref((REF_OBJ *) map_copy);
     return map_copy;
   }
 }
@@ -131,9 +127,8 @@ TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
     return tag_obj_copy;
   }
   else {
-    // The object has already been copied. We just return a (reference-counted) pointer to the copy
+    // The object has already been copied. We just return a pointer to the copy
     TAG_OBJ *tag_obj_copy = * (TAG_OBJ **) &tag_obj->obj;
-    add_ref((REF_OBJ *) tag_obj_copy);
     return tag_obj_copy;
   }
 }
@@ -144,10 +139,8 @@ OBJ copy_obj(OBJ obj) {
   if (is_inline_obj(obj))
     return obj;
 
-  if (!uses_try_mem(obj)) {
-    add_ref(obj);
+  if (!uses_try_mem(obj))
     return obj;
-  }
 
   assert(is_in_copying_state());
 

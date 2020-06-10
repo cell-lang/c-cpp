@@ -20,8 +20,6 @@ void append(STREAM &s, OBJ obj) { // obj must be already reference-counted
     OBJ *new_buffer = new_obj_array(new_capacity);
     for (uint32 i=0 ; i < count ; i++)
       new_buffer[i] = buffer[i];
-    if (capacity != 0)
-      delete_obj_array(buffer, capacity);
     s.buffer = new_buffer;
     s.capacity = new_capacity;
   }
@@ -48,18 +46,14 @@ OBJ build_seq(STREAM &s) {
 
   //## COULD IT BE OPTIMIZED?
 
-  OBJ seq = build_seq(s.buffer, s.count);
-
-  delete_obj_array(s.buffer, s.capacity);
-
-  return seq;
+  return build_seq(s.buffer, s.count);
 }
 
 OBJ build_set(OBJ *elems, uint32 size) {
   if (size == 0)
     return make_empty_rel();
 
-  size = sort_and_release_dups(elems, size);
+  size = sort_unique(elems, size);
 
   SET_OBJ *set = new_set(size);
   OBJ *es = set->buffer;
@@ -76,10 +70,7 @@ OBJ build_set(STREAM &s) {
   if (count == 0)
     return make_empty_rel();
 
-  OBJ *buffer = s.buffer;
-  OBJ set = build_set(buffer, count);
-  delete_obj_array(buffer, s.capacity);
-  return set;
+  return build_set(s.buffer, count);
 }
 
 OBJ int_to_float(OBJ obj) {
@@ -112,8 +103,6 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   if (len == 0)
     return make_empty_seq();
 
-  add_ref(seq);
-
   SEQ_OBJ *ptr = get_seq_ptr(seq);
   uint32 offset = get_seq_offset(seq);
   return make_slice(ptr, get_mem_layout(seq), offset+idx_first, len);
@@ -139,8 +128,6 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
   if (can_be_extended) {
     memcpy(seq_ptr->buffer+size, new_elems, sizeof(OBJ) * count);
     seq_ptr->size = size + count;
-    vec_add_ref(new_elems, count);
-    add_ref(seq);
     return make_slice(seq_ptr, get_mem_layout(seq), offset, new_length);
   }
   else {
@@ -151,8 +138,6 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
 
     memcpy(new_buffer, buffer, sizeof(OBJ) * length);
     memcpy(new_buffer+length, new_elems, sizeof(OBJ) * count);
-
-    vec_add_ref(new_buffer, new_length);
 
     return make_seq(new_seq_ptr, new_length);
   }
@@ -166,10 +151,7 @@ OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
   if (!(get_seq_length(seq) < 0xFFFFFFFF))
     impl_fail("Resulting sequence is too large");
 
-  OBJ res = extend_sequence(seq, &obj, 1);
-  release(seq);
-  release(obj);
-  return res;
+  return extend_sequence(seq, &obj, 1);
 }
 
 OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already reference counted
@@ -184,11 +166,8 @@ OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already refere
 
   new_seq_ptr->buffer[int_idx] = value;
   for (uint32 i=0 ; i < len ; i++)
-    if (i != int_idx) {
-      OBJ elt = src_ptr[i];
-      add_ref(elt);
-      new_seq_ptr->buffer[i] = elt;
-    }
+    if (i != int_idx)
+      new_seq_ptr->buffer[i] = src_ptr[i];
 
   return make_seq(new_seq_ptr, len);
 }
@@ -197,16 +176,12 @@ OBJ join_seqs(OBJ left, OBJ right) {
   // No need to check the parameters here
 
   uint64 right_len = get_seq_length(right);
-  if (right_len == 0) {
-    add_ref(left);
+  if (right_len == 0)
     return left;
-  }
 
   uint64 left_len = get_seq_length(left);
-  if (left_len == 0) {
-    add_ref(right);
+  if (left_len == 0)
     return right;
-  }
 
   if (left_len + right_len > 0xFFFFFFFF)
     impl_fail("_cat_(): Resulting sequence is too large");
@@ -218,14 +193,10 @@ OBJ rev_seq(OBJ seq) {
   // No need to check the parameters here
 
   uint32 len = get_seq_length(seq);
-  if (len <= 1) {
-    if (len == 1)
-      add_ref(seq);
+  if (len <= 1)
     return seq;
-  }
 
   OBJ *elems = get_seq_buffer_ptr(seq);
-  vec_add_ref(elems, len);
 
   SEQ_OBJ *rs = new_seq(len);
   OBJ *rev_elems = rs->buffer;
@@ -240,7 +211,6 @@ void set_at(OBJ seq, uint32 idx, OBJ value) { // Value must be already reference
   assert(idx < get_seq_length(seq));
 
   OBJ *target = get_seq_buffer_ptr(seq) + idx;
-  release(*target);
   *target = value;
 }
 
@@ -256,7 +226,6 @@ OBJ internal_sort(OBJ set) {
   OBJ *dest = seq->buffer;
   for (uint32 i=0 ; i < size ; i++)
     dest[i] = src[i];
-  vec_add_ref(dest, size);
 
   return make_seq(seq, size);
 }
@@ -267,7 +236,6 @@ OBJ parse_value(OBJ str_obj) {
   OBJ obj;
   uint32 error_offset;
   bool ok = parse(raw_str, len, &obj, &error_offset);
-  delete_byte_array(raw_str, len+1);
   if (ok)
     return make_tag_obj(symb_idx_success, obj);
   else
@@ -285,7 +253,6 @@ OBJ print_value(OBJ obj) {
   uint32 size = 0;
   char *raw_str = printed_obj(obj, print_value_alloc, &size);
   OBJ str_obj = str_to_obj(raw_str);
-  delete_byte_array(raw_str, size);
   return str_obj;
 }
 

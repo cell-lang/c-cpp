@@ -148,22 +148,6 @@ char *obj_to_str(OBJ str_obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static std::vector<OBJ> cached_objs;
-
-void add_obj_to_cache(OBJ obj) {
-  if (is_ref_obj(obj))
-    cached_objs.push_back(obj);
-}
-
-void release_all_cached_objs() {
-  uint32 count = cached_objs.size();
-  for (uint32 i=0 ; i < count ; i++)
-    release(cached_objs[i]);
-  cached_objs.clear();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool str_ord(const char *str1, const char *str2) {
   return strcmp(str1, str2) > 0;
 }
@@ -218,7 +202,6 @@ OBJ to_symb(OBJ obj) {
   char *str = obj_to_str(obj);
   uint32 len = strlen(str);
   uint16 symb_idx = lookup_symb_idx(str, len);
-  delete_byte_array(str, len+1);
   return make_symb(symb_idx);
 }
 

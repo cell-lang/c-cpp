@@ -6,23 +6,23 @@ std::vector<uint32>       arities;
 std::vector<OBJ *>        param_lists;
 
 void push_call_info(const char *fn_name, uint32 arity, OBJ *params) {
-#ifndef NDEBUG
-  function_names.push_back(fn_name);
-  arities.push_back(arity);
-  param_lists.push_back(params);
-#endif
+// #ifndef NDEBUG
+//   function_names.push_back(fn_name);
+//   arities.push_back(arity);
+//   param_lists.push_back(params);
+// #endif
 }
 
 void pop_call_info() {
-#ifndef NDEBUG
-  uint32 arity = arities.back();
-  if (arity > 0)
-    delete_obj_array(param_lists.back(), arity);
+// #ifndef NDEBUG
+//   uint32 arity = arities.back();
+//   if (arity > 0)
+//     delete_obj_array(param_lists.back(), arity);
 
-  function_names.pop_back();
-  arities.pop_back();
-  param_lists.pop_back();
-#endif
+//   function_names.pop_back();
+//   arities.pop_back();
+//   param_lists.pop_back();
+// #endif
 }
 
 void pop_try_mode_call_info(int depth) {

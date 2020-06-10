@@ -22,11 +22,8 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
       prev_idx = idx;
     }
     else {
-      // Duplicate tuple, marking the entry as duplicate and releasing the objects
+      // Duplicate tuple, marking it as such
       index[i] = INVALID_INDEX;
-      release(vals1[idx]);
-      release(vals2[idx]);
-      release(vals3[idx]);
     }
   }
 
@@ -83,8 +80,6 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   }
 #endif
 
-  delete_uint32_array(index, size);
-
   return make_tern_rel(rel);
 }
 
@@ -96,13 +91,7 @@ OBJ build_tern_rel(STREAM &stream1, STREAM &stream2, STREAM &stream3) {
   if (stream1.count == 0)
     return make_empty_rel();
 
-  OBJ rel = build_tern_rel(stream1.buffer, stream2.buffer, stream3.buffer, stream1.count);
-
-  delete_obj_array(stream1.buffer, stream1.capacity);
-  delete_obj_array(stream2.buffer, stream2.capacity);
-  delete_obj_array(stream3.buffer, stream3.capacity);
-
-  return rel;
+  return build_tern_rel(stream1.buffer, stream2.buffer, stream3.buffer, stream1.count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

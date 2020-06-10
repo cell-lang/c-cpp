@@ -237,7 +237,7 @@ uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 sort_and_release_dups(OBJ *objs, uint32 size) {
+uint32 sort_unique(OBJ *objs, uint32 size) {
   if (size < 2)
     return size;
 
@@ -289,10 +289,8 @@ uint32 sort_and_release_dups(OBJ *objs, uint32 size) {
     objs[idx] = objs[inline_count];
 
   for (uint32 i=inline_count+1 ; i < size ; i++)
-    // if (are_eq(objs[idx], objs[i]))
-    if (comp_objs(objs[idx], objs[i]) == 0)
-      release(objs[i]);
-    else {
+    // if (!are_eq(objs[idx], objs[i]))
+    if (comp_objs(objs[idx], objs[i]) != 0) {
       idx++;
       assert(idx <= i);
       if (idx != i)
@@ -315,11 +313,7 @@ uint32 adjust_map_with_duplicate_keys(OBJ *keys, OBJ *values, uint32 size) {
     OBJ curr_val = values[i];
 
     if (comp_objs(curr_key, prev_key) == 0) {
-      if (comp_objs(curr_val, prev_val) == 0) {
-        release(curr_key);
-        release(curr_val);
-      }
-      else
+      if (comp_objs(curr_val, prev_val) != 0)
         soft_fail("Map contains duplicate keys");
     }
     else {
@@ -362,8 +356,6 @@ uint32 sort_and_check_no_dups(OBJ *keys, OBJ *values, uint32 size) {
         }
       }
     }
-
-  delete_uint32_array(idxs, size);
 
   OBJ prev_key = keys[0];
   for (uint32 i=1 ; i < size ; i++) {

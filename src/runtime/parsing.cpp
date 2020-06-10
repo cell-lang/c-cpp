@@ -342,15 +342,12 @@ static void init(STATE *state, int arity) {
   state->capacity = MIN_CAPACITY;
 }
 
-void cleanup(STATE *state, bool release) {
+void cleanup(STATE *state) {
   uint32 count = state->count;
   for (int c=0 ; c < 3 ; c++) {
     OBJ *col = state->cols[c];
     if (col == NULL)
       break;
-    if (release)
-      vec_release(col, count);
-    delete_obj_array(col, state->capacity);
   }
 }
 
@@ -432,9 +429,6 @@ int64 parse_entry(TOKEN *tokens, uint32 length, int64 offset, uint32 count, TOKE
   if (read == count & offset < length)
     return offset;
 
-  for (uint32 i=0 ; i < read ; i++)
-    release(vars[i]);
-
   return offset < 0 ? offset : -offset - 1;
 }
 
@@ -494,7 +488,7 @@ int64 parse_seq(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
   if (offset >= 0)
     *var = build_seq(state.cols[0], state.count);
 
-  cleanup(&state, offset < 0);
+  cleanup(&state);
   return offset;
 }
 
@@ -513,7 +507,7 @@ int64 parse_rec(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
   if (offset >= 0)
     *var = build_bin_rel(state.cols[0], state.cols[1], state.count);
 
-  cleanup(&state, offset < 0);
+  cleanup(&state);
   return offset;
 }
 
@@ -528,7 +522,7 @@ int64 parse_inner_obj_or_tuple(TOKEN *tokens, uint32 length, int64 offset, OBJ *
   if (ok)
     *var = state.count == 1 ? state.cols[0][0] : build_seq(state.cols[0], state.count);
 
-  cleanup(&state, !ok);
+  cleanup(&state);
   return offset;
 }
 
@@ -569,7 +563,7 @@ int64 parse_rel_tail(TOKEN *tokens, uint32 length, int64 offset, int size, OBJ *
     else
       *var = build_tern_rel(state.cols[0], state.cols[1], state.cols[2], state.count);
 
-  cleanup(&state, offset < 0);
+  cleanup(&state);
   return offset;
 }
 
@@ -588,7 +582,7 @@ int64 parse_unord_coll(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
 
   offset = read_list(tokens, length, offset, COMMA, WHATEVER, read_obj, &state);
   if (offset < 0) {
-    cleanup(&state, true);
+    cleanup(&state);
     return offset;
   }
 
@@ -602,7 +596,7 @@ int64 parse_unord_coll(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
     if (offset >= length)
       offset = -offset - 1;
     if (offset < 0) {
-      cleanup(&state, true);
+      cleanup(&state);
       return offset;
     }
     type = tokens[offset++].type;
@@ -619,7 +613,7 @@ int64 parse_unord_coll(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
       *var = build_tern_rel(state.cols[0], state.cols[0] + 1, state.cols[0] + 2, 1);
     else
       *var = build_set(state.cols[0], state.count);
-    cleanup(&state, false);
+    cleanup(&state);
     return offset;
   }
 
@@ -627,11 +621,11 @@ int64 parse_unord_coll(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
     OBJ entry[3];
     for (int i=0 ; i < state.count ; i++)
       entry[i] = state.cols[0][i];
-    cleanup(&state, false);
+    cleanup(&state);
     return parse_rel_tail(tokens, length, offset, state.count, entry, is_map, var);
   }
 
-  cleanup(&state, true);
+  cleanup(&state);
   return -offset;
 }
 
@@ -746,10 +740,8 @@ bool parse(const char *text, uint32 size, OBJ *var, uint32 *error_offset) {
   int64 res = parse_obj(tokens, count, 0, var);
   if (res < 0 | res < count) {
     *error_offset = res < 0 ? tokens[-res-1].offset : size;
-    delete_void_array(tokens, count * sizeof(TOKEN));
     return false;
   }
 
-  delete_void_array(tokens, count * sizeof(TOKEN));
   return true;
 }
