@@ -29,7 +29,8 @@ enum OBJ_TYPE {
   TYPE_SLICE        = 10,
   TYPE_MAP          = 11,
   TYPE_LOG_MAP      = 12,
-  TYPE_OPT_TAG_REC  = 13
+  TYPE_OPT_REC      = 13,
+  TYPE_OPT_TAG_REC  = 14
 };
 
 // Heap object can never be of the following types: TYPE_SLICE, TYPE_LOG_MAP
@@ -265,6 +266,7 @@ OBJ make_tern_rel(TERN_REL_OBJ*);
 OBJ make_log_map(BIN_REL_OBJ*);
 OBJ make_map(BIN_REL_OBJ*);
 OBJ make_tag_obj(uint16 tag_idx, OBJ obj);
+OBJ make_opt_tag_rec(void *ptr, uint16 type_id);
 
 // These functions exist in a limbo between the logical and physical world
 
@@ -280,6 +282,8 @@ SET_OBJ*      get_set_ptr(OBJ);
 BIN_REL_OBJ*  get_bin_rel_ptr(OBJ);
 TERN_REL_OBJ* get_tern_rel_ptr(OBJ);
 TAG_OBJ*      get_tag_obj_ptr(OBJ);
+
+void* get_opt_tag_rec_ptr(OBJ);
 
 bool is_inline_obj(OBJ);
 
@@ -489,8 +493,6 @@ OBJ*    get_obj_array(OBJ seq, OBJ* buffer, int32 size);
 int64*  get_long_array(OBJ seq, int64 *buffer, int32 size);
 double* get_double_array(OBJ seq, double *buffer, int32 size);
 bool*   get_bool_array(OBJ seq, bool *buffer, int32 size);
-
-void* get_void_ptr(OBJ);
 
 bool bin_rel_contains_1(OBJ rel, OBJ arg1);
 bool bin_rel_contains_2(OBJ rel, OBJ arg2);

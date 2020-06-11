@@ -424,7 +424,7 @@ implicit context : NativeContext {
   String native_ptr_expr(OptTagRecExpr expr) {
     type_name = opt_tag_rec_name(expr.tag, expr.index);
     expr_str = native_expr(expr);
-    return "((" & type_name & " *) get_void_ptr(" & expr_str & "))";
+    return "((" & type_name & " *) get_opt_tag_rec_ptr(" & expr_str & "))";
   }
 
 

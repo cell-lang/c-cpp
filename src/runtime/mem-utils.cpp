@@ -20,12 +20,14 @@ const int TAGS_COUNT_WIDTH    = 2;
 
 const int SYMB_IDX_SHIFT      = 0;
 const int LENGTH_SHIFT        = 0;
+const int OPT_TYPE_ID_SHIFT   = 0;
 const int INNER_TAG_SHIFT     = 16;
 const int TAG_SHIFT           = 32;
 const int OFFSET_SHIFT        = 28;
 
 const int SYMB_IDX_WIDTH      = 16;
 const int LENGTH_WIDTH        = 28;
+const int OPT_TYPE_ID_WIDTH   = 16;
 const int TAG_WIDTH           = 16;
 const int OFFSET_WIDTH        = 28;
 
@@ -34,6 +36,7 @@ const uint64 TAGS_COUNT_MASK  = MASK(TAGS_COUNT_SHIFT, TAGS_COUNT_WIDTH);
 
 const uint64 SYMB_IDX_MASK    = MASK(SYMB_IDX_SHIFT, SYMB_IDX_WIDTH);
 const uint64 LENGTH_MASK      = MASK(LENGTH_SHIFT, LENGTH_WIDTH);
+const uint64 OPT_TYPE_ID_MASK = MASK(OPT_TYPE_ID_SHIFT, OPT_TYPE_ID_WIDTH);
 const uint64 INNER_TAG_MASK   = MASK(INNER_TAG_SHIFT, TAG_WIDTH);
 const uint64 TAG_MASK         = MASK(TAG_SHIFT, TAG_WIDTH);
 const uint64 OFFSET_MASK      = MASK(OFFSET_SHIFT, OFFSET_WIDTH);
@@ -43,6 +46,7 @@ const uint64 OFFSET_MASK      = MASK(OFFSET_SHIFT, OFFSET_WIDTH);
 #define MAKE_TYPE(T)        MAKE(T, TYPE_SHIFT)
 #define MAKE_OFFSET(O)      MAKE(O, OFFSET_SHIFT)
 #define MAKE_LENGTH(L)      MAKE(L, LENGTH_SHIFT)
+#define MAKE_OPT_TYPE_ID(I) MAKE(I, OPT_TYPE_ID_SHIFT)
 #define MAKE_TAGS_COUNT(C)  MAKE(C, TAGS_COUNT_SHIFT)
 #define MAKE_INNER_TAG(T)   MAKE(T, INNER_TAG_SHIFT)
 #define MAKE_SYMB_IDX(I)    MAKE(I, SYMB_IDX_SHIFT)
@@ -50,21 +54,23 @@ const uint64 OFFSET_MASK      = MASK(OFFSET_SHIFT, OFFSET_WIDTH);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint64 BLANK_OBJ_MASK       = MAKE_TYPE(TYPE_BLANK_OBJ);
-const uint64 NULL_OBJ_MASK        = MAKE_TYPE(TYPE_NULL_OBJ);
+const uint64 BLANK_OBJ_MASK         = MAKE_TYPE(TYPE_BLANK_OBJ);
+const uint64 NULL_OBJ_MASK          = MAKE_TYPE(TYPE_NULL_OBJ);
 
-const uint64 SYMBOL_BASE_MASK     = MAKE_TYPE(TYPE_SYMBOL);
-const uint64 INTEGER_MASK         = MAKE_TYPE(TYPE_INTEGER);
-const uint64 FLOAT_MASK           = MAKE_TYPE(TYPE_FLOAT);
-const uint64 EMPTY_SEQ_MASK       = MAKE_TYPE(TYPE_SEQUENCE);
-const uint64 NE_SEQ_BASE_MASK     = MAKE_TYPE(TYPE_SEQUENCE);
-const uint64 EMPTY_REL_MASK       = MAKE_TYPE(TYPE_SET);
-const uint64 NE_SET_MASK          = MAKE_TYPE(TYPE_SET);
-const uint64 NE_BIN_REL_MASK      = MAKE_TYPE(TYPE_BIN_REL);
-const uint64 NE_MAP_MASK          = MAKE_TYPE(TYPE_MAP);
-const uint64 NE_LOG_MAP_MASK      = MAKE_TYPE(TYPE_LOG_MAP);
-const uint64 NE_TERN_REL_MASK     = MAKE_TYPE(TYPE_TERN_REL);
-const uint64 TAG_OBJ_MASK         = MAKE_TYPE(TYPE_TAG_OBJ);
+const uint64 SYMBOL_BASE_MASK       = MAKE_TYPE(TYPE_SYMBOL);
+const uint64 INTEGER_MASK           = MAKE_TYPE(TYPE_INTEGER);
+const uint64 FLOAT_MASK             = MAKE_TYPE(TYPE_FLOAT);
+const uint64 EMPTY_SEQ_MASK         = MAKE_TYPE(TYPE_SEQUENCE);
+const uint64 NE_SEQ_BASE_MASK       = MAKE_TYPE(TYPE_SEQUENCE);
+const uint64 EMPTY_REL_MASK         = MAKE_TYPE(TYPE_SET);
+const uint64 NE_SET_MASK            = MAKE_TYPE(TYPE_SET);
+const uint64 NE_BIN_REL_MASK        = MAKE_TYPE(TYPE_BIN_REL);
+const uint64 NE_MAP_MASK            = MAKE_TYPE(TYPE_MAP);
+const uint64 NE_LOG_MAP_MASK        = MAKE_TYPE(TYPE_LOG_MAP);
+const uint64 NE_TERN_REL_MASK       = MAKE_TYPE(TYPE_TERN_REL);
+const uint64 TAG_OBJ_MASK           = MAKE_TYPE(TYPE_TAG_OBJ);
+const uint64 OPT_REC_BASE_MASK      = MAKE_TYPE(TYPE_OPT_REC);
+const uint64 OPT_TAG_REC_BASE_MASK  = MAKE_TYPE(TYPE_OPT_TAG_REC);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -82,7 +88,7 @@ void append_bits(uint64 word, int leftmost, int count, char *str) {
 }
 
 void print_ref(OBJ obj) {
-  static int frags[] = {2, 2, 4, 8, 16, 16, 16};
+  static int frags[] = {2, 6, 8, 16, 16, 16};
   static const char *type_names[] = {
     "TYPE_BLANK_OBJ",
     "TYPE_NULL_OBJ",
@@ -96,7 +102,9 @@ void print_ref(OBJ obj) {
     "TYPE_TAG_OBJ",
     "TYPE_SLICE",
     "TYPE_MAP",
-    "TYPE_LOG_MAP"
+    "TYPE_LOG_MAP",
+    "TYPE_OPT_REC",
+    "TYPE_OPT_TAG_REC"
   };
 
   char buffer[256];
@@ -142,7 +150,10 @@ OBJ_TYPE get_logical_type(OBJ obj) {
   if (get_tags_count(obj) > 0)
     return TYPE_TAG_OBJ;
 
-  if (type == TYPE_MAP | type == TYPE_LOG_MAP)
+  if (type == TYPE_OPT_TAG_REC)
+    return TYPE_TAG_OBJ;
+
+  if (type == TYPE_MAP | type == TYPE_LOG_MAP | type == TYPE_OPT_REC)
     return TYPE_BIN_REL;
 
   return type;
@@ -433,6 +444,13 @@ OBJ make_tag_obj(uint16 tag_idx, OBJ obj) {
   return make_ref_tag_obj(tag_idx, obj);
 }
 
+OBJ make_opt_tag_rec(void *ptr, uint16 type_id) {
+  OBJ obj;
+  obj.core_data.ptr = ptr;
+  obj.extra_data = MAKE_OPT_TYPE_ID(type_id) | OPT_TAG_REC_BASE_MASK;
+  return obj;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint16 get_symb_idx(OBJ obj) {
@@ -545,6 +563,11 @@ TERN_REL_OBJ *get_tern_rel_ptr(OBJ obj) {
 TAG_OBJ *get_tag_obj_ptr(OBJ obj) {
   assert(get_physical_type(obj) == TYPE_TAG_OBJ & obj.core_data.ptr != NULL);
   return (TAG_OBJ *) obj.core_data.ptr;
+}
+
+void* get_opt_tag_rec_ptr(OBJ obj) {
+  assert(get_physical_type(obj) == TYPE_OPT_TAG_REC);
+  return obj.core_data.ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

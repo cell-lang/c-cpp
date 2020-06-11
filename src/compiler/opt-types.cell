@@ -3,20 +3,22 @@ implicit prg : CompiledPrg, context : <core> {
     structs_decls = ();
     all_methods = ();
 
+    global_id = 0;
     for s, rs <- isort(prg.opt_reprs)
       for r @ i <- rs {
-        struct_decl, methods = native_tag_rec_type_decl(s, r, i);
+        struct_decl, methods = native_tag_rec_type_decl(s, r, i, global_id);
         structs_decls = (structs_decls | "") if structs_decls != ();
         all_methods = (all_methods | "", 80 * "/", "");
         structs_decls = structs_decls & struct_decl;
         all_methods = all_methods & methods;
+        global_id = nat(global_id + 1);
       }
 
     return structs_decls & all_methods;
   }
 
 
-  (String*, String*) native_tag_rec_type_decl(Symbol tag, OptRecRepr repr, Nat idx) {
+  (String*, String*) native_tag_rec_type_decl(Symbol tag, OptRecRepr repr, Nat idx, Nat global_id) {
     struct_name       = opt_tag_rec_name(tag, idx);
     fields            = untag(repr);
     labels            = keys(fields);
@@ -50,7 +52,7 @@ implicit prg : CompiledPrg, context : <core> {
     reprs = [l -> fields(l, !).repr : l <- labels];
     let tag = tag, ord_labels = ord_labels, opt_labels = opt_labels, reprs = reprs {
       methods_defs = (
-        finish_init_def(struct_name, ord_mand_labels, ord_opt_labels, idx),
+        finish_init_def(struct_name, ord_mand_labels, ord_opt_labels, idx, global_id),
         has_field_def(struct_name),
         lookup_field_def(struct_name),
         internal_order_def(struct_name, ord_mand_labels, ord_opt_labels),
@@ -67,8 +69,12 @@ implicit prg : CompiledPrg, context : <core> {
 ////////////////////////////// Methods generation //////////////////////////////
 
 implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Symbol], reprs : [Symbol -> LowLevelRepr] {
-  String* finish_init_def(String struct_name, Symbol* ord_mand_labels, Symbol* ord_opt_labels, Nat idx) {
-    code = ("OBJ " & struct_name & "_finish_init(" & struct_name & " *self) {");
+  String* finish_init_def(String struct_name, Symbol* ord_mand_labels, Symbol* ord_opt_labels, Nat idx, Nat global_id) {
+    code = (
+      "OBJ " & struct_name & "_finish_init(" & struct_name & " *self) {",
+      "  return make_opt_tag_rec(self, " & _print_(global_id) & ");",
+      "}"
+    );
 
     // if ord_opt_labels != () {
     //   code = (code | "  ushort mask = 0;");
@@ -89,7 +95,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
 
     // code = (code | set_data_instr, set_extra_data_instr);
 
-    return (code | "", "}");
+    return code;
   }
 
   //////////////////////////////////////////////////////////////////////////////

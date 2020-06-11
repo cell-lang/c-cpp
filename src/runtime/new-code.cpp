@@ -52,13 +52,6 @@ bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void* get_void_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_OPT_TAG_REC);
-  return obj.core_data.ptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool bin_rel_contains_1(OBJ rel, OBJ arg1) {
   BIN_REL_ITER it;
   get_bin_rel_iter_0(it, rel, arg1);

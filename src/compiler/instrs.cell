@@ -32,7 +32,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     terminate()           = (if instr.hard_fail then "internal_fail();" else "soft_fail(NULL);"),
     add_ref(v?)           = undefined,
     release(v?)           = undefined,
-    print_obj()           = (native_call("print_value", (instr.obj))),
+    print_obj()           = (native_call("print", (instr.obj))),
     ret_val(e?)           = ("return " & native_expr(e) & ";"),
     no_op                 = (),
     repeat(body?)         = native_repeat_code(body, block_id),
