@@ -105,7 +105,7 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
 
   SEQ_OBJ *ptr = get_seq_ptr(seq);
   uint32 offset = get_seq_offset(seq);
-  return make_slice(ptr, get_mem_layout(seq), offset+idx_first, len);
+  return make_slice(ptr, offset+idx_first, len);
 }
 
 OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
@@ -128,7 +128,7 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
   if (can_be_extended) {
     memcpy(seq_ptr->buffer+size, new_elems, sizeof(OBJ) * count);
     seq_ptr->size = size + count;
-    return make_slice(seq_ptr, get_mem_layout(seq), offset, new_length);
+    return make_slice(seq_ptr, offset, new_length);
   }
   else {
     OBJ *buffer = get_seq_buffer_ptr(seq);

@@ -13,11 +13,9 @@ const uint32 SEQ_BUFFER_FIELD_OFFSET = offsetof(SEQ_OBJ, buffer);
 ////////////////////////////////////////////////////////////////////////////////
 
 const int TYPE_SHIFT          = 56;
-const int MEM_LAYOUT_SHIFT    = 60;
 const int TAGS_COUNT_SHIFT    = 62;
 
-const int TYPE_WIDTH          = 4;
-const int MEM_LAYOUT_WIDTH    = 2;
+const int TYPE_WIDTH          = 6;
 const int TAGS_COUNT_WIDTH    = 2;
 
 const int SYMB_IDX_SHIFT      = 0;
@@ -32,7 +30,6 @@ const int TAG_WIDTH           = 16;
 const int OFFSET_WIDTH        = 28;
 
 const uint64 TYPE_MASK        = MASK(TYPE_SHIFT, TYPE_WIDTH);
-const uint64 MEM_LAYOUT_MASK  = MASK(MEM_LAYOUT_SHIFT, MEM_LAYOUT_WIDTH);
 const uint64 TAGS_COUNT_MASK  = MASK(TAGS_COUNT_SHIFT, TAGS_COUNT_WIDTH);
 
 const uint64 SYMB_IDX_MASK    = MASK(SYMB_IDX_SHIFT, SYMB_IDX_WIDTH);
@@ -44,16 +41,12 @@ const uint64 OFFSET_MASK      = MASK(OFFSET_SHIFT, OFFSET_WIDTH);
 ////////////////////////////////////////////////////////////////////////////////
 
 #define MAKE_TYPE(T)        MAKE(T, TYPE_SHIFT)
-#define MAKE_MEM_LAYOUT(L)  MAKE(L, MEM_LAYOUT_SHIFT)
 #define MAKE_OFFSET(O)      MAKE(O, OFFSET_SHIFT)
 #define MAKE_LENGTH(L)      MAKE(L, LENGTH_SHIFT)
 #define MAKE_TAGS_COUNT(C)  MAKE(C, TAGS_COUNT_SHIFT)
 #define MAKE_INNER_TAG(T)   MAKE(T, INNER_TAG_SHIFT)
 #define MAKE_SYMB_IDX(I)    MAKE(I, SYMB_IDX_SHIFT)
 #define MAKE_TAG(T)         MAKE(T, TAG_SHIFT)
-
-#define STD_MEM_LAYOUT      MAKE_MEM_LAYOUT(STD_MEM)
-#define TRY_MEM_LAYOUT      MAKE_MEM_LAYOUT(TRY_MEM)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -64,28 +57,14 @@ const uint64 SYMBOL_BASE_MASK     = MAKE_TYPE(TYPE_SYMBOL);
 const uint64 INTEGER_MASK         = MAKE_TYPE(TYPE_INTEGER);
 const uint64 FLOAT_MASK           = MAKE_TYPE(TYPE_FLOAT);
 const uint64 EMPTY_SEQ_MASK       = MAKE_TYPE(TYPE_SEQUENCE);
-const uint64 NE_SEQ_BASE_MASK     = MAKE_TYPE(TYPE_SEQUENCE) | STD_MEM_LAYOUT;
+const uint64 NE_SEQ_BASE_MASK     = MAKE_TYPE(TYPE_SEQUENCE);
 const uint64 EMPTY_REL_MASK       = MAKE_TYPE(TYPE_SET);
-const uint64 NE_SET_MASK          = MAKE_TYPE(TYPE_SET)      | STD_MEM_LAYOUT;
-const uint64 NE_BIN_REL_MASK      = MAKE_TYPE(TYPE_BIN_REL)  | STD_MEM_LAYOUT;
-const uint64 NE_MAP_MASK          = MAKE_TYPE(TYPE_MAP)      | STD_MEM_LAYOUT;
-const uint64 NE_LOG_MAP_MASK      = MAKE_TYPE(TYPE_LOG_MAP)  | STD_MEM_LAYOUT;
-const uint64 NE_TERN_REL_MASK     = MAKE_TYPE(TYPE_TERN_REL) | STD_MEM_LAYOUT;
-const uint64 TAG_OBJ_MASK         = MAKE_TYPE(TYPE_TAG_OBJ)  | STD_MEM_LAYOUT;
-
-const uint64 TRY_STATE_NE_SEQ_BASE_MASK   = MAKE_TYPE(TYPE_SEQUENCE) | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_NE_SET_MASK        = MAKE_TYPE(TYPE_SET)      | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_NE_BIN_REL_MASK    = MAKE_TYPE(TYPE_BIN_REL)  | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_NE_MAP_MASK        = MAKE_TYPE(TYPE_MAP)      | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_NE_LOG_MAP_MASK    = MAKE_TYPE(TYPE_LOG_MAP)  | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_NE_TERN_REL_MASK   = MAKE_TYPE(TYPE_TERN_REL) | TRY_MEM_LAYOUT;
-const uint64 TRY_STATE_TAG_OBJ_MASK       = MAKE_TYPE(TYPE_TAG_OBJ)  | TRY_MEM_LAYOUT;
-
-const uint64 SET_LOG_MASK       = MAKE_TYPE(TYPE_SET);
-const uint64 BIN_REL_LOG_MASK   = MAKE_TYPE(TYPE_BIN_REL);
-const uint64 MAP_LOG_MASK       = MAKE_TYPE(TYPE_MAP);
-const uint64 LOG_MAP_LOG_MASK   = MAKE_TYPE(TYPE_LOG_MAP);
-const uint64 TERN_REL_LOG_MASK  = MAKE_TYPE(TYPE_TERN_REL);
+const uint64 NE_SET_MASK          = MAKE_TYPE(TYPE_SET);
+const uint64 NE_BIN_REL_MASK      = MAKE_TYPE(TYPE_BIN_REL);
+const uint64 NE_MAP_MASK          = MAKE_TYPE(TYPE_MAP);
+const uint64 NE_LOG_MAP_MASK      = MAKE_TYPE(TYPE_LOG_MAP);
+const uint64 NE_TERN_REL_MASK     = MAKE_TYPE(TYPE_TERN_REL);
+const uint64 TAG_OBJ_MASK         = MAKE_TYPE(TYPE_TAG_OBJ);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -148,10 +127,6 @@ OBJ_TYPE get_physical_type(OBJ obj) {
   // return (OBJ_TYPE) GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH);
 }
 
-MEM_LAYOUT get_mem_layout(OBJ obj) {
-  return (MEM_LAYOUT) GET(obj.extra_data, MEM_LAYOUT_SHIFT, MEM_LAYOUT_WIDTH);
-}
-
 uint32 get_tags_count(OBJ obj) {
   return GET(obj.extra_data, TAGS_COUNT_SHIFT, TAGS_COUNT_WIDTH); // Masking is actually unnecessary here
 }
@@ -171,12 +146,6 @@ OBJ_TYPE get_logical_type(OBJ obj) {
     return TYPE_BIN_REL;
 
   return type;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-uint64 get_log_mask(OBJ obj) {
-  return CLEAR(obj.extra_data, MEM_LAYOUT_MASK);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -272,7 +241,7 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   }
   else {
     obj.core_data.ptr = ptr->buffer;
-    obj.extra_data = length | (is_in_try_state() ? TRY_STATE_NE_SEQ_BASE_MASK : NE_SEQ_BASE_MASK);
+    obj.extra_data = length | NE_SEQ_BASE_MASK;
   }
 
   // assert(obj.extra_data.seq.length      == length);
@@ -287,7 +256,7 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   return obj;
 }
 
-OBJ make_slice(SEQ_OBJ *ptr, MEM_LAYOUT mem_layout, uint32 offset, uint32 length) {
+OBJ make_slice(SEQ_OBJ *ptr, uint32 offset, uint32 length) {
   assert(ptr != NULL & ((uint64) offset) + ((uint64) length) <= ptr->size);
   assert(offset <= 0xFFFFFFF);
 
@@ -298,14 +267,12 @@ OBJ make_slice(SEQ_OBJ *ptr, MEM_LAYOUT mem_layout, uint32 offset, uint32 length
   // If the length is 0, we must create an empty sequence, which is again a normal sequence
   if (offset == 0 | length == 0) {
     OBJ obj = make_seq(ptr, length);
-    obj.extra_data = get_log_mask(obj) | MAKE_MEM_LAYOUT(mem_layout);
-    // assert(obj.extra_data.slice.mem_layout == mem_layout);
     return obj;
   }
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer + offset;
-  obj.extra_data = MAKE_LENGTH(length) | MAKE_OFFSET(offset) | MAKE_TYPE(TYPE_SLICE) | MAKE_MEM_LAYOUT(mem_layout);
+  obj.extra_data = MAKE_LENGTH(length) | MAKE_OFFSET(offset) | MAKE_TYPE(TYPE_SLICE);
 
   // assert(obj.extra_data.slice.length == length);
   // assert(obj.extra_data.slice.offset == offset);
@@ -325,7 +292,7 @@ OBJ make_empty_seq() {
 OBJ make_set(SET_OBJ *ptr) {
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = ptr == NULL ? EMPTY_REL_MASK : (is_in_try_state() ? TRY_STATE_NE_SET_MASK : NE_SET_MASK);
+  obj.extra_data = ptr == NULL ? EMPTY_REL_MASK : NE_SET_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -347,7 +314,7 @@ OBJ make_bin_rel(BIN_REL_OBJ *ptr) {
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = is_in_try_state() ? TRY_STATE_NE_BIN_REL_MASK : NE_BIN_REL_MASK;
+  obj.extra_data = NE_BIN_REL_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -365,7 +332,7 @@ OBJ make_log_map(BIN_REL_OBJ *ptr) {
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = is_in_try_state() ? TRY_STATE_NE_LOG_MAP_MASK : NE_LOG_MAP_MASK;
+  obj.extra_data = NE_LOG_MAP_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -383,7 +350,7 @@ OBJ make_map(BIN_REL_OBJ *ptr) {
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = is_in_try_state() ? TRY_STATE_NE_MAP_MASK : NE_MAP_MASK;
+  obj.extra_data = NE_MAP_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -401,7 +368,7 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = is_in_try_state() ? TRY_STATE_NE_TERN_REL_MASK : NE_TERN_REL_MASK;
+  obj.extra_data = NE_TERN_REL_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -417,7 +384,7 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
 OBJ make_tag_obj(TAG_OBJ *ptr) {
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = (is_in_try_state() ? TRY_STATE_TAG_OBJ_MASK : TAG_OBJ_MASK);
+  obj.extra_data = TAG_OBJ_MASK;
 
   // assert(obj.extra_data.std.symb_idx    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
@@ -464,16 +431,6 @@ OBJ make_tag_obj(uint16 tag_idx, OBJ obj) {
   }
 
   return make_ref_tag_obj(tag_idx, obj);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-//## IF WE DECIDE TO OPTIMIZE THE COPYING OF SEQUENCES AND/OR SLICES, THIS WILL STOP WORKING
-OBJ repoint_to_std_mem_copy(OBJ obj, void *new_ptr) {
-  obj.core_data.ptr = new_ptr;
-  obj.extra_data = CLEAR(obj.extra_data, MEM_LAYOUT_MASK) | MAKE_MEM_LAYOUT(new_ptr != NULL ? 1 : 0);
-  assert(obj.core_data.ptr != NULL || get_mem_layout(obj) == 0);
-  return obj;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -601,7 +558,12 @@ bool is_null_obj(OBJ obj) {
 }
 
 bool is_symb(OBJ obj) {
-  return (obj.extra_data >> 16) == (SYMBOL_BASE_MASK >> 16);
+  assert(
+    (CLEAR(obj.extra_data, SYMB_IDX_MASK) == SYMBOL_BASE_MASK)
+      ==
+    ((obj.extra_data >> SYMB_IDX_WIDTH) == (SYMBOL_BASE_MASK >> SYMB_IDX_WIDTH))
+  );
+  return CLEAR(obj.extra_data, SYMB_IDX_MASK) == SYMBOL_BASE_MASK;
 }
 
 bool is_bool(OBJ obj) {
@@ -636,21 +598,21 @@ bool is_empty_rel(OBJ obj) {
 }
 
 bool is_ne_set(OBJ obj) {
-  return obj.extra_data == NE_SET_MASK | obj.extra_data == TRY_STATE_NE_SET_MASK;
+  return obj.extra_data == NE_SET_MASK;
 }
 
 bool is_set(OBJ obj) {
-  return get_log_mask(obj) == SET_LOG_MASK;
+  return obj.extra_data == NE_SET_MASK;
 }
 
 bool is_ne_bin_rel(OBJ obj) {
-  uint64 log_mask = get_log_mask(obj);
-  return log_mask == BIN_REL_LOG_MASK | log_mask == LOG_MAP_LOG_MASK | log_mask == MAP_LOG_MASK;
+  uint64 extra_data = obj.extra_data;
+  return extra_data == NE_BIN_REL_MASK | extra_data == NE_LOG_MAP_MASK | extra_data == NE_MAP_MASK;
 }
 
 bool is_ne_map(OBJ obj) {
-  uint64 log_mask = get_log_mask(obj);
-  return log_mask == MAP_LOG_MASK | log_mask == LOG_MAP_LOG_MASK;
+  uint64 extra_data = obj.extra_data;
+  return extra_data == NE_MAP_MASK | extra_data == NE_LOG_MAP_MASK;
 }
 
 bool is_bin_rel(OBJ obj) {
@@ -659,7 +621,7 @@ bool is_bin_rel(OBJ obj) {
 
 bool is_ne_tern_rel(OBJ obj) {
   uint64 extra_data = obj.extra_data;
-  return extra_data == NE_TERN_REL_MASK | extra_data == TRY_STATE_NE_TERN_REL_MASK;
+  return extra_data == NE_TERN_REL_MASK;
 }
 
 bool is_tern_rel(OBJ obj) {
@@ -683,26 +645,13 @@ bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_inline_obj(OBJ obj) {
-  assert((get_mem_layout(obj) == 0) == (get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE | obj.core_data.ptr == NULL));
-  return get_mem_layout(obj) == 0;
-}
-
-bool is_ref_obj(OBJ obj) {
-  return get_mem_layout(obj) != 0;
-}
-
-bool uses_try_mem(OBJ obj) {
-  return get_mem_layout(obj) > 1;
-}
-
-bool is_gc_obj(OBJ obj) {
-  return get_mem_layout(obj) == (is_in_try_state() ? 2 : 1);
+  return get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE | obj.core_data.ptr == NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ_TYPE get_ref_obj_type(OBJ obj) {
-  assert(is_ref_obj(obj));
+  assert(!is_inline_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
   assert( type == TYPE_SEQUENCE | type == TYPE_SLICE | type == TYPE_SET | type == TYPE_BIN_REL |
@@ -717,7 +666,7 @@ OBJ_TYPE get_ref_obj_type(OBJ obj) {
 }
 
 REF_OBJ *get_ref_obj_ptr(OBJ obj) {
-  assert(is_ref_obj(obj));
+  assert(!is_inline_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
   assert( type == TYPE_SEQUENCE | type == TYPE_SLICE | type == TYPE_SET | type == TYPE_BIN_REL |

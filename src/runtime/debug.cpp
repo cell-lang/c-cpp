@@ -150,8 +150,7 @@ void print_assertion_failed_msg(const char *file, uint32 line, const char *text)
 
 void soft_fail(const char *msg) {
 #ifndef CELL_LANG_NO_TRANSACTIONS
-  if (is_in_try_state())
-    throw 0LL;
+  throw 0LL;
 #endif
 
   if (msg != NULL)

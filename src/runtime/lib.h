@@ -39,13 +39,6 @@ const uint32 MAX_INLINE_OBJ_TYPE_VALUE  = TYPE_FLOAT;
 const uint32 MAX_OBJ_TYPE_VALUE         = TYPE_SLICE;
 
 
-enum MEM_LAYOUT {
-  INLINE    = 0,
-  STD_MEM   = 1,
-  TRY_MEM   = 2
-};
-
-
 struct OBJ {
   union {
     int64   int_;
@@ -184,40 +177,10 @@ const uint16 symb_idx_just    = 5;
 const uint16 symb_idx_success = 6;
 const uint16 symb_idx_failure = 7;
 
-///////////////////////////////// mem_alloc.cpp ////////////////////////////////
-
-bool is_in_normal_state();
-bool is_in_try_state();
-bool is_in_copying_state();
-
-void enter_try_state();
-void enter_copy_state();
-void restore_try_state();
-void return_to_normal_state();
-void abort_try_state();
-
-//////////////////////////////// mem-copying.cpp ///////////////////////////////
-
-OBJ copy_obj(OBJ obj);
-
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
 void* new_obj(uint32 byte_size);
 void* new_obj(uint32 requested_byte_size, uint32 &returned_byte_size);
-void  free_obj(void* obj, uint32 byte_size);
-void* resize_obj(void *ptr, uint32 byte_size, uint32 new_byte_size);
-
-bool is_alive(void* obj);
-
-uint32 get_live_objs_count();
-uint32 get_max_live_objs_count();
-uint32 get_total_objs_count();
-
-uint32 get_live_mem_usage();
-uint32 get_max_live_mem_usage();
-uint32 get_total_mem_requested();
-
-void print_all_live_objs();
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 
@@ -295,7 +258,7 @@ OBJ make_bool(bool b);
 OBJ make_int(uint64 value);
 OBJ make_float(double value);
 OBJ make_seq(SEQ_OBJ* ptr, uint32 length);
-OBJ make_slice(SEQ_OBJ* ptr, MEM_LAYOUT mem_layout, uint32 offset, uint32 length);
+OBJ make_slice(SEQ_OBJ* ptr, uint32 offset, uint32 length);
 OBJ make_set(SET_OBJ*);
 OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
@@ -310,8 +273,6 @@ OBJ* get_seq_buffer_ptr(OBJ);
 
 // Purely physical representation functions
 
-OBJ repoint_to_std_mem_copy(OBJ obj, void *new_ptr);
-
 OBJ_TYPE get_physical_type(OBJ obj);
 
 SEQ_OBJ*      get_seq_ptr(OBJ);
@@ -320,12 +281,7 @@ BIN_REL_OBJ*  get_bin_rel_ptr(OBJ);
 TERN_REL_OBJ* get_tern_rel_ptr(OBJ);
 TAG_OBJ*      get_tag_obj_ptr(OBJ);
 
-MEM_LAYOUT get_mem_layout(OBJ);
-
 bool is_inline_obj(OBJ);
-bool is_ref_obj(OBJ);
-bool uses_try_mem(OBJ obj);
-bool is_gc_obj(OBJ);
 
 OBJ_TYPE get_ref_obj_type(OBJ);
 REF_OBJ* get_ref_obj_ptr(OBJ);

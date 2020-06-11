@@ -124,7 +124,9 @@ OBJ *new_obj_array(uint32 size) {
 }
 
 OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
-  return (OBJ *) resize_obj(buffer, size * sizeof(OBJ), new_size * sizeof(OBJ));
+  OBJ *new_array = new_obj_array(new_size);
+  memcpy(new_array, buffer, size * sizeof(OBJ));
+  return new_array;
 }
 
 bool *new_bool_array(uint32 size) {
