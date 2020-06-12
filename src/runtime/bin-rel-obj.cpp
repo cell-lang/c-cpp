@@ -199,15 +199,15 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
 
   if (is_opt_rec(rel)) {
     if (is_symb(arg1)) {
-      uint16 symb = get_symb_idx(arg1);
+      uint16 symb_id = get_symb_id(arg1);
 
       void *ptr = get_opt_repr_ptr(rel);
       uint16 repr_id = get_opt_repr_id(rel);
 
-      if (opt_repr_has_field(ptr, repr_id, symb)) {
+      if (opt_repr_has_field(ptr, repr_id, symb_id)) {
         uint32 count;
         uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
-        while (*fields != symb)
+        while (*fields != symb_id)
           fields++;
 
         it.iter.opt_rec.fields = fields;

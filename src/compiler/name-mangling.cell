@@ -58,15 +58,15 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  String symb_idx_name(Atom symb) {
+  String symb_id_name(Atom symb) {
     str = _print_(symb) & "_A";
     return match (context)
       core    = str,
       wrapper = "Cell.Generated.Static." & str;
   }
 
-  String symb_idx_name(SymbObj symb) =
-    object(a?)  = symb_idx_name(a);
+  String symb_id_name(SymbObj symb) =
+    object(a?)  = symb_id_name(a);
 
   //////////////////////////////////////////////////////////////////////////////
 

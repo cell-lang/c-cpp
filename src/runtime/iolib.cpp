@@ -12,7 +12,7 @@ OBJ FileRead_P(OBJ filename, ENV &) {
   char *data = file_read(fname, size);
 
   if (size == -1)
-    return make_symb(symb_idx_nothing);
+    return make_symb(symb_id_nothing);
 
   OBJ seq_obj = make_empty_seq();
   if (size > 0) {
@@ -22,7 +22,7 @@ OBJ FileRead_P(OBJ filename, ENV &) {
     seq_obj = make_seq(seq, size);
   }
 
-  return make_tag_obj(symb_idx_just, seq_obj);
+  return make_tag_obj(symb_id_just, seq_obj);
 }
 
 
@@ -53,6 +53,6 @@ OBJ Print_P(OBJ str_obj, ENV &env) {
 OBJ GetChar_P(ENV &env) {
   int ch = getchar();
   if (ch == EOF)
-    return make_symb(symb_idx_nothing);
-  return make_tag_obj(symb_idx_just, make_int(ch));
+    return make_symb(symb_id_nothing);
+  return make_tag_obj(symb_id_just, make_int(ch));
 }

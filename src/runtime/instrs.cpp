@@ -237,9 +237,9 @@ OBJ parse_value(OBJ str_obj) {
   uint32 error_offset;
   bool ok = parse(raw_str, len, &obj, &error_offset);
   if (ok)
-    return make_tag_obj(symb_idx_success, obj);
+    return make_tag_obj(symb_id_success, obj);
   else
-    return make_tag_obj(symb_idx_failure, make_int(error_offset));
+    return make_tag_obj(symb_id_failure, make_int(error_offset));
 }
 
 char *print_value_alloc(void *ptr, uint32 size) {

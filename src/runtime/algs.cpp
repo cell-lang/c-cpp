@@ -459,10 +459,10 @@ int comp_objs(OBJ obj1, OBJ obj2) {
     }
 
     case TYPE_TAG_OBJ: {
-      uint16 tag_idx_1 = get_tag_idx(obj1);
-      uint16 tag_idx_2 = get_tag_idx(obj2);
-      if (tag_idx_1 != tag_idx_2)
-        return tag_idx_2 - tag_idx_1;
+      uint16 tag_id_1 = get_tag_id(obj1);
+      uint16 tag_id_2 = get_tag_id(obj2);
+      if (tag_id_1 != tag_id_2)
+        return tag_id_2 - tag_id_1;
       return comp_objs(get_inner_obj(obj1), get_inner_obj(obj2));
     }
 

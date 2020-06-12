@@ -47,7 +47,7 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
     if (!is_symb(arg0))
       return false;
 
-    uint16 field_id = get_symb_idx(arg0);
+    uint16 field_id = get_symb_id(arg0);
 
     void *ptr = get_opt_repr_ptr(rel);
     uint16 repr_id = get_opt_repr_id(rel);
@@ -87,7 +87,7 @@ bool contains_br_1(OBJ rel, OBJ arg1) {
 
   if (is_opt_rec(rel)) {
     if (is_symb(arg1))
-      return opt_repr_has_field(get_opt_repr_ptr(rel), get_opt_repr_id(rel), get_symb_idx(arg1));
+      return opt_repr_has_field(get_opt_repr_ptr(rel), get_opt_repr_id(rel), get_symb_id(arg1));
     else
       return false;
   }
@@ -275,7 +275,7 @@ OBJ at(OBJ seq, int64 idx) {
 }
 
 OBJ get_tag(OBJ obj) {
-  return make_symb(get_tag_idx(obj));
+  return make_symb(get_tag_id(obj));
 }
 
 OBJ get_curr_obj(SEQ_ITER &it) {
@@ -344,7 +344,7 @@ OBJ lookup(OBJ rel, OBJ key) {
     if (is_symb(key)) {
       void *ptr = get_opt_repr_ptr(rel);
       uint16 repr_id = get_opt_repr_id(rel);
-      uint16 field_id = get_symb_idx(key);
+      uint16 field_id = get_symb_id(key);
       if (opt_repr_has_field(ptr, repr_id, field_id))
         return opt_repr_lookup_field(ptr, repr_id, field_id);
     }

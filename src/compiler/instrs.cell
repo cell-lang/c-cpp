@@ -214,12 +214,12 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   ## TERMIMATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
   String* native_symb_switch_code(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, Maybe[Nat] block_id) {
     value_str = match (value)
-      get_tag(tag_obj?)   = "get_tag_idx(" & native_expr(tag_obj) & ")",
-      _                   = "get_symb_idx(" & native_expr(value) & ")";
+      get_tag(tag_obj?)   = "get_tag_id(" & native_expr(tag_obj) & ")",
+      _                   = "get_symb_id(" & native_expr(value) & ")";
 
     body_code = (
       ("" if i > 0) &
-      ("case " & symb_idx_name(a) & ":" : a <- isort(as)) &
+      ("case " & symb_id_name(a) & ":" : a <- isort(as)) &
       indent_lines(native_code(is, block_id)) &
       ("  break;" if in(falls_through, code_outcomes(is)))
       : as, is @ i <- isort(cases)
@@ -296,8 +296,8 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
   String native_mk_tagged_obj_code(ObjExpr tag, ObjExpr value, WriteObjVar var) {
     tag_expr = match (tag)
-      object(<+> s?)  = symb_idx_name(s),
-      _               = "get_symb_idx(" & native_expr(tag) & ")";
+      object(<+> s?)  = symb_id_name(s),
+      _               = "get_symb_id(" & native_expr(tag) & ")";
     return match (value)
       int_obj(e?) = native_call(var, "make_tag_int", (tag_expr, e)),
       _           = native_call(var, "make_tag_obj", (tag_expr, value));

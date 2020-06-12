@@ -1,8 +1,8 @@
 #include "lib.h"
 
 
-bool is_str(uint16 tag_idx, OBJ obj) {
-  if (tag_idx != symb_idx_string)
+bool is_str(uint16 tag_id, OBJ obj) {
+  if (tag_id != symb_id_string)
     return false;
 
   if (is_empty_seq(obj))
@@ -48,7 +48,7 @@ bool is_record(OBJ obj) {
 void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   char buffer[64];
 
-  assert(is_str(get_tag_idx(str), get_inner_obj(str)));
+  assert(is_str(get_tag_id(str), get_inner_obj(str)));
 
   OBJ char_seq = get_inner_obj(str);
   if (is_empty_seq(char_seq))
@@ -244,15 +244,15 @@ void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION),
 
 
 void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
-  uint16 tag_idx = get_tag_idx(obj);
+  uint16 tag_id = get_tag_id(obj);
   OBJ inner_obj = get_inner_obj(obj);
-  if (is_str(tag_idx, inner_obj)) {
+  if (is_str(tag_id, inner_obj)) {
     emit(data, "\"", TEXT);
     print_bare_str(obj, emit, data);
     emit(data, "\"", TEXT);
   }
   else {
-    print_symb(make_symb(tag_idx), emit, data);
+    print_symb(make_symb(tag_id), emit, data);
     emit(data, "(", TEXT);
 
     if (is_record(inner_obj))

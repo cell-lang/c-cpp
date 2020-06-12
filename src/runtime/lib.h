@@ -51,7 +51,7 @@ struct OBJ {
 
   // union {
   //   struct {
-  //     uint16   symb_idx;
+  //     uint16   symb_id;
   //     uint16   inner_tag;
   //     uint16   tag;
   //     uint8    unused_byte;
@@ -118,7 +118,7 @@ struct TERN_REL_OBJ {
 
 struct TAG_OBJ {
   REF_OBJ ref_obj;
-  uint16 tag_idx;
+  uint16 tag_id;
   uint16 unused_field;
   OBJ    obj;
 };
@@ -182,14 +182,14 @@ const uint64 MAX_SEQ_LEN = 0xFFFFFFFF;
 
 const uint32 INVALID_INDEX = 0xFFFFFFFFU;
 
-const uint16 symb_idx_false   = 0;
-const uint16 symb_idx_true    = 1;
-const uint16 symb_idx_void    = 2;
-const uint16 symb_idx_string  = 3;
-const uint16 symb_idx_nothing = 4;
-const uint16 symb_idx_just    = 5;
-const uint16 symb_idx_success = 6;
-const uint16 symb_idx_failure = 7;
+const uint16 symb_id_false   = 0;
+const uint16 symb_id_true    = 1;
+const uint16 symb_id_void    = 2;
+const uint16 symb_id_string  = 3;
+const uint16 symb_id_nothing = 4;
+const uint16 symb_id_just    = 5;
+const uint16 symb_id_success = 6;
+const uint16 symb_id_failure = 7;
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
@@ -255,19 +255,19 @@ bool is_tag_obj(OBJ);
 bool is_symb(OBJ, uint16);
 bool is_int(OBJ, int64);
 
-uint16 get_symb_idx(OBJ);
+uint16 get_symb_id(OBJ);
 bool   get_bool(OBJ);
 int64  get_int(OBJ);
 double get_float(OBJ);
 uint32 get_seq_length(OBJ);
-uint16 get_tag_idx(OBJ);
+uint16 get_tag_id(OBJ);
 OBJ    get_inner_obj(OBJ);
 
 OBJ make_blank_obj();
 OBJ make_null_obj();
 OBJ make_empty_seq();
 OBJ make_empty_rel();
-OBJ make_symb(uint16 symb_idx);
+OBJ make_symb(uint16 symb_id);
 OBJ make_bool(bool b);
 OBJ make_int(uint64 value);
 OBJ make_float(double value);
@@ -278,7 +278,7 @@ OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
 OBJ make_log_map(BIN_REL_OBJ*);
 OBJ make_map(BIN_REL_OBJ*);
-OBJ make_tag_obj(uint16 tag_idx, OBJ obj);
+OBJ make_tag_obj(uint16 tag_id, OBJ obj);
 OBJ make_opt_tag_rec(void *ptr, uint16 type_id);
 
 // These functions exist in a limbo between the logical and physical world
@@ -333,7 +333,7 @@ bool contains_tr_12(OBJ rel, OBJ arg1, OBJ arg2);
 bool contains_tr_13(OBJ rel, OBJ arg1, OBJ arg3);
 bool contains_tr_23(OBJ rel, OBJ arg2, OBJ arg3);
 
-bool has_field(OBJ rec, uint16 field_symb_idx);
+bool has_field(OBJ rec, uint16 field_symb_id);
 
 uint32 get_size(OBJ set);
 int64 float_bits(OBJ);
@@ -353,7 +353,7 @@ OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it);
 OBJ rand_set_elem(OBJ set);   // Non-deterministic
 
 OBJ lookup(OBJ rel, OBJ key);
-OBJ lookup_field(OBJ rec, uint16 field_symb_idx);
+OBJ lookup_field(OBJ rec, uint16 field_symb_id);
 
 ////////////////////////////////// instrs.cpp //////////////////////////////////
 
@@ -456,7 +456,7 @@ int comp_objs(OBJ obj1, OBJ obj2);
 
 void add_obj_to_cache(OBJ);
 
-uint16 lookup_symb_idx(const char *, uint32);
+uint16 lookup_symb_id(const char *, uint32);
 
 const char *symb_to_raw_str(OBJ);
 

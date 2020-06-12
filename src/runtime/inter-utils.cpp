@@ -53,7 +53,7 @@ OBJ str_to_obj(const char *c_str) {
     raw_str_obj = make_seq(raw_str, size);
   }
 
-  return make_tag_obj(symb_idx_string, raw_str_obj);
+  return make_tag_obj(symb_id_string, raw_str_obj);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,19 +163,19 @@ uint32 embedded_symbs_count();
 
 const char *symb_to_raw_str(OBJ obj) {
   assert(is_symb(obj));
-  uint16 idx = get_symb_idx(obj);
+  uint16 symb_id = get_symb_id(obj);
   uint32 count = embedded_symbs_count();
-  if (idx < count)
-    return symb_repr(idx);
+  if (symb_id < count)
+    return symb_repr(symb_id);
   else
-    return dynamic_symbs_strs[idx - count];
+    return dynamic_symbs_strs[symb_id - count];
 }
 
 OBJ to_str(OBJ obj) {
   return str_to_obj(symb_to_raw_str(obj));
 }
 
-uint16 lookup_symb_idx(const char *str_, uint32 len) {
+uint16 lookup_symb_id(const char *str_, uint32 len) {
   uint32 count = embedded_symbs_count();
 
   if (str_to_symb_map.size() == 0)
@@ -201,11 +201,11 @@ uint16 lookup_symb_idx(const char *str_, uint32 len) {
 OBJ to_symb(OBJ obj) {
   char *str = obj_to_str(obj);
   uint32 len = strlen(str);
-  uint16 symb_idx = lookup_symb_idx(str, len);
-  return make_symb(symb_idx);
+  uint16 symb_id = lookup_symb_id(str, len);
+  return make_symb(symb_id);
 }
 
 OBJ extern_str_to_symb(const char *str) {
   //## CHECK THAT IT'S A VALID SYMBOL, AND THAT IT'S AMONG THE "STATIC" ONES
-  return make_symb(lookup_symb_idx(str, strlen(str)));
+  return make_symb(lookup_symb_id(str, strlen(str)));
 }

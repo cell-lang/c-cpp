@@ -20,7 +20,7 @@ enum TOKEN_TYPE {
 union VALUE {
   int64 integer;
   double floating;
-  uint16 symb_idx;
+  uint16 symb_id;
   struct {
     const char *ptr;
     uint32 length;
@@ -164,7 +164,7 @@ inline int64 read_symbol(const char *text, uint32 length, int64 offset, TOKEN *t
     token->offset = offset;
     token->length = i - offset;
     token->type = SYMBOL;
-    token->value.symb_idx = lookup_symb_idx(text+offset, i-offset);
+    token->value.symb_id = lookup_symb_id(text+offset, i-offset);
   }
   return i;
 }
@@ -465,14 +465,14 @@ int64 read_tern_rel_entry(TOKEN *tokens, uint32 length, int64 offset, STATE *sta
 int64 read_rec_entry(TOKEN *tokens, uint32 length, int64 offset, STATE *state) {
   if (offset >= length || tokens[offset].type != SYMBOL)
     return -offset - 1;
-  uint16 symb_idx = tokens[offset++].value.symb_idx;
+  uint16 symb_id = tokens[offset++].value.symb_id;
   if (offset >= length || tokens[offset].type != COLON)
     return -offset - 1;
   OBJ entry[2];
   offset = parse_obj(tokens, length, offset+1, entry+1);
   if (offset < 0)
     return offset;
-  entry[0] = make_symb(symb_idx);
+  entry[0] = make_symb(symb_id);
   store(state, entry, 2);
   return offset;
 }
@@ -527,7 +527,7 @@ int64 parse_inner_obj_or_tuple(TOKEN *tokens, uint32 length, int64 offset, OBJ *
 }
 
 int64 parse_symb_or_tagged_obj(TOKEN *tokens, uint32 length, int64 offset, OBJ *var) {
-  uint16 symb_idx = tokens[offset].value.symb_idx;
+  uint16 symb_id = tokens[offset].value.symb_id;
   if (++offset < length) {
     if (tokens[offset].type == OPEN_PAR) {
       OBJ inner_obj;
@@ -536,11 +536,11 @@ int64 parse_symb_or_tagged_obj(TOKEN *tokens, uint32 length, int64 offset, OBJ *
       else
         offset = parse_inner_obj_or_tuple(tokens, length, offset, &inner_obj);
       if (offset >= 0)
-        *var = make_tag_obj(symb_idx, inner_obj);
+        *var = make_tag_obj(symb_id, inner_obj);
       return offset;
     }
   }
-  *var = make_symb(symb_idx);
+  *var = make_symb(symb_id);
   return offset;
 }
 
@@ -641,12 +641,12 @@ void parse_string(TOKEN *token, OBJ *var) {
   uint32 length = token->value.string.length;
 
   if (length == 0) {
-    *var = make_tag_obj(symb_idx_string, make_empty_seq());
+    *var = make_tag_obj(symb_id_string, make_empty_seq());
     return;
   }
 
   SEQ_OBJ *raw_str = new_seq(length);
-  *var = make_tag_obj(symb_idx_string, make_seq(raw_str, length));
+  *var = make_tag_obj(symb_id_string, make_seq(raw_str, length));
 
   OBJ *buffer = raw_str->buffer;
 

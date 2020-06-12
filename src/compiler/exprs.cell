@@ -5,7 +5,7 @@ implicit context : NativeContext {
 
 
   String native_expr(InlineObj) =
-    object(s?)  = "make_symb(" & symb_idx_name(s) & ")",
+    object(s?)  = "make_symb(" & symb_id_name(s) & ")",
     empty_seq   = "make_empty_seq()",
     empty_rel   = "make_empty_rel()";
 
@@ -51,7 +51,7 @@ implicit context : NativeContext {
         object  = expr_str;
     }
 
-    return "lookup_field(" & native_expr(record) & ", " & symb_idx_name(field) & ")";
+    return "lookup_field(" & native_expr(record) & ", " & symb_id_name(field) & ")";
   }
 
 
@@ -104,7 +104,7 @@ implicit context : NativeContext {
       is_blank(v?)          = "is_blank_obj(" & native_var_ref_name(v) & ")",
       is_null(v?)           = "is_null_obj(" & native_var_ref_name(v) & ")",
 
-      has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_idx_name(expr.field) & ")",
+      has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_id_name(expr.field) & ")",
 
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
       table_contains()      = native_table_contains(expr.table, expr.tuple, expr.symmetric),
@@ -133,7 +133,7 @@ implicit context : NativeContext {
 
       // (is_tagged_obj(e1?), is_int(get_inner_obj(e2?)), are_eq(get_tag(e3?), object(s?))) =
       //   if e1 == e2 and e2 == e3
-      //     then native_expr(e1, true) & ".IsTaggedInt(" & symb_idx_name(s) & ")"
+      //     then native_expr(e1, true) & ".IsTaggedInt(" & symb_id_name(s) & ")"
       //     else default,
 
       _ = default;
@@ -203,11 +203,11 @@ implicit context : NativeContext {
                                               then native_ptr_expr(expr1.record) & "->" & opt_rec_field_name(untag(expr1.field))
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
 
-    get_tag(e?),        object(s?)        = parenthesize("get_tag_idx(" & native_expr(e) & ") == " & symb_idx_name(s), parenthesized),
-    object(s?),         get_tag(e?)       = parenthesize("get_tag_idx(" & native_expr(e) & ") == " & symb_idx_name(s), parenthesized),
+    get_tag(e?),        object(s?)        = parenthesize("get_tag_id(" & native_expr(e) & ") == " & symb_id_name(s), parenthesized),
+    object(s?),         get_tag(e?)       = parenthesize("get_tag_id(" & native_expr(e) & ") == " & symb_id_name(s), parenthesized),
 
-    object(s?),         _                 = "is_symb(" & native_expr(expr2) & ", " & symb_idx_name(s) & ")",
-    _,                  object(s?)        = "is_symb(" & native_expr(expr1) & ", " & symb_idx_name(s) & ")",
+    object(s?),         _                 = "is_symb(" & native_expr(expr2) & ", " & symb_id_name(s) & ")",
+    _,                  object(s?)        = "is_symb(" & native_expr(expr1) & ", " & symb_id_name(s) & ")",
 
     empty_seq,          _                 = "is_empty_seq(" & native_expr(expr2) & ")",
     _,                  empty_seq         = "is_empty_seq(" & native_expr(expr1) & ")",

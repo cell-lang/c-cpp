@@ -175,19 +175,19 @@ OBJ make_null_obj() {
   return obj;
 }
 
-OBJ make_symb(uint16 symb_idx) {
+OBJ make_symb(uint16 symb_id) {
   OBJ obj;
   obj.core_data.int_ = 0;
-  obj.extra_data = symb_idx | SYMBOL_BASE_MASK;
+  obj.extra_data = symb_id | SYMBOL_BASE_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == symb_idx);
+  // assert(obj.extra_data.std.symb_id    == symb_id);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
   // assert(obj.extra_data.std.type        == TYPE_SYMBOL);
   // assert(obj.extra_data.std.mem_layout  == 0);
   // assert(obj.extra_data.std.num_tags    == 0);
-  // assert(is_symb(obj, symb_idx));
+  // assert(is_symb(obj, symb_id));
 
   return obj;
 }
@@ -195,16 +195,16 @@ OBJ make_symb(uint16 symb_idx) {
 OBJ make_bool(bool b) {
   OBJ obj;
   obj.core_data.int_ = 0;
-  obj.extra_data = (b ? symb_idx_true : symb_idx_false) | SYMBOL_BASE_MASK;
+  obj.extra_data = (b ? symb_id_true : symb_id_false) | SYMBOL_BASE_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == (b ? symb_idx_true : symb_idx_false));
+  // assert(obj.extra_data.std.symb_id    == (b ? symb_id_true : symb_id_false));
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
   // assert(obj.extra_data.std.type        == TYPE_SYMBOL);
   // assert(obj.extra_data.std.mem_layout  == 0);
   // assert(obj.extra_data.std.num_tags    == 0);
-  // assert(is_symb(obj, (b ? symb_idx_true : symb_idx_false)));
+  // assert(is_symb(obj, (b ? symb_id_true : symb_id_false)));
 
   return obj;
 }
@@ -214,7 +214,7 @@ OBJ make_int(uint64 value) {
   obj.core_data.int_ = value;
   obj.extra_data = INTEGER_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -231,7 +231,7 @@ OBJ make_float(double value) {
   obj.core_data.float_ = value;
   obj.extra_data = FLOAT_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -305,7 +305,7 @@ OBJ make_set(SET_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = ptr == NULL ? EMPTY_REL_MASK : NE_SET_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -327,7 +327,7 @@ OBJ make_bin_rel(BIN_REL_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = NE_BIN_REL_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -345,7 +345,7 @@ OBJ make_log_map(BIN_REL_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = NE_LOG_MAP_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -363,7 +363,7 @@ OBJ make_map(BIN_REL_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = NE_MAP_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -381,7 +381,7 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = NE_TERN_REL_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -397,7 +397,7 @@ OBJ make_tag_obj(TAG_OBJ *ptr) {
   obj.core_data.ptr = ptr;
   obj.extra_data = TAG_OBJ_MASK;
 
-  // assert(obj.extra_data.std.symb_idx    == 0);
+  // assert(obj.extra_data.std.symb_id    == 0);
   // assert(obj.extra_data.std.inner_tag   == 0);
   // assert(obj.extra_data.std.tag         == 0);
   // assert(obj.extra_data.std.unused_byte == 0);
@@ -408,21 +408,21 @@ OBJ make_tag_obj(TAG_OBJ *ptr) {
   return obj;
 }
 
-OBJ make_ref_tag_obj(uint16 tag_idx, OBJ obj) {
+OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
   TAG_OBJ *tag_obj = new_tag_obj();
-  tag_obj->tag_idx = tag_idx;
+  tag_obj->tag_id = tag_id;
   tag_obj->obj = obj;
   return make_tag_obj(tag_obj);
 }
 
-OBJ make_tag_obj(uint16 tag_idx, OBJ obj) {
+OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
   OBJ_TYPE type = get_physical_type(obj);
 
   if (type == TYPE_SEQUENCE) {
     if (get_tags_count(obj) == 0) {
       // No need to clear anything, both fields are already blank
-      obj.extra_data |= MAKE_TAG(tag_idx) | MAKE_TAGS_COUNT(1);
-      // obj.extra_data.seq.tag = tag_idx;
+      obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
+      // obj.extra_data.seq.tag = tag_id;
       // obj.extra_data.seq.num_tags = 1;
       return obj;
     }
@@ -430,18 +430,18 @@ OBJ make_tag_obj(uint16 tag_idx, OBJ obj) {
   else if (type != TYPE_SLICE) {
     uint8 tags_count = get_tags_count(obj);
     if (tags_count < 2) {
-      uint16 curr_tag_idx = GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
-      uint64 mask_diff = MAKE_INNER_TAG(curr_tag_idx) | MAKE_TAG(tag_idx) | MAKE_TAGS_COUNT(tags_count + 1);
+      uint16 curr_tag_id = GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
+      uint64 mask_diff = MAKE_INNER_TAG(curr_tag_id) | MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(tags_count + 1);
       // No need to clear the inner tag here, it's already 0
       obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK) | mask_diff;
       // obj.extra_data.std.inner_tag = obj.extra_data.std.tag;
-      // obj.extra_data.std.tag = tag_idx;
+      // obj.extra_data.std.tag = tag_id;
       // obj.extra_data.std.num_tags = tags_count + 1;
       return obj;
     }
   }
 
-  return make_ref_tag_obj(tag_idx, obj);
+  return make_ref_tag_obj(tag_id, obj);
 }
 
 OBJ make_opt_tag_rec(void *ptr, uint16 type_id) {
@@ -453,14 +453,14 @@ OBJ make_opt_tag_rec(void *ptr, uint16 type_id) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint16 get_symb_idx(OBJ obj) {
+uint16 get_symb_id(OBJ obj) {
   assert(is_symb(obj));
   return GET(obj.extra_data, SYMB_IDX_SHIFT, SYMB_IDX_WIDTH);
 }
 
 bool get_bool(OBJ obj) {
   assert(is_bool(obj));
-  return get_symb_idx(obj) == symb_idx_true;
+  return get_symb_id(obj) == symb_id_true;
 }
 
 int64 get_int(OBJ obj) {
@@ -486,14 +486,14 @@ uint32 get_seq_offset(OBJ seq) {
   return get_physical_type(seq) == TYPE_SLICE ? GET(seq.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
 }
 
-uint16 get_tag_idx(OBJ obj) {
+uint16 get_tag_id(OBJ obj) {
   assert(is_tag_obj(obj));
   assert(get_physical_type(obj) != TYPE_SLICE);
 
   if (get_tags_count(obj) != 0)
     return GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
   else
-    return ((TAG_OBJ *) obj.core_data.ptr)->tag_idx;
+    return ((TAG_OBJ *) obj.core_data.ptr)->tag_id;
 }
 
 OBJ get_inner_obj(OBJ obj) {
@@ -599,7 +599,7 @@ bool is_symb(OBJ obj) {
 }
 
 bool is_bool(OBJ obj) {
-  assert(symb_idx_false == 0 & symb_idx_true == 1); // The correctness of the body depends on this assumption
+  assert(symb_id_false == 0 & symb_id_true == 1); // The correctness of the body depends on this assumption
   return (obj.extra_data >> 1) == (SYMBOL_BASE_MASK >> 1);
 }
 
@@ -666,8 +666,8 @@ bool is_tag_obj(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool is_symb(OBJ obj, uint16 symb_idx) {
-  return obj.extra_data == (symb_idx | SYMBOL_BASE_MASK);
+bool is_symb(OBJ obj, uint16 symb_id) {
+  return obj.extra_data == (symb_id | SYMBOL_BASE_MASK);
 }
 
 bool is_int(OBJ obj, int64 n) {

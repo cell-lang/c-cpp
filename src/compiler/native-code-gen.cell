@@ -53,7 +53,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     Text symbol_decls {
       let context = :core
-        code = ("const uint16 " & symb_idx_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
+        code = ("const uint16 " & symb_id_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
       return code;
     }
 
@@ -327,7 +327,7 @@ String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
   String symbols_array_decl(Symbol+ symbs, Nat index) {
     name = const_symb_seq_name(index);
     let context = :core
-      symbs_strs = (symb_idx_name(s) : s <- symbs);
+      symbs_strs = (symb_id_name(s) : s <- symbs);
     return "uint16 " & name & "[" & _print_(|symbs|) & "] = {" & append(symbs_strs, ", ") & "};";
   }
 }
