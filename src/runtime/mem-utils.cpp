@@ -403,8 +403,6 @@ OBJ get_inner_obj(OBJ obj) {
   if (type == TYPE_SEQUENCE) {
     assert(get_tags_count(obj) == 1);
     obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK);
-    // obj.extra_data.seq.tag = 0;
-    // obj.extra_data.seq.num_tags = 0;
     return obj;
   }
 
@@ -413,9 +411,6 @@ OBJ get_inner_obj(OBJ obj) {
     uint16 inner_tag = GET(obj.extra_data, INNER_TAG_SHIFT, TAG_WIDTH);
     uint64 cleared_extra_data = CLEAR(obj.extra_data, INNER_TAG_MASK | TAG_MASK | TAGS_COUNT_MASK);
     obj.extra_data = cleared_extra_data | MAKE_TAG(inner_tag) | MAKE_TAGS_COUNT(tags_count-1);
-    // obj.extra_data.std.tag = obj.extra_data.std.inner_tag;
-    // obj.extra_data.std.inner_tag = 0;
-    // obj.extra_data.std.num_tags = tags_count - 1;
     return obj;
   }
 
@@ -541,13 +536,18 @@ bool is_set(OBJ obj) {
 }
 
 bool is_ne_bin_rel(OBJ obj) {
-  OBJ_TYPE type = get_physical_type(obj);
-  return type == TYPE_BIN_REL | type == TYPE_LOG_MAP | type == TYPE_MAP | type == TYPE_OPT_REC;
+  uint64 extra_data = obj.extra_data;
+  return extra_data == NE_BIN_REL_MASK |
+         extra_data == NE_MAP_MASK |
+         extra_data == NE_LOG_MAP_MASK |
+         CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
 }
 
 bool is_ne_map(OBJ obj) {
   uint64 extra_data = obj.extra_data;
-  return extra_data == NE_MAP_MASK | extra_data == NE_LOG_MAP_MASK;
+  return extra_data == NE_MAP_MASK |
+         extra_data == NE_LOG_MAP_MASK |
+         CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
 }
 
 bool is_bin_rel(OBJ obj) {
@@ -581,10 +581,12 @@ bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_opt_rec(OBJ obj) {
+  assert(get_tags_count(obj) == 0);
   return get_physical_type(obj) == TYPE_OPT_REC;
 }
 
 bool is_opt_rec_or_tag_rec(OBJ obj) {
+  assert(get_tags_count(obj) == 0);
   OBJ_TYPE type = get_physical_type(obj);
   return type == TYPE_OPT_REC | type == TYPE_OPT_TAG_REC;
 }

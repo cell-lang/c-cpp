@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 int64 from_utf8(const char *input, OBJ *output) {
@@ -158,12 +159,7 @@ str_idx_map_type str_to_symb_map(str_ord);
 //## THESE STRINGS ARE NEVER CLEANED UP. NOT MUCH OF A PROBLEM IN PRACTICE, BUT STILL A BUG...
 std::vector<const char *> dynamic_symbs_strs;
 
-const char *symb_repr(uint16);
-uint32 embedded_symbs_count();
-
-const char *symb_to_raw_str(OBJ obj) {
-  assert(is_symb(obj));
-  uint16 symb_id = get_symb_id(obj);
+const char *symb_to_raw_str(uint16 symb_id) {
   uint32 count = embedded_symbs_count();
   if (symb_id < count)
     return symb_repr(symb_id);
@@ -172,7 +168,7 @@ const char *symb_to_raw_str(OBJ obj) {
 }
 
 OBJ to_str(OBJ obj) {
-  return str_to_obj(symb_to_raw_str(obj));
+  return str_to_obj(symb_to_raw_str(get_symb_id(obj)));
 }
 
 uint16 lookup_symb_id(const char *str_, uint32 len) {

@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 bool is_str(uint16 tag_id, OBJ obj) {
@@ -32,6 +33,9 @@ bool is_str(uint16 tag_id, OBJ obj) {
 bool is_record(OBJ obj) {
   if (!is_ne_map(obj))
     return false;
+
+  if (is_opt_rec(obj))
+    return true;
 
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
   uint32 size = map->size;
@@ -105,9 +109,7 @@ void print_float(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void 
 
 
 void print_symb(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
-  OBJ str = to_str(obj);
-  print_bare_str(str, emit, data);
-  //## RELEASE str?
+  emit(data, symb_to_raw_str(get_symb_id(obj)), TEXT);
 }
 
 
@@ -195,19 +197,45 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
   if (print_parentheses)
     emit(data, "(", TEXT);
 
-  BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-  uint32 size = map->size;
-  OBJ *keys = get_left_col_array_ptr(map);
-  OBJ *values = get_right_col_array_ptr(map);
+  if (is_opt_rec(obj)) {
+    void *ptr = get_opt_repr_ptr(obj);
+    uint16 repr_id = get_opt_repr_id(obj);
 
-  for (uint32 i=0 ; i < size ; i++) {
-    if (i > 0)
-      emit(data, ", ", TEXT);
-    emit(data, NULL, SUB_START);
-    print_symb(keys[i], emit, data);
-    emit(data, ": ", TEXT);
-    print_obj(values[i], emit, data);
-    emit(data, NULL, SUB_END);
+    uint32 count;
+    uint16 *symbs = opt_repr_get_fields(ptr, repr_id, count);
+
+    bool first = true;
+    for (int i=0 ; i < count ; i++) {
+      uint16 symb_id = symbs[i];
+      if (opt_repr_has_field(ptr, repr_id, symb_id)) {
+        OBJ value = opt_repr_lookup_field(ptr, repr_id, symb_id);
+        if (!first)
+          emit(data, ", ", TEXT);
+        else
+          first = false;
+        emit(data, NULL, SUB_START);
+        emit(data, symb_to_raw_str(symb_id), TEXT);
+        emit(data, ": ", TEXT);
+        print_obj(value, emit, data);
+        emit(data, NULL, SUB_END);
+      }
+    }
+  }
+  else {
+    BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
+    uint32 size = map->size;
+    OBJ *keys = get_left_col_array_ptr(map);
+    OBJ *values = get_right_col_array_ptr(map);
+
+    for (uint32 i=0 ; i < size ; i++) {
+      if (i > 0)
+        emit(data, ", ", TEXT);
+      emit(data, NULL, SUB_START);
+      print_symb(keys[i], emit, data);
+      emit(data, ": ", TEXT);
+      print_obj(values[i], emit, data);
+      emit(data, NULL, SUB_END);
+    }
   }
 
   if (print_parentheses)

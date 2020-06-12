@@ -34,7 +34,7 @@ enum OBJ_TYPE {
 };
 
 // Heap object can never be of the following types: TYPE_SLICE, TYPE_LOG_MAP
-// Never returned by get_logical_type(): TYPE_SLICE, TYPE_MAP, TYPE_LOG_MAP.
+// Never returned by get_logical_type(): TYPE_SLICE, TYPE_MAP, TYPE_LOG_MAP, TYPE_OPT_REC, TYPE_OPT_TAG_REC
 
 const uint32 MAX_INLINE_OBJ_TYPE_VALUE  = TYPE_FLOAT;
 const uint32 MAX_OBJ_TYPE_VALUE         = TYPE_SLICE;
@@ -89,18 +89,15 @@ struct SEQ_OBJ {
   OBJ     buffer[1];
 };
 
-
 struct SET_OBJ {
   uint32  size;
   OBJ     buffer[1];
 };
 
-
 struct BIN_REL_OBJ {
   uint32  size;
   OBJ     buffer[1];
 };
-
 
 struct TERN_REL_OBJ {
   uint32  size;
@@ -121,13 +118,11 @@ struct SEQ_ITER {
   uint32  len;
 };
 
-
 struct SET_ITER {
   OBJ    *buffer;
   uint32  idx;
   uint32  size;
 };
-
 
 struct BIN_REL_ITER {
   union {
@@ -149,7 +144,6 @@ struct BIN_REL_ITER {
 
   enum {BRIT_BIN_REL, BRIT_OPT_REC} type;
 };
-
 
 struct TERN_REL_ITER {
   OBJ    *col1;
@@ -448,7 +442,7 @@ void add_obj_to_cache(OBJ);
 
 uint16 lookup_symb_id(const char *, uint32);
 
-const char *symb_to_raw_str(OBJ);
+const char *symb_to_raw_str(uint16);
 
 OBJ to_str(OBJ);
 OBJ to_symb(OBJ);

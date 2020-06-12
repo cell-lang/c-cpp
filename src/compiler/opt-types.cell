@@ -35,6 +35,14 @@ implicit prg : CompiledPrg, context : <core> {
       "  switch (repr_id) {"
     );
 
+    get_tag_id = (
+      "",
+      80 * "/",
+      "",
+      "uint16 opt_repr_get_tag_id(uint16 repr_id) {",
+      "  static uint16 tag_ids[] = {"
+    );
+
     global_id = 0;
     for s, rs <- isort(prg.opt_reprs)
       for r @ i <- rs {
@@ -74,6 +82,8 @@ implicit prg : CompiledPrg, context : <core> {
           ""
         );
 
+        get_tag_id = (get_tag_id | "    " & symb_id_name(s) & ",");
+
         global_id = nat(global_id + 1);
       }
 
@@ -89,7 +99,17 @@ implicit prg : CompiledPrg, context : <core> {
                   get_fields_count_dispatcher & footer &
                   get_fields_dispatcher       & footer;
 
-    return structs_decls & all_methods & dispatchers;
+    get_tag_id = (
+      get_tag_id |
+      "  };",
+      "",
+      "  return tag_ids[repr_id];",
+      "}",
+      "",
+      80 * "/"
+    );
+
+    return structs_decls & all_methods & dispatchers & get_tag_id;
   }
 
 
