@@ -1,5 +1,5 @@
 #include "lib.h"
-
+#include "extern.h"
 
 
 void init(STREAM &s) {
@@ -293,7 +293,20 @@ void move_forward(SEQ_ITER &it) {
 
 void move_forward(BIN_REL_ITER &it) {
   assert(!is_out_of_range(it));
-  it.idx++;
+
+  if (it.type == BIN_REL_ITER::BRIT_OPT_REC) {
+    for ( ; ; ) {
+      if (++it.idx >= it.end)
+        break;
+      uint16 field = it.iter.opt_rec.fields[it.idx];
+      if (opt_repr_has_field(it.iter.opt_rec.ptr, it.iter.opt_rec.repr_id, field))
+        break;
+    }
+  }
+  else {
+    assert(it.type == BIN_REL_ITER::BRIT_BIN_REL);
+    it.idx++;
+  }
 }
 
 void move_forward(TERN_REL_ITER &it) {

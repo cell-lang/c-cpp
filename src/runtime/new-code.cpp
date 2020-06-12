@@ -52,56 +52,6 @@ bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool bin_rel_contains_1(OBJ rel, OBJ arg1) {
-  BIN_REL_ITER it;
-  get_bin_rel_iter_0(it, rel, arg1);
-  return !is_out_of_range(it);
-}
-
-bool bin_rel_contains_2(OBJ rel, OBJ arg2) {
-  BIN_REL_ITER it;
-  get_bin_rel_iter_1(it, rel, arg2);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_1(OBJ rel, OBJ arg1) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 0, arg1);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_2(OBJ rel, OBJ arg2) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 1, arg2);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_3(OBJ rel, OBJ arg3) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 2, arg3);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_12(OBJ rel, OBJ arg1, OBJ arg2) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 0, arg1, arg2);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_13(OBJ rel, OBJ arg1, OBJ arg3) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 2, arg3, arg1);
-  return !is_out_of_range(it);
-}
-
-bool tern_rel_contains_23(OBJ rel, OBJ arg2, OBJ arg3) {
-  TERN_REL_ITER it;
-  get_tern_rel_iter_by(it, rel, 1, arg2, arg3);
-  return !is_out_of_range(it);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 OBJ build_seq(int64* array, int32 size) {
   SEQ_OBJ *seq = new_seq(size);
 

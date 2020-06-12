@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 void build_map_right_to_left_sorted_idx_array(OBJ map) {
@@ -151,45 +152,88 @@ OBJ build_map(STREAM &key_stream, STREAM &value_stream) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void get_bin_rel_null_iter(BIN_REL_ITER &it) {
-  it.left_col = NULL;   // Not strictly necessary
-  it.right_col = NULL;  // Not strictly necessary
-  it.rev_idxs = NULL;
+  it.iter.bin_rel.left_col = NULL;   // Not strictly necessary
+  it.iter.bin_rel.right_col = NULL;  // Not strictly necessary
+  it.iter.bin_rel.rev_idxs = NULL;
   it.idx = 0;
   it.end = 0;
+  it.type = BIN_REL_ITER::BRIT_BIN_REL;
 }
 
 void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel) {
   assert(is_bin_rel(rel));
 
-  if (!is_empty_rel(rel)) {
+  if (is_opt_rec(rel)) {
+    void *ptr = get_opt_repr_ptr(rel);
+    uint16 repr_id = get_opt_repr_id(rel);
+
+    uint32 count;
+    uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+
+    uint32 idx = 0;
+    while (!opt_repr_has_field(ptr, repr_id, fields[idx]))
+      idx++;
+
+    it.iter.opt_rec.fields = fields;
+    it.iter.opt_rec.ptr = ptr;
+    it.iter.opt_rec.repr_id = repr_id;
+    it.idx = idx;
+    it.end = count;
+    it.type = BIN_REL_ITER::BRIT_OPT_REC;
+  }
+  else if (!is_empty_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    it.left_col = get_left_col_array_ptr(ptr);
-    it.right_col = get_right_col_array_ptr(ptr);
-    it.rev_idxs = NULL;
+    it.iter.bin_rel.left_col = get_left_col_array_ptr(ptr);
+    it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr);
+    it.iter.bin_rel.rev_idxs = NULL;
     it.idx = 0;
     it.end = ptr->size;
+    it.type = BIN_REL_ITER::BRIT_BIN_REL;
   }
   else
     get_bin_rel_null_iter(it);
 }
 
-void get_bin_rel_iter_0(BIN_REL_ITER &it, OBJ rel, OBJ arg0) {
+void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
   assert(is_bin_rel(rel));
 
-  if (is_ne_bin_rel(rel)) {
+  if (is_opt_rec(rel)) {
+    if (is_symb(arg1)) {
+      uint16 symb = get_symb_idx(arg1);
+
+      void *ptr = get_opt_repr_ptr(rel);
+      uint16 repr_id = get_opt_repr_id(rel);
+
+      if (opt_repr_has_field(ptr, repr_id, symb)) {
+        uint32 count;
+        uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+        while (*fields != symb)
+          fields++;
+
+        it.iter.opt_rec.fields = fields;
+        it.iter.opt_rec.ptr = ptr;
+        it.iter.opt_rec.repr_id = repr_id;
+        it.idx = 0;
+        it.end = 1;
+        it.type = BIN_REL_ITER::BRIT_OPT_REC;
+      }
+    }
+  }
+  else if (is_ne_bin_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
     uint32 size = ptr->size;
     OBJ *left_col = get_left_col_array_ptr(ptr);
 
     uint32 count;
-    uint32 first = find_objs_range(left_col, size, arg0, count);
+    uint32 first = find_objs_range(left_col, size, arg1, count);
 
     if (count > 0) {
-      it.left_col = left_col;
-      it.right_col = get_right_col_array_ptr(ptr);
-      it.rev_idxs = NULL;
+      it.iter.bin_rel.left_col = left_col;
+      it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr);
+      it.iter.bin_rel.rev_idxs = NULL;
       it.idx = first;
       it.end = first + count;
+      it.type = BIN_REL_ITER::BRIT_BIN_REL;
       return;
     }
   }
@@ -197,10 +241,47 @@ void get_bin_rel_iter_0(BIN_REL_ITER &it, OBJ rel, OBJ arg0) {
   get_bin_rel_null_iter(it);
 }
 
-void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
+void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
   assert(is_bin_rel(rel));
 
-  if (is_ne_bin_rel(rel)) {
+  if (is_opt_rec(rel)) {
+    void *ptr = get_opt_repr_ptr(rel);
+    uint16 repr_id = get_opt_repr_id(rel);
+
+    uint32 count;
+    uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+
+    uint32 buffer[1024];
+    uint32 *idxs = count > 1024 ? new_uint32_array(count) : buffer;
+
+    uint32 found = 0;
+    for (int i=0 ; i < count ; i++) {
+      uint16 field = fields[i];
+      if (opt_repr_has_field(ptr, repr_id, field)) {
+        OBJ value = opt_repr_lookup_field(ptr, repr_id, field);
+        if (are_eq(value, arg2))
+          idxs[found++] = i;
+      }
+    }
+
+    if (found > 0) {
+      if (found > 1) {
+        uint16 *fields_subset = new_uint16_array(found);
+        for (int i=0 ; i < found ; i++)
+          fields_subset[i] = fields[idxs[i]];
+        it.iter.opt_rec.fields = fields_subset;
+      }
+      else
+        it.iter.opt_rec.fields = fields + idxs[0];
+
+      it.iter.opt_rec.ptr = ptr;
+      it.iter.opt_rec.repr_id = repr_id;
+      it.idx = 0;
+      it.end = found;
+      it.type = BIN_REL_ITER::BRIT_OPT_REC;
+    }
+  }
+  else if (is_ne_bin_rel(rel)) {
     if (get_physical_type(rel) == TYPE_MAP)
       build_map_right_to_left_sorted_idx_array(rel);
 
@@ -210,14 +291,15 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
     uint32 *rev_idxs = get_right_to_left_indexes(ptr);
 
     uint32 count;
-    uint32 first = find_idxs_range(rev_idxs, right_col, size, arg1, count);
+    uint32 first = find_idxs_range(rev_idxs, right_col, size, arg2, count);
 
     if (count > 0) {
-      it.left_col = get_left_col_array_ptr(ptr);
-      it.right_col = right_col;
-      it.rev_idxs = rev_idxs;
+      it.iter.bin_rel.left_col = get_left_col_array_ptr(ptr);
+      it.iter.bin_rel.right_col = right_col;
+      it.iter.bin_rel.rev_idxs = rev_idxs;
       it.idx = first;
       it.end = first + count;
+      it.type = BIN_REL_ITER::BRIT_BIN_REL;
       return;
     }
   }

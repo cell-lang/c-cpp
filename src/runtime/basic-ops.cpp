@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 bool inline_eq(OBJ obj1, OBJ obj2) {
@@ -27,7 +28,7 @@ bool is_out_of_range(TERN_REL_ITER &it) {
   return it.idx >= it.end;
 }
 
-bool has_elem(OBJ set, OBJ elem) {
+bool contains(OBJ set, OBJ elem) {
   if (is_empty_rel(set))
     return false;
   SET_OBJ *s = get_set_ptr(set);
@@ -36,9 +37,27 @@ bool has_elem(OBJ set, OBJ elem) {
   return found;
 }
 
-bool has_pair(OBJ rel, OBJ arg0, OBJ arg1) {
+////////////////////////////////////////////////////////////////////////////////
+
+bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
   if (is_empty_rel(rel))
     return false;
+
+  if (is_opt_rec(rel)) {
+    if (!is_symb(arg0))
+      return false;
+
+    uint16 field_id = get_symb_idx(arg0);
+
+    void *ptr = get_opt_repr_ptr(rel);
+    uint16 repr_id = get_opt_repr_id(rel);
+
+    if (!opt_repr_has_field(ptr, repr_id, field_id))
+      return false;
+
+    OBJ value = opt_repr_lookup_field(ptr, repr_id, field_id);
+    return are_eq(arg1, value);
+  }
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
   uint32 size = ptr->size;
@@ -62,9 +81,16 @@ bool has_pair(OBJ rel, OBJ arg0, OBJ arg1) {
   return found;
 }
 
-bool has_key(OBJ rel, OBJ arg1) {
+bool contains_br_1(OBJ rel, OBJ arg1) {
   if (is_empty_rel(rel))
     return false;
+
+  if (is_opt_rec(rel)) {
+    if (is_symb(arg1))
+      return opt_repr_has_field(get_opt_repr_ptr(rel), get_opt_repr_id(rel), get_symb_idx(arg1));
+    else
+      return false;
+  }
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
   uint32 size = ptr->size;
@@ -81,22 +107,32 @@ bool has_key(OBJ rel, OBJ arg1) {
   return count > 0;
 }
 
-bool has_field(OBJ rec_or_tag_rec, uint16 field_symb_idx) {
-  OBJ rec = is_tag_obj(rec_or_tag_rec) ? get_inner_obj(rec_or_tag_rec) : rec_or_tag_rec;
+bool contains_br_2(OBJ rel, OBJ arg2) {
+  if (is_opt_rec(rel)) {
+    void *ptr = get_opt_repr_ptr(rel);
+    uint16 repr_id = get_opt_repr_id(rel);
 
-  if (!is_empty_rel(rec)) {
-    BIN_REL_OBJ *ptr = get_bin_rel_ptr(rec);
-    uint32 size = ptr->size;
-    OBJ *keys = ptr->buffer;
-    for (uint32 i=0 ; i < size ; i++)
-      if (is_symb(keys[i], field_symb_idx))
-        return true;
+    uint32 count;
+    uint16 *symbs = opt_repr_get_fields(ptr, repr_id, count);
+
+    for (int i=0 ; i < count ; i++)
+      if (opt_repr_has_field(ptr, repr_id, symbs[i])) {
+        OBJ value = opt_repr_lookup_field(ptr, repr_id, symbs[i]);
+        if (are_eq(value, arg2))
+          return true;
+      }
+
+    return false;
   }
 
-  return false;
+  BIN_REL_ITER it;
+  get_bin_rel_iter_2(it, rel, arg2);
+  return !is_out_of_range(it);
 }
 
-bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3) {
+////////////////////////////////////////////////////////////////////////////////
+
+bool contains_tr(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3) {
   assert(is_tern_rel(rel));
 
   if (is_empty_rel(rel))
@@ -124,6 +160,65 @@ bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3) {
   return found;
 }
 
+bool contains_tr_1(OBJ rel, OBJ arg1) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 0, arg1);
+  return !is_out_of_range(it);
+}
+
+bool contains_tr_2(OBJ rel, OBJ arg2) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 1, arg2);
+  return !is_out_of_range(it);
+}
+
+bool contains_tr_3(OBJ rel, OBJ arg3) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 2, arg3);
+  return !is_out_of_range(it);
+}
+
+bool contains_tr_12(OBJ rel, OBJ arg1, OBJ arg2) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 0, arg1, arg2);
+  return !is_out_of_range(it);
+}
+
+bool contains_tr_13(OBJ rel, OBJ arg1, OBJ arg3) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 2, arg3, arg1);
+  return !is_out_of_range(it);
+}
+
+bool contains_tr_23(OBJ rel, OBJ arg2, OBJ arg3) {
+  TERN_REL_ITER it;
+  get_tern_rel_iter_by(it, rel, 1, arg2, arg3);
+  return !is_out_of_range(it);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool has_field(OBJ rec_or_tag_rec, uint16 field_id) {
+  if (is_opt_rec_or_tag_rec(rec_or_tag_rec)) {
+    void *ptr = get_opt_repr_ptr(rec_or_tag_rec);
+    uint16 repr_id = get_opt_repr_id(rec_or_tag_rec);
+    return opt_repr_has_field(ptr, repr_id, field_id);
+  }
+
+  OBJ rec = is_tag_obj(rec_or_tag_rec) ? get_inner_obj(rec_or_tag_rec) : rec_or_tag_rec;
+
+  if (!is_empty_rel(rec)) {
+    BIN_REL_OBJ *ptr = get_bin_rel_ptr(rec);
+    uint32 size = ptr->size;
+    OBJ *keys = ptr->buffer;
+    for (uint32 i=0 ; i < size ; i++)
+      if (is_symb(keys[i], field_id))
+        return true;
+  }
+
+  return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 get_size(OBJ coll) {
@@ -137,6 +232,12 @@ uint32 get_size(OBJ coll) {
 
   if (is_ne_set(coll))
     return get_set_ptr(coll)->size;
+
+  if (is_opt_rec(coll)) {
+    uint32 count;
+    opt_repr_get_fields(get_opt_repr_ptr(coll), get_opt_repr_id(coll), count);
+    return count;
+  }
 
   if (is_ne_bin_rel(coll))
     return get_bin_rel_ptr(coll)->size;
@@ -189,14 +290,29 @@ OBJ get_curr_obj(SET_ITER &it) {
 
 OBJ get_curr_left_arg(BIN_REL_ITER &it) {
   assert(!is_out_of_range(it));
-  uint32 idx = it.rev_idxs != NULL ? it.rev_idxs[it.idx] : it.idx;
-  return it.left_col[idx];
+
+  if (it.type == BIN_REL_ITER::BRIT_BIN_REL) {
+    uint32 idx = it.iter.bin_rel.rev_idxs != NULL ? it.iter.bin_rel.rev_idxs[it.idx] : it.idx;
+    return it.iter.bin_rel.left_col[idx];
+  }
+  else {
+    assert(it.type == BIN_REL_ITER::BRIT_OPT_REC);
+    return make_symb(it.iter.opt_rec.fields[it.idx]);
+  }
 }
 
 OBJ get_curr_right_arg(BIN_REL_ITER &it) {
   assert(!is_out_of_range(it));
-  uint32 idx = it.rev_idxs != NULL ? it.rev_idxs[it.idx] : it.idx;
-  return it.right_col[idx];
+
+  if (it.type == BIN_REL_ITER::BRIT_BIN_REL) {
+    uint32 idx = it.iter.bin_rel.rev_idxs != NULL ? it.iter.bin_rel.rev_idxs[it.idx] : it.idx;
+    return it.iter.bin_rel.right_col[idx];
+  }
+  else {
+    assert(it.type == BIN_REL_ITER::BRIT_OPT_REC);
+    uint16 field = it.iter.opt_rec.fields[it.idx];
+    return opt_repr_lookup_field(it.iter.opt_rec.ptr, it.iter.opt_rec.repr_id, field);
+  }
 }
 
 OBJ tern_rel_it_get_left_arg(TERN_REL_ITER &it) {
@@ -224,7 +340,19 @@ OBJ rand_set_elem(OBJ set) {
 }
 
 OBJ lookup(OBJ rel, OBJ key) {
-  if (!is_empty_rel(rel)) {
+  if (is_opt_rec(rel)) {
+    if (is_symb(key)) {
+      void *ptr = get_opt_repr_ptr(rel);
+      uint16 repr_id = get_opt_repr_id(rel);
+      uint16 field_id = get_symb_idx(key);
+      if (opt_repr_has_field(ptr, repr_id, field_id))
+        return opt_repr_lookup_field(ptr, repr_id, field_id);
+    }
+  }
+  else if (is_empty_rel(rel)) {
+    soft_fail("Map is empty. Lookup failed");
+  }
+  else {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
     uint32 size = ptr->size;
     OBJ *keys = ptr->buffer;
@@ -247,9 +375,6 @@ OBJ lookup(OBJ rel, OBJ key) {
     }
   }
 
-  if (is_empty_rel(rel))
-    soft_fail("Map is empty. Lookup failed");
-
   if (is_symb(key)) {
     char buff[1024];
     strcpy(buff, "Map key not found: ");
@@ -261,7 +386,13 @@ OBJ lookup(OBJ rel, OBJ key) {
   soft_fail("Map key not found");
 }
 
-OBJ lookup_field(OBJ rec_or_tag_rec, uint16 field_symb_idx) {
+OBJ lookup_field(OBJ rec_or_tag_rec, uint16 field_id) {
+  if (is_opt_rec_or_tag_rec(rec_or_tag_rec)) {
+    void *ptr = get_opt_repr_ptr(rec_or_tag_rec);
+    uint16 repr_id = get_opt_repr_id(rec_or_tag_rec);
+    return opt_repr_lookup_field(ptr, repr_id, field_id);
+  }
+
   OBJ rec = is_tag_obj(rec_or_tag_rec) ? get_inner_obj(rec_or_tag_rec) : rec_or_tag_rec;
 
   if (!is_empty_rel(rec)) {
@@ -270,7 +401,7 @@ OBJ lookup_field(OBJ rec_or_tag_rec, uint16 field_symb_idx) {
     OBJ *keys = ptr->buffer;
     OBJ *values = keys + size;
     for (uint32 i=0 ; i < size ; i++)
-      if (is_symb(keys[i], field_symb_idx))
+      if (is_symb(keys[i], field_id))
         return values[i];
   }
 

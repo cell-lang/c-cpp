@@ -163,18 +163,18 @@ implicit context : NativeContext {
 
 
   String native_rel_obj_contains_expr(ObjExpr rel, Maybe[ObjExpr]+ args) {
-    fn_name = match (args)
-      (just())                    = "has_elem",
-      (just(),  just())           = "has_pair",
-      (just(),  just(),  just())  = "has_triple",
-      (just(),  nothing)          = "bin_rel_contains_1",
-      (nothing, just())           = "bin_rel_contains_2",
-      (just(),  nothing, nothing) = "tern_rel_contains_1",
-      (nothing, just(),  nothing) = "tern_rel_contains_2",
-      (nothing, nothing, just())  = "tern_rel_contains_3",
-      (just(),  just(),  nothing) = "tern_rel_contains_12",
-      (just(),  nothing, just())  = "tern_rel_contains_13",
-      (nothing, just(),  just())  = "tern_rel_contains_23";
+    fn_name = "contains" & match (args)
+      (just())                    = "",
+      (just(),  just())           = "_br",
+      (just(),  nothing)          = "_br_1",
+      (nothing, just())           = "_br_2",
+      (just(),  just(),  just())  = "_tr",
+      (just(),  nothing, nothing) = "_tr_1",
+      (nothing, just(),  nothing) = "_tr_2",
+      (nothing, nothing, just())  = "_tr_3",
+      (just(),  just(),  nothing) = "_tr_12",
+      (just(),  nothing, just())  = "_tr_13",
+      (nothing, just(),  just())  = "_tr_23";
 
     return native_call_expr(fn_name, (rel) & values(args));
   }

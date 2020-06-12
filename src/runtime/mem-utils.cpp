@@ -570,6 +570,15 @@ void* get_opt_tag_rec_ptr(OBJ obj) {
   return obj.core_data.ptr;
 }
 
+void* get_opt_repr_ptr(OBJ obj) {
+  assert(get_physical_type(obj) == TYPE_OPT_REC | get_physical_type(obj) == TYPE_OPT_TAG_REC);
+  return obj.core_data.ptr;
+}
+
+uint16 get_opt_repr_id(OBJ obj) {
+  return GET(obj.extra_data, OPT_TYPE_ID_SHIFT, OPT_TYPE_ID_WIDTH);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_blank_obj(OBJ obj) {
@@ -663,6 +672,17 @@ bool is_symb(OBJ obj, uint16 symb_idx) {
 
 bool is_int(OBJ obj, int64 n) {
   return obj.core_data.int_ == n & obj.extra_data == INTEGER_MASK;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool is_opt_rec(OBJ obj) {
+  return get_physical_type(obj) == TYPE_OPT_REC;
+}
+
+bool is_opt_rec_or_tag_rec(OBJ obj) {
+  OBJ_TYPE type = get_physical_type(obj);
+  return type == TYPE_OPT_REC | type == TYPE_OPT_TAG_REC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

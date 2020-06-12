@@ -118,19 +118,19 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   String native_get_bin_rel_iter_code(BinRelItVar var, AtomicExpr src, (Maybe[AtomicExpr], Maybe[AtomicExpr]) args) =
     match (args)
       (nothing,   nothing)    = native_call("get_bin_rel_iter", (var, src)),
-      (just(a0?), nothing)    = native_call("get_bin_rel_iter_0", (var, src, a0)),
-      (nothing,   just(a1?))  = native_call("get_bin_rel_iter_1", (var, src, a1));
+      (just(a1?), nothing)    = native_call("get_bin_rel_iter_1", (var, src, a1)),
+      (nothing,   just(a2?))  = native_call("get_bin_rel_iter_2", (var, src, a2));
 
 
   String native_get_tern_rel_iter_code(TernRelItVar var, AtomicExpr src, (Maybe[AtomicExpr], Maybe[AtomicExpr], Maybe[AtomicExpr]) args) =
     match (args)
       (nothing,   nothing,   nothing)     = native_call("get_tern_rel_iter", (var, src)),
-      (just(a0?), nothing,   nothing)     = native_call("get_tern_rel_iter_by", (var, src, 0, a0)),
-      (nothing,   just(a1?), nothing)     = native_call("get_tern_rel_iter_by", (var, src, 1, a1)),
-      (nothing,   nothing,   just(a2?))   = native_call("get_tern_rel_iter_by", (var, src, 2, a2)),
-      (just(a0?), just(a1?), nothing)     = native_call("get_tern_rel_iter_by", (var, src, 0, a0, a1)),
-      (just(a0?), nothing,   just(a2?))   = native_call("get_tern_rel_iter_by", (var, src, 2, a2, a0)),
-      (nothing,   just(a1?), just(a2?))   = native_call("get_tern_rel_iter_by", (var, src, 1, a1, a2));
+      (just(a1?), nothing,   nothing)     = native_call("get_tern_rel_iter_by", (var, src, 0, a1)),
+      (nothing,   just(a2?), nothing)     = native_call("get_tern_rel_iter_by", (var, src, 1, a2)),
+      (nothing,   nothing,   just(a3?))   = native_call("get_tern_rel_iter_by", (var, src, 2, a3)),
+      (just(a1?), just(a2?), nothing)     = native_call("get_tern_rel_iter_by", (var, src, 0, a1, a2)),
+      (just(a1?), nothing,   just(a3?))   = native_call("get_tern_rel_iter_by", (var, src, 2, a3, a1)),
+      (nothing,   just(a2?), just(a3?))   = native_call("get_tern_rel_iter_by", (var, src, 1, a2, a3));
 
 
   String* native_repeat_code(Instr+ body, Maybe[Nat] block_id) {

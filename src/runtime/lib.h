@@ -140,11 +140,24 @@ struct SET_ITER {
 
 
 struct BIN_REL_ITER {
-  OBJ    *left_col;
-  OBJ    *right_col;
-  uint32 *rev_idxs; // If this is not null, we are iterating in right column order
+  union {
+    struct {
+      OBJ    *left_col;
+      OBJ    *right_col;
+      uint32 *rev_idxs; // If this is not null, we are iterating in right column order
+    } bin_rel;
+
+    struct {
+      uint16 *fields;
+      void *ptr;
+      uint16 repr_id;
+    } opt_rec;
+  } iter;
+
   uint32  idx;
   uint32  end; // Non-inclusive upper bound
+
+  enum {BRIT_BIN_REL, BRIT_OPT_REC} type;
 };
 
 
@@ -275,7 +288,10 @@ OBJ* get_seq_buffer_ptr(OBJ);
 
 // Purely physical representation functions
 
-OBJ_TYPE get_physical_type(OBJ obj);
+OBJ_TYPE get_physical_type(OBJ);
+
+bool is_opt_rec(OBJ);
+bool is_opt_rec_or_tag_rec(OBJ);
 
 SEQ_OBJ*      get_seq_ptr(OBJ);
 SET_OBJ*      get_set_ptr(OBJ);
@@ -284,6 +300,9 @@ TERN_REL_OBJ* get_tern_rel_ptr(OBJ);
 TAG_OBJ*      get_tag_obj_ptr(OBJ);
 
 void* get_opt_tag_rec_ptr(OBJ);
+
+void* get_opt_repr_ptr(OBJ);
+uint16 get_opt_repr_id(OBJ);
 
 bool is_inline_obj(OBJ);
 
@@ -301,16 +320,23 @@ bool is_out_of_range(SET_ITER &it);
 bool is_out_of_range(SEQ_ITER &it);
 bool is_out_of_range(BIN_REL_ITER &it);
 bool is_out_of_range(TERN_REL_ITER &it);
-bool has_elem(OBJ set, OBJ elem);
-bool has_key(OBJ rel, OBJ arg1);
+
+bool contains(OBJ set, OBJ elem);
+bool contains_br(OBJ rel, OBJ arg1, OBJ arg2);
+bool contains_br_1(OBJ rel, OBJ arg1);
+bool contains_br_2(OBJ rel, OBJ arg2);
+bool contains_tr(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3);
+bool contains_tr_1(OBJ rel, OBJ arg1);
+bool contains_tr_2(OBJ rel, OBJ arg2);
+bool contains_tr_3(OBJ rel, OBJ arg3);
+bool contains_tr_12(OBJ rel, OBJ arg1, OBJ arg2);
+bool contains_tr_13(OBJ rel, OBJ arg1, OBJ arg3);
+bool contains_tr_23(OBJ rel, OBJ arg2, OBJ arg3);
+
 bool has_field(OBJ rec, uint16 field_symb_idx);
-bool has_pair(OBJ rel, OBJ arg1, OBJ arg2);
-bool has_triple(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3);
 
 uint32 get_size(OBJ set);
 int64 float_bits(OBJ);
-int64 mantissa(OBJ);
-int64 dec_exp(OBJ);
 int64 rand_nat(int64 max);  // Non-deterministic
 int64 unique_nat();         // Non-deterministic
 
@@ -374,8 +400,8 @@ OBJ build_map(OBJ* keys, OBJ* values, uint32 size);
 OBJ build_map(STREAM &key_stream, STREAM &value_stream);
 
 void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel);
-void get_bin_rel_iter_0(BIN_REL_ITER &it, OBJ rel, OBJ arg1);
-void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg2);
+void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1);
+void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2);
 
 /////////////////////////////// tern-rel-obj.cpp ///////////////////////////////
 
@@ -493,15 +519,6 @@ OBJ*    get_obj_array(OBJ seq, OBJ* buffer, int32 size);
 int64*  get_long_array(OBJ seq, int64 *buffer, int32 size);
 double* get_double_array(OBJ seq, double *buffer, int32 size);
 bool*   get_bool_array(OBJ seq, bool *buffer, int32 size);
-
-bool bin_rel_contains_1(OBJ rel, OBJ arg1);
-bool bin_rel_contains_2(OBJ rel, OBJ arg2);
-bool tern_rel_contains_1(OBJ rel, OBJ arg1);
-bool tern_rel_contains_2(OBJ rel, OBJ arg2);
-bool tern_rel_contains_3(OBJ rel, OBJ arg3);
-bool tern_rel_contains_12(OBJ rel, OBJ arg1, OBJ arg2);
-bool tern_rel_contains_13(OBJ rel, OBJ arg1, OBJ arg3);
-bool tern_rel_contains_23(OBJ rel, OBJ arg2, OBJ arg3);
 
 OBJ build_seq(int64* array, int32 size);
 OBJ build_seq(int32* array, int32 size);
