@@ -294,8 +294,8 @@ String* gen_int_seq_code(Int+ int_seq, Nat seq_id) {
     max_len = nat(max((length(printed(n)) : n <- (min_elem, max_elem))));
     last_idx = |int_seq| - 1;
     strs = (align_text(s, max_len, ascii_space) & if i != last_idx then ", " else "" : s @ i <- strs);
-    cont_lines = ("    " & append(ss) : ss <- split_into_groups(strs, nz_nat(100 / (max_len + 2))));
-    code = (sgn) & cont_lines & ("  };");
+    cont_lines = ("  " & append(ss) : ss <- split_into_groups(strs, nz_nat(100 / (max_len + 2))));
+    code = (sgn) & cont_lines & ("};");
   }
 
   return code;

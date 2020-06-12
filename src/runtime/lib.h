@@ -83,13 +83,7 @@ struct OBJ {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct REF_OBJ {
-
-};
-
-
 struct SEQ_OBJ {
-  REF_OBJ ref_obj;
   uint32  capacity;
   uint32  size;
   OBJ     buffer[1];
@@ -97,27 +91,23 @@ struct SEQ_OBJ {
 
 
 struct SET_OBJ {
-  REF_OBJ ref_obj;
   uint32  size;
   OBJ     buffer[1];
 };
 
 
 struct BIN_REL_OBJ {
-  REF_OBJ ref_obj;
   uint32  size;
   OBJ     buffer[1];
 };
 
 
 struct TERN_REL_OBJ {
-  REF_OBJ ref_obj;
   uint32  size;
   OBJ     buffer[1];
 };
 
 struct TAG_OBJ {
-  REF_OBJ ref_obj;
   uint16 tag_id;
   uint16 unused_field;
   OBJ    obj;
@@ -307,7 +297,7 @@ uint16 get_opt_repr_id(OBJ);
 bool is_inline_obj(OBJ);
 
 OBJ_TYPE get_ref_obj_type(OBJ);
-REF_OBJ* get_ref_obj_ptr(OBJ);
+void* get_ref_obj_ptr(OBJ);
 
 bool are_shallow_eq(OBJ, OBJ);
 int shallow_cmp(OBJ, OBJ);
