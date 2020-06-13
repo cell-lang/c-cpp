@@ -319,14 +319,13 @@ bool contains_tr_23(OBJ rel, OBJ arg2, OBJ arg3);
 
 bool has_field(OBJ rec, uint16 field_symb_id);
 
-uint32 get_size(OBJ set);
+uint32 get_size(OBJ);
 int64 float_bits(OBJ);
 int64 rand_nat(int64 max);  // Non-deterministic
 int64 unique_nat();         // Non-deterministic
 
-OBJ obj_neg(OBJ);
 OBJ at(OBJ seq, int64 idx);
-OBJ get_tag(OBJ);
+
 OBJ get_curr_obj(SET_ITER &it);
 OBJ get_curr_obj(SEQ_ITER &it);
 OBJ get_curr_left_arg(BIN_REL_ITER &it);

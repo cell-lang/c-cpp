@@ -262,20 +262,11 @@ int64 unique_nat() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ obj_neg(OBJ obj) {
-  assert(is_bool(obj));
-  return make_bool(!get_bool(obj));
-}
-
 OBJ at(OBJ seq, int64 idx) {
   assert(is_seq(seq));
   if (((uint64) idx) >= get_seq_length(seq))
     soft_fail("Invalid sequence index");
   return get_seq_buffer_ptr(seq)[idx];
-}
-
-OBJ get_tag(OBJ obj) {
-  return make_symb(get_tag_id(obj));
 }
 
 OBJ get_curr_obj(SEQ_ITER &it) {
