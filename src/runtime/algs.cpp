@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 struct obj_less {
@@ -378,6 +379,60 @@ void sort_obj_array(OBJ *objs, uint32 len) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+int cmp_opt_recs(void *ptr1, uint16 repr_id_1, void *ptr2, uint16 repr_id_2, uint32 size) {
+  internal_fail();
+}
+
+int cmp_opt_rec_bin_rel(void *ptr1, uint16 repr_id_1, BIN_REL_OBJ *rel2) {
+  internal_fail();
+}
+
+int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
+  assert(get_size(rel1) == get_size(rel2));
+
+  BIN_REL_ITER key_it1, key_it2, value_it1, value_it2;
+
+  get_bin_rel_iter(key_it1, rel1);
+  get_bin_rel_iter(key_it2, rel2);
+
+  value_it1 = key_it1;
+  value_it2 = key_it2;
+
+  while (!is_out_of_range(key_it1)) {
+    assert(!is_out_of_range(key_it2));
+
+    OBJ left_arg_1 = get_curr_left_arg(key_it1);
+    OBJ left_arg_2 = get_curr_left_arg(key_it2);
+
+    int res = comp_objs(left_arg_1, left_arg_2);
+    if (res != 0)
+      return res;
+
+    move_forward(key_it1);
+    move_forward(key_it2);
+  }
+
+  assert(is_out_of_range(key_it2));
+
+  while (!is_out_of_range(value_it1)) {
+    assert(!is_out_of_range(value_it2));
+
+    OBJ left_arg_1 = get_curr_left_arg(value_it1);
+    OBJ left_arg_2 = get_curr_left_arg(value_it2);
+
+    int res = comp_objs(left_arg_1, left_arg_2);
+    if (res != 0)
+      return res;
+
+    move_forward(value_it1);
+    move_forward(value_it2);
+  }
+
+  return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 // Returns:   > 0     if obj1 < obj2
 //              0     if obj1 = obj2
 //            < 0     if obj1 > obj2
@@ -408,7 +463,7 @@ int comp_objs(OBJ obj1, OBJ obj2) {
   OBJ *elems2 = 0;
 
   switch (type1) {
-    case TYPE_SEQUENCE: {
+    case TYPE_NE_SEQ: {
       uint32 len1 = get_seq_length(obj1);
       uint32 len2 = get_seq_length(obj2);
       if (len1 != len2)
@@ -419,7 +474,7 @@ int comp_objs(OBJ obj1, OBJ obj2) {
       break;
     }
 
-    case TYPE_SET: {
+    case TYPE_NE_SET: {
       SET_OBJ *set1 = get_set_ptr(obj1);
       SET_OBJ *set2 = get_set_ptr(obj2);
       uint32 size1 = set1->size;
@@ -432,7 +487,47 @@ int comp_objs(OBJ obj1, OBJ obj2) {
       break;
     }
 
-    case TYPE_BIN_REL: {
+    case TYPE_NE_BIN_REL: {
+      if (is_opt_rec(obj1)) {
+        void *ptr1 = get_opt_repr_ptr(obj1);
+        uint16 repr_id_1 = get_opt_repr_id(obj1);
+        uint32 size1 = opt_repr_get_fields_count(ptr1, repr_id_1);
+
+        if (is_opt_rec(obj2)) {
+          void *ptr2 = get_opt_repr_ptr(obj2);
+          uint16 repr_id_2 = get_opt_repr_id(obj2);
+          uint32 size2 = opt_repr_get_fields_count(ptr2, repr_id_2);
+          if (size1 != size2)
+            return size2 - size1; //## BUG BUG BUG
+          else
+            // return cmp_opt_recs(ptr1, repr_id_1, ptr2, repr_id_2, size1);
+            return cmp_bin_rels_slow(obj1, obj2);
+        }
+        else {
+          BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
+          uint32 size2 = rel2->size;
+          if (size1 != size2)
+            return size2 - size1; //## BUG BUG BUG
+          else
+            // return cmp_opt_rec_bin_rel(ptr1, repr_id_1, rel2);
+            return cmp_bin_rels_slow(obj1, obj2);
+        }
+      }
+      else if (is_opt_rec(obj2)) {
+        BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
+        uint32 size1 = rel1->size;
+
+        void *ptr2 = get_opt_repr_ptr(obj2);
+        uint16 repr_id_2 = get_opt_repr_id(obj2);
+        uint32 size2 = opt_repr_get_fields_count(ptr2, repr_id_2);
+
+        if (size1 != size2)
+          return size2 - size1; //## BUG BUG BUG
+        else
+          // return -cmp_opt_rec_bin_rel(ptr2, repr_id_2, rel1);
+          return cmp_bin_rels_slow(obj1, obj2);
+      }
+
       BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
       BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
       uint32 size1 = rel1->size;
@@ -445,7 +540,7 @@ int comp_objs(OBJ obj1, OBJ obj2) {
       break;
     }
 
-    case TYPE_TERN_REL: {
+    case TYPE_NE_TERN_REL: {
       TERN_REL_OBJ *rel1 = get_tern_rel_ptr(obj1);
       TERN_REL_OBJ *rel2 = get_tern_rel_ptr(obj2);
       uint32 size1 = rel1->size;

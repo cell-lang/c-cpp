@@ -3,7 +3,7 @@
 
 
 void build_map_right_to_left_sorted_idx_array(OBJ map) {
-  assert(get_physical_type(map) == TYPE_MAP);
+  assert(get_physical_type(map) == TYPE_NE_MAP);
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(map);
   uint32 *rev_idxs = get_right_to_left_indexes(ptr);
@@ -282,7 +282,7 @@ void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
     }
   }
   else if (is_ne_bin_rel(rel)) {
-    if (get_physical_type(rel) == TYPE_MAP)
+    if (get_physical_type(rel) == TYPE_NE_MAP)
       build_map_right_to_left_sorted_idx_array(rel);
 
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);

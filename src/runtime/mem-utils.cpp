@@ -61,14 +61,14 @@ const uint64 NULL_OBJ_MASK          = MAKE_TYPE(TYPE_NULL_OBJ);
 const uint64 SYMBOL_BASE_MASK       = MAKE_TYPE(TYPE_SYMBOL);
 const uint64 INTEGER_MASK           = MAKE_TYPE(TYPE_INTEGER);
 const uint64 FLOAT_MASK             = MAKE_TYPE(TYPE_FLOAT);
-const uint64 EMPTY_SEQ_MASK         = MAKE_TYPE(TYPE_SEQUENCE);
-const uint64 NE_SEQ_BASE_MASK       = MAKE_TYPE(TYPE_SEQUENCE);
-const uint64 EMPTY_REL_MASK         = MAKE_TYPE(TYPE_SET);
-const uint64 NE_SET_MASK            = MAKE_TYPE(TYPE_SET);
-const uint64 NE_BIN_REL_MASK        = MAKE_TYPE(TYPE_BIN_REL);
-const uint64 NE_MAP_MASK            = MAKE_TYPE(TYPE_MAP);
-const uint64 NE_LOG_MAP_MASK        = MAKE_TYPE(TYPE_LOG_MAP);
-const uint64 NE_TERN_REL_MASK       = MAKE_TYPE(TYPE_TERN_REL);
+const uint64 EMPTY_SEQ_MASK         = MAKE_TYPE(TYPE_EMPTY_SEQ);
+const uint64 EMPTY_REL_MASK         = MAKE_TYPE(TYPE_EMPTY_REL);
+const uint64 NE_SEQ_BASE_MASK       = MAKE_TYPE(TYPE_NE_SEQ);
+const uint64 NE_SET_MASK            = MAKE_TYPE(TYPE_NE_SET);
+const uint64 NE_BIN_REL_MASK        = MAKE_TYPE(TYPE_NE_BIN_REL);
+const uint64 NE_MAP_MASK            = MAKE_TYPE(TYPE_NE_MAP);
+const uint64 NE_LOG_MAP_MASK        = MAKE_TYPE(TYPE_NE_LOG_MAP);
+const uint64 NE_TERN_REL_MASK       = MAKE_TYPE(TYPE_NE_TERN_REL);
 const uint64 TAG_OBJ_MASK           = MAKE_TYPE(TYPE_TAG_OBJ);
 const uint64 OPT_REC_BASE_MASK      = MAKE_TYPE(TYPE_OPT_REC);
 const uint64 OPT_TAG_REC_BASE_MASK  = MAKE_TYPE(TYPE_OPT_TAG_REC);
@@ -96,14 +96,16 @@ void print_ref(OBJ obj) {
     "TYPE_SYMBOL",
     "TYPE_INTEGER",
     "TYPE_FLOAT",
-    "TYPE_SEQUENCE",
-    "TYPE_SET",
-    "TYPE_BIN_REL",
-    "TYPE_TERN_REL",
+    "TYPE_EMPTY_SEQ",
+    "TYPE_EMPTY_REL",
+    "TYPE_NE_SEQ",
+    "TYPE_NE_SET",
+    "TYPE_NE_BIN_REL",
+    "TYPE_NE_TERN_REL",
     "TYPE_TAG_OBJ",
-    "TYPE_SLICE",
-    "TYPE_MAP",
-    "TYPE_LOG_MAP",
+    "TYPE_NE_SLICE",
+    "TYPE_NE_MAP",
+    "TYPE_NE_LOG_MAP",
     "TYPE_OPT_REC",
     "TYPE_OPT_TAG_REC"
   };
@@ -145,8 +147,8 @@ uint32 get_tags_count(OBJ obj) {
 OBJ_TYPE get_logical_type(OBJ obj) {
   OBJ_TYPE type = get_physical_type(obj);
 
-  if (type == TYPE_SLICE)
-    return TYPE_SEQUENCE;
+  if (type == TYPE_NE_SLICE)
+    return TYPE_NE_SEQ;
 
   if (get_tags_count(obj) > 0)
     return TYPE_TAG_OBJ;
@@ -154,8 +156,8 @@ OBJ_TYPE get_logical_type(OBJ obj) {
   if (type == TYPE_OPT_TAG_REC)
     return TYPE_TAG_OBJ;
 
-  if (type == TYPE_MAP | type == TYPE_LOG_MAP | type == TYPE_OPT_REC)
-    return TYPE_BIN_REL;
+  if (type == TYPE_NE_MAP | type == TYPE_NE_LOG_MAP | type == TYPE_OPT_REC)
+    return TYPE_NE_BIN_REL;
 
   return type;
 }
@@ -238,7 +240,7 @@ OBJ make_slice(SEQ_OBJ *ptr, uint32 offset, uint32 length) {
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer + offset;
-  obj.extra_data = MAKE_LENGTH(length) | MAKE_OFFSET(offset) | MAKE_TYPE(TYPE_SLICE);
+  obj.extra_data = MAKE_LENGTH(length) | MAKE_OFFSET(offset) | MAKE_TYPE(TYPE_NE_SLICE);
 
   assert(length == 0 || get_seq_ptr(obj) == ptr);
 
@@ -313,14 +315,14 @@ OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
 OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
   OBJ_TYPE type = get_physical_type(obj);
 
-  if (type == TYPE_SEQUENCE) {
+  if (type == TYPE_NE_SEQ) {
     if (get_tags_count(obj) == 0) {
       // No need to clear anything, both fields are already blank
       obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
       return obj;
     }
   }
-  else if (type != TYPE_SLICE) {
+  else if (type != TYPE_NE_SLICE) {
     uint8 tags_count = get_tags_count(obj);
 
     if (type == TYPE_OPT_REC & tags_count == 0) {
@@ -379,12 +381,12 @@ uint32 get_seq_length(OBJ seq) {
 
 uint32 get_seq_offset(OBJ seq) {
   assert(is_seq(seq));
-  return get_physical_type(seq) == TYPE_SLICE ? GET(seq.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
+  return get_physical_type(seq) == TYPE_NE_SLICE ? GET(seq.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
 }
 
 uint16 get_tag_id(OBJ obj) {
   assert(is_tag_obj(obj));
-  assert(get_physical_type(obj) != TYPE_SLICE);
+  assert(get_physical_type(obj) != TYPE_NE_SLICE);
 
   if (get_tags_count(obj) != 0)
     return GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
@@ -398,9 +400,9 @@ OBJ get_inner_obj(OBJ obj) {
   assert(is_tag_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
-  assert(type != TYPE_SLICE);
+  assert(type != TYPE_NE_SLICE);
 
-  if (type == TYPE_SEQUENCE) {
+  if (type == TYPE_NE_SEQ) {
     assert(get_tags_count(obj) == 1);
     obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK);
     return obj;
@@ -432,29 +434,29 @@ OBJ *get_seq_buffer_ptr(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 SEQ_OBJ* get_seq_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_SEQUENCE || get_physical_type(obj) == TYPE_SLICE);
+  assert(get_physical_type(obj) == TYPE_NE_SEQ || get_physical_type(obj) == TYPE_NE_SLICE);
   assert(obj.core_data.ptr != NULL);
 
   char *buffer_ptr = (char *) obj.core_data.ptr;
   // Here I cannot simply use get_seq_offset(obj) because that function asserts the object has to be an untagged sequence
-  uint32 slice_offset = get_physical_type(obj) == TYPE_SLICE ? GET(obj.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
+  uint32 slice_offset = get_physical_type(obj) == TYPE_NE_SLICE ? GET(obj.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
 
   return (SEQ_OBJ *) (buffer_ptr - (SEQ_BUFFER_FIELD_OFFSET + slice_offset * sizeof(OBJ)));
 }
 
 SET_OBJ* get_set_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_SET & obj.core_data.ptr != NULL);
+  assert(get_physical_type(obj) == TYPE_NE_SET & obj.core_data.ptr != NULL);
   return (SET_OBJ *) obj.core_data.ptr;
 }
 
 BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_BIN_REL | get_physical_type(obj) == TYPE_LOG_MAP | get_physical_type(obj) == TYPE_MAP);
+  assert(get_physical_type(obj) == TYPE_NE_BIN_REL | get_physical_type(obj) == TYPE_NE_LOG_MAP | get_physical_type(obj) == TYPE_NE_MAP);
   assert(obj.core_data.ptr != NULL);
   return (BIN_REL_OBJ *) obj.core_data.ptr;
 }
 
 TERN_REL_OBJ *get_tern_rel_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_TERN_REL & obj.core_data.ptr != NULL);
+  assert(get_physical_type(obj) == TYPE_NE_TERN_REL & obj.core_data.ptr != NULL);
   return (TERN_REL_OBJ *) obj.core_data.ptr;
 }
 
@@ -511,7 +513,8 @@ bool is_float(OBJ obj) {
 
 bool is_seq(OBJ obj) {
   OBJ_TYPE physical_type = get_physical_type(obj);
-  return (physical_type == TYPE_SEQUENCE & get_tags_count(obj) == 0) | physical_type == TYPE_SLICE;
+  return ((physical_type == TYPE_EMPTY_SEQ | physical_type == TYPE_NE_SEQ) & get_tags_count(obj) == 0) |
+         physical_type == TYPE_NE_SLICE;
 }
 
 bool is_empty_seq(OBJ obj) {
@@ -519,8 +522,8 @@ bool is_empty_seq(OBJ obj) {
 }
 
 bool is_ne_seq(OBJ obj) {
-  // return ((obj.extra_data.word >> 32) == (NE_SEQ_BASE_MASK >> 32)) | (get_physical_type(obj) == TYPE_SLICE);
-  return is_seq(obj) & !is_empty_seq(obj);
+  OBJ_TYPE physical_type = get_physical_type(obj);
+  return (physical_type == TYPE_NE_SEQ & get_tags_count(obj) == 0) | physical_type == TYPE_NE_SLICE;
 }
 
 bool is_empty_rel(OBJ obj) {
@@ -532,7 +535,8 @@ bool is_ne_set(OBJ obj) {
 }
 
 bool is_set(OBJ obj) {
-  return obj.extra_data == NE_SET_MASK;
+  uint64 extra_data = obj.extra_data;
+  return extra_data == EMPTY_REL_MASK | extra_data == NE_SET_MASK;
 }
 
 bool is_ne_bin_rel(OBJ obj) {
@@ -603,13 +607,13 @@ OBJ_TYPE get_ref_obj_type(OBJ obj) {
   assert(!is_inline_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
-  assert( type == TYPE_SEQUENCE | type == TYPE_SLICE | type == TYPE_SET | type == TYPE_BIN_REL |
-          type == TYPE_LOG_MAP | type == TYPE_MAP | type == TYPE_TERN_REL | type == TYPE_TAG_OBJ);
+  assert( type == TYPE_NE_SEQ | type == TYPE_NE_SLICE | type == TYPE_NE_SET | type == TYPE_NE_BIN_REL |
+          type == TYPE_NE_LOG_MAP | type == TYPE_NE_MAP | type == TYPE_NE_TERN_REL | type == TYPE_TAG_OBJ);
 
-  if (type == TYPE_SLICE)
-    return TYPE_SEQUENCE;
-  else if (type == TYPE_LOG_MAP)
-    return TYPE_BIN_REL;
+  if (type == TYPE_NE_SLICE)
+    return TYPE_NE_SEQ;
+  else if (type == TYPE_NE_LOG_MAP)
+    return TYPE_NE_BIN_REL;
   else
     return type;
 }
@@ -619,17 +623,17 @@ void *get_ref_obj_ptr(OBJ obj) {
 
   OBJ_TYPE type = get_physical_type(obj);
   assert(
-    type == TYPE_SEQUENCE | type == TYPE_SLICE | type == TYPE_SET | type == TYPE_BIN_REL |
-    type == TYPE_LOG_MAP | type == TYPE_MAP | type == TYPE_TERN_REL | type == TYPE_TAG_OBJ |
+    type == TYPE_NE_SEQ | type == TYPE_NE_SLICE | type == TYPE_NE_SET | type == TYPE_NE_BIN_REL |
+    type == TYPE_NE_LOG_MAP | type == TYPE_NE_MAP | type == TYPE_NE_TERN_REL | type == TYPE_TAG_OBJ |
     type == TYPE_OPT_REC | type == TYPE_OPT_TAG_REC
   );
 
-  if (type == TYPE_SLICE) {
+  if (type == TYPE_NE_SLICE) {
     char *buffer_ptr = (char *) obj.core_data.ptr;
     return buffer_ptr - (SEQ_BUFFER_FIELD_OFFSET + get_seq_offset(obj) * sizeof(OBJ));
   }
 
-  if (type == TYPE_SEQUENCE)
+  if (type == TYPE_NE_SEQ)
     return ((char *) obj.core_data.ptr) - SEQ_BUFFER_FIELD_OFFSET;
 
   return obj.core_data.ptr;

@@ -233,11 +233,8 @@ uint32 get_size(OBJ coll) {
   if (is_ne_set(coll))
     return get_set_ptr(coll)->size;
 
-  if (is_opt_rec(coll)) {
-    uint32 count;
-    opt_repr_get_fields(get_opt_repr_ptr(coll), get_opt_repr_id(coll), count);
-    return count;
-  }
+  if (is_opt_rec(coll))
+    return opt_repr_get_fields_count(get_opt_repr_ptr(coll), get_opt_repr_id(coll));
 
   if (is_ne_bin_rel(coll))
     return get_bin_rel_ptr(coll)->size;
@@ -349,14 +346,14 @@ OBJ lookup(OBJ rel, OBJ key) {
     OBJ *keys = ptr->buffer;
     OBJ *values = keys + size;
     OBJ_TYPE rel_type = get_physical_type(rel);
-    if (rel_type == TYPE_MAP | rel_type == TYPE_LOG_MAP) {
+    if (rel_type == TYPE_NE_MAP | rel_type == TYPE_NE_LOG_MAP) {
       bool found;
       uint32 idx = find_obj(keys, size, key, found);
       if (found)
         return values[idx];
     }
     else {
-      assert(rel_type == TYPE_BIN_REL);
+      assert(rel_type == TYPE_NE_BIN_REL);
       uint32 count;
       uint32 idx = find_objs_range(keys, size, key, count);
       if (count == 1)

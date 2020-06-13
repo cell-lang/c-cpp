@@ -19,25 +19,25 @@ enum OBJ_TYPE {
   TYPE_SYMBOL       = 2,
   TYPE_INTEGER      = 3,
   TYPE_FLOAT        = 4,
-  // Inline if empty, references otherwise
-  TYPE_SEQUENCE     = 5,
-  TYPE_SET          = 6,
-  TYPE_BIN_REL      = 7,
-  TYPE_TERN_REL     = 8,
+  TYPE_EMPTY_SEQ    = 5,
+  TYPE_EMPTY_REL    = 6,
   // Always references
-  TYPE_TAG_OBJ      = 9,
-  TYPE_SLICE        = 10,
-  TYPE_MAP          = 11,
-  TYPE_LOG_MAP      = 12,
-  TYPE_OPT_REC      = 13,
-  TYPE_OPT_TAG_REC  = 14
+  TYPE_NE_SEQ       = 7,
+  TYPE_NE_SET       = 8,
+  TYPE_NE_BIN_REL   = 9,
+  TYPE_NE_TERN_REL  = 10,
+  TYPE_TAG_OBJ      = 11,
+  // Purely physical types
+  TYPE_NE_SLICE     = 12,
+  TYPE_NE_MAP       = 13,
+  TYPE_NE_LOG_MAP   = 14,
+  TYPE_OPT_REC      = 15,
+  TYPE_OPT_TAG_REC  = 16
 };
 
-// Heap object can never be of the following types: TYPE_SLICE, TYPE_LOG_MAP
-// Never returned by get_logical_type(): TYPE_SLICE, TYPE_MAP, TYPE_LOG_MAP, TYPE_OPT_REC, TYPE_OPT_TAG_REC
+// Heap object can never be of the following types: TYPE_NE_SLICE, TYPE_NE_LOG_MAP
 
-const uint32 MAX_INLINE_OBJ_TYPE_VALUE  = TYPE_FLOAT;
-const uint32 MAX_OBJ_TYPE_VALUE         = TYPE_SLICE;
+const uint32 MAX_INLINE_OBJ_TYPE_VALUE = TYPE_EMPTY_REL;
 
 
 struct OBJ {
