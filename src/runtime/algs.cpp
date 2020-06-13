@@ -379,13 +379,24 @@ void sort_obj_array(OBJ *objs, uint32 len) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-int cmp_opt_recs(void *ptr1, uint16 repr_id_1, void *ptr2, uint16 repr_id_2, uint32 size) {
-  internal_fail();
+int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
+  uint32 count;
+  uint16 *labels = opt_repr_get_fields(repr_id, count);
+  assert(count == size);
+
+  for (int i=0 ; i < size ; i++) {
+    uint16 label = labels[i];
+    OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
+    OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
+
+    int res = comp_objs(value1, value2);
+    if (res != 0)
+      return res;
+  }
+
+  return 0;
 }
 
-int cmp_opt_rec_bin_rel(void *ptr1, uint16 repr_id_1, BIN_REL_OBJ *rel2) {
-  internal_fail();
-}
 
 int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
   assert(get_size(rel1) == get_size(rel2));
@@ -499,6 +510,8 @@ int comp_objs(OBJ obj1, OBJ obj2) {
           uint32 size2 = opt_repr_get_fields_count(ptr2, repr_id_2);
           if (size1 != size2)
             return size2 - size1; //## BUG BUG BUG
+          else if (repr_id_1 == repr_id_2 && !opt_repr_may_have_opt_fields(repr_id_1))
+            return cmp_same_type_opt_recs(ptr1, ptr2, repr_id_1, size1);
           else
             // return cmp_opt_recs(ptr1, repr_id_1, ptr2, repr_id_2, size1);
             return cmp_bin_rels_slow(obj1, obj2);

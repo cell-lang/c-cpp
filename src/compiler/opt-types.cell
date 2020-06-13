@@ -31,7 +31,7 @@ implicit prg : CompiledPrg, context : <core> {
       "",
       80 * "/",
       "",
-      "uint16 *opt_repr_get_fields(void *ptr, uint16 repr_id, uint32 &count) {",
+      "uint16 *opt_repr_get_fields(uint16 repr_id, uint32 &count) {",
       "  switch (repr_id) {"
     );
 
@@ -78,7 +78,7 @@ implicit prg : CompiledPrg, context : <core> {
         get_fields_dispatcher = (
           get_fields_dispatcher |
           "    case " & _print_(global_id) & ":",
-          "      return " & struct_name & "_get_fields((" & struct_name & " *) ptr, count);",
+          "      return " & struct_name & "_get_fields(count);",
           ""
         );
 
@@ -104,12 +104,21 @@ implicit prg : CompiledPrg, context : <core> {
       "  };",
       "",
       "  return tag_ids[repr_id];",
+      "}"
+    );
+
+    may_have_opt_fields = (
+      "",
+      80 * "/",
+      "",
+      "bool opt_repr_may_have_opt_fields(uint16 repr_id) {",
+      "  return false;",
       "}",
       "",
       80 * "/"
     );
 
-    return structs_decls & all_methods & dispatchers & get_tag_id;
+    return structs_decls & all_methods & dispatchers & get_tag_id & may_have_opt_fields;
   }
 
 
@@ -222,7 +231,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
   //////////////////////////////////////////////////////////////////////////////
 
   String* get_fields_def(String struct_name, Nat symb_seq_index) = (
-    "uint16 *" & struct_name & "_get_fields(" & struct_name & " *self, uint32 &count) {",
+    "uint16 *" & struct_name & "_get_fields(uint32 &count) {",
     "  count = " & _print_(|ord_labels|) & ";",
     "  return " & const_symb_seq_name(symb_seq_index) & ";",
     "}"

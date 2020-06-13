@@ -113,7 +113,7 @@ bool contains_br_2(OBJ rel, OBJ arg2) {
     uint16 repr_id = get_opt_repr_id(rel);
 
     uint32 count;
-    uint16 *symbs = opt_repr_get_fields(ptr, repr_id, count);
+    uint16 *symbs = opt_repr_get_fields(repr_id, count);
 
     for (int i=0 ; i < count ; i++)
       if (opt_repr_has_field(ptr, repr_id, symbs[i])) {

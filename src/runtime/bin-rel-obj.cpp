@@ -168,7 +168,7 @@ void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel) {
     uint16 repr_id = get_opt_repr_id(rel);
 
     uint32 count;
-    uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+    uint16 *fields = opt_repr_get_fields(repr_id, count);
 
     uint32 idx = 0;
     while (!opt_repr_has_field(ptr, repr_id, fields[idx]))
@@ -206,7 +206,7 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
 
       if (opt_repr_has_field(ptr, repr_id, symb_id)) {
         uint32 count;
-        uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+        uint16 *fields = opt_repr_get_fields(repr_id, count);
         while (*fields != symb_id)
           fields++;
 
@@ -249,7 +249,7 @@ void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
     uint16 repr_id = get_opt_repr_id(rel);
 
     uint32 count;
-    uint16 *fields = opt_repr_get_fields(ptr, repr_id, count);
+    uint16 *fields = opt_repr_get_fields(repr_id, count);
 
     uint32 buffer[1024];
     uint32 *idxs = count > 1024 ? new_uint32_array(count) : buffer;

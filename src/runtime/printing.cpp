@@ -202,7 +202,7 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
     uint16 repr_id = get_opt_repr_id(obj);
 
     uint32 count;
-    uint16 *symbs = opt_repr_get_fields(ptr, repr_id, count);
+    uint16 *symbs = opt_repr_get_fields(repr_id, count);
 
     bool first = true;
     for (int i=0 ; i < count ; i++) {
