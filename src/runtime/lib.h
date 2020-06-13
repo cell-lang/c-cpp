@@ -166,14 +166,16 @@ const uint64 MAX_SEQ_LEN = 0xFFFFFFFF;
 
 const uint32 INVALID_INDEX = 0xFFFFFFFFU;
 
-const uint16 symb_id_false   = 0;
-const uint16 symb_id_true    = 1;
-const uint16 symb_id_void    = 2;
-const uint16 symb_id_string  = 3;
-const uint16 symb_id_nothing = 4;
-const uint16 symb_id_just    = 5;
-const uint16 symb_id_success = 6;
-const uint16 symb_id_failure = 7;
+const uint16 symb_id_false    = 0;
+const uint16 symb_id_true     = 1;
+const uint16 symb_id_void     = 2;
+const uint16 symb_id_string   = 3;
+const uint16 symb_id_date     = 4;
+const uint16 symb_id_time     = 5;
+const uint16 symb_id_nothing  = 6;
+const uint16 symb_id_just     = 7;
+const uint16 symb_id_success  = 8;
+const uint16 symb_id_failure  = 9;
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
