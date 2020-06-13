@@ -1,5 +1,15 @@
 implicit prg : CompiledPrg, context : <core> {
   String* native_opt_type_decls {
+    non_opt_fields_reprs = ();
+    opt_fields_reprs = ();
+
+    for s, rs <- isort(prg.opt_reprs)
+      for r @ i <- rs
+        if has_opt_fields(r)
+          opt_fields_reprs = (opt_fields_reprs | (s, r, i));
+        else
+          non_opt_fields_reprs = (non_opt_fields_reprs | (s, r, i));
+
     structs_decls = ();
     all_methods = ();
 
@@ -43,49 +53,45 @@ implicit prg : CompiledPrg, context : <core> {
       "  static uint16 tag_ids[] = {"
     );
 
-    global_id = 0;
-    for s, rs <- isort(prg.opt_reprs)
-      for r @ i <- rs {
-        struct_decl, methods = native_tag_rec_type_decl(s, r, i, global_id);
-        structs_decls = (structs_decls | "") if structs_decls != ();
-        all_methods = (all_methods | "", 80 * "/", "");
-        structs_decls = structs_decls & struct_decl;
-        all_methods = all_methods & methods;
+    for s, r, i @ gid <- non_opt_fields_reprs & opt_fields_reprs {
+      struct_decl, methods = native_tag_rec_type_decl(s, r, i, gid);
+      structs_decls = (structs_decls | "") if structs_decls != ();
+      all_methods = (all_methods | "", 80 * "/", "");
+      structs_decls = structs_decls & struct_decl;
+      all_methods = all_methods & methods;
 
-        struct_name = opt_tag_rec_name(s, i);
+      struct_name = opt_tag_rec_name(s, i);
 
-        has_field_dispatcher = (
-          has_field_dispatcher |
-          "    case " & _print_(global_id) & ":",
-          "      return " & struct_name & "_has_field((" & struct_name & " *) ptr, field_id);",
-          ""
-        );
+      has_field_dispatcher = (
+        has_field_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_has_field((" & struct_name & " *) ptr, field_id);",
+        ""
+      );
 
-        lookup_field_dispatcher = (
-          lookup_field_dispatcher |
-          "    case " & _print_(global_id) & ":",
-          "      return " & struct_name & "_lookup_field((" & struct_name & " *) ptr, field_id);",
-          ""
-        );
+      lookup_field_dispatcher = (
+        lookup_field_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_lookup_field((" & struct_name & " *) ptr, field_id);",
+        ""
+      );
 
-        get_fields_count_dispatcher = (
-          get_fields_count_dispatcher |
-          "    case " & _print_(global_id) & ":",
-          "      return " & struct_name & "_get_fields_count((" & struct_name & " *) ptr);",
-          ""
-        );
+      get_fields_count_dispatcher = (
+        get_fields_count_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_get_fields_count((" & struct_name & " *) ptr);",
+        ""
+      );
 
-        get_fields_dispatcher = (
-          get_fields_dispatcher |
-          "    case " & _print_(global_id) & ":",
-          "      return " & struct_name & "_get_fields(count);",
-          ""
-        );
+      get_fields_dispatcher = (
+        get_fields_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_get_fields(count);",
+        ""
+      );
 
-        get_tag_id = (get_tag_id | "    " & symb_id_name(s) & ",");
-
-        global_id = nat(global_id + 1);
-      }
+      get_tag_id = (get_tag_id | "    " & symb_id_name(s) & ",");
+    }
 
     footer = (
       "    default:",
@@ -112,7 +118,7 @@ implicit prg : CompiledPrg, context : <core> {
       80 * "/",
       "",
       "bool opt_repr_may_have_opt_fields(uint16 repr_id) {",
-      "  return false;",
+      "  return repr_id >= " & _print_(|non_opt_fields_reprs|) & ";",
       "}",
       "",
       80 * "/"
