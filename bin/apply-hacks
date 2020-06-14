@@ -1,0 +1,3 @@
+sed 's/OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV \&env) {/OBJ attach_F2_(OBJ obj_V, OBJ data_V, ENV \&env) {/' | \
+sed 's/OBJ fetch_F1(OBJ obj_V, ENV \&env) {/OBJ fetch_F1_(OBJ obj_V, ENV \&env) {/' | \
+sed 's/OBJ source_file_location_F1(OBJ mtc_V, ENV \&env) {/OBJ source_file_location_F1_(OBJ mtc_V, ENV \&env) {/'

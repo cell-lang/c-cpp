@@ -6,7 +6,13 @@ codegen:
 	dotnet build tmp/
 	@ln -s tmp/bin/Debug/netcoreapp3.1/codegen .
 	@rm -f generated.cpp
+
+cellc-cs.cpp: codegen
 	./codegen code.txt
+	bin/apply-hacks < generated.cpp > cellc-cs.cpp
+
+cellc-cs: cellc-cs.cpp
+	g++ -ggdb -Isrc/runtime/ cellc-cs.cpp src/hacks.cpp src/runtime/*.cpp -o cellc-cs
 
 clean:
-	@rm -rf tmp/ codegen
+	@rm -rf tmp/ codegen generated.cpp cellc-cs.cpp
