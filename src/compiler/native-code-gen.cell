@@ -413,6 +413,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     return (signature & ";") if decl_only;
 
     body = pd.body;
+
     auto_vars_types = if pd.loc_auto_vars? then pd.loc_auto_vars else [];
     db_vars_types = if pd.loc_db_vars? then pd.loc_db_vars else [];
 
@@ -424,7 +425,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
     aux_db_vars_decls = (native_updater_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
 
-    comp_body = native_code(body, nothing);
+    comp_body = if body == (terminate(false))
+      then (only_unsafe(native_code(body(0), nothing)) & " // " & fn_name & "/" & _print_(arity(pd)))
+      else native_code(body, nothing);
 
     has_var_decls = var_decls != () or auto_var_decls != () or db_vars_decls != ();
     code = (visibility(pd) & signature & " {",) & indent_lines(var_decls) & indent_lines(auto_var_decls) &
@@ -434,7 +437,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     if cached {
       is_real_const = pd.cached? and pd.impl_args == [];
       cache_var_name = if is_real_const then fn_name & "__CV" else "env." & memo_var_name(pd.name);
-      needs_set_flag = is_real_const and pd.ret_val_repr? and not is_nullable(pd.ret_val_repr);
+      needs_set_flag = is_real_const; // and pd.ret_val_repr? and not is_nullable(pd.ret_val_repr);
       set_flag_name = if needs_set_flag then fn_name & "__CI" else "???"; ## UGLY UGLY UGLY
       ret_type_name = ret_type_str(pd);
       cast = if ret_type_name != "OBJ" then " (" & ret_type_name & ")" else "";

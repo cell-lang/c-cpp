@@ -17,7 +17,7 @@ int64 get_inner_long(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
-  return get_seq_buffer_ptr(seq);
+  return is_empty_seq(seq) ? NULL : get_seq_buffer_ptr(seq);
 }
 
 int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
@@ -53,6 +53,9 @@ bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ build_seq(int64* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -62,6 +65,9 @@ OBJ build_seq(int64* array, int32 size) {
 }
 
 OBJ build_seq(int32* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -71,6 +77,9 @@ OBJ build_seq(int32* array, int32 size) {
 }
 
 OBJ build_seq(uint32* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -80,6 +89,9 @@ OBJ build_seq(uint32* array, int32 size) {
 }
 
 OBJ build_seq(int16* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -89,6 +101,9 @@ OBJ build_seq(int16* array, int32 size) {
 }
 
 OBJ build_seq(uint16* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -98,6 +113,9 @@ OBJ build_seq(uint16* array, int32 size) {
 }
 
 OBJ build_seq(int8* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -107,6 +125,9 @@ OBJ build_seq(int8* array, int32 size) {
 }
 
 OBJ build_seq(uint8* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -116,6 +137,9 @@ OBJ build_seq(uint8* array, int32 size) {
 }
 
 OBJ build_seq(bool* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -125,6 +149,9 @@ OBJ build_seq(bool* array, int32 size) {
 }
 
 OBJ build_seq(double* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
   SEQ_OBJ *seq = new_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
