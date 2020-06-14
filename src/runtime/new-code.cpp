@@ -2,7 +2,7 @@
 
 
 int32 new_size(int32 curr_size, int32 min_size) {
-  int32 new_size = 2 * curr_size;
+  int32 new_size = curr_size != 0 ? 2 * curr_size : 32;
   while (new_size < min_size)
     new_size *= 2;
   return new_size;
@@ -21,6 +21,8 @@ OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
 }
 
 int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
+  if (is_empty_seq(seq))
+    return NULL;
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_int64_array(len);
@@ -31,6 +33,8 @@ int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
 }
 
 double* get_double_array(OBJ seq, double *buffer, int32 size) {
+  if (is_empty_seq(seq))
+    return NULL;
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_double_array(len);
@@ -41,6 +45,8 @@ double* get_double_array(OBJ seq, double *buffer, int32 size) {
 }
 
 bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
+  if (is_empty_seq(seq))
+    return NULL;
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_bool_array(len);
@@ -234,6 +240,7 @@ OBJ *array_append(OBJ *array, int32 size, int32 &capacity, OBJ elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 bool *array_append(bool *array, int32 size, int32 &capacity, bool elt) {
@@ -244,6 +251,7 @@ bool *array_append(bool *array, int32 size, int32 &capacity, bool elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 double *array_append(double *array, int32 size, int32 &capacity, double elt) {
@@ -254,6 +262,7 @@ double *array_append(double *array, int32 size, int32 &capacity, double elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 int64 *array_append(int64 *array, int32 size, int32 &capacity, int64 elt) {
@@ -264,6 +273,7 @@ int64 *array_append(int64 *array, int32 size, int32 &capacity, int64 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 int32 *array_append(int32 *array, int32 size, int32 &capacity, int32 elt) {
@@ -274,6 +284,7 @@ int32 *array_append(int32 *array, int32 size, int32 &capacity, int32 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 uint32 *array_append(uint32 *array, int32 size, int32 &capacity, uint32 elt) {
@@ -284,6 +295,7 @@ uint32 *array_append(uint32 *array, int32 size, int32 &capacity, uint32 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 int16 *array_append(int16 *array, int32 size, int32 &capacity, int16 elt) {
@@ -294,6 +306,7 @@ int16 *array_append(int16 *array, int32 size, int32 &capacity, int16 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 uint16 *array_append(uint16 *array, int32 size, int32 &capacity, uint16 elt) {
@@ -304,6 +317,7 @@ uint16 *array_append(uint16 *array, int32 size, int32 &capacity, uint16 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 int8 *array_append(int8 *array, int32 size, int32 &capacity, int8 elt) {
@@ -314,6 +328,7 @@ int8 *array_append(int8 *array, int32 size, int32 &capacity, int8 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 uint8 *array_append(uint8 *array, int32 size, int32 &capacity, uint8 elt) {
@@ -324,6 +339,7 @@ uint8 *array_append(uint8 *array, int32 size, int32 &capacity, uint8 elt) {
     array = new_array;
   }
   array[size] = elt;
+  return array;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
