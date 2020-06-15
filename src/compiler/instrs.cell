@@ -57,18 +57,36 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     _                     = auto_instr_native_code(instr, block_id);
 
 
-  String* set_rc_var_native_code(RefObjExpr value, <WriteObjVar, LocOptTagRecVar> var) =
-    mk_record()   = if var :: WriteObjVar then native_mk_record_code(value.fields, var) else undefined,
-    _             = (native_code(value, var));
+  String* set_rc_var_native_code(RefObjExpr value, WriteObjVar var) =
+    mk_record() = native_mk_record_code(value.fields, if var :: WriteObjVar then var else undefined),
+    _           = (native_code(value, var));
+
+
+  String* set_rc_var_native_code(RefObjExpr value, LocOptTagRecVar var) {
+    return match (value)
+      inst_opt_tag_rec()  = inst_code(value.tag, value.repr_idx, var),
+      _                   = undefined;
+
+    String* inst_code(Symbol tag, Nat repr_idx, LocOptTagRecVar var) {
+      repr = prg.opt_reprs(tag)(repr_idx);
+      opt_labels = [l : l f <- untag(repr), f.optional];
+      ptr_var_name = native_ptr_var_name(var);
+      rec_type_name = opt_tag_rec_name(tag, repr_idx);
+      inst_code = (ptr_var_name & " = new " & rec_type_name & ";");
+      opt_flags_code = (
+        ptr_var_name & "->" & opt_rec_field_nonempty_test_var(l) & " = false;"
+        : l <- isort(opt_labels)
+      );
+      return inst_code & opt_flags_code;
+    }
+  }
 
 
   String* write_rec_field_native_code(OptTagRecVar var, Symbol label, AnyTypeExpr value, Bool optional) {
     path = native_ptr_var_name(var) & "->";
-    has_set_test_var = optional and not is_nullable(low_level_repr(value));
-
     return (
       native_assignment_code(path & opt_rec_field_name(label), value),
-      native_assignment_code(path & opt_rec_field_nonempty_test_var(label), true) if has_set_test_var
+      native_assignment_code(path & opt_rec_field_nonempty_test_var(label), true) if optional
     );
   }
 
@@ -276,14 +294,6 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     ctor_name = if is_map then "build_map" else "build_bin_rel";
     return native_call(var, ctor_name, (col1, col2, size));
   }
-
-
-  String native_code(RefObjExpr expr, OptTagRecVar var) =
-    inst_opt_tag_rec()  = { ptr_var_name = native_ptr_var_name(var);
-                            rec_type_name = opt_tag_rec_name(expr.tag, expr.repr_idx);
-                            return ptr_var_name & " = new " & rec_type_name & ";";
-                          },
-    _                   = undefined;
 
 
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {

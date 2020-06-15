@@ -147,7 +147,7 @@ implicit prg : CompiledPrg, context : <core> {
     body          = (native_types(i) & spaces(i) & v & ";" : v @ i <- vars_names);
 
     // Test variables declarations
-    set_test_labels = isort([l : l f <- fields, f.optional, not is_nullable(f.repr)]);
+    set_test_labels = isort([l : l f <- fields, f.optional]);
     if set_test_labels != () {
       test_vars_decls = ("bool " & opt_rec_field_nonempty_test_var(l) & ";" : l <- set_test_labels);
       body = (body | "") & test_vars_decls;
@@ -248,9 +248,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
 ////////////////////////////////////////////////////////////////////////////////
 
 String set_check_expr(LowLevelRepr repr, Symbol label, String path, Bool parenthesized) =
-  if is_nullable(repr)
-    then "is_blank_obj(" & path & opt_rec_field_name(label) & ")"
-    else path & opt_rec_field_nonempty_test_var(label);
+  path & opt_rec_field_nonempty_test_var(label);
 
 
 String native_obj_expr(LowLevelRepr repr, String expr) =
