@@ -428,10 +428,10 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
   while (!is_out_of_range(value_it1)) {
     assert(!is_out_of_range(value_it2));
 
-    OBJ left_arg_1 = get_curr_left_arg(value_it1);
-    OBJ left_arg_2 = get_curr_left_arg(value_it2);
+    OBJ right_arg_1 = get_curr_right_arg(value_it1);
+    OBJ right_arg_2 = get_curr_right_arg(value_it2);
 
-    int res = comp_objs(left_arg_1, left_arg_2);
+    int res = comp_objs(right_arg_1, right_arg_2);
     if (res != 0)
       return res;
 

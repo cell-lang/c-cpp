@@ -14,5 +14,14 @@ cellc-cs.cpp: codegen
 cellc-cs: cellc-cs.cpp
 	g++ -ggdb -Isrc/runtime/ cellc-cs.cpp src/hacks.cpp src/runtime/*.cpp -o cellc-cs
 
+tests:
+	@rm -rf tmp/
+	@mkdir tmp/
+	./cellc-cs project/tests.txt tmp/
+	cp tmp/generated.cs ../work/dotnet-tests
+	dotnet build ../work/dotnet-tests
+	@echo
+	../work/dotnet-tests/bin/Debug/netcoreapp3.1/dotnet-tests
+
 clean:
-	@rm -rf tmp/ codegen generated.cpp cellc-cs.cpp
+	@rm -rf tmp/ codegen generated.cpp cellc-cs.cpp automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt
