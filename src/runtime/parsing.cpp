@@ -1,4 +1,5 @@
 #include "lib.h"
+#include "extern.h"
 
 
 enum TOKEN_TYPE {
@@ -536,7 +537,7 @@ int64 parse_symb_or_tagged_obj(TOKEN *tokens, uint32 length, int64 offset, OBJ *
       else
         offset = parse_inner_obj_or_tuple(tokens, length, offset, &inner_obj);
       if (offset >= 0)
-        *var = make_tag_obj(symb_id, inner_obj);
+        *var = opt_repr(make_symb(symb_id), inner_obj);
       return offset;
     }
   }

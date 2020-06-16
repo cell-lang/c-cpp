@@ -14,6 +14,13 @@ cellc-cs.cpp: codegen
 cellc-cs: cellc-cs.cpp
 	g++ -ggdb -Isrc/runtime/ cellc-cs.cpp src/hacks.cpp src/runtime/*.cpp -o cellc-cs
 
+tiny-test: codegen
+	./codegen tiny-code.txt
+	g++ -ggdb -Isrc/runtime/ generated.cpp src/runtime/*.cpp -o tiny-test
+
+update-tiny-test:
+	g++ -ggdb -Isrc/runtime/ generated.cpp src/runtime/*.cpp -o tiny-test
+
 tests:
 	@rm -rf tmp/
 	@mkdir tmp/

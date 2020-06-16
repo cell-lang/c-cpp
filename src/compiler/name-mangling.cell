@@ -449,9 +449,9 @@ implicit context : NativeContext {
     }
 
     String native_fn_name(ConvFnId fn_id) =
-      any_tag_obj_conv          = "ConvertGenericTaggedValue",
-      tag_rec_conv(t?)          = "ConvertTaggedValue_" & upper_camel_case(t),
-      tag_rec_repr_conv(t?, i?) = "ConvertTaggedValue_" & upper_camel_case(t) & "_" & printed(i);
+      any_tag_obj_conv          = "opt_repr",
+      tag_rec_conv(t?)          = "opt_repr_" & _print_(t),
+      tag_rec_repr_conv(t?, i?) = "opt_repr_" & _print_(t) & "_" & _print_(i);
   }
 
   //////////////////////////////////////////////////////////////////////////////

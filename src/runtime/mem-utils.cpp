@@ -298,14 +298,14 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
   return obj;
 }
 
-OBJ make_tag_obj(TAG_OBJ *ptr) {
+static OBJ make_tag_obj(TAG_OBJ *ptr) {
   OBJ obj;
   obj.core_data.ptr = ptr;
   obj.extra_data = TAG_OBJ_MASK;
   return obj;
 }
 
-OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
+static OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
   TAG_OBJ *tag_obj = new_tag_obj();
   tag_obj->tag_id = tag_id;
   tag_obj->obj = obj;
@@ -585,7 +585,7 @@ bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_opt_rec(OBJ obj) {
-  assert(get_tags_count(obj) == 0);
+  assert(is_bin_rel(obj));
   return get_physical_type(obj) == TYPE_OPT_REC;
 }
 
