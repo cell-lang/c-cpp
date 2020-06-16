@@ -180,7 +180,6 @@ const uint16 symb_id_failure  = 9;
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
 void* new_obj(uint32 byte_size);
-void* new_obj(uint32 requested_byte_size, uint32 &returned_byte_size);
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 
@@ -191,11 +190,12 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ*);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
 
-SET_OBJ      *new_set(uint32 size);       // Sets size
-SEQ_OBJ      *new_seq(uint32 length);     // Sets length, capacity, used_capacity and elems
-BIN_REL_OBJ  *new_map(uint32 size);       // Sets size, and clears rev_idxs
-BIN_REL_OBJ  *new_bin_rel(uint32 size);   // Sets size
-TERN_REL_OBJ *new_tern_rel(uint32 size);  // Sets size
+SET_OBJ      *new_set(uint32 size);                     // Sets size
+SEQ_OBJ      *new_seq(uint32 length);                   // Sets length, capacity and elems
+SEQ_OBJ      *new_seq(uint32 length, uint32 capacity);  // Sets length, capacity and elems
+BIN_REL_OBJ  *new_map(uint32 size);                     // Sets size, and clears rev_idxs
+BIN_REL_OBJ  *new_bin_rel(uint32 size);                 // Sets size
+TERN_REL_OBJ *new_tern_rel(uint32 size);                // Sets size
 TAG_OBJ      *new_tag_obj();
 
 OBJ* new_obj_array(uint32 size);
@@ -568,3 +568,5 @@ int64  get_int_at(OBJ, int64);
 
 bool is_ne_int_seq(OBJ);
 bool is_ne_float_seq(OBJ);
+
+uint32 next_size(uint32 base_size, uint32 min_size);

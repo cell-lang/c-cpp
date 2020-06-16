@@ -133,7 +133,7 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
   else {
     OBJ *buffer = get_seq_buffer_ptr(seq);
 
-    SEQ_OBJ *new_seq_ptr = new_seq(new_length);
+    SEQ_OBJ *new_seq_ptr = new_seq(new_length, next_size(length, new_length));
     OBJ *new_buffer = new_seq_ptr->buffer;
 
     memcpy(new_buffer, buffer, sizeof(OBJ) * length);

@@ -12,3 +12,13 @@ cellc-cs
 project/prelude.txt
 tiny-test
 cellc.net
+cellc-cs-opt-code.txt
+codegen-opt-code.txt
+gen-html
+cellc
+codegen-1
+codegen-1.cpp
+codegen-2
+codegen-2.cpp
+codegen-3.cpp
+codegen.net

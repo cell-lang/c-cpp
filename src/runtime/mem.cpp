@@ -72,9 +72,20 @@ SEQ_OBJ *new_seq(uint32 length) {
   if (length > 0xFFFFFFF)
     impl_fail("Maximum permitted sequence length (2^28-1) exceeded");
 
-  uint32 actual_byte_size;
-  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(length), actual_byte_size);
-  seq->capacity = seq_capacity(actual_byte_size);
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(length));
+  seq->capacity = length;
+  seq->size = length;
+  return seq;
+}
+
+SEQ_OBJ *new_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+
+  if (capacity > 0xFFFFFFF)
+    impl_fail("Maximum permitted sequence length (2^28-1) exceeded");
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
   seq->size = length;
   return seq;
 }
