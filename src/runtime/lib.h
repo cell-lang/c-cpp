@@ -565,3 +565,6 @@ int64 int_array_at(uint8*,  int32, int32);
 
 double get_float_at(OBJ, int64);
 int64  get_int_at(OBJ, int64);
+
+bool is_ne_int_seq(OBJ);
+bool is_ne_float_seq(OBJ);

@@ -230,6 +230,32 @@ int64 get_int_at(OBJ seq, int64 idx) {
   return get_int(at(seq, idx));
 }
 
+bool is_ne_int_seq(OBJ obj) {
+  if (!is_ne_seq(obj))
+    return false;
+
+  int len = get_size(obj);
+  OBJ *elts = get_seq_buffer_ptr(obj);
+  for (int i=0 ; i < len ; i++)
+    if (!is_int(elts[i]))
+      return false;
+
+  return true;
+}
+
+bool is_ne_float_seq(OBJ obj) {
+  if (!is_ne_seq(obj))
+    return false;
+
+  int len = get_size(obj);
+  OBJ *elts = get_seq_buffer_ptr(obj);
+  for (int i=0 ; i < len ; i++)
+    if (!is_float(elts[i]))
+      return false;
+
+  return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ *array_append(OBJ *array, int32 size, int32 &capacity, OBJ elt) {

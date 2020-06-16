@@ -5,12 +5,12 @@ Int Main(String* args) {
 
   if argc < 2 {
     Print(
-      "Cell to C# compiler version " & version & "\n" &
-      "Usage: cellc-cs <options> <project file> <output directory>\n" &
+      "Cell to C/C++ compiler version " & version & "\n" &
+      "Usage: cellc <options> <project file> <output directory>\n" &
       "Options:\n" &
       "  -d             debug mode\n" &
       "  -ia            ignore assertions\n" &
-      "  -g <filename>  generate C# classes for all types listed in <filename>\n"
+      "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
     );
     return 1;
   }
@@ -58,11 +58,11 @@ Int Main(String* args) {
       else {
         Print(
           "Invalid syntax after -g option\n" &
-          "Usage: dotnet cellc-cs.dll <options> <project file> <output directory>\n" &
+          "Usage: cellc <options> <project file> <output directory>\n" &
           "Options:\n" &
           "  -d             debug mode\n" &
           "  -ia            ignore assertions\n" &
-          "  -g <filename>  generate C# classes for all types listed in <filename>\n"
+          "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
         );
         return 1;
       }
@@ -98,7 +98,7 @@ Int Main(String* args) {
         "Valid options:\n" &
         "  -d             debug mode\n" &
         "  -ia            ignore assertions\n" &
-        "  -g <filename>  generate C# classes for all types listed in <filename>\n"
+        "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
       );
       return 1;
     }
@@ -107,7 +107,7 @@ Int Main(String* args) {
   }
 
   Print(
-    "Cell to C# compiler version " & version & "\n" &
+    "Cell to C++ compiler version " & version & "\n" &
     "Warning: this is a beta version\n" &
     "Compiling project " & prj_file & "\n"
   );
@@ -453,12 +453,21 @@ type CmdLineOpts = (
 
   all_types_to_gen = all_named_types_to_declare(types_to_gen, typedefs = prg.typedefs);
 
+  t7 = _ticks_(:any_value_will_do);
+  if cmd_line_opts.developer_mode
+    Print("Low-level code optimized (2)\n");
+  else
+    Print(".");
+
+  if cmd_line_opts.wait_for_key
+    unused_var = GetChar();
+
   let prg=opt_code, generated=all_types_to_gen, rel_vars_perm_map=perms, debug_mode=cmd_line_opts.debug_mode
     files = generated_code(cmd_line_opts.include_runtime);
 
   t8 = _ticks_(:any_value_will_do);
   if cmd_line_opts.developer_mode
-    Print("C# code generated\n");
+    Print("C/C++ code generated\n");
   else
     Print(".\n");
 
@@ -475,7 +484,7 @@ type CmdLineOpts = (
       Print("Type checking:         " & printed(t5-t4) & "ms\n");
     Print("Code generation:       " & printed(t6-t5) & "ms\n");
     Print("Code optimization:     " & printed(t7-t6) & "ms\n");
-    Print("C# code generation:    " & printed(t8-t7) & "ms\n");
+    Print("C++ code generation:   " & printed(t8-t7) & "ms\n");
     Print("Total time elapsed:    " & printed(t8-t0) & "ms\n");
   }
 
@@ -483,7 +492,7 @@ type CmdLineOpts = (
   Print(
     if has_main
       then "Main() found. Generating code for standalone executable\n"
-      else "Main() not found. Generating code to be included in an existing .NET project\n"
+      else "Main() not found. Generating code to be included in an existing C/C++ project\n"
   );
 
   return files;
@@ -571,13 +580,13 @@ String* types_to_gen_errs([BasicTypeSymbol] types_to_gen, [TypeName -> NeType] t
   for ts <- types_to_gen {
     // Checking that the type exists
     return (
-      "The compiler was instructed to generate a C# class for " & user_repr(ts),
+      "The compiler was instructed to generate a C++ class for " & user_repr(ts),
       "but a definition for such type has not been found"
     ) if not typedefs(type_symb_to_name(ts), _);
 
     // Checking that the type is declarable
     return (
-      "The compiler was instructed to generated a C# class for " & user_repr(ts),
+      "The compiler was instructed to generated a C++ class for " & user_repr(ts),
       "but it is unable to do so. Please consult the documentation to see",
       "how exactly a type has to be defined for generation to be possible"
     ) if not is_declarable(ts, typedefs = typedefs);
@@ -600,7 +609,7 @@ String* types_to_gen_errs([BasicTypeSymbol] types_to_gen, [TypeName -> NeType] t
   }
 
   return (
-    "The list of types to generate a corresponding C# class for is not valid",
+    "The list of types to generate a corresponding C++ class for is not valid",
     "because it would produce more than one class with the same name:",
     "  " & append(isort(conflicts), ", ")
   ) if conflicts != [];
@@ -638,3 +647,41 @@ String* create_error_msg(ParserError err, String filename) =
                                 return ("Syntax error", error_pos_msg(filename, start_line, start_col));
 
                               };
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+Nat new_unique_id(<unused>) = _counter_(:unused);
+
+////////////////////////////////////////////////////////////////////////////////
+
+String* auto_instr_native_code(Instr instr, Maybe[Nat] block_id) = undefined;
+String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) = undefined;
+
+implicit typedefs : [TypeName -> NeType] {
+  String* gen_inter_types_decls = ();
+}
+
+([], []) inter_types_decls = ([], []);
+
+Text decl_types_export_functs(Any, Any) = undefined;
+
+String* native_static_block_decl(StaticBlock block) = ();
+String* native_react_block_decl(ReactBlock block) = ();
+
+(String, Text, String*) react_auto_wrapper(ReactBlock block) = undefined;
+(String, String*, String*) static_auto_wrapper(StaticBlock block) = undefined;
+
+////////////////////////////////////////////////////////////////////////////////
+
+String gen_class_name(Symbol symb) = upper_camel_case(symb);
+
+implicit typedefs : [TypeName -> NeType] {
+  Bool is_declarable(BasicTypeSymbol type_symb) = undefined;
+
+  [BasicTypeSymbol] named_types_to_declare([BasicTypeSymbol] root_symbs) = [];
+
+  [BasicTypeSymbol] all_named_types_to_declare([BasicTypeSymbol] root_symbs) = [];
+
+  Symbol* tags_promoted_to_type_names(BasicTypeSymbol type_symb) = ();
+}
