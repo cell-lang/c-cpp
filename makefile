@@ -32,6 +32,9 @@ codegen:
 	./cellc.net project/codegen.txt tmp/codegen/
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
+update-codegen:
+	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
+
 codegen-test-loop: codegen
 	./codegen codegen-opt-code.txt
 	mv generated.cpp codegen-1.cpp
@@ -78,5 +81,5 @@ tests:
 clean:
 	@rm -rf tmp/ cellc.net codegen codegen.net
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
-	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt
+	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o
 	@mkdir tmp/

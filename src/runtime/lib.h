@@ -22,20 +22,19 @@ enum OBJ_TYPE {
   TYPE_EMPTY_SEQ    = 5,
   TYPE_EMPTY_REL    = 6,
   // Always references
-  TYPE_NE_SEQ       = 7,
-  TYPE_NE_SET       = 8,
-  TYPE_NE_BIN_REL   = 9,
-  TYPE_NE_TERN_REL  = 10,
-  TYPE_TAG_OBJ      = 11,
+  TYPE_NE_SEQ       = 7,    // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_SET       = 8,    // -> SET_OBJ
+  TYPE_NE_BIN_REL   = 9,    // -> BIN_REL_OBJ
+  TYPE_NE_TERN_REL  = 10,   // -> TERN_REL_OBJ
+  TYPE_TAG_OBJ      = 11,   // -> TAG_OBJ
   // Purely physical types
-  TYPE_NE_SLICE     = 12,
-  TYPE_NE_MAP       = 13,
-  TYPE_NE_LOG_MAP   = 14,
-  TYPE_OPT_REC      = 15,
-  TYPE_OPT_TAG_REC  = 16
+  TYPE_NE_SLICE     = 12,   // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_MAP       = 13,   // -> BIN_REL_OBJ--
+  TYPE_NE_LOG_MAP   = 14,   // -> BIN_REL_OBJ-
+  TYPE_OPT_REC      = 15,   // -> OBJ_*
+  TYPE_OPT_TAG_REC  = 16    // -> OBJ_*
 };
 
-// Heap object can never be of the following types: TYPE_NE_SLICE, TYPE_NE_LOG_MAP
 
 const uint32 MAX_INLINE_OBJ_TYPE_VALUE = TYPE_EMPTY_REL;
 
