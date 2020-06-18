@@ -425,9 +425,39 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
     aux_db_vars_decls = (native_updater_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
 
-    comp_body = if body == (terminate(false))
-      then (only_unsafe(native_code(body(0), nothing)) & " // " & fn_name & "/" & _print_(arity(pd)))
-      else native_code(body, nothing);
+    if body == (terminate(false)) {
+      only_instr = only_unsafe(native_code(body(0), nothing));
+      comp_body = (only_instr & " // " & fn_name & "/" & _print_(arity(pd)));
+    }
+    else {
+      is_mem_boundary = pd.name :: ProcSymbol;
+
+      last_instr = last(body);
+      maybe_split_body = match (last_instr)
+        ret_val(e?) = just((take(body, |body|-1), e)),
+        _           = nothing;
+
+      if is_mem_boundary and maybe_split_body != nothing {
+        no_ret_body, ret_value_expr = value(maybe_split_body);
+        comp_no_ret_body = native_code(no_ret_body, nothing);
+
+        req_copying = requires_copying(ret_value_expr);
+        ret_value = if req_copying then "copied_value" else native_expr(ret_value_expr);
+
+        comp_body = (
+          "switch_mem_stacks();",
+          ""
+        ) & comp_no_ret_body & (
+          "" if no_ret_body != (),
+          "unswitch_mem_stacks();",
+          "OBJ copied_value = copy_obj(" & native_expr(ret_value_expr) & ");" if req_copying,
+          "clear_unused_mem();",
+          "return " & ret_value & ";"
+        );
+      }
+      else
+        comp_body = native_code(body, nothing);
+    }
 
     has_var_decls = var_decls != () or auto_var_decls != () or db_vars_decls != ();
     code = (visibility(pd) & signature & " {",) & indent_lines(var_decls) & indent_lines(auto_var_decls) &
@@ -462,6 +492,9 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     return code;
 
+
+    True  requires_copying(<StdObjVar, ObjNatOp, OptTagRecExpr>)                 = true;
+    False requires_copying(<InlineObj, BoolExpr, IntExpr, Int32Expr, FloatExpr>) = false;
 
     Nat arity(ProcDef pd) =
       obj_proc_def()    = in_arity(pd),

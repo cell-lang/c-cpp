@@ -23,3 +23,5 @@ codegen-2.cpp
 codegen-3.cpp
 codegen.net
 *.o
+tests
+out.txt

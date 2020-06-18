@@ -94,7 +94,9 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
   String* array_alloc_native_code(ArrayVar var, Int32Expr size) {
     elt_type = native_elt_type(var);
     var_name = native_var_name(var);
-    return (var_name & " = new " & elt_type & "[" & native_expr(size) & "];");
+    return if size != 0
+      then (var_name & " = new " & elt_type & "[" & native_expr(size) & "];")
+      else (var_name & " = NULL;");
   }
 
 

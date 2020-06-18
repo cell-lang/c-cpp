@@ -1,6 +1,5 @@
 cellc.net:
-	@rm -rf tmp/cellc.net
-	@mkdir -p tmp/cellc.net
+	@rm -rf tmp/cellc.net && mkdir -p tmp/cellc.net
 	cellc-cs project/compiler-no-runtime.txt tmp/cellc.net/
 	mv tmp/cellc.net/generated.cs tmp/
 	../csharp/bin/apply-hacks < tmp/generated.cs > tmp/cellc.net/generated.cs
@@ -9,8 +8,7 @@ cellc.net:
 	@ln -s tmp/cellc.net/bin/Debug/netcoreapp3.1/cellc cellc.net
 
 cellc: cellc.net
-	@rm -rf tmp/cellc
-	@mkdir -p tmp/cellc
+	@rm -rf tmp/cellc && mkdir -p tmp/cellc
 	./cellc.net project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
@@ -19,16 +17,14 @@ update-cellc:
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
 codegen.net:
-	@rm -rf tmp/codegen.net/
-	@mkdir -p tmp/codegen.net/
+	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
 	cellc-cs project/codegen.txt tmp/codegen.net/
 	cp project/codegen.csproj tmp/codegen.net/
 	dotnet build tmp/codegen.net/
 	@ln -s tmp/codegen.net/bin/Debug/netcoreapp3.1/codegen codegen.net
 
 codegen:
-	@rm -rf codegen tmp/codegen/
-	@mkdir -p tmp/codegen/
+	@rm -rf codegen tmp/codegen/ && mkdir -p tmp/codegen/
 	./cellc.net project/codegen.txt tmp/codegen/
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
@@ -47,8 +43,7 @@ codegen-test-loop: codegen
 	cmp codegen-2.cpp codegen-3.cpp
 
 gen-html: cellc.net
-	@rm -rf tmp/gen-html/
-	@mkdir -p tmp/gen-html/
+	@rm -rf tmp/gen-html/ && mkdir -p tmp/gen-html/
 	./cellc.net project/gen-html.txt tmp/gen-html/
 	g++ -ggdb -Isrc/runtime/ tmp/gen-html/generated.cpp src/runtime/*.cpp -o gen-html
 
@@ -70,13 +65,13 @@ update-tiny-test:
 	g++ -ggdb -Isrc/runtime/ generated.cpp src/runtime/*.cpp -o tiny-test
 
 tests:
-	@rm -rf tmp/
-	@mkdir tmp/
-	./cellc-cs project/tests.txt tmp/
+	@rm -rf tmp/tests/ && mkdir tmp/tests/
+	./cellc.net project/tests.txt tmp/tests/
 	cp tmp/generated.cs ../work/dotnet-tests
-	dotnet build ../work/dotnet-tests
-	@echo
-	../work/dotnet-tests/bin/Debug/netcoreapp3.1/dotnet-tests
+	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
+
+update-tests:
+	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
 
 clean:
 	@rm -rf tmp/ cellc.net codegen codegen.net

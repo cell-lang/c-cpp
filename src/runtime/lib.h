@@ -297,6 +297,8 @@ void* get_ref_obj_ptr(OBJ);
 bool are_shallow_eq(OBJ, OBJ);
 int shallow_cmp(OBJ, OBJ);
 
+OBJ repoint_to_copy(OBJ, void*);
+
 //////////////////////////////// basic-ops.cpp /////////////////////////////////
 
 bool inline_eq(OBJ obj1, OBJ obj2);
@@ -569,3 +571,13 @@ bool is_ne_int_seq(OBJ);
 bool is_ne_float_seq(OBJ);
 
 uint32 next_size(uint32 base_size, uint32 min_size);
+
+OBJ copy_obj(OBJ); // mem-copying.cpp
+
+bool is_already_in_place(void*);
+
+//////////////////////////////// mem-alloc.cpp /////////////////////////////////
+
+void switch_mem_stacks();
+void unswitch_mem_stacks();
+void clear_unused_mem();

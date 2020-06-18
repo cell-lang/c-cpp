@@ -598,7 +598,8 @@ bool is_opt_rec_or_tag_rec(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_inline_obj(OBJ obj) {
-  return get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE | obj.core_data.ptr == NULL;
+  assert(get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE | obj.core_data.ptr != NULL);
+  return get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -667,4 +668,13 @@ int shallow_cmp(OBJ obj1, OBJ obj2) {
     return -1;
 
   return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//## IF WE DECIDE TO OPTIMIZE THE COPYING OF SEQUENCES AND/OR SLICES, THIS WILL STOP WORKING
+OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+  obj.core_data.ptr = new_ptr;
+  return obj;
 }
