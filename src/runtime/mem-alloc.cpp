@@ -115,8 +115,8 @@ static MEM_STACK *inactive_stack() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void switch_mem_stacks() {
-  printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>\n\n");
-  print_memory_in_use();
+  // printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>\n\n");
+  // print_memory_in_use();
 
   stack_A_active = !stack_A_active;
 
@@ -133,14 +133,14 @@ void switch_mem_stacks() {
   chkpt->stack = stack;
 
 
-  printf("\n");
-  print_memory_in_use();
-  printf("\n");
+  // printf("\n");
+  // print_memory_in_use();
+  // printf("\n");
 }
 
 void unswitch_mem_stacks() {
-  printf("\n<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
-  print_memory_in_use();
+  // printf("\n<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
+  // print_memory_in_use();
 
   MEM_STACK *stack = active_stack();
   MEM_CHKPT *chkpt = checkpoints + --chkpt_index;
@@ -173,14 +173,14 @@ void unswitch_mem_stacks() {
 
   stack_A_active = !stack_A_active;
 
-  printf("\n");
-  print_memory_in_use();
-  printf("\n");
+  // printf("\n");
+  // print_memory_in_use();
+  // printf("\n");
 }
 
 void clear_unused_mem() {
-  printf("\n-------------------------\n\n");
-  print_memory_in_use();
+  // printf("\n-------------------------\n\n");
+  // print_memory_in_use();
 
   MEM_STACK *stack = inactive_stack();
   int index = stack->index;
@@ -204,9 +204,9 @@ void clear_unused_mem() {
     }
   }
 
-  printf("\n");
-  print_memory_in_use();
-  printf("\n");
+  // printf("\n");
+  // print_memory_in_use();
+  // printf("\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
