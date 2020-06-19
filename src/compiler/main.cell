@@ -182,7 +182,7 @@ type CmdLineOpts = (
 
 
 (Program, [BasicTypeSymbol]) ParseCheckAndDesugar([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
-  t0 = _ticks_(:any_value_will_do);
+  t0 = _ticks_(:unused);
 
   decls = ();
   for fn <- rand_sort(keys(src_files)) {
@@ -208,7 +208,7 @@ type CmdLineOpts = (
   }
   types_to_gen = result(res);
 
-  t1 = _ticks_(:any_value_will_do);
+  t1 = _ticks_(:unused);
 
   if cmd_line_opts.developer_mode
     Print("Source files parsed\n");
@@ -224,7 +224,7 @@ type CmdLineOpts = (
 
   errs = prg_wf_errors(syn_prg=syn_prg);
 
-  t2 = _ticks_(:any_value_will_do);
+  t2 = _ticks_(:unused);
 
   if errs == () {
     if cmd_line_opts.developer_mode
@@ -251,7 +251,7 @@ type CmdLineOpts = (
     fail;
   }
 
-  t3 = _ticks_(:any_value_will_do);
+  t3 = _ticks_(:unused);
   if cmd_line_opts.developer_mode
     Print("Syntax removed\n");
   else
@@ -270,7 +270,7 @@ type CmdLineOpts = (
     Exit(1);
     fail;
   }
-  t4 = _ticks_(:any_value_will_do);
+  t4 = _ticks_(:unused);
   if cmd_line_opts.developer_mode
     Print("Additional checks passed\n");
   else
@@ -288,7 +288,6 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
   res = ParseCheckAndDesugar(src_files, types_gen_files, cmd_line_opts);
   prg, types_to_gen = res;
 
-  is_bad = false;
   let program = prg, typedefs = prg.typedefs {
     if cmd_line_opts.run_typechecking {
       errs = typechecking_errors;
@@ -313,66 +312,53 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
           Print("\n");
         }
         Print("Number of functions with typechecking errors: " & printed(|errs|) & "\n");
-        is_bad = true;
+        Exit(1);
+        fail;
       }
     }
 
-    t5 = _ticks_(:any_value_will_do);
+    t5 = _ticks_(:unused);
 
     perms = [];
 
-    if not is_bad {
-      options = options(
-        debug_mode:                 cmd_line_opts.debug_mode,
-        ignore_assertions:          cmd_line_opts.ignore_assertions,
-        max_opt_fields_in_opt_rec:  16
-      );
+    options = options(
+      debug_mode:                 cmd_line_opts.debug_mode,
+      ignore_assertions:          cmd_line_opts.ignore_assertions,
+      max_opt_fields_in_opt_rec:  16
+    );
 
-      if prg.data_bases != [] {
-        res = transform_analyze_and_compile(prg, options);
-        if succeeded(res) {
-          cmp_prg, perms = get_result(res);
-          code = just(cmp_prg);
-          if cmd_line_opts.developer_mode
-            Print("Code analysis OK\n");
-          else
-            Print(".");
+    if prg.data_bases != [] {
+      res = transform_analyze_and_compile(prg, options);
+      if succeeded(res) {
+        code, perms = get_result(res);
+        if cmd_line_opts.developer_mode
+          Print("Code analysis OK\n");
+        else
+          Print(".");
 
-          if cmd_line_opts.wait_for_key
-            unused_var = GetChar();
-        }
-        else {
-          errs = get_error(res);
-          bad_decls = sort_set(keys(errs), source_file($a) < source_file($b));
-          ord_errs_by_decl = ((d, nonempty(sort_set(errs(d), source_line($a) < source_line($b)))) : d <- bad_decls);
-          msgs = (format_error_msgs(d, (create_error_msg(e) : e <- es)) : d, es <- ord_errs_by_decl);
-          Print("\n");
-          for m <- msgs {
-            for l <- m
-              Print(l & "\n");
-            Print("\n");
-          }
-          is_bad = true;
-          code = nothing;
-        }
+        if cmd_line_opts.wait_for_key
+          unused_var = GetChar();
       }
       else {
-        code = just(compiled_program([], options=options));
+        errs = get_error(res);
+        bad_decls = sort_set(keys(errs), source_file($a) < source_file($b));
+        ord_errs_by_decl = ((d, nonempty(sort_set(errs(d), source_line($a) < source_line($b)))) : d <- bad_decls);
+        msgs = (format_error_msgs(d, (create_error_msg(e) : e <- es)) : d, es <- ord_errs_by_decl);
+        Print("\n");
+        for m <- msgs {
+          for l <- m
+            Print(l & "\n");
+          Print("\n");
+        }
+        Exit(1);
+        fail;
       }
     }
-    else {
-      code = nothing;
-    }
+    else
+      code = compiled_program([], options=options);
   }
 
-  if is_bad {
-    Exit(1);
-    fail;
-  }
-
-  code = value_unsafe(code);
-
-  t6 = _ticks_(:any_value_will_do);
+  t6 = _ticks_(:unused);
   if cmd_line_opts.developer_mode
     Print("Code generated\n");
   else
@@ -382,7 +368,7 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
 }
 
 
-(CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
+(CompiledPrg, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
 GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   res = TypecheckAndCompile(src_files, types_gen_files, cmd_line_opts);
   code, prg, types_to_gen, perms = res;
@@ -468,7 +454,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
 
   opt_code = optimize_compiled_code(opt_code_5);
 
-  t7 = _ticks_(:any_value_will_do);
+  t7 = _ticks_(:unused);
   if cmd_line_opts.developer_mode
     Print("Low-level code optimized\n");
   else
@@ -476,14 +462,6 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
-
-  return (opt_code, prg, types_to_gen, perms);
-}
-
-
-[String -> String*] Compile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
-  res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
-  opt_code, prg, types_to_gen, perms = res;
 
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-opt-code.txt", _untag_(_print_(opt_code)));
@@ -493,10 +471,18 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
+  return (opt_code, all_types_to_gen, perms);
+}
+
+
+[String -> String*] Compile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+  res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
+  opt_code, all_types_to_gen, perms = res;
+
   let prg=opt_code, generated=all_types_to_gen, rel_vars_perm_map=perms, debug_mode=cmd_line_opts.debug_mode
     files = generated_code(cmd_line_opts.include_runtime);
 
-  t8 = _ticks_(:any_value_will_do);
+  t8 = _ticks_(:unused);
   if cmd_line_opts.developer_mode
     Print("C/C++ code generated\n");
   else
@@ -519,7 +505,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   //   Print("Total time elapsed:    " & printed(t8-t0) & "ms\n");
   // }
 
-  has_main = (p <- prg.proc_defs : p.id == proc_symbol(:main));
+  has_main = (p <- opt_code.procs : p.name == proc_symbol(:main));
   Print(
     if has_main
       then "Main() found. Generating code for standalone executable\n"

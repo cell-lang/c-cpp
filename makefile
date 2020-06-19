@@ -1,10 +1,10 @@
 cellc.net:
 	@rm -rf tmp/cellc.net && mkdir -p tmp/cellc.net
 	cellc-cs project/compiler-no-runtime.txt tmp/cellc.net/
-	mv tmp/cellc.net/generated.cs tmp/
-	../csharp/bin/apply-hacks < tmp/generated.cs > tmp/cellc.net/generated.cs
-	cp project/cellc.csproj tmp/cellc.net
-	dotnet build tmp/cellc.net
+	../csharp/bin/apply-hacks < tmp/cellc.net/generated.cs > tmp/cellc.net/cellc.cs
+	@rm tmp/cellc.net/generated.cs
+	@cp project/cellc.csproj tmp/cellc.net/
+	dotnet build tmp/cellc.net/
 	@ln -s tmp/cellc.net/bin/Debug/netcoreapp3.1/cellc cellc.net
 
 cellc: cellc.net
@@ -14,7 +14,12 @@ cellc: cellc.net
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
 update-cellc:
+	@rm -f cellc
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+
+update-cellcr:
+	@rm -f cellcr
+	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
