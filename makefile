@@ -25,20 +25,20 @@ codegen.net:
 
 codegen:
 	@rm -rf codegen tmp/codegen/ && mkdir -p tmp/codegen/
-	./cellc.net project/codegen.txt tmp/codegen/
+	./cellc project/codegen.txt tmp/codegen/
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
 update-codegen:
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
 codegen-test-loop: codegen
-	./codegen codegen-opt-code.txt
+	./codegen misc/codegen-opt-code.txt
 	mv generated.cpp codegen-1.cpp
 	g++ -ggdb -Isrc/runtime/ codegen-1.cpp src/runtime/*.cpp -o codegen-1
-	./codegen-1 codegen-opt-code.txt
+	./codegen-1 misc/codegen-opt-code.txt
 	mv generated.cpp codegen-2.cpp
 	g++ -ggdb -Isrc/runtime/ codegen-2.cpp src/runtime/*.cpp -o codegen-2
-	./codegen-2 codegen-opt-code.txt
+	./codegen-2 misc/codegen-opt-code.txt
 	mv generated.cpp codegen-3.cpp
 	cmp codegen-2.cpp codegen-3.cpp
 
@@ -67,14 +67,13 @@ update-tiny-test:
 tests:
 	@rm -rf tmp/tests/ && mkdir tmp/tests/
 	./cellc.net project/tests.txt tmp/tests/
-	cp tmp/generated.cs ../work/dotnet-tests
 	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
 
 update-tests:
 	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
 
 clean:
-	@rm -rf tmp/ cellc.net codegen codegen.net
+	@rm -rf tmp/ cellc.net cellc codegen codegen.net tests
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
 	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o
 	@mkdir tmp/

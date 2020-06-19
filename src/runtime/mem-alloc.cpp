@@ -41,17 +41,17 @@ int non_null_regions(MEM_STACK *stack) {
 
 void dump_state() {
   printf("  Active stack: %s\n", stack_A_active ? "A" : "B");
-  printf("  Stack A\n");
+  printf("  Stack A @ %d\n", stack_A.index);
   int count = non_null_regions(&stack_A);
   for (int i=0 ; i < count ; i++) {
     MEM_REGION *r = stack_A.regions + i;
-    printf("    %16p  %16p  %8x  %8x\n", (void *) r->stack, (void *) r-> top, r->size, r->left);
+    printf("    %16p  %16p  %8x  %12d  %12d\n", (void *) r->stack, (void *) r-> top, r->size, r->left, r->size - r->left);
   }
   count = non_null_regions(&stack_B);
-  printf("  Stack B\n");
+  printf("  Stack B @ %d\n", stack_B.index);
   for (int i=0 ; i < count ; i++) {
     MEM_REGION *r = stack_B.regions + i;
-    printf("    %16p  %16p  %8x  %8x\n", (void *) r->stack, (void *) r-> top, r->size, r->left);
+    printf("    %16p  %16p  %8x  %12d  %12d\n", (void *) r->stack, (void *) r-> top, r->size, r->left, r->size - r->left);
   }
   printf("  Checkpoints:\n");
   for (int i=0 ; i < chkpt_index ; i++) {
@@ -63,6 +63,40 @@ void dump_state() {
       stack_id = "B";
     printf("    %2d  %16p  %8x  %s\n", cp->index, cp->top, cp->left, stack_id);
   }
+}
+
+void print_memory_in_use() {
+  double used = 0;
+  double wasted = 0;
+  double unused = 0;
+
+  dump_state();
+
+  int count = non_null_regions(&stack_A);
+  for (int i=0 ; i < count ; i++) {
+    MEM_REGION *r = stack_A.regions + i;
+    used += r->size - r->left;
+    if (i < count - 1)
+      wasted += r->left;
+    else
+      unused += r->left;
+  }
+
+  count = non_null_regions(&stack_B);
+  for (int i=0 ; i < count ; i++) {
+    MEM_REGION *r = stack_B.regions + i;
+    used += r->size - r->left;
+    if (i < count - 1)
+      wasted += r->left;
+    else
+      unused += r->left;
+  }
+
+  used /= 1024 * 1024;
+  unused /= 1024 * 1024;
+  wasted /= 1024 * 1024;
+
+  printf("\n  used = %.2f, unused = %.2f, wasted = %.2f\n\n", used, unused, wasted);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -81,6 +115,11 @@ static MEM_STACK *inactive_stack() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void switch_mem_stacks() {
+  printf("\n>>>>>>>>>>>>>>>>>>>>>>>>>\n\n");
+  print_memory_in_use();
+
+  stack_A_active = !stack_A_active;
+
   MEM_STACK *stack = active_stack();
   MEM_CHKPT *chkpt = checkpoints + chkpt_index++;
 
@@ -93,11 +132,17 @@ void switch_mem_stacks() {
   chkpt->left = region->left;
   chkpt->stack = stack;
 
-  stack_A_active = !stack_A_active;
+
+  printf("\n");
+  print_memory_in_use();
+  printf("\n");
 }
 
 void unswitch_mem_stacks() {
-  MEM_STACK *stack = inactive_stack();
+  printf("\n<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
+  print_memory_in_use();
+
+  MEM_STACK *stack = active_stack();
   MEM_CHKPT *chkpt = checkpoints + --chkpt_index;
 
   assert(chkpt->stack == stack);
@@ -117,6 +162,7 @@ void unswitch_mem_stacks() {
   }
   else {
     assert(chkpt->left == 0);
+
     region->top = region->stack;
     region->left = region->size;
 
@@ -126,9 +172,16 @@ void unswitch_mem_stacks() {
   assert(region->stack + region->size == region->top + region->left);
 
   stack_A_active = !stack_A_active;
+
+  printf("\n");
+  print_memory_in_use();
+  printf("\n");
 }
 
 void clear_unused_mem() {
+  printf("\n-------------------------\n\n");
+  print_memory_in_use();
+
   MEM_STACK *stack = inactive_stack();
   int index = stack->index;
   MEM_REGION *region = stack->regions + index;
@@ -150,6 +203,10 @@ void clear_unused_mem() {
       region->left = 0;
     }
   }
+
+  printf("\n");
+  print_memory_in_use();
+  printf("\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

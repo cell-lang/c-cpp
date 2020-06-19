@@ -93,8 +93,8 @@ SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
     // We mark the old sequence as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    seq->capacity = 0;
-    * (SEQ_OBJ **) buff = seq_copy;
+    // seq->capacity = 0;
+    // * (SEQ_OBJ **) buff = seq_copy;
     // Returning the new object
     return seq_copy;
   }
@@ -118,8 +118,8 @@ SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set) {
     // We mark the old sequence as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    set->size = 0;
-    * (SET_OBJ **) buff = set_copy;
+    // set->size = 0;
+    // * (SET_OBJ **) buff = set_copy;
     // Returning the new object
     return set_copy;
   }
@@ -147,8 +147,8 @@ BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    rel->size = 0;
-    * (BIN_REL_OBJ **) buff = rel_copy;
+    // rel->size = 0;
+    // * (BIN_REL_OBJ **) buff = rel_copy;
     // Returning the new object
     return rel_copy;
   }
@@ -176,8 +176,8 @@ TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel) {
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    rel->size = 0;
-    * (TERN_REL_OBJ **) buff = rel_copy;
+    // rel->size = 0;
+    // * (TERN_REL_OBJ **) buff = rel_copy;
     // Returning the new object
     return rel_copy;
   }
@@ -201,8 +201,8 @@ BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map) {
     // We mark the old sequence as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    map->size = 0;
-    * (BIN_REL_OBJ **) buff = map_copy;
+    // map->size = 0;
+    // * (BIN_REL_OBJ **) buff = map_copy;
     // Returning the new object
     return map_copy;
   }
@@ -222,8 +222,8 @@ TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
-    tag_obj->unused_field = 0xFFFF;
-    * (TAG_OBJ **) &tag_obj->obj = tag_obj_copy;
+    // tag_obj->unused_field = 0xFFFF;
+    // * (TAG_OBJ **) &tag_obj->obj = tag_obj_copy;
     // Returning the new object
     return tag_obj_copy;
   }
@@ -293,7 +293,7 @@ OBJ copy_obj(OBJ obj) {
       void *ptr = get_opt_repr_ptr(obj);
       uint16 repr_id = get_opt_repr_id(obj);
       void *copy = opt_repr_copy(ptr, repr_id);
-      return make_opt_tag_rec(copy, repr_id);
+      return repoint_to_copy(obj, copy);
     }
 
     default:

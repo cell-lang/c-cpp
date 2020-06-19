@@ -581,3 +581,8 @@ bool is_already_in_place(void*);
 void switch_mem_stacks();
 void unswitch_mem_stacks();
 void clear_unused_mem();
+
+///////////////////////////////// mem-core.cpp /////////////////////////////////
+
+void switch_to_static_allocator();
+void switch_to_twin_stacks_allocator();

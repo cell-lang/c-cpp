@@ -56,3 +56,8 @@ OBJ GetChar_P(ENV &env) {
     return make_symb(symb_id_nothing);
   return make_tag_obj(symb_id_just, make_int(ch));
 }
+
+
+OBJ Exit_P(OBJ exit_code, struct ENV_ &env) {
+  exit(get_int(exit_code));
+}

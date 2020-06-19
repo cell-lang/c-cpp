@@ -181,7 +181,7 @@ type CmdLineOpts = (
 );
 
 
-[String -> String*] Compile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+(Program, [BasicTypeSymbol]) ParseCheckAndDesugar([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   t0 = _ticks_(:any_value_will_do);
 
   decls = ();
@@ -193,7 +193,8 @@ type CmdLineOpts = (
     else {
       err_msg = create_error_msg(get_error(res), fn);
       Print("\n" & append(err_msg, "\n") & "\n");
-      return [];
+      Exit(1);
+      fail;
     }
   }
   syn_prg = syn_prg(parsed_src_files: merge(decls));
@@ -202,7 +203,8 @@ type CmdLineOpts = (
   if failed(res) {
     file, line = error(res);
     Print("\nSyntax error: file " & file & ", line " & _print_(line) & "\n\n");
-    return [];
+    Exit(1);
+    fail;
   }
   types_to_gen = result(res);
 
@@ -236,7 +238,8 @@ type CmdLineOpts = (
   else {
     msgs = append((append(create_error_msg(e), "\n") & "\n\n" : e <- errs));
     Print("\n" & msgs);
-    return [];
+    Exit(1);
+    fail;
   }
 
   prg = desugared_prg(syn_prg=syn_prg);
@@ -244,7 +247,8 @@ type CmdLineOpts = (
   errs = types_to_gen_errs(types_to_gen, prg.typedefs);
   if errs != () {
     Print("\n" & append(errs, "\n") & "\n\n");
-    return [];
+    Exit(1);
+    fail;
   }
 
   t3 = _ticks_(:any_value_will_do);
@@ -263,7 +267,8 @@ type CmdLineOpts = (
   if errs != [] {
     msgs = append((append(error_message(e), "\n") & "\n\n" : e <- rand_sort(errs)));
     Print("\n" & msgs);
-    return [];
+    Exit(1);
+    fail;
   }
   t4 = _ticks_(:any_value_will_do);
   if cmd_line_opts.developer_mode
@@ -273,6 +278,15 @@ type CmdLineOpts = (
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
+
+  return (prg, types_to_gen);
+}
+
+
+(CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
+TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+  res = ParseCheckAndDesugar(src_files, types_gen_files, cmd_line_opts);
+  prg, types_to_gen = res;
 
   is_bad = false;
   let program = prg, typedefs = prg.typedefs {
@@ -350,7 +364,12 @@ type CmdLineOpts = (
       code = nothing;
     }
   }
-  return [] if is_bad;
+
+  if is_bad {
+    Exit(1);
+    fail;
+  }
+
   code = value_unsafe(code);
 
   t6 = _ticks_(:any_value_will_do);
@@ -358,6 +377,15 @@ type CmdLineOpts = (
     Print("Code generated\n");
   else
     Print(".");
+
+  return (code, prg, types_to_gen, perms);
+}
+
+
+(CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
+GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+  res = TypecheckAndCompile(src_files, types_gen_files, cmd_line_opts);
+  code, prg, types_to_gen, perms = res;
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
@@ -425,7 +453,8 @@ type CmdLineOpts = (
     Print("Please remember that the implementation of imperative sequence updates is a work in progress.\n");
     Print("It's entirely possible that your code is just fine, but the compiler is at the moment too dumb to see that.\n");
 
-    return [];
+    Exit(1);
+    fail;
   }
   opt_code_4 = result(res);
 
@@ -437,6 +466,8 @@ type CmdLineOpts = (
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-opt-code-5.txt", _untag_(_print_(opt_code_5)));
 
+  opt_code = optimize_compiled_code(opt_code_5);
+
   t7 = _ticks_(:any_value_will_do);
   if cmd_line_opts.developer_mode
     Print("Low-level code optimized\n");
@@ -446,18 +477,18 @@ type CmdLineOpts = (
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
-  opt_code = optimize_compiled_code(opt_code_5);
+  return (opt_code, prg, types_to_gen, perms);
+}
+
+
+[String -> String*] Compile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+  res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
+  opt_code, prg, types_to_gen, perms = res;
 
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-opt-code.txt", _untag_(_print_(opt_code)));
 
   all_types_to_gen = all_named_types_to_declare(types_to_gen, typedefs = prg.typedefs);
-
-  t7 = _ticks_(:any_value_will_do);
-  if cmd_line_opts.developer_mode
-    Print("Low-level code optimized (2)\n");
-  else
-    Print(".");
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
@@ -474,19 +505,19 @@ type CmdLineOpts = (
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
-  if cmd_line_opts.print_times {
-    Print("\n");
-    Print("Parsing:               " & printed(t1-t0) & "ms\n");
-    Print("Error checking:        " & printed(t2-t1) & "ms\n");
-    Print("Syntax removal:        " & printed(t3-t2) & "ms\n");
-    Print("Additional checks:     " & printed(t4-t3) & "ms\n");
-    if cmd_line_opts.run_typechecking
-      Print("Type checking:         " & printed(t5-t4) & "ms\n");
-    Print("Code generation:       " & printed(t6-t5) & "ms\n");
-    Print("Code optimization:     " & printed(t7-t6) & "ms\n");
-    Print("C++ code generation:   " & printed(t8-t7) & "ms\n");
-    Print("Total time elapsed:    " & printed(t8-t0) & "ms\n");
-  }
+  // if cmd_line_opts.print_times {
+  //   Print("\n");
+  //   Print("Parsing:               " & printed(t1-t0) & "ms\n");
+  //   Print("Error checking:        " & printed(t2-t1) & "ms\n");
+  //   Print("Syntax removal:        " & printed(t3-t2) & "ms\n");
+  //   Print("Additional checks:     " & printed(t4-t3) & "ms\n");
+  //   if cmd_line_opts.run_typechecking
+  //     Print("Type checking:         " & printed(t5-t4) & "ms\n");
+  //   Print("Code generation:       " & printed(t6-t5) & "ms\n");
+  //   Print("Code optimization:     " & printed(t7-t6) & "ms\n");
+  //   Print("C++ code generation:   " & printed(t8-t7) & "ms\n");
+  //   Print("Total time elapsed:    " & printed(t8-t0) & "ms\n");
+  // }
 
   has_main = (p <- prg.proc_defs : p.id == proc_symbol(:main));
   Print(
@@ -498,6 +529,8 @@ type CmdLineOpts = (
   return files;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 Result[
   (CompiledPrg, [DBSymbol -> [RelVar -> [+Nat -> Nat]]]),

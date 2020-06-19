@@ -403,7 +403,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     fn_name = native_fn_name(pd.name);
 
-    suffix = if cached and not decl_only then "_calculate" else "";
+    suffix = if cached and not decl_only then "c" else "";
 
     args_list = gen_args_list(pd);
     args_list_str = append(args_list, ", ");
@@ -430,7 +430,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       comp_body = (only_instr & " // " & fn_name & "/" & _print_(arity(pd)));
     }
     else {
-      is_mem_boundary = pd.name :: ProcSymbol;
+      is_mem_boundary = pd.name :: ProcSymbol and pd.name != proc_symbol(:main);
 
       last_instr = last(body);
       maybe_split_body = match (last_instr)
@@ -464,29 +464,45 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
            indent_lines(db_vars_decls) & indent_lines(aux_db_vars_decls) &
            ("" if has_var_decls) & indent_lines(comp_body) & ("}");
 
-    if cached {
-      is_real_const = pd.cached? and pd.impl_args == [];
-      cache_var_name = if is_real_const then fn_name & "__CV" else "env." & memo_var_name(pd.name);
-      needs_set_flag = is_real_const; // and pd.ret_val_repr? and not is_nullable(pd.ret_val_repr);
-      set_flag_name = if needs_set_flag then fn_name & "__CI" else "???"; ## UGLY UGLY UGLY
-      ret_type_name = ret_type_str(pd);
-      cast = if ret_type_name != "OBJ" then " (" & ret_type_name & ")" else "";
+    if pd.cached? and pd.cached {
+      if pd.impl_args == [] {
+        fail if not pd.cached?;
 
-      wrapper_code = (
-        "",
-        "",
-        "static " & ret_type_name & " " & cache_var_name & ";" if is_real_const,
-        "static bool " & set_flag_name & ";" if needs_set_flag,
-        "" if is_real_const,
-        visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
-        "  if (is_null_obj(" & cache_var_name & "))" if not needs_set_flag,
-        "  if (!" & set_flag_name & ") {" if needs_set_flag,
-        "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
-        "    " & set_flag_name & " = true;" if needs_set_flag,
-        "  }" if needs_set_flag,
-        "  return" & cast & " " & cache_var_name & ";",
-        "}"
-      );
+        ret_type_name = ret_type_str(pd);
+        cast = if ret_type_name != "OBJ" then " (" & ret_type_name & ")" else ""; ## WTF?
+
+        wrapper_code = (
+          "",
+          "",
+          visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
+          "  static " & ret_type_name & " value;",
+          "  static bool initialized = false;",
+          "  if (!initialized) {",
+          "    " & ret_type_name & " temp_value = " & fn_name & suffix & "(env);",
+          "    switch_to_static_allocator();",
+          "    value = copy_obj(temp_value);",
+          "    switch_to_twin_stacks_allocator();",
+          "    initialized = true;",
+          "  }",
+          "  return value;",
+          "}"
+        );
+      }
+      else {
+        cache_var_name = "env." & memo_var_name(pd.name);
+        ret_type_name = ret_type_str(pd);
+
+        wrapper_code = (
+          "",
+          "",
+          visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
+          "  if (is_null_obj(" & cache_var_name & "))",
+          "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
+          "  return " & cache_var_name & ";",
+          "}"
+        );
+      }
+
       code = code & wrapper_code;
     }
 
