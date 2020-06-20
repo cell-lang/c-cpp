@@ -3,8 +3,8 @@
 
 
 void init(STREAM &s) {
-  s.buffer = 0;
-  s.capacity = 0;
+  s.buffer = s.inline_buffer;
+  s.capacity = 32;
   s.count = 0;
 }
 
@@ -64,7 +64,7 @@ OBJ build_set(OBJ *elems, uint32 size) {
 }
 
 OBJ build_set(STREAM &s) {
-  assert((s.count == 0 && s.capacity == 0 && s.buffer == NULL) || (s.count > 0 && s.capacity > 0 && s.buffer != NULL));
+  // assert((s.count == 0 && s.capacity == 0 && s.buffer == NULL) || (s.count > 0 && s.capacity > 0 && s.buffer != NULL));
 
   uint32 count = s.count;
   if (count == 0)

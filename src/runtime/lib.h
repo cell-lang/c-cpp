@@ -157,6 +157,7 @@ struct STREAM {
   OBJ    *buffer;
   uint32  capacity;
   uint32  count;
+  OBJ     inline_buffer[32];
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -179,6 +180,7 @@ const uint16 symb_id_failure  = 9;
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
 void* new_obj(uint32 byte_size);
+void* new_raw_mem(uint32 byte_size);
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 
@@ -574,7 +576,7 @@ uint32 next_size(uint32 base_size, uint32 min_size);
 
 OBJ copy_obj(OBJ); // mem-copying.cpp
 
-bool is_already_in_place(void*);
+bool needs_copying(void*);
 
 //////////////////////////////// mem-alloc.cpp /////////////////////////////////
 

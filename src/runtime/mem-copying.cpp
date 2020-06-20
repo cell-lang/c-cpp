@@ -237,7 +237,7 @@ TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ copy_obj(OBJ obj) {
-  if (is_inline_obj(obj) || is_already_in_place(get_ref_obj_ptr(obj)))
+  if (is_inline_obj(obj) || !needs_copying(get_ref_obj_ptr(obj)))
     return obj;
 
   switch (get_physical_type(obj)) {

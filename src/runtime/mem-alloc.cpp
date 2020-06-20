@@ -178,7 +178,46 @@ void unswitch_mem_stacks() {
   // printf("\n");
 }
 
+bool clear_released_mem = false;
+
 void clear_unused_mem() {
+  // printf("\n-------------------------\n\n");
+  // print_memory_in_use();
+
+  MEM_STACK *stack = inactive_stack();
+  int index = stack->index;
+  MEM_REGION *region = stack->regions + index;
+
+  if (region->stack != NULL) {
+    assert(region->stack + region->size == region->top + region->left);
+
+    if (clear_released_mem)
+      memset(region->top, 0xFF, region->left);
+
+    for (int i = index + 1 ; ; i++) {
+      MEM_REGION *region = stack->regions + i;
+      void *stack = region->stack;
+
+      if (stack == NULL)
+        break;
+
+      if (clear_released_mem)
+        memset(stack, 0xFF, region->size);
+
+      free(stack);
+      region->stack = NULL;
+      region->top = NULL;
+      region->size = 0;
+      region->left = 0;
+    }
+  }
+
+  // printf("\n");
+  // print_memory_in_use();
+  // printf("\n");
+}
+
+void really_clear_unused_mem() {
   // printf("\n-------------------------\n\n");
   // print_memory_in_use();
 
@@ -207,6 +246,34 @@ void clear_unused_mem() {
   // printf("\n");
   // print_memory_in_use();
   // printf("\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool is_in_released_mem(void *ptr) {
+  MEM_STACK *stack = inactive_stack();
+  int index = stack->index;
+  MEM_REGION *region = stack->regions + index;
+
+  if (region->stack != NULL) {
+    assert(region->stack + region->size == region->top + region->left);
+
+    if (ptr >= region->top & ptr < region->stack + region->size)
+      return true;
+
+    for (int i = index + 1 ; ; i++) {
+      MEM_REGION *region = stack->regions + i;
+      uint8 *start = region->stack;
+
+      if (start == NULL)
+        return false;
+
+      if (ptr >= region->top & ptr < start + region->size);
+        return true;
+    }
+  }
+
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

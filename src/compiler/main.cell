@@ -364,6 +364,12 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
   else
     Print(".");
 
+  if cmd_line_opts.wait_for_key
+    unused_var = GetChar();
+
+  if cmd_line_opts.print_intermediate
+    ok = FileWrite("dump-code.txt", _untag_(_print_(code)));
+
   return (code, prg, types_to_gen, perms);
 }
 
@@ -372,12 +378,6 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
 GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   res = TypecheckAndCompile(src_files, types_gen_files, cmd_line_opts);
   code, prg, types_to_gen, perms = res;
-
-  if cmd_line_opts.wait_for_key
-    unused_var = GetChar();
-
-  if cmd_line_opts.print_intermediate
-    ok = FileWrite("dump-code.txt", _untag_(_print_(code)));
 
   opt_code_1 = remove_dead_code(code);
 

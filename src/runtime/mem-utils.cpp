@@ -675,6 +675,8 @@ int shallow_cmp(OBJ obj1, OBJ obj2) {
 //## IF WE DECIDE TO OPTIMIZE THE COPYING OF SEQUENCES AND/OR SLICES, THIS WILL STOP WORKING
 OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
   assert(!is_inline_obj(obj));
+  assert(get_physical_type(obj) != TYPE_NE_SLICE);
+
   obj.core_data.ptr = new_ptr;
   return obj;
 }

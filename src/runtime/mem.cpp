@@ -130,8 +130,36 @@ TAG_OBJ *new_tag_obj() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static uint64 total_count_new_obj_array     = 0;
+static uint64 total_count_new_bool_array    = 0;
+static uint64 total_count_new_double_array  = 0;
+static uint64 total_count_new_int64_array   = 0;
+static uint64 total_count_new_int32_array   = 0;
+static uint64 total_count_new_uint32_array  = 0;
+static uint64 total_count_new_int16_array   = 0;
+static uint64 total_count_new_uint16_array  = 0;
+static uint64 total_count_new_int8_array    = 0;
+static uint64 total_count_new_uint8_array   = 0;
+
+
+void print_temp_mem_alloc_stats() {
+  printf("Temporary allocation details:\n");
+  printf("  new_obj_array:    %llu\n", total_count_new_obj_array);
+  printf("  new_bool_array:   %llu\n", total_count_new_bool_array);
+  printf("  new_double_array: %llu\n", total_count_new_double_array);
+  printf("  new_int64_array:  %llu\n", total_count_new_int64_array);
+  printf("  new_int32_array:  %llu\n", total_count_new_int32_array);
+  printf("  new_uint32_array: %llu\n", total_count_new_uint32_array);
+  printf("  new_int16_array:  %llu\n", total_count_new_int16_array);
+  printf("  new_uint16_array: %llu\n", total_count_new_uint16_array);
+  printf("  new_int8_array:   %llu\n", total_count_new_int8_array);
+  printf("  new_uint8_array:  %llu\n", total_count_new_uint8_array);
+}
+
+
 OBJ *new_obj_array(uint32 size) {
-  return (OBJ *) new_obj(size * sizeof(OBJ));
+  total_count_new_obj_array += size * sizeof(OBJ);
+  return (OBJ *) new_raw_mem(size * sizeof(OBJ));
 }
 
 OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
@@ -141,39 +169,48 @@ OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
 }
 
 bool *new_bool_array(uint32 size) {
-  return (bool *) new_obj(size * sizeof(bool));
+  total_count_new_bool_array += size * sizeof(bool);
+  return (bool *) new_raw_mem(size * sizeof(bool));
 }
 
 double *new_double_array(uint32 size) {
-  return (double *) new_obj(size * sizeof(double));
+  total_count_new_double_array += size * sizeof(double);
+  return (double *) new_raw_mem(size * sizeof(double));
 }
 
 int64 *new_int64_array(uint32 size) {
-  return (int64 *) new_obj(size * sizeof(int64));
+  total_count_new_int64_array += size * sizeof(int64);
+  return (int64 *) new_raw_mem(size * sizeof(int64));
 }
 
 int32 *new_int32_array(uint32 size) {
-  return (int32 *) new_obj(size * sizeof(int32));
+  total_count_new_int32_array += size * sizeof(int32);
+  return (int32 *) new_raw_mem(size * sizeof(int32));
 }
 
 uint32 *new_uint32_array(uint32 size) {
-  return (uint32 *) new_obj(size * sizeof(uint32));
+  total_count_new_uint32_array += size * sizeof(uint32);
+  return (uint32 *) new_raw_mem(size * sizeof(uint32));
 }
 
 int16 *new_int16_array(uint32 size) {
-  return (int16 *) new_obj(size * sizeof(int16));
+  total_count_new_int16_array += size * sizeof(int16);
+  return (int16 *) new_raw_mem(size * sizeof(int16));
 }
 
 uint16 *new_uint16_array(uint32 size) {
-  return (uint16 *) new_obj(size * sizeof(uint16));
+  total_count_new_uint16_array += size * sizeof(uint16);
+  return (uint16 *) new_raw_mem(size * sizeof(uint16));
 }
 
 int8 *new_int8_array(uint32 size) {
-  return (int8 *) new_obj(size * sizeof(int8));
+  total_count_new_int8_array += size * sizeof(int8);
+  return (int8 *) new_raw_mem(size * sizeof(int8));
 }
 
 uint8 *new_uint8_array(uint32 size) {
-  return (uint8 *) new_obj(size * sizeof(uint8));
+  total_count_new_uint8_array += size * sizeof(uint8);
+  return (uint8 *) new_raw_mem(size * sizeof(uint8));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

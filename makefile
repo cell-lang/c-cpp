@@ -17,9 +17,14 @@ update-cellc:
 	@rm -f cellc
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
+cellcr:
+	@rm -f cellcr tmp/cellcr/cellc.cpp
+	@cp tmp/cellc/cellc.cpp tmp/cellcr/
+	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellcr/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+
 update-cellcr:
 	@rm -f cellcr
-	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellcr/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
@@ -35,6 +40,17 @@ codegen:
 
 update-codegen:
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
+
+compiler-test-loop: cellc
+	./cellc project/compiler-no-runtime.txt .
+	bin/apply-hacks < generated.cpp > cellc-1.cpp
+	g++ -ggdb -Isrc/runtime/ cellc-1.cpp src/runtime/*.cpp -o cellc-1
+	./cellc-1 project/compiler-no-runtime.txt .
+	bin/apply-hacks < generated.cpp > cellc-2.cpp
+	g++ -ggdb -Isrc/runtime/ cellc-2.cpp src/runtime/*.cpp -o cellc-2
+	./cellc-2 project/compiler-no-runtime.txt .
+	bin/apply-hacks < generated.cpp > cellc-3.cpp
+	cmp cellc-2.cpp cellc-3.cpp
 
 codegen-test-loop: codegen
 	./codegen misc/codegen-opt-code.txt
