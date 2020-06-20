@@ -300,6 +300,7 @@ bool are_shallow_eq(OBJ, OBJ);
 int shallow_cmp(OBJ, OBJ);
 
 OBJ repoint_to_copy(OBJ, void*);
+OBJ repoint_slice_to_seq(OBJ, SEQ_OBJ*);
 
 //////////////////////////////// basic-ops.cpp /////////////////////////////////
 

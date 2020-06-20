@@ -30,6 +30,8 @@ OBJ fetch_F1(OBJ obj_V, ENV &env) {
 OBJ source_file_location_F1(OBJ mtc_V, ENV &env) {
   OBJ source_file_location_F1_(OBJ mtc_V, ENV &env);
 
+  // return source_file_location_F1_(mtc_V, env);
+
   static std::map<void*, OBJ> cache;
 
   if (is_inline_obj(mtc_V))

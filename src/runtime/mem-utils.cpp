@@ -680,3 +680,10 @@ OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
   obj.core_data.ptr = new_ptr;
   return obj;
 }
+
+OBJ repoint_slice_to_seq(OBJ obj, SEQ_OBJ *ptr) {
+  assert(get_physical_type(obj) == TYPE_NE_SLICE);
+  assert(get_tags_count(obj) == 0);
+
+  return make_seq(ptr, ptr->size);
+}

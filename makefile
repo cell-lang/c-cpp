@@ -42,12 +42,13 @@ update-codegen:
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
 compiler-test-loop: cellc
+	@rm -f generated.cpp cellc-1.cpp cellc-2.cpp cellc-3.cpp
 	./cellc project/compiler-no-runtime.txt .
 	bin/apply-hacks < generated.cpp > cellc-1.cpp
-	g++ -ggdb -Isrc/runtime/ cellc-1.cpp src/runtime/*.cpp -o cellc-1
+	g++ -ggdb -Isrc/runtime/ cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
 	./cellc-1 project/compiler-no-runtime.txt .
 	bin/apply-hacks < generated.cpp > cellc-2.cpp
-	g++ -ggdb -Isrc/runtime/ cellc-2.cpp src/runtime/*.cpp -o cellc-2
+	g++ -ggdb -Isrc/runtime/ cellc-2.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-2
 	./cellc-2 project/compiler-no-runtime.txt .
 	bin/apply-hacks < generated.cpp > cellc-3.cpp
 	cmp cellc-2.cpp cellc-3.cpp

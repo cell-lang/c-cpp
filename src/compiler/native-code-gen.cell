@@ -510,10 +510,10 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
 
 
-    Bool is_mem_boundary(ObjProcDef pd) =
-      (pd.name :: ProcSymbol and pd.name != proc_symbol(:main)) or
+    Bool is_mem_boundary(ObjProcDef pd) = pd.name :: ProcSymbol and pd.name != proc_symbol(:main);
+      // (pd.name :: ProcSymbol and pd.name != proc_symbol(:main)) or
       // (pd.name :: FnId and not requires_copying(pd.ret_val_repr) and pd.impl_args == []);
-      (pd.name :: FnId and pd.impl_args == []);
+      // (pd.name :: FnId and pd.impl_args == []);
 
     Bool is_mem_boundary(BoolProcDef pd) = true;
 
@@ -671,7 +671,7 @@ String* main_fn(Bool debug_mode) = (
   "int main(int argc, char **argv) {",
   "  OBJ args = make_empty_seq();",
   "  if (argc > 1) {",
-  "    OBJ *arg_buff = new_obj_array(argc - 1));",
+  "    OBJ *arg_buff = new_obj_array(argc - 1);",
   "    for (int i=0 ; i < argc-1 ; i++)",
   "      arg_buff[i] = str_to_obj(argv[i+1]);",
   "    args = build_seq(arg_buff, argc-1);",

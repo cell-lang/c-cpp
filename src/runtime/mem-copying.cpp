@@ -74,6 +74,16 @@ uint32 copy_memory_size(OBJ obj, bool (*already_in_place)(void*, void*), void *s
 
 ////////////////////////////////////////////////////////////////////////////////
 
+SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
+  assert(size > 0);
+
+  SEQ_OBJ *seq_copy = new_seq(size);
+  OBJ *buffer = seq_copy->buffer;
+  for (int i=0 ; i < size ; i++)
+    buffer[i] = copy_obj(array[i]);
+  return seq_copy;
+}
+
 SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
   if (seq->capacity > 0) {
     // The object has not been copied yet. Making a new object large enough
@@ -267,9 +277,8 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_SLICE: {
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj));
-      OBJ *seq_copy_buffer = seq_copy->buffer;
-      return repoint_to_copy(obj, seq_copy_buffer + get_seq_offset(obj));
+      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length(obj));
+      return repoint_slice_to_seq(obj, seq_copy);
     }
 
     case TYPE_NE_MAP: {
