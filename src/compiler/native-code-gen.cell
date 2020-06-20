@@ -430,7 +430,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       comp_body = (only_instr & " // " & fn_name & "/" & _print_(arity(pd)));
     }
     else {
-      is_mem_boundary = pd.name :: ProcSymbol and pd.name != proc_symbol(:main);
+      is_mem_boundary = is_mem_boundary(pd);
 
       last_instr = last(body);
       maybe_split_body = match (last_instr)
@@ -509,6 +509,10 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
     return code;
 
 
+
+    Bool is_mem_boundary(ObjProcDef pd) = pd.name :: ProcSymbol and pd.name != proc_symbol(:main);
+    Bool is_mem_boundary(BoolProcDef pd) = true;
+
     True  requires_copying(<StdObjVar, ObjNatOp, OptTagRecExpr>)                 = true;
     False requires_copying(<InlineObj, BoolExpr, IntExpr, Int32Expr, FloatExpr>) = false;
 
@@ -575,23 +579,11 @@ implicit context : NativeContext {
   String native_call_expr(String method_name, Encodable* args) =
     method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
 
-  String native_method_call_expr(Encodable target, String method_name, Encodable* args) =
-    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
-
-  String native_method_call(Encodable target, String method_name, Encodable* args) =
-    native_method_call_expr(target, method_name, args) & ";";
-
-  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
-    native_code(res) & " = " & native_method_call(target, method_name, args);
-
   String native_call(String static_name, Encodable* args) =
     static_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
 
   String native_call(Encodable res, String static_name, Encodable* args) =
     native_code(res) & " = " & native_call(static_name, args);
-
-  String native_new_call(Encodable res, String obj_type, Encodable* args) =
-    native_code(res) & " = new " & obj_type & "(" & append((native_code(a) : a <- args), ", ") & ");";
 
   String native_assignment_code(Encodable var, Encodable value) =
     native_code(var) & " = " & native_code(value) & ";";
@@ -617,20 +609,20 @@ String* custom_parser = ();
 //   "",
 //   "",
 //   "public static OBJ Parse(OBJ text) {",
-//   "  return Parse(new System.IO.StringReader(text.GetString()));",
+//   "  return Parse(N E W System.IO.StringReader(text.GetString()));",
 //   "}",
 //   "",
 //   "",
 //   "public static OBJ Parse(System.IO.TextReader reader) {",
 //   "  try {",
-//   "    TokenStream tokens = new Tokenizer(new CharStream(reader));",
-//   "    Parser parser = new Parser(tokens);",
+//   "    TokenStream tokens = N E W Tokenizer(N E W CharStream(reader));",
+//   "    Parser parser = N E W Parser(tokens);",
 //   "    OBJ obj = parser.ParseObj();",
 //   "    parser.CheckEof();",
 //   "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
 //   "  }",
 //   "  catch (Cell.Runtime.ParsingException e) {",
-//   "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(new int[] {e.line, e.col}));",
+//   "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(N E W int[] {e.line, e.col}));",
 //   "  }",
 //   "}"
 // );
@@ -640,7 +632,7 @@ String* custom_parser = ();
 //   "",
 //   "",
 //   "public static int Main(string[] args) {",
-//   "  OBJ[] cellArgs = new OBJ[args.Length];",
+//   "  OBJ[] cellArgs = N E W OBJ[args.Length];",
 //   "  for (int i=0 ; i < args.Length ; i++)",
 //   "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
 //   "  ENV env;",
@@ -670,7 +662,7 @@ String* main_fn(Bool debug_mode) = (
   "int main(int argc, char **argv) {",
   "  OBJ args = make_empty_seq();",
   "  if (argc > 1) {",
-  "    OBJ *arg_buff = new OBJ[argc-1];",
+  "    OBJ *arg_buff = new_obj_array(argc - 1));",
   "    for (int i=0 ; i < argc-1 ; i++)",
   "      arg_buff[i] = str_to_obj(argv[i+1]);",
   "    args = build_seq(arg_buff, argc-1);",

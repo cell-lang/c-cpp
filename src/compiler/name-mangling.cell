@@ -364,7 +364,7 @@ implicit context : NativeContext {
   //////////////////////////////////////////////////////////////////////////////
 
   String var_decl(AnyVar v) =
-    vvar() = "OBJ[] " & native_var_decl_name(v) & " = new OBJ[" & printed(v.size) & "];",
+    vvar() = "OBJ " & native_var_decl_name(v) & "[" & printed(v.size) & "];",
     _      = native_var_type(v) & " " & native_var_decl_name(v) & ";";
 
   //////////////////////////////////////////////////////////////////////////////
@@ -412,6 +412,20 @@ implicit context : NativeContext {
 
 
   String native_type(OptTagRecRepr repr) = qualify("OBJ"); // opt_tag_rec_name(repr.tag, repr.index);
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_alloc_fn(LowLevelEltRepr) =
+    bool      = "new_bool_array",
+    int8      = "new_int8_array",
+    nat8      = "new_uint8_array",
+    int16     = "new_int16_array",
+    int32     = "new_int32_array",
+    int       = "new_int64_array",
+    float     = "new_double_array",
+    symbol    |
+    object    = "new_obj_array",
+    array()   = undefined;
 
   //////////////////////////////////////////////////////////////////////////////
 

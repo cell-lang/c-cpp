@@ -158,7 +158,8 @@ implicit context : NativeContext {
       }
       name = name & suffix;
     }
-    return native_method_call_expr(table, name, (native_expr(value(a)) : a <- tuple, a != nothing));
+    fail;
+    // return native_method_call_expr(table, name, (native_expr(value(a)) : a <- tuple, a != nothing));
   }
 
 
@@ -265,7 +266,7 @@ implicit context : NativeContext {
     float_bits(e?)        = "float_bits(" & native_expr(e) & ")",
     round(e?)             = "float_round(" & native_expr(e) & ")",
     upcast_int32(e?)      = parenthesize("(long) " & native_expr(e, true), parenthesized),
-    surr_to_int_value()   = native_method_call_expr(expr.store, "SurrToValue", (expr.surrogate)),
+    surr_to_int_value()   = undefined, // native_method_call_expr(expr.store, "SurrToValue", (expr.surrogate)),
     rand_nat(e?)          = "rand_nat(" & native_expr(e) & ")",
     unique_nat            = "unique_nat()",
     ticks                 = "get_tick_count()";
@@ -311,7 +312,7 @@ implicit context : NativeContext {
     table_lookup()        = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
     cast_int32(e?)        = "cast_int32(" & native_expr(e, false) & ")",
     add32(e1?, e2?)       = native_nary_op(" + ", (e1, e2), parenthesized),
-    value_to_surr()       = native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
+    value_to_surr()       = undefined, // native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
     get_unknown_arg()     = if expr.iter.arity == 1
                               then native_var_ref_name(expr.iter) & ".Get()"
                               else native_var_ref_name(expr.iter) & ".Get" & printed(expr.arg+1) & "()",

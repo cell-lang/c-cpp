@@ -72,7 +72,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       opt_labels = [l : l f <- untag(repr), f.optional];
       ptr_var_name = native_ptr_var_name(var);
       rec_type_name = opt_tag_rec_name(tag, repr_idx);
-      inst_code = (ptr_var_name & " = new " & rec_type_name & ";");
+      inst_code = (ptr_var_name & " = (" & rec_type_name & " *) new_obj(sizeof(" & rec_type_name & "));");
       opt_flags_code = (
         ptr_var_name & "->" & opt_rec_field_nonempty_test_var(l) & " = false;"
         : l <- isort(opt_labels)
@@ -95,7 +95,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     elt_type = native_elt_type(var);
     var_name = native_var_name(var);
     return if size != 0
-      then (var_name & " = new " & elt_type & "[" & native_expr(size) & "];")
+      then (var_name & " = " & native_alloc_fn(var.repr) & "(" & native_expr(size) & ");")
       else (var_name & " = NULL;");
   }
 
@@ -337,7 +337,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
     updater_name = updater_var_ref_name(auto_var);
 
     return (
-      "{ " & auto_type_name & " instance = new " & auto_type_name & "(env);",
+      "{ " & auto_type_name & " instance = N E W " & auto_type_name & "(env);",
       "  bool succeeded = " & native_call("AutoMisc.Load", (arg, "instance", updater_name)),
       "  " & native_var_ref_name(var) & " = SymbObj.Get(succeeded);",
       "  if (succeeded) {",
