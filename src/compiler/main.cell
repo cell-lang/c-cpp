@@ -181,7 +181,7 @@ type CmdLineOpts = (
 );
 
 
-(Program, [BasicTypeSymbol]) ParseCheckAndDesugar([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+(Program, [BasicTypeSymbol], Int*) ParseCheckAndDesugar([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   t0 = _ticks_(:unused);
 
   decls = ();
@@ -279,14 +279,14 @@ type CmdLineOpts = (
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
-  return (prg, types_to_gen);
+  return (prg, types_to_gen, (t0, t1, t2, t3, t4));
 }
 
 
-(CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
+(CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]], Int*)
 TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   res = ParseCheckAndDesugar(src_files, types_gen_files, cmd_line_opts);
-  prg, types_to_gen = res;
+  prg, types_to_gen, ticks = res;
 
   let program = prg, typedefs = prg.typedefs {
     if cmd_line_opts.run_typechecking {
@@ -370,14 +370,14 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-code.txt", _untag_(_print_(code)));
 
-  return (code, prg, types_to_gen, perms);
+  return (code, prg, types_to_gen, perms, (ticks | t5, t6));
 }
 
 
-(CompiledPrg, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]])
+(CompiledPrg, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]], Int*)
 GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   res = TypecheckAndCompile(src_files, types_gen_files, cmd_line_opts);
-  code, prg, types_to_gen, perms = res;
+  code, prg, types_to_gen, perms, ticks = res;
 
   opt_code_1 = remove_dead_code(code);
 
@@ -468,21 +468,20 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
 
   all_types_to_gen = all_named_types_to_declare(types_to_gen, typedefs = prg.typedefs);
 
-  if cmd_line_opts.wait_for_key
-    unused_var = GetChar();
-
-  return (opt_code, all_types_to_gen, perms);
+  return (opt_code, all_types_to_gen, perms, (ticks | t7));
 }
 
 
 [String -> String*] Compile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
-  opt_code, all_types_to_gen, perms = res;
+  opt_code, all_types_to_gen, perms, ticks = res;
 
   let prg=opt_code, generated=all_types_to_gen, rel_vars_perm_map=perms, debug_mode=cmd_line_opts.debug_mode
     files = generated_code(cmd_line_opts.include_runtime);
 
   t8 = _ticks_(:unused);
+  ticks = (ticks | t8);
+
   if cmd_line_opts.developer_mode
     Print("C/C++ code generated\n");
   else
@@ -491,19 +490,20 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
-  // if cmd_line_opts.print_times {
-  //   Print("\n");
-  //   Print("Parsing:               " & printed(t1-t0) & "ms\n");
-  //   Print("Error checking:        " & printed(t2-t1) & "ms\n");
-  //   Print("Syntax removal:        " & printed(t3-t2) & "ms\n");
-  //   Print("Additional checks:     " & printed(t4-t3) & "ms\n");
-  //   if cmd_line_opts.run_typechecking
-  //     Print("Type checking:         " & printed(t5-t4) & "ms\n");
-  //   Print("Code generation:       " & printed(t6-t5) & "ms\n");
-  //   Print("Code optimization:     " & printed(t7-t6) & "ms\n");
-  //   Print("C++ code generation:   " & printed(t8-t7) & "ms\n");
-  //   Print("Total time elapsed:    " & printed(t8-t0) & "ms\n");
-  // }
+  if cmd_line_opts.print_times {
+    Print("\n");
+    Print("Parsing:               " & printed(ticks(1) - ticks(0)) & "ms\n");
+    Print("Error checking:        " & printed(ticks(2) - ticks(1)) & "ms\n");
+    Print("Syntax removal:        " & printed(ticks(3) - ticks(2)) & "ms\n");
+    Print("Additional checks:     " & printed(ticks(4) - ticks(3)) & "ms\n");
+    if cmd_line_opts.run_typechecking
+      Print("Type checking:         " & printed(ticks(5) - ticks(4)) & "ms\n");
+    Print("Code generation:       " & printed(ticks(6) - ticks(5)) & "ms\n");
+    Print("Code optimization:     " & printed(ticks(7) - ticks(6)) & "ms\n");
+    Print("C++ code generation:   " & printed(ticks(8) - ticks(7)) & "ms\n");
+    Print("Total time elapsed:    " & printed(ticks(8) - ticks(0)) & "ms\n");
+    Print("\n");
+  }
 
   has_main = (p <- opt_code.procs : p.name == proc_symbol(:main));
   Print(
