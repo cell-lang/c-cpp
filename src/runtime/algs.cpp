@@ -48,7 +48,7 @@ uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) { // The ar
 uint32 count_at_start(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ obj) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(obj, values[sorted_idx_array[c]]) == 0)
+  while (c < len && are_eq(obj, values[sorted_idx_array[c]]))
     c++;
   return c;
 }
@@ -56,7 +56,7 @@ uint32 count_at_start(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ obj
 uint32 count_at_end(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ obj) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(obj, values[sorted_idx_array[len-1-c]]) == 0)
+  while (c < len && are_eq(obj, values[sorted_idx_array[len-1-c]]))
     c++;
   return c;
 }
@@ -93,7 +93,7 @@ uint32 find_idxs_range(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ ob
 uint32 count_at_start(OBJ *sorted_array, uint32 len, OBJ obj) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(obj, sorted_array[c]) == 0)
+  while (c < len && are_eq(obj, sorted_array[c]))
     c++;
   return c;
 }
@@ -101,7 +101,7 @@ uint32 count_at_start(OBJ *sorted_array, uint32 len, OBJ obj) {
 uint32 count_at_end(OBJ *sorted_array, uint32 len, OBJ obj) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(obj, sorted_array[len-1-c]) == 0)
+  while (c < len && are_eq(obj, sorted_array[len-1-c]))
     c++;
   return c;
 }
@@ -138,7 +138,7 @@ uint32 find_objs_range(OBJ *sorted_array, uint32 len, OBJ obj, uint32 &count) {
 uint32 count_at_start(OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg, OBJ minor_arg) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(major_arg, major_col[c]) == 0 && comp_objs(minor_arg, minor_col[c]) == 0)
+  while (c < len && are_eq(major_arg, major_col[c]) && are_eq(minor_arg, minor_col[c]))
     c++;
   return c;
 }
@@ -146,7 +146,7 @@ uint32 count_at_start(OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg,
 uint32 count_at_end(OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg, OBJ minor_arg) {
   //## IMPLEMENT FOR REAL...
   int c = 0;
-  while (c < len && comp_objs(major_arg, major_col[len-1-c]) == 0 && comp_objs(minor_arg, minor_col[len-1-c]) == 0)
+  while (c < len && are_eq(major_arg, major_col[len-1-c]) && are_eq(minor_arg, minor_col[len-1-c]))
     c++;
   return c;
 }
@@ -186,7 +186,7 @@ uint32 count_at_start(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len,
   int c = 0;
   while (c < len) {
     uint32 idx = index[c];
-    if (comp_objs(major_arg, major_col[idx]) == 0 && comp_objs(minor_arg, minor_col[idx]) == 0)
+    if (are_eq(major_arg, major_col[idx]) && are_eq(minor_arg, minor_col[idx]))
       c++;
     else
       break;
@@ -199,7 +199,7 @@ uint32 count_at_end(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len, O
   int c = 0;
   while (c < len) {
     uint32 idx = index[len-c-1];
-    if (comp_objs(major_arg, major_col[idx]) == 0 and comp_objs(minor_arg, minor_col[idx]) == 0)
+    if (are_eq(major_arg, major_col[idx]) and are_eq(minor_arg, minor_col[idx]))
       c++;
     else
       break;
@@ -313,7 +313,7 @@ uint32 adjust_map_with_duplicate_keys(OBJ *keys, OBJ *values, uint32 size) {
     OBJ curr_key = keys[i];
     OBJ curr_val = values[i];
 
-    if (comp_objs(curr_key, prev_key) == 0) {
+    if (are_eq(curr_key, prev_key)) {
       if (comp_objs(curr_val, prev_val) != 0)
         soft_fail("Map contains duplicate keys");
     }
@@ -361,7 +361,7 @@ uint32 sort_and_check_no_dups(OBJ *keys, OBJ *values, uint32 size) {
   OBJ prev_key = keys[0];
   for (uint32 i=1 ; i < size ; i++) {
     OBJ curr_key = keys[i];
-    if (comp_objs(curr_key, prev_key) == 0) {
+    if (are_eq(curr_key, prev_key)) {
       uint32 offset = i - 1;
       return offset + adjust_map_with_duplicate_keys(keys+offset, values+offset, size-offset);
     }
@@ -382,7 +382,7 @@ void sort_obj_array(OBJ *objs, uint32 len) {
 int cmp_objs(OBJ obj1, OBJ obj2);
 
 
-int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
+__attribute__ ((noinline)) int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
   uint32 count;
   uint16 *labels = opt_repr_get_fields(repr_id, count);
   assert(count == size);
@@ -588,10 +588,4 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
   }
 
   return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-__attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
-  return cmp_objs(obj1, obj2);
 }

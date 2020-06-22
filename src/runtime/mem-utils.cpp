@@ -379,6 +379,10 @@ uint32 get_seq_length(OBJ seq) {
   return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
 }
 
+uint32 get_seq_length_(OBJ seq) {
+  return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
+}
+
 uint32 get_seq_offset(OBJ seq) {
   assert(is_seq(seq));
   return get_physical_type(seq) == TYPE_NE_SLICE ? GET(seq.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;

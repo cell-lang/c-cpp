@@ -8,9 +8,9 @@ bool inline_eq(OBJ obj1, OBJ obj2) {
   return are_shallow_eq(obj1, obj2);
 }
 
-bool are_eq(OBJ obj1, OBJ obj2) {
-  return comp_objs(obj1, obj2) == 0;
-}
+// bool are_eq(OBJ obj1, OBJ obj2) {
+//   return comp_objs(obj1, obj2) == 0;
+// }
 
 bool is_out_of_range(SET_ITER &it) {
   return it.idx >= it.size;
@@ -69,7 +69,7 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
     uint32 idx = find_obj(left_col, size, arg0, found);
     if (!found)
       return false;
-    return comp_objs(right_col[idx], arg1) == 0;
+    return are_eq(right_col[idx], arg1);
   }
 
   uint32 count;

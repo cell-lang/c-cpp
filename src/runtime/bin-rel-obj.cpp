@@ -49,12 +49,12 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   bool left_col_is_unique = true;
   for (uint32 i=1 ; i < size ; i++) {
     uint32 idx = index[i];
-    if (comp_objs(vals1[idx], vals1[prev_idx]) != 0) {
+    if (!are_eq(vals1[idx], vals1[prev_idx])) {
       // The current left column value is new, so the tuple is new too.
       unique_tuples++;
       prev_idx = idx;
     }
-    else if (comp_objs(vals2[idx], vals2[prev_idx]) != 0) {
+    else if (!are_eq(vals2[idx], vals2[prev_idx])) {
       // The current left column value is unchanged, but the value in the right column is new, so the tuple is new too
       unique_tuples++;
       prev_idx = idx;

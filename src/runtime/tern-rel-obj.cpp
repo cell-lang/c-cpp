@@ -14,9 +14,9 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   uint32 prev_idx = index[0];
   for (uint32 i=1 ; i < size ; i++) {
     uint32 idx = index[i];
-    bool neq = comp_objs(vals1[idx], vals1[prev_idx]) != 0 ||
-               comp_objs(vals2[idx], vals2[prev_idx]) != 0 ||
-               comp_objs(vals3[idx], vals3[prev_idx]) != 0;
+    bool neq = !are_eq(vals1[idx], vals1[prev_idx]) ||
+               !are_eq(vals2[idx], vals2[prev_idx]) ||
+               !are_eq(vals3[idx], vals3[prev_idx]);
     if (neq) {
       unique_tuples++;
       prev_idx = idx;

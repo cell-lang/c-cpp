@@ -27,3 +27,7 @@ tests
 out.txt
 cellcr
 src/runtime/runtime.h
+gmon.out
+misc/
+cellcp
+cellcr-*
