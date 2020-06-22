@@ -379,6 +379,9 @@ void sort_obj_array(OBJ *objs, uint32 len) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+int cmp_objs(OBJ obj1, OBJ obj2);
+
+
 int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
   uint32 count;
   uint16 *labels = opt_repr_get_fields(repr_id, count);
@@ -389,7 +392,7 @@ int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) 
     OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
     OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
 
-    int res = comp_objs(value1, value2);
+    int res = cmp_objs(value1, value2);
     if (res != 0)
       return res;
   }
@@ -415,7 +418,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
     OBJ left_arg_1 = get_curr_left_arg(key_it1);
     OBJ left_arg_2 = get_curr_left_arg(key_it2);
 
-    int res = comp_objs(left_arg_1, left_arg_2);
+    int res = cmp_objs(left_arg_1, left_arg_2);
     if (res != 0)
       return res;
 
@@ -431,7 +434,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
     OBJ right_arg_1 = get_curr_right_arg(value_it1);
     OBJ right_arg_2 = get_curr_right_arg(value_it2);
 
-    int res = comp_objs(right_arg_1, right_arg_2);
+    int res = cmp_objs(right_arg_1, right_arg_2);
     if (res != 0)
       return res;
 
@@ -448,7 +451,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
 //              0     if obj1 = obj2
 //            < 0     if obj1 > obj2
 
-int comp_objs(OBJ obj1, OBJ obj2) {
+int cmp_objs(OBJ obj1, OBJ obj2) {
   if (are_shallow_eq(obj1, obj2))
     return 0;
 
@@ -571,7 +574,7 @@ int comp_objs(OBJ obj1, OBJ obj2) {
       uint16 tag_id_2 = get_tag_id(obj2);
       if (tag_id_1 != tag_id_2)
         return tag_id_2 - tag_id_1;
-      return comp_objs(get_inner_obj(obj1), get_inner_obj(obj2));
+      return cmp_objs(get_inner_obj(obj1), get_inner_obj(obj2));
     }
 
     default:
@@ -579,10 +582,16 @@ int comp_objs(OBJ obj1, OBJ obj2) {
   }
 
   for (uint32 i=0 ; i < count ; i++) {
-    int cr = comp_objs(elems1[i], elems2[i]);
+    int cr = cmp_objs(elems1[i], elems2[i]);
     if (cr != 0)
       return cr;
   }
 
   return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+__attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
+  return cmp_objs(obj1, obj2);
 }

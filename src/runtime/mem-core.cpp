@@ -9,11 +9,14 @@ static bool static_allocation = false;
 
 static uint64 total_long_lived = 0;
 static uint64 total_temp = 0;
+static uint64 total_static = 0;
 
 
 void *new_obj(uint32 byte_size) {
-  if (static_allocation)
+  if (static_allocation) {
+    total_static += 8 * ((byte_size + 7) / 8);
     return malloc(byte_size);
+  }
   else {
     total_long_lived += 8 * ((byte_size + 7) / 8);
     return alloc_mem_block(byte_size);
@@ -43,6 +46,7 @@ void switch_to_twin_stacks_allocator() {
 
 void print_mem_alloc_stats() {
   printf("Total allocation:\n");
-  printf("  dynamic:   %llu\n", total_long_lived);
-  printf("  temporary: %llu\n", total_temp);
+  printf("  dynamic:   %12llu\n", total_long_lived);
+  printf("  temporary: %12llu\n", total_temp);
+  printf("  static:    %12llu\n", total_static);
 }

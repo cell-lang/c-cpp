@@ -17,14 +17,15 @@ update-cellc:
 	@rm -f cellc
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
-cellcr:
-	@rm -rf cellcr tmp/cellcr/ && mkdir -p tmp/cellcr/
-	@cp tmp/cellc/cellc.cpp tmp/cellcr/
-	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellcr/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
-
 update-cellcr:
 	@rm -f cellcr
-	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellcr/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+
+cellcr-lto:
+	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr-lto
+
+cellcp:
+	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
@@ -94,8 +95,36 @@ tests:
 update-tests:
 	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
 
+runtime.h:
+	rm -f src/runtime/runtime.h
+
+	echo '#include "iolib.h"' >> src/runtime/runtime.h
+	echo '#include "extern.h"' >> src/runtime/runtime.h
+	echo '#include "os-interface.h"' >> src/runtime/runtime.h
+
+	grep -v '#include' src/runtime/mem-utils.cpp         		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/mem.cpp               		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/mem-alloc.cpp         		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/mem-copying.cpp       		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/mem-core.cpp          		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/new-code.cpp          		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/algs.cpp              		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/basic-ops.cpp         		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/bin-rel-obj.cpp       		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/instrs.cpp            		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/inter-utils.cpp       		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/os-interface-linux.cpp		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/iolib.cpp             		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/parsing.cpp           		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/printing.cpp          		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/sorting.cpp           		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/tern-rel-obj.cpp      		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/utils.cpp             		>> src/runtime/runtime.h
+	grep -v '#include' src/runtime/debug.cpp             		>> src/runtime/runtime.h
+# 	grep -v '#include' src/hacks.cpp                    		>> src/runtime/runtime.h
+
 clean:
-	@rm -rf tmp/ cellc.net cellc codegen codegen.net tests
+	@rm -rf tmp/ cellc.net cellc cellcp codegen codegen.net tests
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
-	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o
+	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o gmon.out
 	@mkdir tmp/ tmp/null/
