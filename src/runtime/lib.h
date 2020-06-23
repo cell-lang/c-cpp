@@ -36,8 +36,8 @@ enum OBJ_TYPE {
 };
 
 
-const uint32 MAX_INLINE_OBJ_TYPE_VALUE = TYPE_EMPTY_REL;
-
+const OBJ_TYPE MAX_INLINE_OBJ_TYPE = TYPE_EMPTY_REL;
+const OBJ_TYPE MAX_LOGICAL_TYPE    = TYPE_TAG_OBJ;
 
 struct OBJ {
   union {

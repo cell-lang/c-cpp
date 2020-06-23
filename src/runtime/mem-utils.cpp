@@ -379,10 +379,6 @@ uint32 get_seq_length(OBJ seq) {
   return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
 }
 
-uint32 get_seq_length_(OBJ seq) {
-  return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
-}
-
 uint32 get_seq_offset(OBJ seq) {
   assert(is_seq(seq));
   return get_physical_type(seq) == TYPE_NE_SLICE ? GET(seq.extra_data, OFFSET_SHIFT, OFFSET_WIDTH) : 0;
@@ -602,8 +598,8 @@ bool is_opt_rec_or_tag_rec(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_inline_obj(OBJ obj) {
-  assert(get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE | obj.core_data.ptr != NULL);
-  return get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE_VALUE;
+  assert(get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE | obj.core_data.ptr != NULL);
+  return get_physical_type(obj) <= MAX_INLINE_OBJ_TYPE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -690,4 +686,45 @@ OBJ repoint_slice_to_seq(OBJ obj, SEQ_OBJ *ptr) {
   assert(get_tags_count(obj) == 0);
 
   return make_seq(ptr, ptr->size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 get_seq_length_(OBJ seq) {
+  return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
+}
+
+uint16 get_inline_tag_id(OBJ obj) {
+  assert(get_tags_count(obj) > 0);
+  return GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
+}
+
+uint16 get_nested_inline_tag_id(OBJ obj) {
+  assert(get_tags_count(obj) == 2);
+  return GET(obj.extra_data, INNER_TAG_SHIFT, TAG_WIDTH);
+}
+
+OBJ untag_opt_tag_rec(OBJ obj) {
+  assert(get_physical_type(obj) == TYPE_OPT_TAG_REC);
+
+  obj.extra_data = CLEAR(obj.extra_data, TYPE_MASK) | OPT_REC_BASE_MASK;
+  return obj;
+}
+
+OBJ clear_both_inline_tags(OBJ obj) {
+  assert(get_tags_count(obj) == 2);
+
+  return get_inner_obj(get_inner_obj(obj)); //## IMPLEMENT FOR REAL
+}
+
+OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
+  static OBJ_TYPE log_types[5] = {
+    TYPE_NE_SEQ,      // TYPE_NE_SLICE
+    TYPE_NE_BIN_REL,  // TYPE_NE_MAP
+    TYPE_NE_BIN_REL,  // TYPE_NE_LOG_MAP
+    TYPE_NE_BIN_REL,  // TYPE_OPT_REC
+    TYPE_TAG_OBJ      // TYPE_OPT_TAG_REC
+  };
+
+  return type <= MAX_LOGICAL_TYPE ? type : log_types[type - MAX_LOGICAL_TYPE - 1];
 }

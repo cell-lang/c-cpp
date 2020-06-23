@@ -379,10 +379,10 @@ void sort_obj_array(OBJ *objs, uint32 len) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-int cmp_objs(OBJ obj1, OBJ obj2);
+int slow_cmp_objs(OBJ obj1, OBJ obj2);
 
 
-__attribute__ ((noinline)) int cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
+__attribute__ ((noinline)) int slow_cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id, uint32 size) {
   uint32 count;
   uint16 *labels = opt_repr_get_fields(repr_id, count);
   assert(count == size);
@@ -392,7 +392,7 @@ __attribute__ ((noinline)) int cmp_same_type_opt_recs(void *ptr1, void *ptr2, ui
     OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
     OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
 
-    int res = cmp_objs(value1, value2);
+    int res = slow_cmp_objs(value1, value2);
     if (res != 0)
       return res;
   }
@@ -401,7 +401,7 @@ __attribute__ ((noinline)) int cmp_same_type_opt_recs(void *ptr1, void *ptr2, ui
 }
 
 
-int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
+int slow_cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
   assert(get_size(rel1) == get_size(rel2));
 
   BIN_REL_ITER key_it1, key_it2, value_it1, value_it2;
@@ -418,7 +418,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
     OBJ left_arg_1 = get_curr_left_arg(key_it1);
     OBJ left_arg_2 = get_curr_left_arg(key_it2);
 
-    int res = cmp_objs(left_arg_1, left_arg_2);
+    int res = slow_cmp_objs(left_arg_1, left_arg_2);
     if (res != 0)
       return res;
 
@@ -434,7 +434,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
     OBJ right_arg_1 = get_curr_right_arg(value_it1);
     OBJ right_arg_2 = get_curr_right_arg(value_it2);
 
-    int res = cmp_objs(right_arg_1, right_arg_2);
+    int res = slow_cmp_objs(right_arg_1, right_arg_2);
     if (res != 0)
       return res;
 
@@ -451,7 +451,7 @@ int cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
 //              0     if obj1 = obj2
 //            < 0     if obj1 > obj2
 
-int cmp_objs(OBJ obj1, OBJ obj2) {
+int slow_cmp_objs(OBJ obj1, OBJ obj2) {
   if (are_shallow_eq(obj1, obj2))
     return 0;
 
@@ -514,10 +514,10 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
           if (size1 != size2)
             return size2 - size1; //## BUG BUG BUG
           else if (repr_id_1 == repr_id_2 && !opt_repr_may_have_opt_fields(repr_id_1))
-            return cmp_same_type_opt_recs(ptr1, ptr2, repr_id_1, size1);
+            return slow_cmp_same_type_opt_recs(ptr1, ptr2, repr_id_1, size1);
           else
             // return cmp_opt_recs(ptr1, repr_id_1, ptr2, repr_id_2, size1);
-            return cmp_bin_rels_slow(obj1, obj2);
+            return slow_cmp_bin_rels_slow(obj1, obj2);
         }
         else {
           BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
@@ -526,7 +526,7 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
             return size2 - size1; //## BUG BUG BUG
           else
             // return cmp_opt_rec_bin_rel(ptr1, repr_id_1, rel2);
-            return cmp_bin_rels_slow(obj1, obj2);
+            return slow_cmp_bin_rels_slow(obj1, obj2);
         }
       }
       else if (is_opt_rec(obj2)) {
@@ -541,7 +541,7 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
           return size2 - size1; //## BUG BUG BUG
         else
           // return -cmp_opt_rec_bin_rel(ptr2, repr_id_2, rel1);
-          return cmp_bin_rels_slow(obj1, obj2);
+          return slow_cmp_bin_rels_slow(obj1, obj2);
       }
 
       BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
@@ -574,7 +574,7 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
       uint16 tag_id_2 = get_tag_id(obj2);
       if (tag_id_1 != tag_id_2)
         return tag_id_2 - tag_id_1;
-      return cmp_objs(get_inner_obj(obj1), get_inner_obj(obj2));
+      return slow_cmp_objs(get_inner_obj(obj1), get_inner_obj(obj2));
     }
 
     default:
@@ -582,7 +582,7 @@ int cmp_objs(OBJ obj1, OBJ obj2) {
   }
 
   for (uint32 i=0 ; i < count ; i++) {
-    int cr = cmp_objs(elems1[i], elems2[i]);
+    int cr = slow_cmp_objs(elems1[i], elems2[i]);
     if (cr != 0)
       return cr;
   }
