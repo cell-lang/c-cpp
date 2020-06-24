@@ -490,3 +490,13 @@ __attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
 
   return fast_cmp_objs(obj1, obj2);
 }
+
+__attribute__ ((noinline)) bool are_eq(OBJ obj1, OBJ obj2) {
+  if (are_shallow_eq(obj1, obj2))
+    return true;
+
+  if (is_inline_obj(obj1) | is_inline_obj(obj2))
+    return false;
+
+  return fast_cmp_objs(obj1, obj2) == 0;
+}
