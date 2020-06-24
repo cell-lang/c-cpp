@@ -514,7 +514,7 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
       // (pd.name :: FnId and not requires_copying(pd.ret_val_repr) and pd.impl_args == []) or
       // (pd.name :: ProcSymbol and pd.name != proc_symbol(:main));
 
-    Bool is_mem_boundary(BoolProcDef pd) = true;
+    Bool is_mem_boundary(BoolProcDef pd) = false;
 
 
     True  requires_copying(<StdObjVar, ObjNatOp, OptTagRecExpr>)                  = true;
