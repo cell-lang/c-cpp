@@ -16,22 +16,24 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
 
 __attribute__ ((noinline)) int fast_cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id) {
-  assert(!opt_repr_may_have_opt_fields(repr_id));
+  return opt_repr_cmp(ptr1, ptr2, repr_id);
 
-  uint32 size;
-  uint16 *labels = opt_repr_get_fields(repr_id, size);
+  // assert(!opt_repr_may_have_opt_fields(repr_id));
 
-  for (int i=0 ; i < size ; i++) {
-    uint16 label = labels[i];
-    OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
-    OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
+  // uint32 size;
+  // uint16 *labels = opt_repr_get_fields(repr_id, size);
 
-    int res = fast_cmp_objs(value1, value2);
-    if (res != 0)
-      return res;
-  }
+  // for (int i=0 ; i < size ; i++) {
+  //   uint16 label = labels[i];
+  //   OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
+  //   OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
 
-  return 0;
+  //   int res = fast_cmp_objs(value1, value2);
+  //   if (res != 0)
+  //     return res;
+  // }
+
+  // return 0;
 }
 
 
@@ -354,7 +356,7 @@ __attribute__ ((noinline)) int fast_cmp_objs(OBJ obj1, OBJ obj2) {
           }
           else if (type2 == TYPE_OPT_TAG_REC) {
             tag_id_1 = get_nested_inline_tag_id(obj1);
-            tag_id_2 = get_opt_repr_id(obj2);
+            tag_id_2 = opt_repr_get_tag_id(get_opt_repr_id(obj2));
 
             if (tag_id_1 != tag_id_2)
               return tag_id_2 - tag_id_1;
@@ -383,7 +385,7 @@ __attribute__ ((noinline)) int fast_cmp_objs(OBJ obj1, OBJ obj2) {
 
         }
         else if (type1 == TYPE_OPT_TAG_REC) {
-          tag_id_1 = get_opt_repr_id(obj1);
+          tag_id_1 = opt_repr_get_tag_id(get_opt_repr_id(obj1));
           tag_id_2 = get_nested_inline_tag_id(obj2);
 
           if (tag_id_1 != tag_id_2)
@@ -456,6 +458,10 @@ __attribute__ ((noinline)) int fast_cmp_objs(OBJ obj1, OBJ obj2) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+int cmp_objs(OBJ obj1, OBJ obj2) {
+  return fast_cmp_objs(obj1, obj2);
+}
 
 inline int sign(int value) {
   if (value < 0)

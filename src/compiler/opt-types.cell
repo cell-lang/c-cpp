@@ -53,6 +53,14 @@ implicit prg : CompiledPrg, context : <core> {
       "  switch (repr_id) {"
     );
 
+    cmp_dispatcher = (
+      "",
+      80 * "/",
+      "",
+      "int opt_repr_cmp(void *ptr1, void *ptr2, uint16 repr_id) {",
+      "  switch (repr_id) {"
+    );
+
     get_tag_id = (
       "",
       80 * "/",
@@ -105,6 +113,13 @@ implicit prg : CompiledPrg, context : <core> {
         ""
       );
 
+      cmp_dispatcher = (
+        cmp_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_cmp((" & struct_name & " *) ptr1, (" & struct_name & " *) ptr2);",
+        ""
+      );
+
       get_tag_id = (get_tag_id | "    " & symb_id_name(s) & ",");
     }
 
@@ -119,7 +134,8 @@ implicit prg : CompiledPrg, context : <core> {
                   lookup_field_dispatcher     & footer &
                   get_fields_count_dispatcher & footer &
                   get_fields_dispatcher       & footer &
-                  copy_dispatcher             & footer;
+                  copy_dispatcher             & footer &
+                  cmp_dispatcher              & footer;
 
     get_tag_id = (
       get_tag_id |
@@ -183,7 +199,8 @@ implicit prg : CompiledPrg, context : <core> {
         lookup_field_def(struct_name),
         get_fields_count_def(struct_name),
         get_fields_def(struct_name, index),
-        copy_def(struct_name)
+        copy_def(struct_name),
+        cmp_def(struct_name)
       );
     }
 
@@ -294,6 +311,50 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
       }
 
     return (code | "  return copy;", "}");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* cmp_def(String struct_name) {
+    code = (
+      "int " & struct_name & "_cmp(" & struct_name & " *ptr1, " & struct_name & " *ptr2) {"
+    );
+
+    false_id_name = symb_id_name(false);
+    true_id_name = symb_id_name(true);
+
+    for l @ i <- ord_labels {
+      var_name = opt_rec_field_name(l);
+      field_code = match (reprs(l))
+        bool      = ( "  if (ptr1->" & var_name & " != ptr2->" & var_name & ")",
+                      "    return ptr1->" & var_name & " != (" & false_id_name & " < " & true_id_name & ") ? 1 : -1;"
+                    ),
+        int       = ( "  if (ptr1->" & var_name & " != ptr2->" & var_name & ")",
+                      "    return ptr1->" & var_name &" < ptr2->" & var_name &" ? 1 : -1;"
+                    ),
+        float     = ( "  if (ptr1->" & var_name & " != ptr2->" & var_name & ")",
+                      "    return comp_floats(ptr1->" & var_name & ", ptr2->" & var_name & ");"
+                    ),
+        symbol    |
+        object    = ( "  int cr" & _print_(i) & " = cmp_objs(ptr1->" & var_name & ", ptr2->" & var_name & ");",
+                      "  if (cr" & _print_(i) & " != 0)",
+                      "    return cr" & _print_(i) & ";"
+                    ),
+        array()   = undefined; ## CHECK THIS ONE
+
+      if opt_labels(l) {
+        test_var_name = opt_rec_field_nonempty_test_var(l);
+        field_code = (
+          "  if (ptr1->" & test_var_name & " != ptr2->" & test_var_name & ")",
+          "    return ptr1->" & test_var_name & " ? 1 : -1;",
+          "  if (ptr1->" & test_var_name & ") {"
+        ) & indent_lines(field_code) & ("  }");
+      }
+
+      code = code & field_code;
+    }
+
+    return (code | "  return 0;", "}");
   }
 }
 
