@@ -15,28 +15,6 @@ OBJ_TYPE physical_to_logical_type(OBJ_TYPE type);
 int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
 
-__attribute__ ((noinline)) int fast_cmp_same_type_opt_recs(void *ptr1, void *ptr2, uint16 repr_id) {
-  return opt_repr_cmp(ptr1, ptr2, repr_id);
-
-  // assert(!opt_repr_may_have_opt_fields(repr_id));
-
-  // uint32 size;
-  // uint16 *labels = opt_repr_get_fields(repr_id, size);
-
-  // for (int i=0 ; i < size ; i++) {
-  //   uint16 label = labels[i];
-  //   OBJ value1 = opt_repr_lookup_field(ptr1, repr_id, label);
-  //   OBJ value2 = opt_repr_lookup_field(ptr2, repr_id, label);
-
-  //   int res = fast_cmp_objs(value1, value2);
-  //   if (res != 0)
-  //     return res;
-  // }
-
-  // return 0;
-}
-
-
 __attribute__ ((noinline)) int fast_cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
   assert(get_size(rel1) == get_size(rel2));
 
@@ -147,8 +125,8 @@ __attribute__ ((noinline)) int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_
           uint32 size2 = opt_repr_get_fields_count(ptr2, repr_id_2);
           if (size1 != size2)
             return size2 - size1; //## BUG
-          else if (repr_id_1 == repr_id_2 && !opt_repr_may_have_opt_fields(repr_id_1))
-            return fast_cmp_same_type_opt_recs(ptr1, ptr2, repr_id_1);
+          else if (repr_id_1 == repr_id_2)
+            return opt_repr_cmp(ptr1, ptr2, repr_id_1);
           else
             // return cmp_opt_recs(ptr1, repr_id_1, ptr2, repr_id_2, size1);
             return fast_cmp_bin_rels_slow(obj1, obj2);
@@ -223,10 +201,10 @@ __attribute__ ((noinline)) int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_
           uint16 repr_id_1 = get_opt_repr_id(obj1);
           uint16 repr_id_2 = get_opt_repr_id(obj2);
 
-          if (repr_id_1 == repr_id_2 && !opt_repr_may_have_opt_fields(repr_id_1)) {
+          if (repr_id_1 == repr_id_2) {
             void *ptr1 = obj1.core_data.ptr;
             void *ptr2 = obj2.core_data.ptr;
-            return fast_cmp_same_type_opt_recs(ptr1, ptr2, repr_id_1);
+            return opt_repr_cmp(ptr1, ptr2, repr_id_1);
           }
 
           uint16 tag_id_1 = opt_repr_get_tag_id(repr_id_1);
