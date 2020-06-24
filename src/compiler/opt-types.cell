@@ -320,6 +320,24 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
       "int " & struct_name & "_cmp(" & struct_name & " *ptr1, " & struct_name & " *ptr2) {"
     );
 
+    if opt_labels != [] {
+      ord_opt_labels = isort(opt_labels);
+      opt_fields_bits_1 = (
+        "(" & set_check_expr(reprs(l, !), l, "ptr1->", false) & " ? 1 : 0)" : l <- ord_opt_labels
+      );
+      opt_fields_bits_2 = (
+        "(" & set_check_expr(reprs(l, !), l, "ptr2->", false) & " ? 1 : 0)" : l <- ord_opt_labels
+      );
+
+      code = (
+        code |
+        "  int opt_count_1 = " & append(opt_fields_bits_1, " + ") & ";",
+        "  int opt_count_2 = " & append(opt_fields_bits_2, " + ") & ";",
+        "  if (opt_count_1 != opt_count_2)",
+        "    return opt_count_2 - opt_count_1;"
+      );
+    }
+
     false_id_name = symb_id_name(false);
     true_id_name = symb_id_name(true);
 
