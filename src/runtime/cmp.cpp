@@ -15,7 +15,7 @@ OBJ_TYPE physical_to_logical_type(OBJ_TYPE type);
 int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
 
-__attribute__ ((noinline)) int fast_cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
+/* __attribute__ ((noinline)) */ int fast_cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
   assert(get_size(rel1) == get_size(rel2));
 
   BIN_REL_ITER key_it1, key_it2, value_it1, value_it2;
@@ -61,7 +61,7 @@ __attribute__ ((noinline)) int fast_cmp_bin_rels_slow(OBJ rel1, OBJ rel2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_TYPE phys_type_1, OBJ obj2, OBJ_TYPE phys_type_2) {
+/* __attribute__ ((noinline)) */ int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_TYPE phys_type_1, OBJ obj2, OBJ_TYPE phys_type_2) {
   OBJ_TYPE log_type_1 = physical_to_logical_type(phys_type_1);
   OBJ_TYPE log_type_2 = physical_to_logical_type(phys_type_2);
 
@@ -280,7 +280,7 @@ __attribute__ ((noinline)) int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_
 //              0     if obj1 = obj2
 //            < 0     if obj1 > obj2
 
-__attribute__ ((noinline)) int fast_cmp_objs(OBJ obj1, OBJ obj2) {
+/* __attribute__ ((noinline)) */ int fast_cmp_objs(OBJ obj1, OBJ obj2) {
   OBJ_TYPE type1 = get_physical_type(obj1);
   OBJ_TYPE type2 = get_physical_type(obj2);
 
@@ -451,7 +451,7 @@ inline int sign(int value) {
 }
 
 
-__attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
+/* __attribute__ ((noinline)) */ int comp_objs(OBJ obj1, OBJ obj2) {
   // int slow_cmp_objs(OBJ obj1, OBJ obj2);
 
   // if (sign(fast_cmp_objs(obj1, obj2)) != sign(slow_cmp_objs(obj1, obj2))) {
@@ -469,7 +469,7 @@ __attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
   return fast_cmp_objs(obj1, obj2);
 }
 
-__attribute__ ((noinline)) bool are_eq(OBJ obj1, OBJ obj2) {
+/* __attribute__ ((noinline)) */ bool are_eq(OBJ obj1, OBJ obj2) {
   if (are_shallow_eq(obj1, obj2))
     return true;
 
