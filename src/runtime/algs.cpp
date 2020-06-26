@@ -290,8 +290,7 @@ uint32 sort_unique(OBJ *objs, uint32 size) {
     objs[idx] = objs[inline_count];
 
   for (uint32 i=inline_count+1 ; i < size ; i++)
-    // if (!are_eq(objs[idx], objs[i]))
-    if (comp_objs(objs[idx], objs[i]) != 0) {
+    if (!are_eq(objs[idx], objs[i])) {
       idx++;
       assert(idx <= i);
       if (idx != i)

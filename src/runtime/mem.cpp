@@ -134,6 +134,7 @@ static uint64 total_count_new_obj_array     = 0;
 static uint64 total_count_new_bool_array    = 0;
 static uint64 total_count_new_double_array  = 0;
 static uint64 total_count_new_int64_array   = 0;
+static uint64 total_count_new_uint64_array  = 0;
 static uint64 total_count_new_int32_array   = 0;
 static uint64 total_count_new_uint32_array  = 0;
 static uint64 total_count_new_int16_array   = 0;
@@ -148,6 +149,7 @@ void print_temp_mem_alloc_stats() {
   printf("  new_bool_array:   %llu\n", total_count_new_bool_array);
   printf("  new_double_array: %llu\n", total_count_new_double_array);
   printf("  new_int64_array:  %llu\n", total_count_new_int64_array);
+  printf("  new_uint64_array: %llu\n", total_count_new_uint64_array);
   printf("  new_int32_array:  %llu\n", total_count_new_int32_array);
   printf("  new_uint32_array: %llu\n", total_count_new_uint32_array);
   printf("  new_int16_array:  %llu\n", total_count_new_int16_array);
@@ -181,6 +183,11 @@ double *new_double_array(uint32 size) {
 int64 *new_int64_array(uint32 size) {
   total_count_new_int64_array += size * sizeof(int64);
   return (int64 *) new_raw_mem(size * sizeof(int64));
+}
+
+uint64 *new_uint64_array(uint32 size) {
+  total_count_new_uint64_array += size * sizeof(uint64);
+  return (uint64 *) new_raw_mem(size * sizeof(uint64));
 }
 
 int32 *new_int32_array(uint32 size) {

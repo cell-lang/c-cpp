@@ -206,6 +206,7 @@ bool *new_bool_array(uint32 size);
 double *new_double_array(uint32 size);
 
 int64  *new_int64_array(uint32 size);
+uint64 *new_uint64_array(uint32 size);
 int32  *new_int32_array(uint32 size);
 uint32 *new_uint32_array(uint32 size);
 int16  *new_int16_array(uint32 size);
