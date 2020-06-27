@@ -17,14 +17,17 @@ update-cellc:
 	@rm -f cellc
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
+cellcr:
+	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+
 update-cellcr:
 	@rm -f cellcr
-	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
-
-cellcr-lto:
-	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr-lto
+	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
 
 cellcp:
+	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
+
+update-cellcp:
 	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
 
 codegen.net:
