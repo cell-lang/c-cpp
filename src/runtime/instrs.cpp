@@ -28,15 +28,19 @@ void append(STREAM &s, OBJ obj) { // obj must be already reference-counted
   s.count++;
 }
 
-OBJ build_seq(OBJ *elems, uint32 length) { // Objects in elems must be already reference-counted
+OBJ build_seq(OBJ *elems, uint32 length) {
+  if (length == 0)
+    return make_empty_seq();
+
+  return make_slice(elems, length);
+}
+
+OBJ build_seq_copy(OBJ *elems, uint32 length) {
   if (length == 0)
     return make_empty_seq();
 
   SEQ_OBJ *seq = new_seq(length);
-
-  for (uint32 i=0 ; i < length ; i++)
-    seq->buffer[i] = elems[i];
-
+  memcpy(seq->buffer, elems, length * sizeof(OBJ));
   return make_seq(seq, length);
 }
 
@@ -46,7 +50,7 @@ OBJ build_seq(STREAM &s) {
 
   //## COULD IT BE OPTIMIZED?
 
-  return build_seq(s.buffer, s.count);
+  return build_seq_copy(s.buffer, s.count);
 }
 
 OBJ build_set(OBJ *elems, uint32 size) {
@@ -148,7 +152,7 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
 
 OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
   if (is_empty_seq(seq))
-    return build_seq(&obj, 1);
+    return build_seq_copy(&obj, 1);
 
   // Checking that the new sequence doesn't overflow
   if (!(get_seq_length(seq) < 0xFFFFFFFFU))
