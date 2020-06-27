@@ -9,7 +9,7 @@ static std::map<void*, OBJ> attachments;
 
 OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV &env) {
   if (!is_inline_obj(obj_V)) {
-    void *ptr = get_ref_obj_ptr(obj_V);
+    void *ptr = obj_V.core_data.ptr;
     attachments[ptr] = data_V;
   }
   return obj_V;
@@ -17,7 +17,7 @@ OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV &env) {
 
 OBJ fetch_F1(OBJ obj_V, ENV &env) {
   if (!is_inline_obj(obj_V)) {
-    void *ptr = get_ref_obj_ptr(obj_V);
+    void *ptr = obj_V.core_data.ptr;
     std::map<void*, OBJ>::iterator it = attachments.find(ptr);
     if (it != attachments.end())
       return make_tag_obj(symb_id_just, it->second);
@@ -37,7 +37,7 @@ OBJ source_file_location_F1(OBJ mtc_V, ENV &env) {
   if (is_inline_obj(mtc_V))
     return source_file_location_F1_(mtc_V, env);
 
-  void *ptr = get_ref_obj_ptr(mtc_V);
+  void *ptr = mtc_V.core_data.ptr;
   std::map<void*, OBJ>::iterator it = cache.find(ptr);
   if (it != cache.end())
     return it->second;

@@ -103,44 +103,47 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *ptr = get_seq_ptr(seq);
-  uint32 offset = get_seq_offset(seq);
-  return make_slice(ptr, offset+idx_first, len);
+  // if (idx_first == 0) {
+  //   ## IMPLEMENT
+  // }
+
+  OBJ *ptr = get_seq_buffer_ptr(seq);
+  return make_slice(ptr + idx_first, len);
 }
 
 OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
   assert(!is_empty_seq(seq));
   assert(((uint64) get_seq_length(seq) + count <= 0xFFFFFFFF));
 
-  SEQ_OBJ *seq_ptr = get_seq_ptr(seq);
-  uint32 offset = get_seq_offset(seq);
   uint32 length = get_seq_length(seq);
-
   uint32 new_length = length + count;
 
-  uint32 size = seq_ptr->size;
-  uint32 capacity = seq_ptr->capacity;
+  if (get_physical_type(seq) == TYPE_NE_SEQ) {
+    SEQ_OBJ *seq_ptr = get_seq_ptr(seq);
 
-  bool ends_at_last_elem = offset + length == size;
-  bool has_needed_spare_capacity = size + count <= capacity;
-  bool can_be_extended = ends_at_last_elem & has_needed_spare_capacity;
+    uint32 capacity = seq_ptr->capacity;
+    uint32 used = seq_ptr->used;
 
-  if (can_be_extended) {
-    memcpy(seq_ptr->buffer+size, new_elems, sizeof(OBJ) * count);
-    seq_ptr->size = size + count;
-    return make_slice(seq_ptr, offset, new_length);
+    bool ends_at_last_elem = length == used;
+    bool has_needed_spare_capacity = used + count <= capacity;
+    bool can_be_extended = ends_at_last_elem & has_needed_spare_capacity;
+
+    if (can_be_extended) {
+      memcpy(seq_ptr->buffer + used, new_elems, sizeof(OBJ) * count);
+      seq_ptr->used += count;
+      return make_seq(seq_ptr, new_length);
+    }
   }
-  else {
-    OBJ *buffer = get_seq_buffer_ptr(seq);
 
-    SEQ_OBJ *new_seq_ptr = new_seq(new_length, next_size(length, new_length));
-    OBJ *new_buffer = new_seq_ptr->buffer;
+  OBJ *buffer = get_seq_buffer_ptr(seq);
 
-    memcpy(new_buffer, buffer, sizeof(OBJ) * length);
-    memcpy(new_buffer+length, new_elems, sizeof(OBJ) * count);
+  SEQ_OBJ *new_seq_ptr = new_seq(new_length, next_size(length, new_length));
+  OBJ *new_buffer = new_seq_ptr->buffer;
 
-    return make_seq(new_seq_ptr, new_length);
-  }
+  memcpy(new_buffer, buffer, sizeof(OBJ) * length);
+  memcpy(new_buffer + length, new_elems, sizeof(OBJ) * count);
+
+  return make_seq(new_seq_ptr, new_length);
 }
 
 OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
@@ -148,7 +151,7 @@ OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
     return build_seq(&obj, 1);
 
   // Checking that the new sequence doesn't overflow
-  if (!(get_seq_length(seq) < 0xFFFFFFFF))
+  if (!(get_seq_length(seq) < 0xFFFFFFFFU))
     impl_fail("Resulting sequence is too large");
 
   return extend_sequence(seq, &obj, 1);

@@ -84,7 +84,7 @@ struct OBJ {
 
 struct SEQ_OBJ {
   uint32  capacity;
-  uint32  size;
+  uint32  used;
   OBJ     buffer[1];
 };
 
@@ -259,8 +259,8 @@ OBJ make_symb(uint16 symb_id);
 OBJ make_bool(bool b);
 OBJ make_int(uint64 value);
 OBJ make_float(double value);
-OBJ make_seq(SEQ_OBJ* ptr, uint32 length);
-OBJ make_slice(SEQ_OBJ* ptr, uint32 offset, uint32 length);
+OBJ make_seq(SEQ_OBJ *ptr, uint32 length);
+OBJ make_slice(OBJ *ptr, uint32 length);
 OBJ make_set(SET_OBJ*);
 OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
@@ -271,7 +271,6 @@ OBJ make_opt_tag_rec(void *ptr, uint16 type_id);
 
 // These functions exist in a limbo between the logical and physical world
 
-uint32 get_seq_offset(OBJ);
 OBJ* get_seq_buffer_ptr(OBJ);
 
 // Purely physical representation functions

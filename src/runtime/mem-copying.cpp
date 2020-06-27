@@ -1,6 +1,8 @@
 #include "lib.h"
 #include "extern.h"
 
+uint32 get_seq_length_(OBJ seq);
+
 
 uint64 set_obj_mem_size(uint64 size);
 uint64 seq_obj_mem_size(uint64 capacity);
@@ -43,9 +45,9 @@ uint32 copy_memory_size(OBJ obj, bool (*already_in_place)(void*, void*), void *s
     }
 
     case TYPE_NE_SLICE: {
-      SEQ_OBJ *ptr = get_seq_ptr(obj);
+      // SEQ_OBJ *ptr = get_seq_ptr(obj);
       uint32 length = get_seq_length(obj);
-      uint32 offset = get_seq_offset(obj);
+      // uint32 offset = get_seq_offset(obj);
 
     }
 
@@ -84,36 +86,36 @@ SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
   return seq_copy;
 }
 
-SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
-  if (seq->capacity > 0) {
-    // The object has not been copied yet. Making a new object large enough
-    // to accomodate all the elements of the original sequence. We are using
-    // <size> and not <capacity> for the new sequence because it's best to
-    // leave the decision of how much extra memory to allocate to the memory
-    // allocator, which is aware of the context.
-    //## IF THIS IS THE ONLY REFERENCE TO THE SEQUENCE, AND IF <length> IS
-    //## LOWER THAN SIZE, WE COULD COPY ONLY THE FIRST LENGTH ELEMENTS...
-    uint32 size = seq->size;
-    SEQ_OBJ *seq_copy = new_seq(size);
-    // Now we copy all the elements of the sequence
-    OBJ *buff = seq->buffer;
-    OBJ *buff_copy = seq_copy->buffer;
-    for (int i=0 ; i < size ; i++)
-      buff_copy[i] = copy_obj(buff[i]);
-    // We mark the old sequence as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // seq->capacity = 0;
-    // * (SEQ_OBJ **) buff = seq_copy;
-    // Returning the new object
-    return seq_copy;
-  }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    SEQ_OBJ *seq_copy = * (SEQ_OBJ **) seq->buffer;
-    return seq_copy;
-  }
-}
+// SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
+//   if (seq->capacity > 0) {
+//     // The object has not been copied yet. Making a new object large enough
+//     // to accomodate all the elements of the original sequence. We are using
+//     // <size> and not <capacity> for the new sequence because it's best to
+//     // leave the decision of how much extra memory to allocate to the memory
+//     // allocator, which is aware of the context.
+//     //## IF THIS IS THE ONLY REFERENCE TO THE SEQUENCE, AND IF <length> IS
+//     //## LOWER THAN SIZE, WE COULD COPY ONLY THE FIRST LENGTH ELEMENTS...
+//     uint32 size = seq->size;
+//     SEQ_OBJ *seq_copy = new_seq(size);
+//     // Now we copy all the elements of the sequence
+//     OBJ *buff = seq->buffer;
+//     OBJ *buff_copy = seq_copy->buffer;
+//     for (int i=0 ; i < size ; i++)
+//       buff_copy[i] = copy_obj(buff[i]);
+//     // We mark the old sequence as "copied", and we store a pointer to the copy
+//     // into it. The fields of the original object are never going to be used again,
+//     // even by the memory manager, so we can safely overwrite them.
+//     // seq->capacity = 0;
+//     // * (SEQ_OBJ **) buff = seq_copy;
+//     // Returning the new object
+//     return seq_copy;
+//   }
+//   else {
+//     // The object has already been copied. We just return a pointer to the copy
+//     SEQ_OBJ *seq_copy = * (SEQ_OBJ **) seq->buffer;
+//     return seq_copy;
+//   }
+// }
 
 SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set) {
   uint32 size = set->size;
@@ -247,12 +249,14 @@ TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ copy_obj(OBJ obj) {
-  if (is_inline_obj(obj) || !needs_copying(get_ref_obj_ptr(obj)))
+  if (is_inline_obj(obj) || !needs_copying(obj.core_data.ptr))
     return obj;
 
   switch (get_physical_type(obj)) {
     case TYPE_NE_SEQ: {
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length_(obj));
+      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, get_seq_length_(obj));
       return repoint_to_copy(obj, seq_copy->buffer);
     }
 
@@ -277,7 +281,8 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_SLICE: {
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length_(obj));
+      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, get_seq_length_(obj));
       return repoint_slice_to_seq(obj, seq_copy);
     }
 
