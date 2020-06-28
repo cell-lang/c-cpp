@@ -1,4 +1,4 @@
-implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
+implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
   String* native_code(Instr* instrs, Maybe[Nat] block_id) =
     join((native_code(instr, block_id) : instr <- instrs));
 
@@ -68,7 +68,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       _                   = undefined;
 
     String* inst_code(Symbol tag, Nat repr_idx, LocOptTagRecVar var) {
-      repr = prg.opt_reprs(tag)(repr_idx);
+      repr = prg_data.opt_reprs(tag)(repr_idx);
       opt_labels = [l : l f <- untag(repr), f.optional];
       ptr_var_name = native_ptr_var_name(var);
       rec_type_name = opt_tag_rec_name(tag, repr_idx);
@@ -202,7 +202,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
   String* gen_cache_clearing_code(ImplArg arg) {
     code = ();
-    for fn_id <- isort(lookup(cached_semi_consts_by_impl_arg, arg, [])) {
+    for fn_id <- isort(lookup(prg_data.cached_semi_consts_by_impl_arg, arg, [])) {
       cache_var_name = memo_var_name(fn_id);
       code = (code | "env." & cache_var_name & " = make_null_obj();"); ## make_blank_obj()?
     }
@@ -299,7 +299,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
 
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
-    type, len = item(int_seqs_types_and_lengths, seq_id);
+    type, len = item(prg_data.int_seqs_types_and_lengths, seq_id);
     seq_name = const_int_seq_name(seq_id);
     return native_var_ref_name(var) & " = build_seq(" & seq_name & ", " & _print_(len) & ");";
   }
@@ -317,7 +317,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
 
 
   String* native_mk_record_code([+SymbObj -> AtomicExpr] fields, WriteObjVar var) {
-    ord_labels, index = symbols_sets_info([untag(l) : l _ <- fields], !);
+    ord_labels, index = prg_data.symbols_sets_info([untag(l) : l _ <- fields], !);
     label_set_name = const_symb_seq_name(index);
     values_strs = (native_expr(fields(object(l), !)) : l <- ord_labels);
 
@@ -370,7 +370,7 @@ implicit prg : CompiledPrg, context : NativeContext, debug_mode : Bool {
       var = cls_var(id);
       name = native_expr(var);
 
-      fn_name = "lambda_" & printed(index_first(lambda, sorted_lambda_exprs));
+      fn_name = "lambda_" & printed(index_first(lambda, prg_data.ord_lambda_exprs));
       code = (
         "CLS " & name & ";",
         name & ".fn_ptr_" & _print_(lambda.cls.arity) & " = " & fn_name & ";"

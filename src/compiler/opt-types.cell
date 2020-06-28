@@ -1,9 +1,9 @@
-implicit prg : CompiledPrg, context : <core> {
-  String* native_opt_type_decls {
+implicit prg_data : PrgData, context : <core> {
+  String* native_opt_type_decls([Symbol -> OptRecRepr+] opt_reprs) {
     non_opt_fields_reprs = ();
     opt_fields_reprs = ();
 
-    for s, rs <- isort(prg.opt_reprs)
+    for s, rs <- isort(opt_reprs)
       for r @ i <- rs
         if has_opt_fields(r)
           opt_fields_reprs = (opt_fields_reprs | (s, r, i));
@@ -164,7 +164,7 @@ implicit prg : CompiledPrg, context : <core> {
     struct_name       = opt_tag_rec_name(tag, idx);
     fields            = untag(repr);
     labels            = keys(fields);
-    ord_labels, index = symbols_sets_info(labels, !);
+    ord_labels, index = prg_data.symbols_sets_info(labels, !);
     ord_mand_labels   = (l : l <- ord_labels, not fields(l, !).optional);
     ord_opt_labels    = (l : l <- ord_labels, fields(l, !).optional);
     opt_labels        = set(ord_opt_labels);

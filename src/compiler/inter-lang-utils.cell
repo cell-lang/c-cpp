@@ -148,67 +148,63 @@ String uppercase_encoding(Nat n) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-implicit prg : CompiledPrg {
-  SymbObj+ program_symbols {
-    fixed_symbs = (object(a) : a <- special_symbols);
-    other_symbs = select(prg, $ :: SymbObj) - set(fixed_symbs);
-    fail if not other_symbs :: [SymbObj];
-    // other_symbs = isort(other_symbs);
-    other_symbs = sort_set(other_symbs, lower_than(bare_obj($a), bare_obj($b)));
-    return nonempty(fixed_symbs & other_symbs);
+SymbObj+ program_symbols(CompiledPrg prg) {
+  fixed_symbs = (object(a) : a <- special_symbols);
+  other_symbs = select(prg, $ :: SymbObj) - set(fixed_symbs);
+  fail if not other_symbs :: [SymbObj];
+  // other_symbs = isort(other_symbs);
+  other_symbs = sort_set(other_symbs, lower_than(bare_obj($a), bare_obj($b)));
+  return nonempty(fixed_symbs & other_symbs);
 
 
-    Atom+ special_symbols = (false, true, :void, :string, :date, :time, :nothing, :just, :success, :failure);
+  Atom+ special_symbols = (false, true, :void, :string, :date, :time, :nothing, :just, :success, :failure);
 
 
-    Bool lower_than(Atom a1, Atom a2) {
-      assert not in(a1, special_symbols) and not in(a2, special_symbols);
+  Bool lower_than(Atom a1, Atom a2) {
+    assert not in(a1, special_symbols) and not in(a2, special_symbols);
 
-      chs1 = chars(_print_(a1));
-      chs2 = chars(_print_(a2));
+    chs1 = chars(_print_(a1));
+    chs2 = chars(_print_(a2));
 
-      len1 = |chs1|;
-      len2 = |chs2|;
+    len1 = |chs1|;
+    len2 = |chs2|;
 
-      return len1 < len2 if len1 != len2;
+    return len1 < len2 if len1 != len2;
 
-      for ch1 @ i <- chs1 {
-        ch2 = chs2(i);
-        return ch1 < ch2 if ch1 != ch2;
-      }
-
-      fail;
+    for ch1 @ i <- chs1 {
+      ch2 = chs2(i);
+      return ch1 < ch2 if ch1 != ch2;
     }
+
+    fail;
   }
+}
 
 
-  LambdaExpr* sorted_lambda_exprs = isort(lambda_exprs(prg));
+(String, Nat)* int_seqs_types_and_lengths(CompiledPrg prg) =
+  ((native_int_type(min(s), max(s)), |s|) : s <- prg.int_seqs);
 
 
-  (String, Nat)* int_seqs_types_and_lengths = ((native_int_type(min(s), max(s)), |s|) : s <- prg.int_seqs);
+[ImplArg -> [+FnId]] cached_semi_consts_by_impl_arg(CompiledPrg prg) {
+  semi_consts = [p : p <- prg.procs, p.cached and p.impl_args != []];
+  impl_args_by_fn = [cast_to_fn_symbol(p.name) -> p.impl_args : p <- semi_consts];
+  return reverse_multi(impl_args_by_fn);
+
+  FnId cast_to_fn_symbol(ObjFnName id) = if id :: FnId then id else undefined;
+}
 
 
-  [ImplArg -> [+FnId]] cached_semi_consts_by_impl_arg {
-    semi_consts = [p : p <- prg.procs, p.cached and p.impl_args != []];
-    impl_args_by_fn = [cast_to_fn_symbol(p.name) -> p.impl_args : p <- semi_consts];
-    return reverse_multi(impl_args_by_fn);
+[[+Symbol] -> (Symbol+, Nat)] symbols_sets_info(CompiledPrg prg) {
+  mk_rec_exprs = select(prg, match ($) mk_record() = true, _ = false);
+  fail if not mk_rec_exprs :: [<mk_record(fields: [+SymbObj -> AtomicExpr])>];
+  symbs_sets = [[untag(l) : l _ <- e.fields] : e <- mk_rec_exprs] &
+               [keys(untag(r)) : _ rs <- prg.opt_reprs, r <- rs];
+  ord_symbs_sets = isort(symbs_sets);
 
-    FnId cast_to_fn_symbol(ObjFnName id) = if id :: FnId then id else undefined;
-  }
-
-
-  [[+Symbol] -> (Symbol+, Nat)] symbols_sets_info {
-    mk_rec_exprs = select(prg, match ($) mk_record() = true, _ = false);
-    fail if not mk_rec_exprs :: [<mk_record(fields: [+SymbObj -> AtomicExpr])>];
-    symbs_sets = [[untag(l) : l _ <- e.fields] : e <- mk_rec_exprs] &
-                 [keys(untag(r)) : _ rs <- prg.opt_reprs, r <- rs];
-    ord_symbs_sets = isort(symbs_sets);
-
-    symbols_map = [untag(s) -> i : s @ i <- program_symbols];
-    return [ls -> {
-        ord_labels = sort_set(ls, symbols_map($a, !) < symbols_map($b, !));
-        return (nonempty(ord_labels), i);
-      } : ls @ i <- ord_symbs_sets
-    ];
-  }
+  symbols_map = [untag(s) -> i : s @ i <- program_symbols(prg)];
+  return [ls -> {
+      ord_labels = sort_set(ls, symbols_map($a, !) < symbols_map($b, !));
+      return (nonempty(ord_labels), i);
+    } : ls @ i <- ord_symbs_sets
+  ];
 }

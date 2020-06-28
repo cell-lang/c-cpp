@@ -476,8 +476,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
   opt_code, all_types_to_gen, perms, ticks = res;
 
-  let prg=opt_code, generated=all_types_to_gen, rel_vars_perm_map=perms, debug_mode=cmd_line_opts.debug_mode
-    files = generated_code(cmd_line_opts.include_runtime);
+  files = GenerateCode(opt_code, perms, all_types_to_gen, cmd_line_opts.debug_mode, cmd_line_opts.include_runtime);
 
   t8 = _ticks_(:unused);
   ticks = (ticks | t8);

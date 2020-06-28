@@ -1,262 +1,234 @@
-implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]],
-    generated : [BasicTypeSymbol], debug_mode : Bool {
+type PrgData =  prg_data(
+                  opt_reprs:                      [Symbol -> OptRecRepr+],
+                  ord_lambda_exprs:               LambdaExpr*,
+                  int_seqs_types_and_lengths:     (String, Nat)*,
+                  cached_semi_consts_by_impl_arg: [ImplArg -> [+FnId]],
+                  symbols_sets_info:              [[+Symbol] -> (Symbol+, Nat)]
+               );
 
-  [String -> String*] generated_code(Bool include_runtime) {
-    assert |program_symbols| <= 64 * 1024; ## IMPLEMENT PROPERLY
+////////////////////////////////////////////////////////////////////////////////
 
-    has_main = (p <- prg.procs : p.name == proc_symbol(:main));
-    has_static_autos = prg.static_blocks != [];
+[String -> String*] GenerateCode(
+  CompiledPrg prg,
+  [DBSymbol -> [RelVar -> [+Nat -> Nat]]] rel_vars_perm_map,
+  [BasicTypeSymbol] generated,
+  Bool debug_mode,
+  Bool include_runtime
+) {
+  program_symbols = program_symbols(prg);
+  assert |program_symbols| <= 64 * 1024; ## IMPLEMENT PROPERLY
 
-    return [
-      "generated.cpp" -> flatten(generated_content(include_runtime)),
-      "runtime.cpp"   -> flatten(runtime_content(has_static_autos)) if include_runtime,
-      "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
-      "automata.cpp"  -> flatten(wrappers_content) if not has_main,
-      "automata.txt" -> flatten(automata_docs) if not has_main
-    ];
+  has_main = (p <- prg.procs : p.name == proc_symbol(:main));
+  has_static_autos = prg.static_blocks != [];
 
+  bool_procs = isort(prg.bool_procs);
+  procs = isort(prg.procs);
 
-    Text runtime_content(Bool has_static_autos) = (
-      ( "using System;",
-        "using System.IO;",
-        "using System.Text;",
-        "using System.Collections.Generic;",
-        "using System.Runtime.CompilerServices;",
-        "",
-        ""
-      ),
-      core_runtime,
-      table_runtime if has_static_autos
-    );
+  prg_data = prg_data(
+    opt_reprs:                      prg.opt_reprs,
+    ord_lambda_exprs:               isort(lambda_exprs(prg)),
+    int_seqs_types_and_lengths:     int_seqs_types_and_lengths(prg),
+    cached_semi_consts_by_impl_arg: cached_semi_consts_by_impl_arg(prg),
+    symbols_sets_info:              symbols_sets_info(prg)
+  );
 
+  gen_content = (
+    ( "#include \"lib.h\"",
+      "#include \"iolib.h\""
+    ) if not include_runtime,
+    symbol_decls(program_symbols),
+    symbol_table(program_symbols),
+    int_seqs_decls(prg.int_seqs),
+    symbols_arrays_decls(values(prg_data.symbols_sets_info)),
+    env_decl(prg.procs),
+    abstract_closure_class_decl(prg.procs),
+    native_opt_type_decls(prg.opt_reprs, prg_data = prg_data, context = :core)
+  );
 
-    Text generated_content(Bool include_runtime) = (
-      ( "#include \"lib.h\"",
-        "#include \"iolib.h\"",
-        "",
-        ""
-      ) if not include_runtime,
-
-      symbol_decls, "", "",
-      symbol_table, "", "",
-      int_seqs_decls, "", "",
-      symb_seqs_decls, "", "",
-      env_decl, "", "",
-      abstract_closure_class_decl, "", "",
-      native_opt_type_decls(context = :core), "", "",
-      proc_defs, "", "",
-      custom_parser,
-      runtime_callbacks(|program_symbols|),
-      main_fn_if_req
-    );
-
-
-    Text symbol_decls {
-      let context = :core
-        code = ("const uint16 " & symb_id_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
-      return code;
-    }
-
-
-    Text symbol_table {
-      code = (
-        "const char *map_symb_to_str[" & _print_(|program_symbols|) & "] = {",
-        ("\"" & _print_(bare_obj(s)) & "\"," : s <- program_symbols),
-        "};"
-      );
-      return code;
-    }
-
-
-    Text env_decl {
-      all_impl_args = union([p.impl_args : p <- prg.procs]);
-      semi_consts_cache_vars = isort([p.name : p <- prg.procs, p.cached and p.impl_args != []]);
-
-      let context = :core
-        env_decl = (
-          "struct ENV_ {",
-          ("OBJ " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
-          ("" if all_impl_args != [] and semi_consts_cache_vars != ()),
-          ("OBJ " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
-          "};",
-          "",
-          "typedef struct ENV_ ENV;"
-        );
-
-      return env_decl;
-    }
-
-
-    Text abstract_closure_class_decl {
-      arities = [p.arity : pd <- prg.procs, p <- pd.cls_args];
-      return () if arities == [];
-
-      return (
-        "struct CLS {",
-        ( "union {",
-          ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, const void *, ENV &env);"
-            : a @ i <- isort(arities)
-          ),
-          "};",
-          "const OBJ  *capt_vars;",
-          "const CLS  *capt_cls;",
-          "const void *capt_auto;"
-        ),
-        "};"
-      );
-    }
-
-
-    Text int_seqs_decls {
-      return (("") & gen_int_seq_code(s, i) : s @ i <- prg.int_seqs);
-    }
-
-
-    Text symb_seqs_decls {
-      return symbols_arrays_decls(values(symbols_sets_info));
-    }
-
-
-    Text proc_defs = native_code(
-      isort(prg.procs),
-      isort(prg.bool_procs),
-      sorted_lambda_exprs,
-      ord_react_blocks,
-      ord_static_blocks,
-      prg.int_seqs,
-      context = :core
-    );
-
-
-    Text main_fn_if_req {
-      has_main = (p <- prg.procs : p.name == proc_symbol(:main));
-      return if has_main then main_fn(debug_mode) else ();
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    // Generated interface type declarations
-    Text data_exchange_types {
-      decls = gen_inter_types_decls(typedefs = prg.typedefs);
-      return () if decls == ();
-      return (
-        "namespace Cell.Typedefs {",
-        decls,
-        "}"
-      );
-    }
-
-    Text wrappers_content {
-      content = (
-        "#pragma warning disable 162, 164, 168, 169, 219",
-        "",
-        "namespace Cell.Automata {"
-      );
-
-      if rel_auto_wrappers != ()
-        content = (content | ("// Facades for relational automata", "", rel_auto_wrappers));
-
-      if react_auto_wrappers != ()
-        content = (content | "// Facades for reactive automata", "", react_auto_wrappers);
-
-      content = (content | "}");
-
-      let typedefs = prg.typedefs {
-        types_decls, hierarchy = inter_types_decls;
-        if types_decls != [] {
-          conv_fns = decl_types_export_functs(types_decls, hierarchy);
-          content = (
-            content |
-            "",
-            "",
-            "namespace Cell.Generated {",
-            ( "// Conversion functions for declared interface types",
-              "public static class Convert {",
-              conv_fns,
-              "}"
-            ),
-            "}"
-          );
-        }
-      }
-
-      return content;
-    }
-
-
-    Text react_auto_wrappers {
-      let typedefs = prg.typedefs
-        react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
-      return (code : _, code, _ <- react_auto_wrappers);
-    }
-
-
-    Text rel_auto_wrappers {
-      let typedefs = prg.typedefs {
-        react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
-        rel_auto_wrappers = (static_auto_wrapper(b) : b <- ord_static_blocks);
-      }
-      return (code : _, code, _ <- rel_auto_wrappers);
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    Text automata_docs {
-      docs = ();
-
-      let typedefs = prg.typedefs
-        all_docs = (static_auto_wrapper(b)(2) : b <- ord_static_blocks);
-      rel_auto_docs = insert_seps(all_docs, (""));
-
-      if rel_auto_docs != () {
-        docs = (docs | "// Facades for relational automata", "");
-        docs = docs & rel_auto_docs;
-      }
-
-      let typedefs = prg.typedefs
-        react_auto_docs = (react_auto_wrapper(b)(2) : b <- ord_react_blocks);
-
-      if react_auto_docs != () {
-        docs = (docs | "") if docs != ();
-        docs = (docs | "// Facades for reactive automata", "");
-        docs = docs & react_auto_docs;
-      }
-
-      return docs;
-    }
+  // Runtime typechecking functions' declarations
+  gen_content = (gen_content | ("", "")) if bool_procs != ();
+  for d @ i <- bool_procs {
+    decl = GenProcCode(d, true, prg_data, debug_mode);
+    gen_content = gen_content & decl;
   }
+
+  // Lambda functions' declarations
+  gen_content = (gen_content | ("", "")) if prg_data.ord_lambda_exprs != ();
+  for d @ i <- prg_data.ord_lambda_exprs {
+    decl = GenLambda(d, i, true, prg_data, debug_mode);
+    gen_content = (gen_content | decl);
+  }
+
+  // Function declarations
+  gen_content = (gen_content | ("", "")) if procs != ();
+  for d @ i <- procs {
+    decl = GenProcCode(d, true, prg_data, debug_mode);
+    gen_content = gen_content & decl;
+  }
+
+  // Runtime typechecking functions
+  gen_content = (gen_content | ("", "")) if bool_procs != ();
+  for d @ i <- bool_procs {
+    def = GenProcCode(d, false, prg_data, debug_mode);
+    gen_content = (gen_content | ("", "")) if i > 0;
+    gen_content = gen_content & def;
+  }
+
+  // Lambda functions
+  gen_content = (gen_content | ("", "")) if prg_data.ord_lambda_exprs != ();
+  for d @ i <- prg_data.ord_lambda_exprs {
+    decl = GenLambda(d, i, false, prg_data, debug_mode);
+    gen_content = (gen_content | decl);
+  }
+
+  // Functions
+  gen_content = (gen_content | ("", "")) if procs != ();
+  for d @ i <- procs {
+    def = GenProcCode(d, false, prg_data, debug_mode);
+    gen_content = (gen_content | ("", "")) if i > 0;
+    gen_content = gen_content & def;
+  }
+
+  gen_content = (gen_content | custom_parser, runtime_callbacks(|program_symbols|));
+  gen_content = (gen_content | main_fn(debug_mode)) if has_main;
+
+  return ["generated.cpp" -> flatten(gen_content)];
+
+
+  // return [
+  //   "generated.cpp" -> flatten(generated_content(include_runtime)),
+  //   "runtime.cpp"   -> flatten(runtime_content(has_static_autos)) if include_runtime,
+  //   "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
+  //   "automata.cpp"  -> flatten(wrappers_content) if not has_main,
+  //   "automata.txt" -> flatten(automata_docs) if not has_main
+  // ];
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-implicit prg : CompiledPrg {
-  StaticBlock* ord_static_blocks {
-    // Static blocks sorted in topological order
-    static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
-    ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
-    static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
-    return (static_blocks_by_name(b, !) : b <- ord_static_block_names);
-  }
-
-  ReactBlock* ord_react_blocks {
-    // Reactive blocks sorted in topological order
-    react_blocks_dep_map = [b.name -> [t : _ t <- b.nested_auto_vars] : b <- prg.react_blocks];
-    ord_react_blocks_names = join((isort(bs) : bs <- topological_sort(react_blocks_dep_map)));
-    react_blocks_by_name = [b.name -> b : b <- prg.react_blocks];
-    return (react_blocks_by_name(b, !) : b <- ord_react_blocks_names);
-  }
+String* GenLambda(LambdaExpr lambda, Nat id, Bool decl_only, PrgData prg_data, Bool debug_mode) {
+  return native_code(lambda, id, decl_only, prg_data = prg_data, context = :core, debug_mode = debug_mode);
 }
 
+String* GenProcCode(ProcDef pd, Bool decl_only, PrgData prg_data, Bool debug_mode) {
+  return native_code(pd, decl_only, prg_data = prg_data, context = :core, debug_mode = debug_mode);
+}
 
-String* private_class_def(String* class_def) = (
-    if take(l, 8) == "package " or take(l, 7) == "import "
-      then ""
-    else if take(l, 16) == "public interface"
-      then drop(l, 7)
-    else if take(l, 12) == "public class"
-      then drop(l, 7)
-    else l
-  : l <- class_def
+////////////////////////////////////////////////////////////////////////////////
+
+StaticBlock* ord_static_blocks(CompiledPrg prg) {
+  // Static blocks sorted in topological order
+  static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
+  ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
+  static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
+  return (static_blocks_by_name(b, !) : b <- ord_static_block_names);
+}
+
+ReactBlock* ord_react_blocks(CompiledPrg prg) {
+  // Reactive blocks sorted in topological order
+  react_blocks_dep_map = [b.name -> [t : _ t <- b.nested_auto_vars] : b <- prg.react_blocks];
+  ord_react_blocks_names = join((isort(bs) : bs <- topological_sort(react_blocks_dep_map)));
+  react_blocks_by_name = [b.name -> b : b <- prg.react_blocks];
+  return (react_blocks_by_name(b, !) : b <- ord_react_blocks_names);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Text runtime_content(Bool has_static_autos) = (
+  ( "using System;",
+    "using System.IO;",
+    "using System.Text;",
+    "using System.Collections.Generic;",
+    "using System.Runtime.CompilerServices;",
+    "",
+    ""
+  ),
+  core_runtime,
+  table_runtime if has_static_autos
 );
+
+
+Text symbol_decls(SymbObj+ program_symbols) {
+  let context = :core
+    code = ("const uint16 " & symb_id_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
+  return ("", "") & code;
+}
+
+
+Text symbol_table(SymbObj+ program_symbols) {
+  code = (
+    "",
+    "",
+    "const char *map_symb_to_str[" & _print_(|program_symbols|) & "] = {",
+    ("\"" & _print_(bare_obj(s)) & "\"," : s <- program_symbols),
+    "};"
+  );
+  return code;
+}
+
+
+Text int_seqs_decls(Int+* int_seqs) =
+  if int_seqs != ()
+    then ("") & (("") & gen_int_seq_code(s, i) : s @ i <- int_seqs)
+    else ();
+
+
+Text env_decl([ObjProcDef] procs) {
+  all_impl_args = union([p.impl_args : p <- procs]);
+  semi_consts_cache_vars = isort([p.name : p <- procs, p.cached and p.impl_args != []]);
+
+  let context = :core
+    env_decl = (
+      "",
+      "",
+      "struct ENV_ {",
+      ("OBJ " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
+      ("" if all_impl_args != [] and semi_consts_cache_vars != ()),
+      ("OBJ " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
+      "};",
+      "",
+      "typedef struct ENV_ ENV;"
+    );
+
+  return env_decl;
+}
+
+
+Text abstract_closure_class_decl([ObjProcDef] procs) {
+  arities = [p.arity : pd <- procs, p <- pd.cls_args];
+  return () if arities == [];
+
+  return (
+    "",
+    "",
+    "struct CLS {",
+    ( "union {",
+      ( "OBJ (*fn_ptr_" & printed(a) & ")(" & append(a * ("OBJ"), ", ") & ", const OBJ *, const CLS *, const void *, ENV &env);"
+        : a @ i <- isort(arities)
+      ),
+      "};",
+      "const OBJ  *capt_vars;",
+      "const CLS  *capt_cls;",
+      "const void *capt_auto;"
+    ),
+    "};"
+  );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
+  return () if symbs_seqs == [];
+  ord_symbs_seqs = sort_set(symbs_seqs, right($a) < right($b));
+  return ("", "") & (symbols_array_decl(ss, i) : ss, i <- ord_symbs_seqs);
+
+  String symbols_array_decl(Symbol+ symbs, Nat index) {
+    name = const_symb_seq_name(index);
+    let context = :core
+      symbs_strs = (symb_id_name(s) : s <- symbs);
+    return "uint16 " & name & "[" & _print_(|symbs|) & "] = {" & append(symbs_strs, ", ") & "};";
+  }
+}
 
 
 String native_int_type(Int min_val, Int max_val) {
@@ -319,19 +291,65 @@ String* gen_int_seq_code(Int+ int_seq, Nat seq_id) {
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
-String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
-  ord_symbs_seqs = sort_set(symbs_seqs, right($a) < right($b));
-  return (symbols_array_decl(ss, i) : ss, i <- ord_symbs_seqs);
+implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
+  String* native_code(LambdaExpr lambda, Nat id, Bool decl_only) {
+    body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
+    vars_decls = gen_vars_decls(body, []);
+    comp_body = native_code(body, nothing);
+    full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
 
-  String symbols_array_decl(Symbol+ symbs, Nat index) {
-    name = const_symb_seq_name(index);
-    let context = :core
-      symbs_strs = (symb_id_name(s) : s <- symbs);
-    return "uint16 " & name & "[" & _print_(|symbs|) & "] = {" & append(symbs_strs, ", ") & "};";
+    std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
+    extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "const void *capt_auto", "ENV &env"); ## BAD
+    signature = "OBJ lambda_" & printed(id) & "(" & append(std_args & extra_args, ", ") & ")";
+
+    return (signature & ";") if decl_only;
+
+    return ({signature & " {"}) & indent_lines(full_body) & ("}");
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+String* runtime_callbacks(Nat symbs_count) = (
+  "",
+  "",
+  "const char *symb_repr(uint16 idx) {",
+  "  return map_symb_to_str[idx];",
+  "}",
+  "",
+  "uint32 embedded_symbs_count() {",
+  "  return " & printed(symbs_count) & ";",
+  "}"
+);
+
+
+String* main_fn(Bool debug_mode) = (
+  "",
+  "",
+  "int main(int argc, char **argv) {",
+  "  OBJ args = make_empty_seq();",
+  "  if (argc > 1) {",
+  "    OBJ *arg_buff = new_obj_array(argc - 1);",
+  "    for (int i=0 ; i < argc-1 ; i++)",
+  "      arg_buff[i] = str_to_obj(argv[i+1]);",
+  "    args = build_seq(arg_buff, argc-1);",
+  "  }",
+  "",
+  "  ENV env;",
+  "  memset(&env, 0, sizeof(ENV));",
+  "",
+  "  OBJ res = Main_P(args, env);",
+  "",
+  "  return is_int(res) ? get_int(res) : 0;",
+  "}"
+);
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 implicit context : NativeContext {
   String* gen_vars_decls(Instr* body, [AnyVar] exclusions) {
@@ -373,31 +391,7 @@ implicit context : NativeContext {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
-  String* native_code(ObjProcDef* obj_proc_defs, BoolProcDef* bool_proc_defs, LambdaExpr* lambda_exprs, ReactBlock* react_blocks, StaticBlock* static_blocks, Int+* int_seqs) {
-    type_checking_fns_decls = join((native_code(d, true) : d <- bool_proc_defs)) & 4 * ("");
-    type_checking_fns = join((native_code(d, false) & ("", "") : d <- bool_proc_defs)) & 4 * ("");
-    cls_decls = join((gen_lambda(d, i, true) : d @ i <- lambda_exprs)) & 4 * ("");
-    closures = join((gen_lambda(d, i, false) & ("", "") : d @ i <- lambda_exprs)) & 4 * ("");
-    fns_decls = join((native_code(d, true) : d <- obj_proc_defs)) & 4 * ("");
-    functions = join((native_code(d, false) & ("", "") : d <- obj_proc_defs));
-
-    static_blocks_code = join((("", "") & native_static_block_decl(b) : b <- static_blocks));
-    react_blocks_code = join((("", "") & native_react_block_decl(b) : b <- react_blocks));
-
-    return join((
-      type_checking_fns_decls,
-      cls_decls,
-      fns_decls,
-      type_checking_fns,
-      closures,
-      functions,
-      static_blocks_code,
-      react_blocks_code
-    ));
-  }
-
-
+implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
   String* native_code(ProcDef pd, Bool decl_only) {
     cached = pd.cached? and pd.cached;
 
@@ -552,23 +546,11 @@ implicit prg : CompiledPrg, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat ->
 
     String* gen_args_list(BoolProcDef pd) = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < arity(pd));
   }
-
-
-  String* gen_lambda(LambdaExpr lambda, Nat id, Bool decl_only) {
-    body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
-    vars_decls = gen_vars_decls(body, []);
-    comp_body = native_code(body, nothing);
-    full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
-
-    std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
-    extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "const void *capt_auto", "ENV &env"); ## BAD
-    signature = "OBJ lambda_" & printed(id) & "(" & append(std_args & extra_args, ", ") & ")";
-
-    return (signature & ";") if decl_only;
-
-    return ({signature & " {"}) & indent_lines(full_body) & ("}");
-  }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+String* custom_parser = ();
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -596,91 +578,3 @@ implicit context : NativeContext {
   String native_assignment_code(Encodable var, Encodable value) =
     native_code(var) & " = " & native_code(value) & ";";
 }
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-String* custom_parser = ();
-
-// String* custom_parser = (
-//   "",
-//   "",
-//   "public sealed class Parser : Cell.Runtime.Parser {",
-//   "  public Parser(TokenStream tokens) : base(tokens) {",
-//   "",
-//   "  }",
-//   "",
-//   " protected override OBJ CreateTaggedObj(ushort tagId, OBJ obj) {",
-//   "    return ConvertGenericTaggedValue(SymbObj.Get(tagId), obj);",
-//   "  }",
-//   "}",
-//   "",
-//   "",
-//   "public static OBJ Parse(OBJ text) {",
-//   "  return Parse(N E W System.IO.StringReader(text.GetString()));",
-//   "}",
-//   "",
-//   "",
-//   "public static OBJ Parse(System.IO.TextReader reader) {",
-//   "  try {",
-//   "    TokenStream tokens = N E W Tokenizer(N E W CharStream(reader));",
-//   "    Parser parser = N E W Parser(tokens);",
-//   "    OBJ obj = parser.ParseObj();",
-//   "    parser.CheckEof();",
-//   "    return Builder.CreateTaggedObj(SymbObj.SuccessSymbId, obj);",
-//   "  }",
-//   "  catch (Cell.Runtime.ParsingException e) {",
-//   "    return Builder.CreateTaggedObj(SymbObj.FailureSymbId, Builder.CreateSeq(N E W int[] {e.line, e.col}));",
-//   "  }",
-//   "}"
-// );
-
-
-// String* main_method(Bool debug_mode) = (
-//   "",
-//   "",
-//   "public static int Main(string[] args) {",
-//   "  OBJ[] cellArgs = N E W OBJ[args.Length];",
-//   "  for (int i=0 ; i < args.Length ; i++)",
-//   "    cellArgs[i] = Miscellanea.StrToObj(args[i]);",
-//   "  ENV env;",
-//   "  Debug.debugMode = true;" if debug_mode,
-//   "  OBJ res = Main_P(Builder.CreateSeq(cellArgs), env);",
-//   "  Debug.OnProcessEnd();",
-//   "  return res.IsInt() ? (int) res.GetLong() : 0;",
-//   "}"
-// );
-
-String* runtime_callbacks(Nat symbs_count) = (
-  "",
-  "",
-  "const char *symb_repr(uint16 idx) {",
-  "  return map_symb_to_str[idx];",
-  "}",
-  "",
-  "uint32 embedded_symbs_count() {",
-  "  return " & printed(symbs_count) & ";",
-  "}"
-);
-
-
-String* main_fn(Bool debug_mode) = (
-  "",
-  "",
-  "int main(int argc, char **argv) {",
-  "  OBJ args = make_empty_seq();",
-  "  if (argc > 1) {",
-  "    OBJ *arg_buff = new_obj_array(argc - 1);",
-  "    for (int i=0 ; i < argc-1 ; i++)",
-  "      arg_buff[i] = str_to_obj(argv[i+1]);",
-  "    args = build_seq(arg_buff, argc-1);",
-  "  }",
-  "",
-  "  ENV env;",
-  "  memset(&env, 0, sizeof(ENV));",
-  "",
-  "  OBJ res = Main_P(args, env);",
-  "",
-  "  return is_int(res) ? get_int(res) : 0;",
-  "}"
-);
