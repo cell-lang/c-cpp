@@ -89,7 +89,7 @@ type PrgData =  prg_data(
     gen_content = gen_content & def;
   }
 
-  gen_content = (gen_content | custom_parser, runtime_callbacks(|program_symbols|));
+  gen_content = (gen_content | runtime_callbacks(|program_symbols|));
   gen_content = (gen_content | main_fn(debug_mode)) if has_main;
 
   return ["generated.cpp" -> flatten(gen_content)];
@@ -547,10 +547,6 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     String* gen_args_list(BoolProcDef pd) = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < arity(pd));
   }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-String* custom_parser = ();
 
 ////////////////////////////////////////////////////////////////////////////////
 
