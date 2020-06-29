@@ -20,7 +20,6 @@ Int Main(String* args) {
   options = subseq(args, 0, argc-2);
 
   include_runtime = core_runtime != ();
-  run_typechecking = true;
   ignore_assertions = false;
   debug_mode = false;
 
@@ -75,9 +74,6 @@ Int Main(String* args) {
     }
     else if o == "-nrt" {
       include_runtime = false;
-    }
-    else if o == "-ntc" {
-      run_typechecking = false;
     }
     else if o == "-p" {
       print_intermediate = true;
@@ -137,7 +133,6 @@ Int Main(String* args) {
     debug_mode:             debug_mode,
     ignore_assertions:      ignore_assertions,
     include_runtime:        include_runtime,
-    run_typechecking:       run_typechecking,
     developer_mode:         developer_mode,
     print_intermediate:     print_intermediate,
     print_times:            print_times,
@@ -173,7 +168,6 @@ type CmdLineOpts = (
   debug_mode:             Bool,
   ignore_assertions:      Bool,
   include_runtime:        Bool,
-  run_typechecking:       Bool,
   developer_mode:         Bool,
   print_intermediate:     Bool,
   print_times:            Bool,
@@ -181,7 +175,7 @@ type CmdLineOpts = (
 );
 
 
-(Program, [BasicTypeSymbol], Int*) ParseCheckAndDesugar([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+(Program, [BasicTypeSymbol], Int*) ParseCheckDesugarAndTypecheck([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
   t0 = _ticks_(:unused);
 
   decls = ();
@@ -199,6 +193,38 @@ type CmdLineOpts = (
   }
   syn_prg = syn_prg(parsed_src_files: merge(decls));
 
+  types_to_gen = LoadListOfTypesToGen(types_gen_files);
+
+  t1 = _ticks_(:unused);
+
+  DoSynExtra(syn_prg, cmd_line_opts);
+
+  CheckSynWF(syn_prg, cmd_line_opts);
+
+  t2 = _ticks_(:unused);
+
+  prg = desugared_prg(syn_prg=syn_prg);
+
+  t3 = _ticks_(:unused);
+
+  DoExtra(prg, cmd_line_opts);
+
+  if cmd_line_opts.print_intermediate
+    ok = FileWrite("dump-prg.txt", _untag_(_print_(prg)));
+
+  CheckWF(prg, types_to_gen, cmd_line_opts);
+
+  t4 = _ticks_(:unused);
+
+  TypeCheck(prg, cmd_line_opts);
+
+  t5 = _ticks_(:unused);
+
+  return (prg, types_to_gen, (t0, t1, t2, t3, t4, t5));
+}
+
+
+[BasicTypeSymbol] LoadListOfTypesToGen([String -> Byte*] types_gen_files) {
   res = parse_types_gen_files(types_gen_files);
   if failed(res) {
     file, line = error(res);
@@ -206,52 +232,25 @@ type CmdLineOpts = (
     Exit(1);
     fail;
   }
-  types_to_gen = result(res);
+  return result(res);
+}
 
-  t1 = _ticks_(:unused);
 
+DoSynExtra(SynPrg syn_prg, CmdLineOpts cmd_line_opts) {
   if cmd_line_opts.developer_mode
     Print("Source files parsed\n");
   else
     Print(".");
-
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
 
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-syn-prg.txt", _untag_(_print_(syn_prg)));
+}
 
-  errs = prg_wf_errors(syn_prg=syn_prg);
 
-  t2 = _ticks_(:unused);
-
-  if errs == () {
-    if cmd_line_opts.developer_mode
-      Print("Program is well-formed\n");
-    else
-      Print(".");
-
-    if cmd_line_opts.wait_for_key
-      unused_var = GetChar();
-  }
-  else {
-    msgs = append((append(create_error_msg(e), "\n") & "\n\n" : e <- errs));
-    Print("\n" & msgs);
-    Exit(1);
-    fail;
-  }
-
-  prg = desugared_prg(syn_prg=syn_prg);
-
-  errs = types_to_gen_errs(types_to_gen, prg.typedefs);
-  if errs != () {
-    Print("\n" & append(errs, "\n") & "\n\n");
-    Exit(1);
-    fail;
-  }
-
-  t3 = _ticks_(:unused);
+DoExtra(Program prg, CmdLineOpts cmd_line_opts) {
   if cmd_line_opts.developer_mode
     Print("Syntax removed\n");
   else
@@ -262,15 +261,46 @@ type CmdLineOpts = (
 
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-prg.txt", _untag_(_print_(prg)));
+}
+
+
+CheckSynWF(SynPrg syn_prg, CmdLineOpts cmd_line_opts) {
+  errs = prg_wf_errors(syn_prg=syn_prg);
+
+  if errs != () {
+    msgs = append((append(create_error_msg(e), "\n") & "\n\n" : e <- errs));
+    Print("\n" & msgs);
+    Exit(1);
+    fail;
+  }
+
+  if cmd_line_opts.developer_mode
+    Print("Program is well-formed\n");
+  else
+    Print(".");
+
+  if cmd_line_opts.wait_for_key
+    unused_var = GetChar();
+}
+
+
+CheckWF(Program prg, [BasicTypeSymbol] types_to_gen, CmdLineOpts cmd_line_opts) {
+  errs = types_to_gen_errs(types_to_gen, prg.typedefs);
+  if errs != () {
+    Print("\n" & append(errs, "\n") & "\n\n");
+    Exit(1);
+    fail;
+  }
 
   errs = core_wf_errors(prg);
+
   if errs != [] {
     msgs = append((append(error_message(e), "\n") & "\n\n" : e <- rand_sort(errs)));
     Print("\n" & msgs);
     Exit(1);
     fail;
   }
-  t4 = _ticks_(:unused);
+
   if cmd_line_opts.developer_mode
     Print("Additional checks passed\n");
   else
@@ -278,47 +308,45 @@ type CmdLineOpts = (
 
   if cmd_line_opts.wait_for_key
     unused_var = GetChar();
+}
 
-  return (prg, types_to_gen, (t0, t1, t2, t3, t4));
+
+TypeCheck(Program prg, CmdLineOpts cmd_line_opts) {
+  let program = prg, typedefs = prg.typedefs {
+    errs = typechecking_errors;
+    if errs != [] {
+      Print("\n\nError: the program does not typecheck\n\n");
+      // msgs = rand_sort([create_error_msgs(fd, es) : es @ fd <- errs]);
+      bad_decls = sort_set(keys(errs), source_file($a) < source_file($b));
+      ord_errs_by_decl = ((d, nonempty(sort_set(errs(d), source_line($a) < source_line($b)))) : d <- bad_decls);
+      msgs = (format_error_msgs(d, (create_error_msg(e) : e <- es)) : d, es <- ord_errs_by_decl);
+      for m <- msgs {
+        for l <- m
+          Print(l & "\n");
+        Print("\n");
+      }
+      Print("Number of functions with typechecking errors: " & printed(|errs|) & "\n");
+      Exit(1);
+      fail;
+    }
+  }
+
+  if cmd_line_opts.developer_mode
+    Print("The program typechecks\n");
+  else
+    Print(".");
+
+  if cmd_line_opts.wait_for_key
+    unused_var = GetChar();
 }
 
 
 (CompiledPrg, Program, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]], Int*)
-TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
-  res = ParseCheckAndDesugar(src_files, types_gen_files, cmd_line_opts);
+ParseCheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
+  res = ParseCheckDesugarAndTypecheck(src_files, types_gen_files, cmd_line_opts);
   prg, types_to_gen, ticks = res;
 
   let program = prg, typedefs = prg.typedefs {
-    if cmd_line_opts.run_typechecking {
-      errs = typechecking_errors;
-      if errs == [] {
-        if cmd_line_opts.developer_mode
-          Print("The program typechecks\n");
-        else
-          Print(".");
-
-        if cmd_line_opts.wait_for_key
-          unused_var = GetChar();
-      }
-      else {
-        Print("\n\nError: the program does not typecheck\n\n");
-        // msgs = rand_sort([create_error_msgs(fd, es) : es @ fd <- errs]);
-        bad_decls = sort_set(keys(errs), source_file($a) < source_file($b));
-        ord_errs_by_decl = ((d, nonempty(sort_set(errs(d), source_line($a) < source_line($b)))) : d <- bad_decls);
-        msgs = (format_error_msgs(d, (create_error_msg(e) : e <- es)) : d, es <- ord_errs_by_decl);
-        for m <- msgs {
-          for l <- m
-            Print(l & "\n");
-          Print("\n");
-        }
-        Print("Number of functions with typechecking errors: " & printed(|errs|) & "\n");
-        Exit(1);
-        fail;
-      }
-    }
-
-    t5 = _ticks_(:unused);
-
     perms = [];
 
     options = options(
@@ -370,13 +398,13 @@ TypecheckAndCompile([String -> Byte*] src_files, [String -> Byte*] types_gen_fil
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-code.txt", _untag_(_print_(code)));
 
-  return (code, prg, types_to_gen, perms, (ticks | t5, t6));
+  return (code, prg, types_to_gen, perms, (ticks | t6));
 }
 
 
 (CompiledPrg, [BasicTypeSymbol], [DBSymbol -> [RelVar -> [+Nat -> Nat]]], Int*)
 GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, CmdLineOpts cmd_line_opts) {
-  res = TypecheckAndCompile(src_files, types_gen_files, cmd_line_opts);
+  res = ParseCheckAndCompile(src_files, types_gen_files, cmd_line_opts);
   code, prg, types_to_gen, perms, ticks = res;
 
   opt_code_1 = remove_dead_code(code);
@@ -495,8 +523,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
     Print("Error checking:        " & printed(ticks(2) - ticks(1)) & "ms\n");
     Print("Syntax removal:        " & printed(ticks(3) - ticks(2)) & "ms\n");
     Print("Additional checks:     " & printed(ticks(4) - ticks(3)) & "ms\n");
-    if cmd_line_opts.run_typechecking
-      Print("Type checking:         " & printed(ticks(5) - ticks(4)) & "ms\n");
+    Print("Type checking:         " & printed(ticks(5) - ticks(4)) & "ms\n");
     Print("Code generation:       " & printed(ticks(6) - ticks(5)) & "ms\n");
     Print("Code optimization:     " & printed(ticks(7) - ticks(6)) & "ms\n");
     Print("C++ code generation:   " & printed(ticks(8) - ticks(7)) & "ms\n");
