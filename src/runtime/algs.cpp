@@ -284,7 +284,32 @@ uint32 sort_unique(OBJ *objs, uint32 size) {
       return idx;
   }
 
-  std::sort(objs+inline_count, objs+size, obj_less());
+  uint32 non_inline_count = size - inline_count;
+  if (non_inline_count <= 1024) {
+    // OBJ buff1[1024];
+    // OBJ buff2[1024];
+
+    // for (int i=0 ; i < non_inline_count ; i++)
+    //   buff1[i] = objs[i + inline_count];
+
+    // OBJ *custom_sort(OBJ *ys, OBJ *zs, int size);
+    // OBJ *final_buff = custom_sort(buff1, buff2, non_inline_count);
+
+    // std::sort(objs+inline_count, objs+size, obj_less());
+
+    // for (int i=0 ; i < non_inline_count ; i++)
+    //   assert(are_eq(final_buff[i], objs[i + inline_count]));
+
+    OBJ buffer[1024];
+
+    OBJ *custom_sort(OBJ *, OBJ *, int);
+    OBJ *final_buff = custom_sort(objs + inline_count, buffer, non_inline_count);
+
+    if (final_buff == buffer)
+      memcpy(objs + inline_count, buffer, non_inline_count * sizeof(OBJ));
+  }
+  else
+    std::sort(objs+inline_count, objs+size, obj_less());
 
   if (idx != inline_count)
     objs[idx] = objs[inline_count];

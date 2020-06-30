@@ -93,3 +93,102 @@ void index_sort(uint32 *index, OBJ *major_sort, OBJ *minor_sort, uint32 count) {
 void index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count) {
   stable_index_sort(index, major_sort, middle_sort, minor_sort, count);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+OBJ *custom_sort(OBJ *ys, OBJ *zs, int size) {
+  int sort_len = 1;
+  while (sort_len < size) {
+    // Merging subarrays in ys into zs
+    int offset = 0;
+    while (offset < size) {
+      int end1 = offset + sort_len;
+
+      if (end1 < size) {
+        int end2 = end1 + sort_len;
+        if (end2 > size)
+          end2 = size;
+
+        int i1 = offset;
+        int i2 = end1;
+        int j = offset;
+
+        OBJ y1 = ys[i1];
+        OBJ y2 = ys[i2];
+
+        while (j < end2) {
+
+          int rc = comp_objs(y1, y2);
+
+          if (rc > 0) { // y1 < y2
+            zs[j] = y1;
+            j = j + 1;
+            i1 = i1 + 1;
+            if (i1 == end1) {
+              while (i2 < end2) {
+                zs[j] = ys[i2];
+                j = j + 1;
+                i2 = i2 + 1;
+              }
+            }
+            else
+              y1 = ys[i1];
+          }
+          else { //if (rc < 0) { // y1 >= y2
+            zs[j] = y2;
+            j = j + 1;
+            i2 = i2 + 1;
+            if (i2 == end2) {
+              while (i1 < end1) {
+                zs[j] = ys[i1];
+                j = j + 1;
+                i1 = i1 + 1;
+              }
+            }
+            else
+              y2 = ys[i2];
+          }
+          // else { // y1 == y2
+          //   zs[j] = y1;
+          //   j = j + 1;
+          //   i1 = i1 + 1;
+          //   i2 = i2 + 1;
+
+          //   if (i1 == end1) {
+          //     while (i2 < end2) {
+          //       zs[j] = ys[i2];
+          //       j = j + 1;
+          //       i2 = i2 + 1;
+          //     }
+          //   }
+          //   else if (i2 == end2) {
+          //     while (i1 < end1) {
+          //       zs[j] = ys[i1];
+          //       j = j + 1;
+          //       i1 = i1 + 1;
+          //     }
+          //   }
+          //   else {
+          //     y1 = ys[i1];
+          //     y2 = ys[i2];
+          //   }
+          // }
+        }
+      }
+      else
+        for (int i = offset ; i < size ; i++)
+          zs[i] = ys[i];
+
+      offset = offset + 2 * sort_len;
+    }
+
+    OBJ *tmp = ys;
+    ys = zs;
+    zs = tmp;
+
+    sort_len = 2 * sort_len;
+  }
+
+  return ys;
+}

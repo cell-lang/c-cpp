@@ -24,10 +24,8 @@ update-cellcr:
 	@rm -f cellcr
 	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
 
-cellcp:
-	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
-
 update-cellcp:
+	@rm -f cellcp
 	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
 
 codegen.net:
@@ -127,7 +125,8 @@ runtime.h:
 # 	grep -v '#include' src/hacks.cpp                    		>> src/runtime/runtime.h
 
 clean:
-	@rm -rf tmp/ cellc.net cellc cellcp codegen codegen.net tests
+	@rm -rf tmp/ cellc.net cellc cellcr cellcp codegen codegen.net tests
+	@rm cellc-[0-9] cellc-[0-9].cpp cellcr-*
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
 	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o gmon.out
 	@mkdir tmp/ tmp/null/

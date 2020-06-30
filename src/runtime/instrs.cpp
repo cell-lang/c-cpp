@@ -53,16 +53,126 @@ OBJ build_seq(STREAM &s) {
   return build_seq_copy(s.buffer, s.count);
 }
 
-OBJ build_set(OBJ *elems, uint32 size) {
+
+OBJ build_set(OBJ *elts, uint32 size) {
   if (size == 0)
     return make_empty_rel();
 
-  size = sort_unique(elems, size);
+  if (size == 2) {
+    OBJ elt0 = elts[0];
+    OBJ elt1 = elts[1];
+
+    int cr = comp_objs(elt0, elt1);
+
+    if (cr == 0) {
+      SET_OBJ *set = new_set(1);
+      set->buffer[0] = elt0;
+      return make_set(set);
+    }
+
+    SET_OBJ *set = new_set(2);
+    if (cr > 0) { // elts[0] < elts[1]
+      set->buffer[0] = elt0;
+      set->buffer[1] = elt1;
+    }
+    else { // elts[0] > elts[1]
+      set->buffer[0] = elt1;
+      set->buffer[1] = elt0;
+    }
+    return make_set(set);
+  }
+
+  // if (size == 3) {
+  //   OBJ elt0 = elts[0];
+  //   OBJ elt1 = elts[1];
+  //   OBJ elt2 = elts[2];
+
+  //   int cr01 = comp_objs(elt0, elt1);
+
+  //   if (cr01 == 0) {
+  //     int cr12 = comp_objs(elt1, elt2);
+
+  //     if (cr12 == 0) {
+  //       // elt0 == elt1 == elt2
+  //       SET_OBJ *set = new_set(1);
+  //       set->buffer[0] = elt0;
+  //       return make_set(set);
+  //     }
+
+  //     SET_OBJ *set = new_set(2);
+  //     if (cr12 > 0) {
+  //       // elt0 == elt1, elt1 < elt2
+  //       set->buffer[0] = elt1;
+  //       set->buffer[1] = elt2;
+  //     }
+  //     else {
+  //       // elt0 == elt1, elt1 > elt2
+  //       set->buffer[0] = elt2;
+  //       set->buffer[1] = elt1;
+  //     }
+  //     return make_set(set);
+  //   }
+
+  //   if (cr01 < 0) {
+  //     OBJ tmp = elt0;
+  //     elt0 = elt1;
+  //     elt1 = tmp;
+  //   }
+
+  //   // elt0 < elt1
+  //   int cr12 = comp_objs(elt1, elt2);
+
+  //   if (cr12 > 0) {
+  //     // elt0 < elt1 < elt2
+  //     SET_OBJ *set = new_set(3);
+  //     set->buffer[0] = elt0;
+  //     set->buffer[1] = elt1;
+  //     set->buffer[2] = elt2;
+  //     return make_set(set);
+  //   }
+  //   else if (cr12 < 0) {
+  //     int cr02 = comp_objs(elt0, elt2);
+
+  //     if (cr02 > 0) {
+  //       // elt0 < elt2 < elt1
+  //       SET_OBJ *set = new_set(3);
+  //       set->buffer[0] = elt0;
+  //       set->buffer[1] = elt2;
+  //       set->buffer[2] = elt1;
+  //       return make_set(set);
+  //     }
+  //     else if (cr02 < 0) {
+  //       // elt2 < elt0 < elt1
+  //       SET_OBJ *set = new_set(3);
+  //       set->buffer[0] = elt2;
+  //       set->buffer[1] = elt0;
+  //       set->buffer[2] = elt1;
+  //       return make_set(set);
+  //     }
+  //     else {
+  //       // elt0 < elt1, elt0 == elt2
+  //       SET_OBJ *set = new_set(2);
+  //       set->buffer[0] = elt0;
+  //       set->buffer[1] = elt1;
+  //       return make_set(set);
+  //     }
+  //   }
+  //   else {
+  //     // elt0 < elt1, elts[1] == elt2
+  //     SET_OBJ *set = new_set(2);
+  //     set->buffer[0] = elt0;
+  //     set->buffer[1] = elt1;
+  //     return make_set(set);
+  //   }
+  // }
+
+  if (size > 1)
+    size = sort_unique(elts, size);
 
   SET_OBJ *set = new_set(size);
   OBJ *es = set->buffer;
   for (uint32 i=0 ; i < size ; i++)
-    es[i] = elems[i];
+    es[i] = elts[i];
 
   return make_set(set);
 }
