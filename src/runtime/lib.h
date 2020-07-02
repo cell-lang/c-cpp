@@ -267,7 +267,7 @@ OBJ make_tern_rel(TERN_REL_OBJ*);
 OBJ make_log_map(BIN_REL_OBJ*);
 OBJ make_map(BIN_REL_OBJ*);
 OBJ make_tag_obj(uint16 tag_id, OBJ obj);
-OBJ make_opt_tag_rec(void *ptr, uint16 type_id);
+OBJ make_opt_tag_rec(void *ptr, uint16 repr_id);
 
 // These functions exist in a limbo between the logical and physical world
 
@@ -298,6 +298,8 @@ void* get_ref_obj_ptr(OBJ);
 
 bool are_shallow_eq(OBJ, OBJ);
 int shallow_cmp(OBJ, OBJ);
+
+int comp_floats(double, double);
 
 OBJ repoint_to_copy(OBJ, void*);
 OBJ repoint_slice_to_seq(OBJ, SEQ_OBJ*);

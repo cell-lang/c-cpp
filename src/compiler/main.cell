@@ -103,7 +103,7 @@ Int Main(String* args) {
   }
 
   Print(
-    "Cell to C++ compiler version " & version & "\n" &
+    "Cell to C/C++ compiler version " & version & "\n" &
     "Warning: this is a beta version\n" &
     "Compiling project " & prj_file & "\n"
   );

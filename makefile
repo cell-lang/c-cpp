@@ -7,11 +7,17 @@ cellc.net:
 	dotnet build -c Release tmp/cellc.net/
 	@ln -s tmp/cellc.net/bin/Release/netcoreapp3.1/cellc cellc.net
 
-cellc: cellc.net
-	@rm -rf tmp/cellc && mkdir -p tmp/cellc
-	./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
+cellc:
+	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
+	misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+
+cellc2:
+	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
+	./cellc -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc2
 
 update-cellc:
 	@rm -f cellc
@@ -43,17 +49,18 @@ codegen:
 update-codegen:
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
-compiler-test-loop: cellc
+compiler-test-loop: cellc.net
 	@rm -f generated.cpp cellc-1.cpp cellc-2.cpp cellc-3.cpp
-	./cellc project/compiler-no-runtime.txt .
-	bin/apply-hacks < generated.cpp > cellc-1.cpp
-	g++ -ggdb -Isrc/runtime/ cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
-	./cellc-1 project/compiler-no-runtime.txt .
-	bin/apply-hacks < generated.cpp > cellc-2.cpp
-	g++ -ggdb -Isrc/runtime/ cellc-2.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-2
-	./cellc-2 project/compiler-no-runtime.txt .
-	bin/apply-hacks < generated.cpp > cellc-3.cpp
-	cmp cellc-2.cpp cellc-3.cpp
+	@rm -rf tmp/cellc && mkdir -p tmp/cellc
+	./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-1.cpp
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
+	./cellc-1 project/compiler-no-runtime.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-2.cpp
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-2.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-2
+	./cellc-2 project/compiler-no-runtime.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-3.cpp
+	cmp tmp/cellc/cellc-2.cpp tmp/cellc/cellc-3.cpp
 
 codegen-test-loop: codegen
 	./codegen misc/codegen-opt-code.txt
@@ -90,7 +97,7 @@ update-tiny-test:
 
 tests:
 	@rm -rf tmp/tests/ && mkdir tmp/tests/
-	./cellc.net project/tests.txt tmp/tests/
+	./cellc project/tests.txt tmp/tests/
 	g++ -ggdb -Isrc/runtime/ tmp/tests/generated.cpp src/runtime/*.cpp -o tests
 
 update-tests:
@@ -126,7 +133,7 @@ runtime.h:
 
 clean:
 	@rm -rf tmp/ cellc.net cellc cellcr cellcp codegen codegen.net tests
-	@rm cellc-[0-9] cellc-[0-9].cpp cellcr-*
+	@rm -f cellc-[0-9] cellc-[0-9].cpp cellcr-*
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
 	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o gmon.out
 	@mkdir tmp/ tmp/null/

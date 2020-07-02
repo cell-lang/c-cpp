@@ -632,6 +632,19 @@ int shallow_cmp(OBJ obj1, OBJ obj2) {
   return 0;
 }
 
+int comp_floats(double x, double y) {
+  uint64 n = *((uint64 *) &x);
+  uint64 m = *((uint64 *) &y);
+
+  if (n < m)
+    return 1;
+
+  if (n > m)
+    return -1;
+
+  return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 //## IF WE DECIDE TO OPTIMIZE THE COPYING OF SEQUENCES AND/OR SLICES, THIS WILL STOP WORKING
