@@ -2,27 +2,68 @@
 #include "extern.h"
 
 
-uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) { // The array mustn't contain duplicates
+// The array mustn't contain duplicates
+uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) {
   if (len > 0) {
-    int64 low_idx = 0;
-    int64 high_idx = len - 1;
-
-    while (low_idx <= high_idx) {
-      int64 middle_idx = (low_idx + high_idx) / 2;
-      OBJ middle_obj = sorted_array[middle_idx];
-
-      int cr = comp_objs(obj, middle_obj);
-
-      if (cr == 0) {
-        found = true;
-        return middle_idx;
+    if (is_inline_obj(obj)) {
+      if (len <= 12) {
+        for (int i=0 ; i < len ; i++)
+          if (are_shallow_eq(sorted_array[i], obj)) {
+            found = true;
+            return i;
+          }
+        found = false;
+        return -1;
       }
 
-      if (cr > 0)
-        high_idx = middle_idx - 1;
-      else
-        low_idx = middle_idx + 1;
+      OBJ last_obj = sorted_array[len - 1];
+      if (!is_inline_obj(last_obj))
+        goto std_alg;
+
+      int64 low_idx = 0;
+      int64 high_idx = len - 1;
+
+      while (low_idx <= high_idx) {
+        int64 middle_idx = (low_idx + high_idx) / 2;
+        OBJ middle_obj = sorted_array[middle_idx];
+
+        int cr = shallow_cmp(obj, middle_obj);
+
+        if (cr == 0) {
+          found = true;
+          return middle_idx;
+        }
+
+        if (cr > 0)
+          high_idx = middle_idx - 1;
+        else
+          low_idx = middle_idx + 1;
+      }
+
+      found = false;
+      return -1;
     }
+  }
+
+std_alg:
+  int64 low_idx = 0;
+  int64 high_idx = len - 1;
+
+  while (low_idx <= high_idx) {
+    int64 middle_idx = (low_idx + high_idx) / 2;
+    OBJ middle_obj = sorted_array[middle_idx];
+
+    int cr = comp_objs(obj, middle_obj);
+
+    if (cr == 0) {
+      found = true;
+      return middle_idx;
+    }
+
+    if (cr > 0)
+      high_idx = middle_idx - 1;
+    else
+      low_idx = middle_idx + 1;
   }
 
   found = false;
