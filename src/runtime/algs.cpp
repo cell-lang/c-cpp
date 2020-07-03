@@ -2,20 +2,6 @@
 #include "extern.h"
 
 
-struct obj_less {
-  bool operator () (OBJ obj1, OBJ obj2) {
-    return comp_objs(obj1, obj2) > 0;
-  }
-};
-
-struct obj_inline_less {
-  bool operator () (OBJ obj1, OBJ obj2) {
-    return shallow_cmp(obj1, obj2) > 0;
-  }
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
 uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) { // The array mustn't contain duplicates
   if (len > 0) {
     int64 low_idx = 0;
@@ -238,93 +224,6 @@ uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 sort_unique(OBJ *objs, uint32 size) {
-  if (size < 2)
-    return size;
-
-  uint32 low_idx = 0;
-  uint32 high_idx = size - 1; // size is greater than 0 (actually 1) here, so this is always non-negative (actually positive)
-  for ( ; ; ) {
-    // Advancing the lower cursor to the next non-inline object
-    while (low_idx < high_idx & is_inline_obj(objs[low_idx]))
-      low_idx++;
-
-    // Advancing the upper cursor to the next inline object
-    while (high_idx > low_idx & not is_inline_obj(objs[high_idx]))
-      high_idx--;
-
-    if (low_idx == high_idx)
-      break;
-
-    OBJ tmp = objs[low_idx];
-    objs[low_idx] = objs[high_idx];
-    objs[high_idx] = tmp;
-  }
-
-  uint32 inline_count = is_inline_obj(objs[low_idx]) ? low_idx + 1 : low_idx;
-
-  uint32 idx = 0;
-  if (inline_count > 0) {
-    std::sort(objs, objs+inline_count, obj_inline_less());
-
-    OBJ last_obj = objs[0];
-    for (uint32 i=1 ; i < inline_count ; i++) {
-      OBJ next_obj = objs[i];
-      if (!inline_eq(last_obj, next_obj)) {
-        idx++;
-        last_obj = next_obj;
-        assert(idx <= i);
-        if (idx != i)
-          objs[idx] = next_obj;
-      }
-    }
-
-    idx++;
-    if (inline_count == size)
-      return idx;
-  }
-
-  uint32 non_inline_count = size - inline_count;
-  if (non_inline_count <= 1024) {
-    // OBJ buff1[1024];
-    // OBJ buff2[1024];
-
-    // for (int i=0 ; i < non_inline_count ; i++)
-    //   buff1[i] = objs[i + inline_count];
-
-    // OBJ *custom_sort(OBJ *ys, OBJ *zs, int size);
-    // OBJ *final_buff = custom_sort(buff1, buff2, non_inline_count);
-
-    // std::sort(objs+inline_count, objs+size, obj_less());
-
-    // for (int i=0 ; i < non_inline_count ; i++)
-    //   assert(are_eq(final_buff[i], objs[i + inline_count]));
-
-    OBJ buffer[1024];
-
-    OBJ *custom_sort(OBJ *, OBJ *, int);
-    OBJ *final_buff = custom_sort(objs + inline_count, buffer, non_inline_count);
-
-    if (final_buff == buffer)
-      memcpy(objs + inline_count, buffer, non_inline_count * sizeof(OBJ));
-  }
-  else
-    std::sort(objs+inline_count, objs+size, obj_less());
-
-  if (idx != inline_count)
-    objs[idx] = objs[inline_count];
-
-  for (uint32 i=inline_count+1 ; i < size ; i++)
-    if (!are_eq(objs[idx], objs[i])) {
-      idx++;
-      assert(idx <= i);
-      if (idx != i)
-        objs[idx] = objs[i];
-    }
-
-  return idx + 1;
-}
-
 uint32 adjust_map_with_duplicate_keys(OBJ *keys, OBJ *values, uint32 size) {
   assert(size >= 2);
 
@@ -393,11 +292,6 @@ uint32 sort_and_check_no_dups(OBJ *keys, OBJ *values, uint32 size) {
   }
 
   return size;
-}
-
-
-void sort_obj_array(OBJ *objs, uint32 len) {
-  std::sort(objs, objs+len, obj_less());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
