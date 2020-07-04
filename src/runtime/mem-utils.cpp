@@ -289,10 +289,11 @@ static OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
   return make_tag_obj(tag_obj);
 }
 
-OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
+OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
+
   OBJ_TYPE type = get_physical_type(obj);
 
-  if (type == TYPE_NE_SEQ) {
+  if (type == TYPE_NE_SEQ | type == TYPE_NE_SET) {
     if (get_tags_count(obj) == 0) {
       // No need to clear anything, both fields are already blank
       obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
@@ -320,6 +321,14 @@ OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
 
   return make_ref_tag_obj(tag_id, obj);
 }
+
+
+OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
+  OBJ tag_obj = make_tag_obj_(tag_id, obj);
+  assert(!(get_physical_type(tag_obj) == TYPE_NE_SET & get_tags_count(tag_obj) == 2));
+  return tag_obj;
+}
+
 
 OBJ make_opt_tag_rec(void *ptr, uint16 repr_id) {
   OBJ obj;
