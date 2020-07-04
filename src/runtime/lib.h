@@ -156,7 +156,7 @@ struct STREAM {
   OBJ    *buffer;
   uint32  capacity;
   uint32  count;
-  OBJ     inline_buffer[32];
+  OBJ     internal_buffer[32];
 };
 
 ////////////////////////////////////////////////////////////////////////////////

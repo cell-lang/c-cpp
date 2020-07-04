@@ -3,7 +3,7 @@
 
 
 void init(STREAM &s) {
-  s.buffer = s.inline_buffer;
+  s.buffer = s.internal_buffer;
   s.capacity = 32;
   s.count = 0;
 }
@@ -53,6 +53,9 @@ OBJ build_seq(STREAM &s) {
   return build_seq_copy(s.buffer, s.count);
 }
 
+inline OBJ make_raw_set(OBJ *elts, uint32 size) {
+  return make_set((SET_OBJ *) elts, size);
+}
 
 OBJ build_set(OBJ *elts, uint32 size) {
   if (size == 0)
@@ -64,22 +67,16 @@ OBJ build_set(OBJ *elts, uint32 size) {
 
     int cr = comp_objs(elt0, elt1);
 
-    if (cr == 0) {
-      SET_OBJ *set = new_set(1);
-      set->buffer[0] = elt0;
-      return make_set(set, 1);
+    if (cr == 0)
+      return make_raw_set(elts, 1);
+
+    if (cr < 0) {
+      // elts[0] > elts[1], swapping
+      elts[0] = elt1;
+      elts[1] = elt0;
     }
 
-    SET_OBJ *set = new_set(2);
-    if (cr > 0) { // elts[0] < elts[1]
-      set->buffer[0] = elt0;
-      set->buffer[1] = elt1;
-    }
-    else { // elts[0] > elts[1]
-      set->buffer[0] = elt1;
-      set->buffer[1] = elt0;
-    }
-    return make_set(set, 2);
+    return make_raw_set(elts, 2);
   }
 
   // if (size == 3) {
@@ -169,22 +166,28 @@ OBJ build_set(OBJ *elts, uint32 size) {
   if (size > 1)
     size = sort_unique(elts, size);
 
-  SET_OBJ *set = new_set(size);
-  OBJ *es = set->buffer;
-  for (uint32 i=0 ; i < size ; i++)
-    es[i] = elts[i];
-
-  return make_set(set, size);
+  return make_raw_set(elts, size);
 }
 
 OBJ build_set(STREAM &s) {
   // assert((s.count == 0 && s.capacity == 0 && s.buffer == NULL) || (s.count > 0 && s.capacity > 0 && s.buffer != NULL));
 
-  uint32 count = s.count;
-  if (count == 0)
+  uint32 size = s.count;
+  if (size == 0)
     return make_empty_rel();
 
-  return build_set(s.buffer, count);
+  OBJ *buffer = s.buffer;
+
+  if (buffer != s.internal_buffer)
+    return build_set(buffer, size);
+
+  if (size > 1)
+    size = sort_unique(buffer, size);
+
+  SET_OBJ *ptr = new_set(size);
+  memcpy(ptr->buffer, buffer, size * sizeof(OBJ));
+
+  return make_set(ptr, size);
 }
 
 OBJ int_to_float(OBJ obj) {
