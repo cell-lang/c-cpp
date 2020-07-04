@@ -364,9 +364,19 @@ double get_float(OBJ obj) {
   return obj.core_data.float_;
 }
 
+uint32 read_size_field(OBJ obj) {
+  return GET(obj.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
+}
+
 uint32 get_seq_length(OBJ seq) {
   assert(is_seq(seq));
-  return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
+  return read_size_field(seq);
+}
+
+uint32 get_set_size(OBJ set) {
+  assert(is_set(set));
+  assert(read_size_field(set) == get_set_ptr(set)->size_);
+  return read_size_field(set);
 }
 
 uint16 get_tag_id(OBJ obj) {
@@ -678,10 +688,6 @@ OBJ repoint_slice_to_seq(OBJ obj, SEQ_OBJ *ptr) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-uint32 get_seq_length_(OBJ seq) {
-  return GET(seq.extra_data, LENGTH_SHIFT, LENGTH_WIDTH);
-}
 
 uint16 get_inline_tag_id(OBJ obj) {
   assert(get_tags_count(obj) > 0);

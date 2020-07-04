@@ -89,7 +89,7 @@ struct SEQ_OBJ {
 };
 
 struct SET_OBJ {
-  uint32  size;
+  uint32  size_;
   OBJ     buffer[1];
 };
 
@@ -248,6 +248,7 @@ bool   get_bool(OBJ);
 int64  get_int(OBJ);
 double get_float(OBJ);
 uint32 get_seq_length(OBJ);
+uint32 get_set_size(OBJ);
 uint16 get_tag_id(OBJ);
 OBJ    get_inner_obj(OBJ);
 

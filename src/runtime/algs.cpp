@@ -448,12 +448,12 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
     }
 
     case TYPE_NE_SET: {
-      SET_OBJ *set1 = get_set_ptr(obj1);
-      SET_OBJ *set2 = get_set_ptr(obj2);
-      uint32 size1 = set1->size;
-      uint32 size2 = set2->size;
+      uint32 size1 = get_set_size(obj1);
+      uint32 size2 = get_set_size(obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG BUG BUG
+      SET_OBJ *set1 = get_set_ptr(obj1);
+      SET_OBJ *set2 = get_set_ptr(obj2);
       count = size1;
       elems1 = set1->buffer;
       elems2 = set2->buffer;

@@ -3,8 +3,7 @@
 
 
 uint32 get_tags_count(OBJ obj);
-
-uint32 get_seq_length_(OBJ seq);
+uint32 read_size_field(OBJ seq);
 uint16 get_inline_tag_id(OBJ obj);
 uint16 get_nested_inline_tag_id(OBJ obj);
 OBJ untag_opt_tag_rec(OBJ obj);
@@ -77,8 +76,8 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       assert(phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE);
       assert(phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE);
 
-      int len1 = get_seq_length_(obj1);
-      int len2 = get_seq_length_(obj2);
+      int len1 = read_size_field(obj1);
+      int len2 = read_size_field(obj2);
 
       if (len1 != len2)
         return len2 - len1;
@@ -94,14 +93,14 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       assert(phys_type_1 == TYPE_NE_SET);
       assert(phys_type_2 == TYPE_NE_SET);
 
-      SET_OBJ *ptr1 = (SET_OBJ *) obj1.core_data.ptr;
-      SET_OBJ *ptr2 = (SET_OBJ *) obj2.core_data.ptr;
-
-      int size1 = ptr1->size;
-      int size2 = ptr2->size;
+      int size1 = read_size_field(obj1);
+      int size2 = read_size_field(obj2);
 
       if (size1 != size2)
         return size2 - size1; //## BUG
+
+      SET_OBJ *ptr1 = (SET_OBJ *) obj1.core_data.ptr;
+      SET_OBJ *ptr2 = (SET_OBJ *) obj2.core_data.ptr;
 
       count = size1;
       elts1 = ptr1->buffer;

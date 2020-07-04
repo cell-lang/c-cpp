@@ -335,8 +335,8 @@ OBJ internal_sort(OBJ set) {
   if (is_empty_rel(set))
     return make_empty_seq();
 
+  uint32 size = get_set_size(set);
   SET_OBJ *s = get_set_ptr(set);
-  uint32 size = s->size;
   OBJ *src = s->buffer;
 
   SEQ_OBJ *seq = new_seq(size);
@@ -378,7 +378,7 @@ void get_set_iter(SET_ITER &it, OBJ set) {
   if (!is_empty_rel(set)) {
     SET_OBJ *ptr = get_set_ptr(set);
     it.buffer = ptr->buffer;
-    it.size = ptr->size;
+    it.size = get_set_size(set);
   }
   else {
     it.buffer = 0;  //## NOT STRICTLY NECESSARY

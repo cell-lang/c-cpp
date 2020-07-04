@@ -31,9 +31,10 @@ bool is_out_of_range(TERN_REL_ITER &it) {
 bool contains(OBJ set, OBJ elem) {
   if (is_empty_rel(set))
     return false;
+  uint32 size = get_set_size(set);
   SET_OBJ *s = get_set_ptr(set);
   bool found;
-  find_obj(s->buffer, s->size, elem, found);
+  find_obj(s->buffer, size, elem, found);
   return found;
 }
 
@@ -231,7 +232,7 @@ uint32 get_size(OBJ coll) {
     return 0;
 
   if (is_ne_set(coll))
-    return get_set_ptr(coll)->size;
+    return get_set_size(coll);
 
   if (is_opt_rec(coll))
     return opt_repr_get_fields_count(get_opt_repr_ptr(coll), get_opt_repr_id(coll));
@@ -322,8 +323,9 @@ OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it) {
 }
 
 OBJ rand_set_elem(OBJ set) {
+  uint32 size = get_set_size(set);
   SET_OBJ *set_ptr = get_set_ptr(set);
-  uint32 idx = rand() % set_ptr->size;
+  uint32 idx = rand() % size;
   return set_ptr->buffer[idx];
 }
 

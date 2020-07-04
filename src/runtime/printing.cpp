@@ -134,7 +134,7 @@ void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *d
   emit(data, "[", TEXT);
   if (!is_empty_rel(obj)) {
     SET_OBJ *set = get_set_ptr(obj);
-    uint32 size = set->size;
+    uint32 size = get_set_size(obj);
     OBJ *elems = set->buffer;
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)

@@ -86,7 +86,7 @@ SEQ_OBJ *new_seq(uint32 length, uint32 capacity) {
 
 SET_OBJ *new_set(uint32 size) {
   SET_OBJ *set = (SET_OBJ *) new_obj(set_obj_mem_size(size));
-  set->size = size;
+  set->size_ = size;
   return set;
 }
 

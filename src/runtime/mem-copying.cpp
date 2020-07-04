@@ -1,7 +1,7 @@
 #include "lib.h"
 #include "extern.h"
 
-uint32 get_seq_length_(OBJ seq);
+uint32 read_size_field(OBJ seq);
 
 
 uint64 set_obj_mem_size(uint64 size);
@@ -117,8 +117,7 @@ SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
 //   }
 // }
 
-SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set) {
-  uint32 size = set->size;
+SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set, uint32 size) {
   if (size > 0) {
     // The object has not been copied yet, so we do it now.
     SET_OBJ *set_copy = new_set(size);
@@ -255,13 +254,13 @@ OBJ copy_obj(OBJ obj) {
   switch (get_physical_type(obj)) {
     case TYPE_NE_SEQ: {
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length_(obj));
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, get_seq_length_(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), read_size_field(obj));
+      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
       return repoint_to_copy(obj, seq_copy->buffer);
     }
 
     case TYPE_NE_SET: {
-      SET_OBJ *set_copy = make_or_get_set_obj_copy(get_set_ptr(obj));
+      SET_OBJ *set_copy = make_or_get_set_obj_copy(get_set_ptr(obj), read_size_field(obj));
       return repoint_to_copy(obj, set_copy);
     }
 
@@ -281,8 +280,8 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_SLICE: {
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), get_seq_length_(obj));
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, get_seq_length_(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), read_size_field(obj));
+      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
       return repoint_slice_to_seq(obj, seq_copy);
     }
 
