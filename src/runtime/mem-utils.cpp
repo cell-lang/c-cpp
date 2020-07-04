@@ -375,7 +375,6 @@ uint32 get_seq_length(OBJ seq) {
 
 uint32 get_set_size(OBJ set) {
   assert(is_set(set));
-  assert(read_size_field(set) == get_set_ptr(set)->size_);
   return read_size_field(set);
 }
 

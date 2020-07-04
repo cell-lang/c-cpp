@@ -89,7 +89,6 @@ struct SEQ_OBJ {
 };
 
 struct SET_OBJ {
-  uint32  size_;
   OBJ     buffer[1];
 };
 
@@ -191,9 +190,9 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ*);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
 
-SET_OBJ      *new_set(uint32 size);                     // Sets size
-SEQ_OBJ      *new_seq(uint32 length);                   // Sets length, capacity and elems
-SEQ_OBJ      *new_seq(uint32 length, uint32 capacity);  // Sets length, capacity and elems
+SET_OBJ      *new_set(uint32 size);
+SEQ_OBJ      *new_seq(uint32 length);                   // Sets length and capacity
+SEQ_OBJ      *new_seq(uint32 length, uint32 capacity);  // Sets length and capacity
 BIN_REL_OBJ  *new_map(uint32 size);                     // Sets size, and clears rev_idxs
 BIN_REL_OBJ  *new_bin_rel(uint32 size);                 // Sets size
 TERN_REL_OBJ *new_tern_rel(uint32 size);                // Sets size
