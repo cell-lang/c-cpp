@@ -67,7 +67,7 @@ OBJ build_set(OBJ *elts, uint32 size) {
     if (cr == 0) {
       SET_OBJ *set = new_set(1);
       set->buffer[0] = elt0;
-      return make_set(set);
+      return make_set(set, 1);
     }
 
     SET_OBJ *set = new_set(2);
@@ -79,7 +79,7 @@ OBJ build_set(OBJ *elts, uint32 size) {
       set->buffer[0] = elt1;
       set->buffer[1] = elt0;
     }
-    return make_set(set);
+    return make_set(set, 2);
   }
 
   // if (size == 3) {
@@ -174,7 +174,7 @@ OBJ build_set(OBJ *elts, uint32 size) {
   for (uint32 i=0 ; i < size ; i++)
     es[i] = elts[i];
 
-  return make_set(set);
+  return make_set(set, size);
 }
 
 OBJ build_set(STREAM &s) {

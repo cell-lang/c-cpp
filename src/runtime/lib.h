@@ -261,7 +261,7 @@ OBJ make_int(uint64 value);
 OBJ make_float(double value);
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice(OBJ *ptr, uint32 length);
-OBJ make_set(SET_OBJ*);
+OBJ make_set(SET_OBJ*, uint32 size);
 OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
 OBJ make_log_map(BIN_REL_OBJ*);

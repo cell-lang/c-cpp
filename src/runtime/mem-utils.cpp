@@ -61,7 +61,7 @@ const uint64 EMPTY_SEQ_MASK         = MAKE_TYPE(TYPE_EMPTY_SEQ);
 const uint64 EMPTY_REL_MASK         = MAKE_TYPE(TYPE_EMPTY_REL);
 const uint64 NE_SEQ_BASE_MASK       = MAKE_TYPE(TYPE_NE_SEQ);
 const uint64 NE_SLICE_BASE_MASK     = MAKE_TYPE(TYPE_NE_SLICE);
-const uint64 NE_SET_MASK            = MAKE_TYPE(TYPE_NE_SET);
+const uint64 NE_SET_BASE_MASK       = MAKE_TYPE(TYPE_NE_SET);
 const uint64 NE_BIN_REL_MASK        = MAKE_TYPE(TYPE_NE_BIN_REL);
 const uint64 NE_MAP_MASK            = MAKE_TYPE(TYPE_NE_MAP);
 const uint64 NE_LOG_MAP_MASK        = MAKE_TYPE(TYPE_NE_LOG_MAP);
@@ -208,7 +208,7 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer;
-  obj.extra_data = length | NE_SEQ_BASE_MASK;
+  obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_BASE_MASK;
   return obj;
 }
 
@@ -228,15 +228,20 @@ OBJ make_empty_seq() {
   return obj;
 }
 
-OBJ make_set(SET_OBJ *ptr) {
+OBJ make_set(SET_OBJ *ptr, uint32 size) {
+  assert(ptr != NULL & size > 0);
+
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = ptr == NULL ? EMPTY_REL_MASK : NE_SET_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_SET_BASE_MASK;
   return obj;
 }
 
 OBJ make_empty_rel() {
-  return make_set(NULL);
+  OBJ obj;
+  obj.core_data.ptr = NULL;
+  obj.extra_data = EMPTY_REL_MASK;
+  return obj;
 }
 
 OBJ make_bin_rel(BIN_REL_OBJ *ptr) {
@@ -508,12 +513,12 @@ bool is_empty_rel(OBJ obj) {
 }
 
 bool is_ne_set(OBJ obj) {
-  return obj.extra_data == NE_SET_MASK;
+  return (get_physical_type(obj) == TYPE_NE_SET) & get_tags_count(obj) == 0;
 }
 
 bool is_set(OBJ obj) {
-  uint64 extra_data = obj.extra_data;
-  return extra_data == EMPTY_REL_MASK | extra_data == NE_SET_MASK;
+  uint64 type = get_physical_type(obj);
+  return (type == TYPE_NE_SET | type == TYPE_EMPTY_REL) & get_tags_count(obj) == 0;
 }
 
 bool is_ne_bin_rel(OBJ obj) {
