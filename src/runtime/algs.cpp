@@ -442,8 +442,8 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
       if (len1 != len2)
         return len2 - len1; //## BUG BUG BUG
       count = len1;
-      elems1 = get_seq_buffer_ptr(obj1);
-      elems2 = get_seq_buffer_ptr(obj2);
+      elems1 = get_seq_elts_ptr(obj1);
+      elems2 = get_seq_elts_ptr(obj2);
       break;
     }
 
@@ -452,11 +452,9 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
       uint32 size2 = get_set_size(obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG BUG BUG
-      SET_OBJ *set1 = get_set_ptr(obj1);
-      SET_OBJ *set2 = get_set_ptr(obj2);
       count = size1;
-      elems1 = set1->buffer;
-      elems2 = set2->buffer;
+      elems1 = get_set_elts_ptr(obj1);
+      elems2 = get_set_elts_ptr(obj2);
       break;
     }
 

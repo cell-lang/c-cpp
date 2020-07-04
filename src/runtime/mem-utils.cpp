@@ -420,8 +420,13 @@ OBJ get_inner_obj(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ *get_seq_buffer_ptr(OBJ obj) {
+OBJ *get_seq_elts_ptr(OBJ obj) {
   assert(is_ne_seq(obj));
+  return (OBJ *) obj.core_data.ptr;
+}
+
+OBJ *get_set_elts_ptr(OBJ obj) {
+  assert(is_ne_set(obj));
   return (OBJ *) obj.core_data.ptr;
 }
 
@@ -432,10 +437,10 @@ SEQ_OBJ* get_seq_ptr(OBJ obj) {
   return (SEQ_OBJ *) (((char *) obj.core_data.ptr) - SEQ_BUFFER_FIELD_OFFSET);
 }
 
-SET_OBJ* get_set_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_NE_SET & obj.core_data.ptr != NULL);
-  return (SET_OBJ *) obj.core_data.ptr;
-}
+// SET_OBJ* get_set_ptr(OBJ obj) {
+//   assert(get_physical_type(obj) == TYPE_NE_SET & obj.core_data.ptr != NULL);
+//   return (SET_OBJ *) obj.core_data.ptr;
+// }
 
 BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
   assert(get_physical_type(obj) == TYPE_NE_BIN_REL | get_physical_type(obj) == TYPE_NE_LOG_MAP | get_physical_type(obj) == TYPE_NE_MAP);

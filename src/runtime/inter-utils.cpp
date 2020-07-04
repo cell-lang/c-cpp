@@ -102,7 +102,7 @@ int64 utf8_size(OBJ str_obj) {
   OBJ raw_str_obj = get_inner_obj(str_obj);
   if (is_empty_seq(raw_str_obj))
     return 1;
-  OBJ *seq_buffer = get_seq_buffer_ptr(raw_str_obj);
+  OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
   uint32 len = get_seq_length(raw_str_obj);
   return to_utf8(seq_buffer, len, NULL);
 }
@@ -111,7 +111,7 @@ void obj_to_str(OBJ str_obj, char *buffer, uint32 size) {
   OBJ raw_str_obj = get_inner_obj(str_obj);
 
   if (!is_empty_seq(raw_str_obj)) {
-    OBJ *seq_buffer = get_seq_buffer_ptr(raw_str_obj);
+    OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
     uint32 len = get_seq_length(raw_str_obj);
     int64 min_size = to_utf8(seq_buffer, len, NULL);
     if (size < min_size)
@@ -129,7 +129,7 @@ char *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
   }
 
   uint32 len = get_seq_length(byte_seq_obj);
-  OBJ *elems = get_seq_buffer_ptr(byte_seq_obj);
+  OBJ *elems = get_seq_elts_ptr(byte_seq_obj);
   char *buffer = new_byte_array(len);
   for (uint32 i=0 ; i < len ; i++) {
     long long val = get_int(elems[i]);

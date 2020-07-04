@@ -32,9 +32,9 @@ bool contains(OBJ set, OBJ elem) {
   if (is_empty_rel(set))
     return false;
   uint32 size = get_set_size(set);
-  SET_OBJ *s = get_set_ptr(set);
+  OBJ *elts = get_set_elts_ptr(set);
   bool found;
-  find_obj(s->buffer, size, elem, found);
+  find_obj(elts, size, elem, found);
   return found;
 }
 
@@ -264,7 +264,7 @@ OBJ at(OBJ seq, int64 idx) {
   assert(is_seq(seq));
   if (((uint64) idx) >= get_seq_length(seq))
     soft_fail("Invalid sequence index");
-  return get_seq_buffer_ptr(seq)[idx];
+  return get_seq_elts_ptr(seq)[idx];
 }
 
 OBJ get_curr_obj(SEQ_ITER &it) {
@@ -324,9 +324,9 @@ OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it) {
 
 OBJ rand_set_elem(OBJ set) {
   uint32 size = get_set_size(set);
-  SET_OBJ *set_ptr = get_set_ptr(set);
+  OBJ *elts = get_set_elts_ptr(set);
   uint32 idx = rand() % size;
-  return set_ptr->buffer[idx];
+  return elts[idx];
 }
 
 OBJ lookup(OBJ rel, OBJ key) {

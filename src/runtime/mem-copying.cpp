@@ -25,7 +25,7 @@ uint32 copy_memory_size(OBJ obj, bool (*already_in_place)(void*, void*), void *s
     }
 
     case TYPE_NE_SET: {
-      SET_OBJ *ptr = get_set_ptr(obj);
+      // SET_OBJ *ptr = get_set_ptr(obj);
 
     }
 
@@ -117,15 +117,14 @@ SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
 //   }
 // }
 
-SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set, uint32 size) {
-  if (size > 0) {
+SET_OBJ *make_or_get_set_obj_copy(OBJ *elts, uint32 size) {
+  // if (size > 0) {
     // The object has not been copied yet, so we do it now.
     SET_OBJ *set_copy = new_set(size);
     // Now we copy all the elements of the sequence
-    OBJ *buff = set->buffer;
-    OBJ *buff_copy = set_copy->buffer;
+    OBJ *elts_copy = set_copy->buffer;
     for (int i=0 ; i < size ; i++)
-      buff_copy[i] = copy_obj(buff[i]);
+      elts_copy[i] = copy_obj(elts[i]);
     // We mark the old sequence as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
     // even by the memory manager, so we can safely overwrite them.
@@ -133,12 +132,12 @@ SET_OBJ *make_or_get_set_obj_copy(SET_OBJ *set, uint32 size) {
     // * (SET_OBJ **) buff = set_copy;
     // Returning the new object
     return set_copy;
-  }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    SET_OBJ *set_copy = * (SET_OBJ **) set->buffer;
-    return set_copy;
-  }
+  // }
+  // else {
+  //   // The object has already been copied. We just return a pointer to the copy
+  //   SET_OBJ *set_copy = * (SET_OBJ **) set->buffer;
+  //   return set_copy;
+  // }
 }
 
 BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
@@ -254,13 +253,14 @@ OBJ copy_obj(OBJ obj) {
   switch (get_physical_type(obj)) {
     case TYPE_NE_SEQ: {
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), read_size_field(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
       SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
       return repoint_to_copy(obj, seq_copy->buffer);
     }
 
     case TYPE_NE_SET: {
-      SET_OBJ *set_copy = make_or_get_set_obj_copy(get_set_ptr(obj), read_size_field(obj));
+      SET_OBJ *ptr = (SET_OBJ *) get_ref_obj_ptr(obj);
+      SET_OBJ *set_copy = make_or_get_set_obj_copy(ptr->buffer, read_size_field(obj));
       return repoint_to_copy(obj, set_copy);
     }
 
@@ -280,7 +280,7 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_SLICE: {
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_buffer_ptr(obj), read_size_field(obj));
+      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
       SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
       return repoint_slice_to_seq(obj, seq_copy);
     }

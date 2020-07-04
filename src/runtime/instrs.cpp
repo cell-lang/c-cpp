@@ -221,7 +221,7 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   //   ## IMPLEMENT
   // }
 
-  OBJ *ptr = get_seq_buffer_ptr(seq);
+  OBJ *ptr = get_seq_elts_ptr(seq);
   return make_slice(ptr + idx_first, len);
 }
 
@@ -249,7 +249,7 @@ OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
     }
   }
 
-  OBJ *buffer = get_seq_buffer_ptr(seq);
+  OBJ *buffer = get_seq_elts_ptr(seq);
 
   SEQ_OBJ *new_seq_ptr = new_seq(new_length, next_size(length, new_length));
   OBJ *new_buffer = new_seq_ptr->buffer;
@@ -278,7 +278,7 @@ OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already refere
   if (int_idx < 0 | int_idx >= len)
     soft_fail("Invalid sequence index");
 
-  OBJ *src_ptr = get_seq_buffer_ptr(seq);
+  OBJ *src_ptr = get_seq_elts_ptr(seq);
   SEQ_OBJ *new_seq_ptr = new_seq(len);
 
   new_seq_ptr->buffer[int_idx] = value;
@@ -303,7 +303,7 @@ OBJ join_seqs(OBJ left, OBJ right) {
   if (left_len + right_len > 0xFFFFFFFF)
     impl_fail("_cat_(): Resulting sequence is too large");
 
-  return extend_sequence(left, get_seq_buffer_ptr(right), right_len);
+  return extend_sequence(left, get_seq_elts_ptr(right), right_len);
 }
 
 OBJ rev_seq(OBJ seq) {
@@ -313,7 +313,7 @@ OBJ rev_seq(OBJ seq) {
   if (len <= 1)
     return seq;
 
-  OBJ *elems = get_seq_buffer_ptr(seq);
+  OBJ *elems = get_seq_elts_ptr(seq);
 
   SEQ_OBJ *rs = new_seq(len);
   OBJ *rev_elems = rs->buffer;
@@ -327,7 +327,7 @@ void set_at(OBJ seq, uint32 idx, OBJ value) { // Value must be already reference
   // This is not called directly by the user, so asserts should be sufficient
   assert(idx < get_seq_length(seq));
 
-  OBJ *target = get_seq_buffer_ptr(seq) + idx;
+  OBJ *target = get_seq_elts_ptr(seq) + idx;
   *target = value;
 }
 
@@ -336,8 +336,7 @@ OBJ internal_sort(OBJ set) {
     return make_empty_seq();
 
   uint32 size = get_set_size(set);
-  SET_OBJ *s = get_set_ptr(set);
-  OBJ *src = s->buffer;
+  OBJ *src = get_set_elts_ptr(set);
 
   SEQ_OBJ *seq = new_seq(size);
   OBJ *dest = seq->buffer;
@@ -376,8 +375,7 @@ OBJ print_value(OBJ obj) {
 void get_set_iter(SET_ITER &it, OBJ set) {
   it.idx = 0;
   if (!is_empty_rel(set)) {
-    SET_OBJ *ptr = get_set_ptr(set);
-    it.buffer = ptr->buffer;
+    it.buffer = get_set_elts_ptr(set);
     it.size = get_set_size(set);
   }
   else {
@@ -389,7 +387,7 @@ void get_set_iter(SET_ITER &it, OBJ set) {
 void get_seq_iter(SEQ_ITER &it, OBJ seq) {
   it.idx = 0;
   if (!is_empty_seq(seq)) {
-    it.buffer = get_seq_buffer_ptr(seq);
+    it.buffer = get_seq_elts_ptr(seq);
     it.len = get_seq_length(seq);
   }
   else {

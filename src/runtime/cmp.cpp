@@ -99,8 +99,8 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG
 
-      SET_OBJ *ptr1 = (SET_OBJ *) obj1.core_data.ptr;
-      SET_OBJ *ptr2 = (SET_OBJ *) obj2.core_data.ptr;
+      SET_OBJ *ptr1 = (SET_OBJ *) get_ref_obj_ptr(obj1);
+      SET_OBJ *ptr2 = (SET_OBJ *) get_ref_obj_ptr(obj2);
 
       count = size1;
       elts1 = ptr1->buffer;

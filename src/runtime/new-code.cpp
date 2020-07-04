@@ -17,7 +17,7 @@ int64 get_inner_long(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
-  return is_empty_seq(seq) ? NULL : get_seq_buffer_ptr(seq);
+  return is_empty_seq(seq) ? NULL : get_seq_elts_ptr(seq);
 }
 
 int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
@@ -26,7 +26,7 @@ int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_int64_array(len);
-  OBJ *seq_buffer = get_seq_buffer_ptr(seq);
+  OBJ *seq_buffer = get_seq_elts_ptr(seq);
   for (int i=0 ; i < len ; i++)
     buffer[i] = get_int(seq_buffer[i]);
   return buffer;
@@ -38,7 +38,7 @@ double* get_double_array(OBJ seq, double *buffer, int32 size) {
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_double_array(len);
-  OBJ *seq_buffer = get_seq_buffer_ptr(seq);
+  OBJ *seq_buffer = get_seq_elts_ptr(seq);
   for (int i=0 ; i < len ; i++)
     buffer[i] = get_float(seq_buffer[i]);
   return buffer;
@@ -50,7 +50,7 @@ bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
   int len = get_size(seq);
   if (buffer == NULL | size < len)
     buffer = new_bool_array(len);
-  OBJ *seq_buffer = get_seq_buffer_ptr(seq);
+  OBJ *seq_buffer = get_seq_elts_ptr(seq);
   for (int i=0 ; i < len ; i++)
     buffer[i] = get_bool(seq_buffer[i]);
   return buffer;
@@ -235,7 +235,7 @@ bool is_ne_int_seq(OBJ obj) {
     return false;
 
   int len = get_size(obj);
-  OBJ *elts = get_seq_buffer_ptr(obj);
+  OBJ *elts = get_seq_elts_ptr(obj);
   for (int i=0 ; i < len ; i++)
     if (!is_int(elts[i]))
       return false;
@@ -248,7 +248,7 @@ bool is_ne_float_seq(OBJ obj) {
     return false;
 
   int len = get_size(obj);
-  OBJ *elts = get_seq_buffer_ptr(obj);
+  OBJ *elts = get_seq_elts_ptr(obj);
   for (int i=0 ; i < len ; i++)
     if (!is_float(elts[i]))
       return false;

@@ -13,7 +13,7 @@ bool is_str(uint16 tag_id, OBJ obj) {
     return false;
 
   uint32 len = get_seq_length(obj);
-  OBJ *elems = get_seq_buffer_ptr(obj);
+  OBJ *elems = get_seq_elts_ptr(obj);
 
   for (uint32 i=0 ; i < len ; i++) {
     OBJ elem = elems[i];
@@ -59,7 +59,7 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
     return;
 
   uint32 len = get_seq_length(char_seq);
-  OBJ *chars = get_seq_buffer_ptr(char_seq);
+  OBJ *chars = get_seq_elts_ptr(char_seq);
 
   for (uint32 i=0 ; i < len ; i++) {
     int64 ch = get_int(chars[i]);
@@ -118,7 +118,7 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
     emit(data, "(", TEXT);
   if (!is_empty_seq(obj)) {
     uint32 len = get_seq_length(obj);
-    OBJ *elems = get_seq_buffer_ptr(obj);
+    OBJ *elems = get_seq_elts_ptr(obj);
     for (uint32 i=0 ; i < len ; i++) {
       if (i > 0)
         emit(data, ", ", TEXT);
@@ -133,9 +133,8 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
 void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
   if (!is_empty_rel(obj)) {
-    SET_OBJ *set = get_set_ptr(obj);
     uint32 size = get_set_size(obj);
-    OBJ *elems = set->buffer;
+    OBJ *elems = get_set_elts_ptr(obj);
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)
         emit(data, ", ", TEXT);

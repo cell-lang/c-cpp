@@ -271,7 +271,8 @@ OBJ make_opt_tag_rec(void *ptr, uint16 repr_id);
 
 // These functions exist in a limbo between the logical and physical world
 
-OBJ* get_seq_buffer_ptr(OBJ);
+OBJ* get_seq_elts_ptr(OBJ);
+OBJ* get_set_elts_ptr(OBJ);
 
 // Purely physical representation functions
 
@@ -281,7 +282,7 @@ bool is_opt_rec(OBJ);
 bool is_opt_rec_or_tag_rec(OBJ);
 
 SEQ_OBJ*      get_seq_ptr(OBJ);
-SET_OBJ*      get_set_ptr(OBJ);
+// SET_OBJ*      get_set_ptr(OBJ);
 BIN_REL_OBJ*  get_bin_rel_ptr(OBJ);
 TERN_REL_OBJ* get_tern_rel_ptr(OBJ);
 TAG_OBJ*      get_tag_obj_ptr(OBJ);
