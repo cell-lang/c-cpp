@@ -28,19 +28,40 @@ void append(STREAM &s, OBJ obj) { // obj must be already reference-counted
   s.count++;
 }
 
-OBJ build_seq(OBJ *elems, uint32 length) {
+__attribute__ ((noinline)) OBJ build_seq_elts8(OBJ *elts, uint32 length) {
+  // // uint8 *uint8_elts = (uint8 *) elts;
+  // uint8 buffer[16 * 1024];
+  // uint8 *uint8_elts = length <= 16 * 1024 ? buffer : new_uint8_array(length);
+  // for (int i=0 ; i < length ; i++)
+  //   uint8_elts[i] = get_int(elts[i]);
+  // // return make_slice_uint8(uint8_elts, length);
+  return make_slice(elts, length);
+}
+
+OBJ build_seq(OBJ *elts, uint32 length) {
   if (length == 0)
     return make_empty_seq();
 
-  return make_slice(elems, length);
+  return make_slice(elts, length);
+
+  // for (int i=0 ; i < length ; i++) {
+  //   OBJ elt = elts[i];
+  //   if (!is_int(elt))
+  //     return make_slice(elts, length);
+  //   int64 value = get_int(elt);
+  //   if (value < 0 | value > 255)
+  //     return make_slice(elts, length);
+  // }
+
+  // return build_seq_elts8(elts, length);
 }
 
 OBJ build_seq_copy(OBJ *elems, uint32 length) {
   if (length == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(length);
-  memcpy(seq->buffer, elems, length * sizeof(OBJ));
+  SEQ_OBJ *seq = new_obj_seq(length);
+  memcpy(seq->buffer.objs, elems, length * sizeof(OBJ));
   return make_seq(seq, length);
 }
 
@@ -121,7 +142,8 @@ OBJ build_set(STREAM &s) {
     return make_set(set, 2);
   }
 
-  //## Showed no improvement
+  // ## Showed no improvement
+
   // if (size == 3) {
   //   OBJ elt0 = buffer[0];
   //   OBJ elt1 = buffer[1];
@@ -226,8 +248,8 @@ OBJ blank_array(int64 size) {
   if (size <= 0) //## I DON'T LIKE THIS
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(size);
-  OBJ *buffer = seq->buffer;
+  SEQ_OBJ *seq = new_obj_seq(size);
+  OBJ *buffer = seq->buffer.objs;
   OBJ blank_obj = make_blank_obj();
 
   for (uint32 i=0 ; i < size ; i++)
@@ -249,57 +271,72 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   //   ## IMPLEMENT
   // }
 
-  OBJ *ptr = get_seq_elts_ptr(seq);
-  return make_slice(ptr + idx_first, len);
-}
-
-OBJ extend_sequence(OBJ seq, OBJ *new_elems, uint32 count) {
-  assert(!is_empty_seq(seq));
-  assert(((uint64) get_seq_length(seq) + count <= 0xFFFFFFFF));
-
-  uint32 length = get_seq_length(seq);
-  uint32 new_length = length + count;
-
-  if (get_physical_type(seq) == TYPE_NE_SEQ) {
-    SEQ_OBJ *seq_ptr = get_seq_ptr(seq);
-
-    uint32 capacity = seq_ptr->capacity;
-    uint32 used = seq_ptr->used;
-
-    bool ends_at_last_elem = length == used;
-    bool has_needed_spare_capacity = used + count <= capacity;
-    bool can_be_extended = ends_at_last_elem & has_needed_spare_capacity;
-
-    if (can_be_extended) {
-      memcpy(seq_ptr->buffer + used, new_elems, sizeof(OBJ) * count);
-      seq_ptr->used += count;
-      return make_seq(seq_ptr, new_length);
-    }
+  OBJ_TYPE type = get_physical_type(seq);
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+    uint8 *elts = get_seq_elts_ptr_uint8(seq);
+    return make_slice_uint8(elts + idx_first, len);
   }
-
-  OBJ *buffer = get_seq_elts_ptr(seq);
-
-  SEQ_OBJ *new_seq_ptr = new_seq(new_length, next_size(length, new_length));
-  OBJ *new_buffer = new_seq_ptr->buffer;
-
-  memcpy(new_buffer, buffer, sizeof(OBJ) * length);
-  memcpy(new_buffer + length, new_elems, sizeof(OBJ) * count);
-
-  return make_seq(new_seq_ptr, new_length);
+  else {
+    OBJ *ptr = get_seq_elts_ptr(seq);
+    return make_slice(ptr + idx_first, len);
+  }
 }
 
-OBJ append_to_seq(OBJ seq, OBJ obj) { // Obj must be reference counted already
+OBJ append_to_seq(OBJ seq, OBJ obj) {
   if (is_empty_seq(seq))
     return build_seq_copy(&obj, 1);
 
+  uint32 len = get_seq_length(seq);
+
   // Checking that the new sequence doesn't overflow
-  if (!(get_seq_length(seq) < 0xFFFFFFFFU))
+  if (len == 0xFFFFFFFF)
     impl_fail("Resulting sequence is too large");
 
-  return extend_sequence(seq, &obj, 1);
+  // OBJ_TYPE type = get_physical_type(seq);
+  // if (type == TYPE_NE_SEQ)
+  //   return in_place_concat_obj(get_seq_ptr(seq), len, &obj, 1);
+  // else
+  //   return concat_obj(get_seq_elts_ptr(seq), len, &obj, 1);
+
+  switch (get_physical_type(seq)) {
+    case TYPE_NE_SEQ: {
+      return in_place_concat_obj(get_seq_ptr(seq), len, &obj, 1);
+    }
+
+    case TYPE_NE_SLICE: {
+      return concat_obj(get_seq_elts_ptr(seq), len, &obj, 1);
+    }
+
+    case TYPE_NE_SEQ_UINT8: {
+      if (is_int(obj)) {
+        int64 value = get_int(obj);
+        if (value >= 0 & value < 255) {
+          uint8 value_uint8 = (uint8) value;
+          return in_place_concat_uint8(get_seq_ptr(seq), len, &value_uint8, 1);
+        }
+      }
+
+      return concat_uint8_obj(get_seq_elts_ptr_uint8(seq), len, &obj, 1);
+    }
+
+    case TYPE_NE_SLICE_UINT8: {
+      if (is_int(obj)) {
+        int64 value = get_int(obj);
+        if (value >= 0 & value < 255) {
+          uint8 value_uint8 = (uint8) value;
+          return concat_uint8(get_seq_elts_ptr_uint8(seq), len, &value_uint8, 1);
+        }
+      }
+
+      return concat_uint8_obj(get_seq_elts_ptr_uint8(seq), len, &obj, 1);
+    }
+
+    default:
+      internal_fail();
+  }
 }
 
-OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already reference counted
+OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) {
   uint32 len = get_seq_length(seq);
   int64 int_idx = get_int(idx);
 
@@ -307,12 +344,12 @@ OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already refere
     soft_fail("Invalid sequence index");
 
   OBJ *src_ptr = get_seq_elts_ptr(seq);
-  SEQ_OBJ *new_seq_ptr = new_seq(len);
+  SEQ_OBJ *new_seq_ptr = new_obj_seq(len);
 
-  new_seq_ptr->buffer[int_idx] = value;
+  new_seq_ptr->buffer.objs[int_idx] = value;
   for (uint32 i=0 ; i < len ; i++)
     if (i != int_idx)
-      new_seq_ptr->buffer[i] = src_ptr[i];
+      new_seq_ptr->buffer.objs[i] = src_ptr[i];
 
   return make_seq(new_seq_ptr, len);
 }
@@ -320,18 +357,57 @@ OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) { // Value must be already refere
 OBJ join_seqs(OBJ left, OBJ right) {
   // No need to check the parameters here
 
-  uint64 right_len = get_seq_length(right);
-  if (right_len == 0)
+  uint64 lenr = get_seq_length(right);
+  if (lenr == 0)
     return left;
 
-  uint64 left_len = get_seq_length(left);
-  if (left_len == 0)
+  uint64 lenl = get_seq_length(left);
+  if (lenl == 0)
     return right;
 
-  if (left_len + right_len > 0xFFFFFFFF)
+  if (lenl + lenr > 0xFFFFFFFF)
     impl_fail("_cat_(): Resulting sequence is too large");
 
-  return extend_sequence(left, get_seq_elts_ptr(right), right_len);
+  uint32 len = lenl + lenr;
+
+  OBJ_TYPE typel = get_physical_type(left);
+  OBJ_TYPE typer = get_physical_type(right);
+
+  if (typel == TYPE_NE_SEQ_UINT8) {
+    SEQ_OBJ *ptrl = get_seq_ptr(left);
+
+    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+      return in_place_concat_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+    return concat_uint8_obj(ptrl->buffer.uint8s, lenl, get_seq_elts_ptr(right), lenr);
+  }
+
+  if (typel == TYPE_NE_SLICE_UINT8) {
+    uint8 *eltsl = get_seq_elts_ptr_uint8(left);
+
+    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+      return concat_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+    return concat_uint8_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
+  }
+
+  if (typel == TYPE_NE_SLICE) {
+    OBJ *eltsl = get_seq_elts_ptr(left);
+
+    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+      return concat_obj_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+    return concat_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
+  }
+
+  assert(typel == TYPE_NE_SEQ);
+
+  SEQ_OBJ *ptrl = get_seq_ptr(left);
+
+  if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+    return in_place_concat_obj_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+  return in_place_concat_obj(ptrl, lenl, get_seq_elts_ptr(right), lenr);
 }
 
 OBJ rev_seq(OBJ seq) {
@@ -341,14 +417,26 @@ OBJ rev_seq(OBJ seq) {
   if (len <= 1)
     return seq;
 
-  OBJ *elems = get_seq_elts_ptr(seq);
+  OBJ_TYPE type = get_physical_type(seq);
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+    uint8 *elems = get_seq_elts_ptr_uint8(seq);
 
-  SEQ_OBJ *rs = new_seq(len);
-  OBJ *rev_elems = rs->buffer;
-  for (uint32 i=0 ; i < len ; i++)
-    rev_elems[len-i-1] = elems[i];
+    uint8 *rev_elems = new_uint8_array(len);
+    for (int i=0 ; i < len ; i++)
+      rev_elems[i] = elems[len - 1 - i];
 
-  return make_seq(rs, len);
+    return make_slice_uint8(rev_elems, len);
+  }
+  else {
+    OBJ *elems = get_seq_elts_ptr(seq);
+
+    SEQ_OBJ *rs = new_obj_seq(len);
+    OBJ *rev_elems = rs->buffer.objs;
+    for (uint32 i=0 ; i < len ; i++)
+      rev_elems[len-i-1] = elems[i];
+
+    return make_seq(rs, len);
+  }
 }
 
 void set_at(OBJ seq, uint32 idx, OBJ value) { // Value must be already reference counted
@@ -366,8 +454,8 @@ OBJ internal_sort(OBJ set) {
   uint32 size = get_set_size(set);
   OBJ *src = get_set_elts_ptr(set);
 
-  SEQ_OBJ *seq = new_seq(size);
-  OBJ *dest = seq->buffer;
+  SEQ_OBJ *seq = new_obj_seq(size);
+  OBJ *dest = seq->buffer.objs;
   for (uint32 i=0 ; i < size ; i++)
     dest[i] = src[i];
 
@@ -415,11 +503,22 @@ void get_set_iter(SET_ITER &it, OBJ set) {
 void get_seq_iter(SEQ_ITER &it, OBJ seq) {
   it.idx = 0;
   if (!is_empty_seq(seq)) {
-    it.buffer = get_seq_elts_ptr(seq);
     it.len = get_seq_length(seq);
+
+    OBJ_TYPE type = get_physical_type(seq);
+    if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+      it.buffer.uint8s = get_seq_elts_ptr_uint8(seq);
+      it.type = ELT_TYPE_UINT8;
+    }
+    else {
+      assert(type == TYPE_NE_SEQ | type == TYPE_NE_SLICE);
+      it.buffer.objs = get_seq_elts_ptr(seq);
+      it.type = ELT_TYPE_OBJ;
+    }
   }
   else {
-    it.buffer = 0; //## NOT STRICTLY NECESSARY
+    // it.buffer = 0; //## NOT STRICTLY NECESSARY
+    // it.type = -1; // Invalid value
     it.len = 0;
   }
 }
@@ -488,10 +587,10 @@ OBJ build_const_uint8_seq(const uint8* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -500,10 +599,10 @@ OBJ build_const_uint16_seq(const uint16* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -512,10 +611,10 @@ OBJ build_const_uint32_seq(const uint32* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -524,10 +623,10 @@ OBJ build_const_int8_seq(const int8* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -536,10 +635,10 @@ OBJ build_const_int16_seq(const int16* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -548,10 +647,10 @@ OBJ build_const_int32_seq(const int32* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }
@@ -560,10 +659,10 @@ OBJ build_const_int64_seq(const int64* buffer, uint32 len) {
   if (len == 0)
     return make_empty_seq();
 
-  SEQ_OBJ *seq = new_seq(len);
+  SEQ_OBJ *seq = new_obj_seq(len);
 
   for (int i=0 ; i < len ; i++)
-    seq->buffer[i] = make_int(buffer[i]);
+    seq->buffer.objs[i] = make_int(buffer[i]);
 
   return make_seq(seq, len);
 }

@@ -12,6 +12,11 @@ bool is_str(uint16 tag_id, OBJ obj) {
   if (!is_ne_seq(obj))
     return false;
 
+  OBJ_TYPE type = get_physical_type(obj);
+
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
+    return true;
+
   uint32 len = get_seq_length(obj);
   OBJ *elems = get_seq_elts_ptr(obj);
 
@@ -59,26 +64,54 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
     return;
 
   uint32 len = get_seq_length(char_seq);
-  OBJ *chars = get_seq_elts_ptr(char_seq);
 
-  for (uint32 i=0 ; i < len ; i++) {
-    int64 ch = get_int(chars[i]);
-    assert(ch >= 0 & ch < 65536);
-    if (ch >= ' ' & ch <= '~') {
-      buffer[0] = '\\';
-      buffer[1] = ch;
-      buffer[2] = '\0';
-      emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
+  OBJ_TYPE type = get_physical_type(char_seq);
+
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+    uint8 *chars = get_seq_elts_ptr_uint8(char_seq);
+
+    for (uint32 i=0 ; i < len ; i++) {
+      int64 ch = chars[i];
+      if (ch >= ' ' & ch <= '~') {
+        buffer[0] = '\\';
+        buffer[1] = ch;
+        buffer[2] = '\0';
+        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
+      }
+      else if (ch == '\n') {
+        emit(data, "\\n", TEXT);
+      }
+      else if (ch == '\t') {
+        emit(data, "\\t", TEXT);
+      }
+      else {
+        sprintf(buffer, "\\%04llx", ch);
+        emit(data, buffer, TEXT);
+      }
     }
-    else if (ch == '\n') {
-      emit(data, "\\n", TEXT);
-    }
-    else if (ch == '\t') {
-      emit(data, "\\t", TEXT);
-    }
-    else {
-      sprintf(buffer, "\\%04llx", ch);
-      emit(data, buffer, TEXT);
+  }
+  else {
+    OBJ *chars = get_seq_elts_ptr(char_seq);
+
+    for (uint32 i=0 ; i < len ; i++) {
+      int64 ch = get_int(chars[i]);
+      assert(ch >= 0 & ch < 65536);
+      if (ch >= ' ' & ch <= '~') {
+        buffer[0] = '\\';
+        buffer[1] = ch;
+        buffer[2] = '\0';
+        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
+      }
+      else if (ch == '\n') {
+        emit(data, "\\n", TEXT);
+      }
+      else if (ch == '\t') {
+        emit(data, "\\t", TEXT);
+      }
+      else {
+        sprintf(buffer, "\\%04llx", ch);
+        emit(data, buffer, TEXT);
+      }
     }
   }
 }

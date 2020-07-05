@@ -49,8 +49,8 @@ OBJ str_to_obj(const char *c_str) {
   }
   else {
     int64 size = from_utf8(c_str, NULL);
-    SEQ_OBJ *raw_str = new_seq(size);
-    from_utf8(c_str, raw_str->buffer);
+    SEQ_OBJ *raw_str = new_obj_seq(size);
+    from_utf8(c_str, raw_str->buffer.objs);
     raw_str_obj = make_seq(raw_str, size);
   }
 
@@ -98,25 +98,81 @@ int64 to_utf8(const OBJ *chars, uint32 len, char *output) {
   return offset + 1;
 }
 
+int64 to_utf8(const uint8 *chars, uint32 len, char *output) {
+  int offset = 0;
+  for (uint32 i=0 ; i < len ; i++) {
+    int64 cp = chars[i];
+    if (cp < 0x80) {
+      if (output != NULL)
+        output[offset] = cp;
+      offset++;
+    }
+    else if (cp < 0x800) {
+      if (output != NULL) {
+        output[offset]   = 0xC0 | (cp >> 6);
+        output[offset+1] = 0x80 | (cp & 0x3F);
+      }
+      offset += 2;
+    }
+    else if (cp < 0x10000) {
+      if (output != NULL) {
+        output[offset]   = 0xE0 | (cp >> 12);
+        output[offset+1] = 0x80 | ((cp >> 6) & 0x3F);
+        output[offset+2] = 0x80 | (cp & 0x3F);
+      }
+      offset += 3;
+    }
+    else {
+      if (output != NULL) {
+        output[offset]   = 0xF0 | (cp >> 18);
+        output[offset+1] = 0x80 | ((cp >> 12) & 0x3F);
+        output[offset+2] = 0x80 | ((cp >> 6) & 0x3F);
+        output[offset+3] = 0x80 | (cp & 0x3F);
+      }
+      offset += 4;
+    }
+  }
+  if (output != NULL)
+    output[offset] = 0;
+  return offset + 1;
+}
+
 int64 utf8_size(OBJ str_obj) {
   OBJ raw_str_obj = get_inner_obj(str_obj);
   if (is_empty_seq(raw_str_obj))
     return 1;
-  OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
   uint32 len = get_seq_length(raw_str_obj);
-  return to_utf8(seq_buffer, len, NULL);
+  OBJ_TYPE type = get_physical_type(raw_str_obj);
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+    uint8 *chars = get_seq_elts_ptr_uint8(raw_str_obj);
+    return to_utf8(chars, len, NULL);
+  }
+  else {
+    OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
+    return to_utf8(seq_buffer, len, NULL);
+  }
 }
 
 void obj_to_str(OBJ str_obj, char *buffer, uint32 size) {
   OBJ raw_str_obj = get_inner_obj(str_obj);
 
   if (!is_empty_seq(raw_str_obj)) {
-    OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
     uint32 len = get_seq_length(raw_str_obj);
-    int64 min_size = to_utf8(seq_buffer, len, NULL);
-    if (size < min_size)
-      internal_fail();
-    to_utf8(seq_buffer, len, buffer);
+    OBJ_TYPE type = get_physical_type(raw_str_obj);
+    if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+      uint8 *chars = get_seq_elts_ptr_uint8(raw_str_obj);
+      int64 min_size = to_utf8(chars, len, NULL);
+      if (size < min_size)
+        internal_fail();
+      to_utf8(chars, len, buffer);
+    }
+    else {
+      OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
+      int64 min_size = to_utf8(seq_buffer, len, NULL);
+      if (size < min_size)
+        internal_fail();
+      to_utf8(seq_buffer, len, buffer);
+    }
   }
   else
     buffer[0] = '\0';

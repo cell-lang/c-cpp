@@ -646,10 +646,10 @@ void parse_string(TOKEN *token, OBJ *var) {
     return;
   }
 
-  SEQ_OBJ *raw_str = new_seq(length);
+  SEQ_OBJ *raw_str = new_obj_seq(length);
   *var = make_tag_obj(symb_id_string, make_seq(raw_str, length));
 
-  OBJ *buffer = raw_str->buffer;
+  OBJ *buffer = raw_str->buffer.objs;
 
   for (uint32 i=0 ; i < length ; i++) {
     char ch = *(text++);

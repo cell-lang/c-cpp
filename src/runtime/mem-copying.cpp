@@ -79,8 +79,8 @@ uint32 copy_memory_size(OBJ obj, bool (*already_in_place)(void*, void*), void *s
 SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
   assert(size > 0);
 
-  SEQ_OBJ *seq_copy = new_seq(size);
-  OBJ *buffer = seq_copy->buffer;
+  SEQ_OBJ *seq_copy = new_obj_seq(size);
+  OBJ *buffer = seq_copy->buffer.objs;
   for (int i=0 ; i < size ; i++)
     buffer[i] = copy_obj(array[i]);
   return seq_copy;
@@ -96,7 +96,7 @@ SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
 //     //## IF THIS IS THE ONLY REFERENCE TO THE SEQUENCE, AND IF <length> IS
 //     //## LOWER THAN SIZE, WE COULD COPY ONLY THE FIRST LENGTH ELEMENTS...
 //     uint32 size = seq->size;
-//     SEQ_OBJ *seq_copy = new_seq(size);
+//     SEQ_OBJ *seq_copy = new_obj_seq(size);
 //     // Now we copy all the elements of the sequence
 //     OBJ *buff = seq->buffer;
 //     OBJ *buff_copy = seq_copy->buffer;
@@ -255,7 +255,7 @@ OBJ copy_obj(OBJ obj) {
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
       SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
-      return repoint_to_copy(obj, seq_copy->buffer);
+      return repoint_to_copy(obj, seq_copy->buffer.objs);
     }
 
     case TYPE_NE_SET: {
@@ -307,6 +307,14 @@ OBJ copy_obj(OBJ obj) {
       uint16 repr_id = get_opt_repr_id(obj);
       void *copy = opt_repr_copy(ptr, repr_id);
       return repoint_to_copy(obj, copy);
+    }
+
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      int len = read_size_field(obj);
+      uint8 *elts_copy = new_uint8_array(len);
+      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(uint8));
+      return repoint_to_copy(obj, elts_copy);
     }
 
     default:

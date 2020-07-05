@@ -14,25 +14,27 @@ typedef unsigned long long  uint64;
 
 enum OBJ_TYPE {
   // Always inline
-  TYPE_BLANK_OBJ    = 0,
-  TYPE_NULL_OBJ     = 1,
-  TYPE_SYMBOL       = 2,
-  TYPE_INTEGER      = 3,
-  TYPE_FLOAT        = 4,
-  TYPE_EMPTY_SEQ    = 5,
-  TYPE_EMPTY_REL    = 6,
+  TYPE_BLANK_OBJ      = 0,
+  TYPE_NULL_OBJ       = 1,
+  TYPE_SYMBOL         = 2,
+  TYPE_INTEGER        = 3,
+  TYPE_FLOAT          = 4,
+  TYPE_EMPTY_SEQ      = 5,
+  TYPE_EMPTY_REL      = 6,
   // Always references
-  TYPE_NE_SEQ       = 7,    // -> OBJ[] / SEQ_OBJ
-  TYPE_NE_SET       = 8,    // -> SET_OBJ
-  TYPE_NE_BIN_REL   = 9,    // -> BIN_REL_OBJ
-  TYPE_NE_TERN_REL  = 10,   // -> TERN_REL_OBJ
-  TYPE_TAG_OBJ      = 11,   // -> TAG_OBJ
+  TYPE_NE_SEQ         = 7,    // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_SET         = 8,    // -> SET_OBJ
+  TYPE_NE_BIN_REL     = 9,    // -> BIN_REL_OBJ
+  TYPE_NE_TERN_REL    = 10,   // -> TERN_REL_OBJ
+  TYPE_TAG_OBJ        = 11,   // -> TAG_OBJ
   // Purely physical types
-  TYPE_NE_SLICE     = 12,   // -> OBJ[] / SEQ_OBJ
-  TYPE_NE_MAP       = 13,   // -> BIN_REL_OBJ--
-  TYPE_NE_LOG_MAP   = 14,   // -> BIN_REL_OBJ-
-  TYPE_OPT_REC      = 15,   // -> OBJ_*
-  TYPE_OPT_TAG_REC  = 16    // -> OBJ_*
+  TYPE_NE_SLICE       = 12,   // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_MAP         = 13,   // -> BIN_REL_OBJ--
+  TYPE_NE_LOG_MAP     = 14,   // -> BIN_REL_OBJ-
+  TYPE_OPT_REC        = 15,   // -> OBJ_*
+  TYPE_OPT_TAG_REC    = 16,   // -> OBJ_*
+  TYPE_NE_SEQ_UINT8   = 17,   // -> uint8
+  TYPE_NE_SLICE_UINT8 = 18    // -> uint8
 };
 
 
@@ -85,7 +87,10 @@ struct OBJ {
 struct SEQ_OBJ {
   uint32  capacity;
   uint32  used;
-  OBJ     buffer[1];
+  union {
+    OBJ   objs[1];
+    uint8 uint8s[1];
+  } buffer;
 };
 
 struct SET_OBJ {
@@ -110,10 +115,16 @@ struct TAG_OBJ {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef enum {ELT_TYPE_OBJ, ELT_TYPE_UINT8} ELT_TYPE;
+
 struct SEQ_ITER {
-  OBJ    *buffer;
-  uint32  idx;
-  uint32  len;
+  union {
+    OBJ   *objs;
+    uint8 *uint8s;
+  } buffer;
+  uint32    idx;
+  uint32    len;
+  ELT_TYPE  type;
 };
 
 struct SET_ITER {
@@ -191,11 +202,13 @@ OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
 
 SET_OBJ      *new_set(uint32 size);
-SEQ_OBJ      *new_seq(uint32 length);                   // Sets length and capacity
-SEQ_OBJ      *new_seq(uint32 length, uint32 capacity);  // Sets length and capacity
-BIN_REL_OBJ  *new_map(uint32 size);                     // Sets size, and clears rev_idxs
-BIN_REL_OBJ  *new_bin_rel(uint32 size);                 // Sets size
-TERN_REL_OBJ *new_tern_rel(uint32 size);                // Sets size
+SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets size and capacity
+SEQ_OBJ      *new_obj_seq(uint32 length, uint32 capacity);    // Ditto
+SEQ_OBJ      *new_uint8_seq(uint32 length);                   // Ditto
+SEQ_OBJ      *new_uint8_seq(uint32 length, uint32 capacity);  // Ditto
+BIN_REL_OBJ  *new_map(uint32 size);                           // Sets size, and clears rev_idxs
+BIN_REL_OBJ  *new_bin_rel(uint32 size);                       // Sets size
+TERN_REL_OBJ *new_tern_rel(uint32 size);                      // Sets size
 TAG_OBJ      *new_tag_obj();
 
 OBJ* new_obj_array(uint32 size);
@@ -261,6 +274,8 @@ OBJ make_int(uint64 value);
 OBJ make_float(double value);
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice(OBJ *ptr, uint32 length);
+OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length);
+OBJ make_slice_uint8(uint8 *ptr, uint32 length);
 OBJ make_set(SET_OBJ*, uint32 size);
 OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
@@ -275,6 +290,8 @@ OBJ* get_seq_elts_ptr(OBJ);
 OBJ* get_set_elts_ptr(OBJ);
 
 // Purely physical representation functions
+
+uint8 *get_seq_elts_ptr_uint8(OBJ obj);
 
 OBJ_TYPE get_physical_type(OBJ);
 
@@ -503,6 +520,21 @@ uint64 get_tick_count();   // Impure
 ////////////////////////////////// hashing.cpp /////////////////////////////////
 
 uint32 compute_hash_code(OBJ obj);
+
+////////////////////////////////// concat.cpp //////////////////////////////////
+
+bool no_sum32_overflow(uint64 x, uint64 y);
+
+OBJ in_place_concat_uint8(SEQ_OBJ *seq_ptr, uint32 length, uint8 *new_elts, uint32 count);
+OBJ in_place_concat_obj(SEQ_OBJ *seq_ptr, uint32 length, OBJ *new_elts, uint32 count);
+
+OBJ in_place_concat_obj_uint8(SEQ_OBJ *seq_ptr, uint32 length, uint8 *new_elts, uint32 count);
+
+OBJ concat_uint8(uint8 *elts1, uint32 len1, uint8 *elts2, uint32 len2);
+OBJ concat_obj(OBJ *elts1, uint32 len1, OBJ *elts2, uint32 len2);
+
+OBJ concat_uint8_obj(uint8 *elts1, uint32 len1, OBJ *elts2, uint32 len2);
+OBJ concat_obj_uint8(OBJ *elts1, uint32 len1, uint8 *elts2, uint32 len2);
 
 ///////////////////////////// not implemented yet //////////////////////////////
 

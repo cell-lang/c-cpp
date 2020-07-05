@@ -9,20 +9,23 @@ typedef struct ENV_ ENV;
 OBJ FileRead_P(OBJ filename, ENV &) {
   char *fname = obj_to_str(filename);
   int size;
-  char *data = file_read(fname, size);
+  uint8 *data = file_read(fname, size);
 
   if (size == -1)
     return make_symb(symb_id_nothing);
 
-  OBJ seq_obj = make_empty_seq();
-  if (size > 0) {
-    SEQ_OBJ *seq = new_seq(size);
-    for (uint32 i=0 ; i < size ; i++)
-      seq->buffer[i] = make_int((uint8) data[i]);
-    seq_obj = make_seq(seq, size);
-  }
+  OBJ seq = size != 0 ? make_slice_uint8(data, size) : make_empty_seq();
+  return make_tag_obj(symb_id_just, seq);
 
-  return make_tag_obj(symb_id_just, seq_obj);
+  // OBJ seq_obj = make_empty_seq();
+  // if (size > 0) {
+  //   SEQ_OBJ *seq = new_obj_seq(size);
+  //   for (uint32 i=0 ; i < size ; i++)
+  //     seq->buffer.objs[i] = make_int((uint8) data[i]);
+  //   seq_obj = make_seq(seq, size);
+  // }
+
+  // return make_tag_obj(symb_id_just, seq_obj);
 }
 
 

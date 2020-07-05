@@ -10,7 +10,7 @@ uint64 get_tick_count() {
   return 1000 * ts.tv_sec + ts.tv_nsec / 1000000;
 }
 
-char *file_read(const char *fname, int &size) {
+uint8 *file_read(const char *fname, int &size) {
   FILE *fp = fopen(fname, "r");
   if (fp == NULL) {
     size = -1;
@@ -26,15 +26,14 @@ char *file_read(const char *fname, int &size) {
     fclose(fp);
     return NULL;
   }
-  char *buff = new_byte_array(size);
-  int read = fread(buff, 1, size, fp);
+  uint8 *data = new_uint8_array(size);
+  int read = fread(data, 1, size, fp);
   fclose(fp);
   if (read != size) {
-    // delete_byte_array(buff, size);
     size = -1;
     return NULL;
   }
-  return buff;
+  return data;
 }
 
 bool file_write(const char *fname, const char *buffer, int size, bool append) {
