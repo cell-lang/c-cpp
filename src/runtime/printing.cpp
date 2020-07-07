@@ -150,12 +150,24 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
   if (print_parentheses)
     emit(data, "(", TEXT);
   if (!is_empty_seq(obj)) {
+    OBJ_TYPE type = get_physical_type(obj);
     uint32 len = get_seq_length(obj);
-    OBJ *elems = get_seq_elts_ptr(obj);
-    for (uint32 i=0 ; i < len ; i++) {
-      if (i > 0)
-        emit(data, ", ", TEXT);
-      print_obj(elems[i], emit, data);
+    if (type == TYPE_NE_SEQ | type == TYPE_NE_SLICE) {
+      OBJ *elems = get_seq_elts_ptr(obj);
+      for (uint32 i=0 ; i < len ; i++) {
+        if (i > 0)
+          emit(data, ", ", TEXT);
+        print_obj(elems[i], emit, data);
+      }
+    }
+    else {
+      assert(type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8);
+      uint8 *elts = get_seq_elts_ptr_uint8(obj);
+      for (uint32 i=0 ; i < len ; i++) {
+        if (i > 0)
+          emit(data, ", ", TEXT);
+        print_obj(make_int(elts[i]), emit, data);
+      }
     }
   }
   if (print_parentheses)
