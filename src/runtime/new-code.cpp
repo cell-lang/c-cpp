@@ -114,6 +114,24 @@ OBJ build_seq(int64* array, int32 size) {
 
 // counter_build_seq_int64++;
 
+  int64 min = 0;
+  int64 max = 127;
+
+  for (uint32 i=0 ; i < size ; i++) {
+    int64 elt = array[i];
+    if (elt < min)
+      min = elt;
+    if (elt > max)
+      max = elt;
+  }
+
+  if (min == 0 & max <= 255) {
+    uint8 *uint8_array = (uint8 *) array;
+    for (uint32 i=0 ; i < size ; i++)
+      uint8_array[i] = array[i];
+    return make_slice_uint8(uint8_array, size);
+  }
+
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -183,13 +201,16 @@ OBJ build_seq(int8* array, int32 size) {
     return make_empty_seq();
 
 // counter_build_seq_int8++;
+  for (int i=0 ; i < size ; i++)
+    if (array[i] < 0) {
+      SEQ_OBJ *seq = new_obj_seq(size);
 
-  SEQ_OBJ *seq = new_obj_seq(size);
+      for (uint32 i=0 ; i < size ; i++)
+        seq->buffer.objs[i] = make_int(array[i]);
 
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
-
-  return make_seq(seq, size);
+      return make_seq(seq, size);
+    }
+  return make_slice_uint8((uint8 *) array, size);
 }
 
 OBJ build_seq(uint8 *array, int32 size) {
