@@ -89,10 +89,6 @@ SEQ_OBJ *new_obj_seq(uint32 length, uint32 capacity) {
   return seq;
 }
 
-SEQ_OBJ *new_uint8_seq(uint32 length) {
-  return new_uint8_seq(length, (length + 7) / 8);
-}
-
 SEQ_OBJ *new_uint8_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
   assert(capacity % 8 == 0);

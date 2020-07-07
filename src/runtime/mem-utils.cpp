@@ -207,8 +207,25 @@ OBJ make_float(double value) {
   return obj;
 }
 
+static bool is_fake(OBJ *elts, uint32 length) {
+  for (int i=0 ; i < length ; i++) {
+    OBJ elt = elts[i];
+    if (!is_int(elt))
+      return false;
+    int64 value = get_int(elt);
+    if (value < 0 | value > 255)
+      return false;
+  }
+  return true;
+}
+
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
+
+// #ifndef NDEBUG
+//   if (is_fake(ptr->buffer.objs, length))
+//     printf("make_seq(..)\n");
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer.objs;
@@ -218,6 +235,11 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
 
 OBJ make_slice(OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
+
+// #ifndef NDEBUG
+//   if (is_fake(ptr, length))
+//     printf("make_slice(..)\n");
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
