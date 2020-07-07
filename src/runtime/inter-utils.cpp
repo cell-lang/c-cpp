@@ -41,17 +41,32 @@ int64 from_utf8(const char *input, OBJ *output) {
   }
 }
 
-OBJ str_to_obj(const char *c_str) {
+OBJ /*owned_*/str_to_obj(const char *c_str) {
   OBJ raw_str_obj;
 
   if (c_str[0] == 0) {
     raw_str_obj = make_empty_seq();
   }
   else {
-    int64 size = from_utf8(c_str, NULL);
-    SEQ_OBJ *raw_str = new_obj_seq(size);
-    from_utf8(c_str, raw_str->buffer.objs);
-    raw_str_obj = make_seq(raw_str, size);
+    bool is_ascii = true;
+    uint32 idx = 0;
+    for ( ; ; idx++) {
+      uint8 ch = c_str[idx];
+      if (ch == 0)
+        break;
+      if (ch > 127)
+        is_ascii = false;
+    }
+
+    if (is_ascii) {
+      raw_str_obj = make_slice_uint8((uint8 *) c_str, idx);
+    }
+    else {
+      int64 size = from_utf8(c_str, NULL);
+      SEQ_OBJ *raw_str = new_obj_seq(size);
+      from_utf8(c_str, raw_str->buffer.objs);
+      raw_str_obj = make_seq(raw_str, size);
+    }
   }
 
   return make_tag_obj(symb_id_string, raw_str_obj);
@@ -185,6 +200,13 @@ char *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
   }
 
   uint32 len = get_seq_length(byte_seq_obj);
+  size = len;
+
+  OBJ_TYPE type = get_physical_type(byte_seq_obj);
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+    return (char *) get_seq_elts_ptr_uint8(byte_seq_obj);
+  }
+
   OBJ *elems = get_seq_elts_ptr(byte_seq_obj);
   char *buffer = new_byte_array(len);
   for (uint32 i=0 ; i < len ; i++) {
@@ -192,7 +214,6 @@ char *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
     assert(val >= 0 && val <= 255);
     buffer[i] = (char) val;
   }
-  size = len;
   return buffer;
 }
 
@@ -223,9 +244,9 @@ const char *symb_to_raw_str(uint16 symb_id) {
     return dynamic_symbs_strs[symb_id - count];
 }
 
-OBJ to_str(OBJ obj) {
-  return str_to_obj(symb_to_raw_str(get_symb_id(obj)));
-}
+// OBJ to_str(OBJ obj) {
+//   return str_to_obj(symb_to_raw_str(get_symb_id(obj)));
+// }
 
 uint16 lookup_symb_id(const char *str_, uint32 len) {
   uint32 count = embedded_symbs_count();
@@ -250,12 +271,12 @@ uint16 lookup_symb_id(const char *str_, uint32 len) {
   return next_symb_id;
 }
 
-OBJ to_symb(OBJ obj) {
-  char *str = obj_to_str(obj);
-  uint32 len = strlen(str);
-  uint16 symb_id = lookup_symb_id(str, len);
-  return make_symb(symb_id);
-}
+// OBJ to_symb(OBJ obj) {
+//   char *str = obj_to_str(obj);
+//   uint32 len = strlen(str);
+//   uint16 symb_id = lookup_symb_id(str, len);
+//   return make_symb(symb_id);
+// }
 
 OBJ extern_str_to_symb(const char *str) {
   //## CHECK THAT IT'S A VALID SYMBOL, AND THAT IT'S AMONG THE "STATIC" ONES
