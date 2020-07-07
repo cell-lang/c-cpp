@@ -28,50 +28,32 @@ void append(STREAM &s, OBJ obj) { // obj must be already reference-counted
   s.count++;
 }
 
-__attribute__ ((noinline)) OBJ build_seq_elts8(OBJ *elts, uint32 length) {
-  // // uint8 *uint8_elts = (uint8 *) elts;
+__attribute__ ((noinline)) OBJ build_seq_uint8(OBJ *elts, uint32 length) {
+  uint8 *uint8_elts = (uint8 *) elts;
   // uint8 buffer[16 * 1024];
   // uint8 *uint8_elts = length <= 16 * 1024 ? buffer : new_uint8_array(length);
-  // for (int i=0 ; i < length ; i++)
-  //   uint8_elts[i] = get_int(elts[i]);
-  // // return make_slice_uint8(uint8_elts, length);
-  return make_slice(elts, length);
+  for (int i=0 ; i < length ; i++)
+    uint8_elts[i] = get_int(elts[i]);
+  return make_slice_uint8(uint8_elts, length);
+  // return make_slice(elts, length);
 }
 
 OBJ build_seq(OBJ *elts, uint32 length) {
   if (length == 0)
     return make_empty_seq();
 
-  return make_slice(elts, length);
+  // return make_slice(elts, length);
 
-  // for (int i=0 ; i < length ; i++) {
-  //   OBJ elt = elts[i];
-  //   if (!is_int(elt))
-  //     return make_slice(elts, length);
-  //   int64 value = get_int(elt);
-  //   if (value < 0 | value > 255)
-  //     return make_slice(elts, length);
-  // }
+  for (int i=0 ; i < length ; i++) {
+    OBJ elt = elts[i];
+    if (!is_int(elt))
+      return make_slice(elts, length);
+    int64 value = get_int(elt);
+    if (value < 0 | value > 255)
+      return make_slice(elts, length);
+  }
 
-  // return build_seq_elts8(elts, length);
-}
-
-OBJ build_seq_copy(OBJ *elems, uint32 length) {
-  if (length == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(length);
-  memcpy(seq->buffer.objs, elems, length * sizeof(OBJ));
-  return make_seq(seq, length);
-}
-
-OBJ build_seq(STREAM &s) {
-  if (s.count == 0)
-    return make_empty_seq();
-
-  //## COULD IT BE OPTIMIZED?
-
-  return build_seq_copy(s.buffer, s.count);
+  return build_seq_uint8(elts, length);
 }
 
 inline OBJ make_raw_set(OBJ *elts, uint32 size) {
@@ -280,6 +262,15 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
     OBJ *ptr = get_seq_elts_ptr(seq);
     return make_slice(ptr + idx_first, len);
   }
+}
+
+OBJ build_seq_copy(OBJ *elems, uint32 length) {
+  if (length == 0)
+    return make_empty_seq();
+
+  SEQ_OBJ *seq = new_obj_seq(length);
+  memcpy(seq->buffer.objs, elems, length * sizeof(OBJ));
+  return make_seq(seq, length);
 }
 
 OBJ append_to_seq(OBJ seq, OBJ obj) {
