@@ -454,6 +454,28 @@ OBJ internal_sort(OBJ set) {
   uint32 size = get_set_size(set);
   OBJ *src = get_set_elts_ptr(set);
 
+  if (is_int(src[0]) & is_int(src[size-1])) {
+    int64 min = 0;
+    int64 max = 0;
+    for (int i=0 ; i < size ; i++) {
+      int64 elt = get_int(src[i]);
+      if (elt < min)
+        min = elt;
+      if (elt > max)
+        max = elt;
+    }
+
+    if (min == 0 & max <= 255) {
+      uint32 capacity = ((((uint64) size) + 7) / 8) * 8;
+      assert(capacity >= size & capacity < size + 8);
+      SEQ_OBJ *seq_ptr = new_uint8_seq(size, capacity);
+      uint8 *elts = seq_ptr->buffer.uint8s;
+      for (int i=0 ; i < size ; i++)
+        elts[i] = get_int(src[i]);
+      return make_seq_uint8(seq_ptr, size);
+    }
+  }
+
   SEQ_OBJ *seq = new_obj_seq(size);
   OBJ *dest = seq->buffer.objs;
   for (uint32 i=0 ; i < size ; i++)
@@ -484,8 +506,13 @@ char *print_value_alloc(void *ptr, uint32 size) {
 OBJ print_value(OBJ obj) {
   uint32 size = 0;
   char *raw_str = printed_obj(obj, print_value_alloc, &size);
-  OBJ str_obj = str_to_obj(raw_str);
-  return str_obj;
+  uint32 len = strlen(raw_str);
+  //## NOTE: len IS NOT NECESSARILY EQUAL TO size - 1
+  for (int i=0 ; i < len ; i++)
+    assert(raw_str[i] > 0 & raw_str[i] <= 127);
+  return make_tag_obj(symb_id_string, make_slice_uint8((uint8 *) raw_str, len));
+  // OBJ str_obj = str_to_obj(raw_str);
+  // return str_obj;
 }
 
 void get_set_iter(SET_ITER &it, OBJ set) {
