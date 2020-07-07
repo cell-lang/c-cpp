@@ -264,30 +264,27 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   }
 }
 
-OBJ build_seq_copy(OBJ *elems, uint32 length) {
-  if (length == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(length);
-  memcpy(seq->buffer.objs, elems, length * sizeof(OBJ));
-  return make_seq(seq, length);
-}
-
 OBJ append_to_seq(OBJ seq, OBJ obj) {
-  if (is_empty_seq(seq))
-    return build_seq_copy(&obj, 1);
+  if (is_empty_seq(seq)) {
+    if (is_int(obj)) {
+      int64 value = get_int(obj);
+      if (value >= 0 & value <= 255) {
+        SEQ_OBJ *seq_ptr = new_uint8_seq(1, 16);
+        seq_ptr->buffer.uint8s[0] = value;
+        return make_seq_uint8(seq_ptr, 1);
+      }
+    }
+
+    SEQ_OBJ *seq_ptr = new_obj_seq(1);
+    seq_ptr->buffer.objs[0] = obj;
+    return make_seq(seq_ptr, 1);
+  }
 
   uint32 len = get_seq_length(seq);
 
   // Checking that the new sequence doesn't overflow
   if (len == 0xFFFFFFFF)
     impl_fail("Resulting sequence is too large");
-
-  // OBJ_TYPE type = get_physical_type(seq);
-  // if (type == TYPE_NE_SEQ)
-  //   return in_place_concat_obj(get_seq_ptr(seq), len, &obj, 1);
-  // else
-  //   return concat_obj(get_seq_elts_ptr(seq), len, &obj, 1);
 
   switch (get_physical_type(seq)) {
     case TYPE_NE_SEQ: {
