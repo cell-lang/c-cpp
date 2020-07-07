@@ -416,9 +416,9 @@ OBJ get_inner_obj(OBJ obj) {
   assert(is_tag_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
-  assert(type != TYPE_NE_SLICE);
+  assert(type != TYPE_NE_SLICE & type != TYPE_NE_SLICE_UINT8);
 
-  if (type == TYPE_NE_SEQ) {
+  if (type == TYPE_NE_SEQ | type == TYPE_NE_SEQ_UINT8) {
     assert(get_tags_count(obj) == 1);
     obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK);
     return obj;
