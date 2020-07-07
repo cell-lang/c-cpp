@@ -204,7 +204,6 @@ uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
 SET_OBJ      *new_set(uint32 size);
 SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets size and capacity
 SEQ_OBJ      *new_obj_seq(uint32 length, uint32 capacity);    // Ditto
-SEQ_OBJ      *new_uint8_seq(uint32 length);                   // Ditto
 SEQ_OBJ      *new_uint8_seq(uint32 length, uint32 capacity);  // Ditto
 BIN_REL_OBJ  *new_map(uint32 size);                           // Sets size, and clears rev_idxs
 BIN_REL_OBJ  *new_bin_rel(uint32 size);                       // Sets size
@@ -470,12 +469,9 @@ uint16 lookup_symb_id(const char *, uint32);
 
 const char *symb_to_raw_str(uint16);
 
-OBJ to_str(OBJ);
-OBJ to_symb(OBJ);
-
 OBJ extern_str_to_symb(const char *);
 
-OBJ str_to_obj(const char* c_str);
+OBJ /*owned_*/str_to_obj(const char* c_str);
 
 char* obj_to_str(OBJ str_obj);
 void obj_to_str(OBJ str_obj, char *buffer, uint32 size);
