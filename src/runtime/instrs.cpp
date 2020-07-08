@@ -275,9 +275,13 @@ OBJ append_to_seq(OBJ seq, OBJ obj) {
       }
     }
 
-    SEQ_OBJ *seq_ptr = new_obj_seq(1);
-    seq_ptr->buffer.objs[0] = obj;
-    return make_seq(seq_ptr, 1);
+    OBJ *ptr = new_obj_array(1);
+    ptr[0] = obj;
+    return make_slice(ptr, 1);
+
+    // SEQ_OBJ *seq_ptr = new_obj_seq(1, 2);
+    // seq_ptr->buffer.objs[0] = obj;
+    // return make_seq(seq_ptr, 1);
   }
 
   uint32 len = get_seq_length(seq);
@@ -292,7 +296,30 @@ OBJ append_to_seq(OBJ seq, OBJ obj) {
     }
 
     case TYPE_NE_SLICE: {
-      return concat_obj(get_seq_elts_ptr(seq), len, &obj, 1);
+      OBJ *elts = get_seq_elts_ptr(seq);
+      if (len == 1) {
+        OBJ *new_elts = new_obj_array(2);
+        new_elts[0] = elts[0];
+        new_elts[1] = obj;
+        return make_slice(new_elts, 2);
+      }
+      if (len == 2) {
+        OBJ *new_elts = new_obj_array(3);
+        new_elts[0] = elts[0];
+        new_elts[1] = elts[1];
+        new_elts[2] = obj;
+        return make_slice(new_elts, 3);
+      }
+      if (len == 3) {
+        SEQ_OBJ *seq_ptr = new_obj_seq(4, 8);
+        OBJ *new_elts = seq_ptr->buffer.objs;
+        new_elts[0] = elts[0];
+        new_elts[1] = elts[1];
+        new_elts[2] = elts[2];
+        new_elts[3] = obj;
+        return make_seq(seq_ptr, 4);
+      }
+      return concat_obj(elts, len, &obj, 1);
     }
 
     case TYPE_NE_SEQ_UINT8: {
