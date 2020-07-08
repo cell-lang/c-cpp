@@ -1,7 +1,7 @@
 #include "lib.h"
 
 
-uint32 next_size(uint32 curr_size, uint32 min_size) {
+static uint32 next_array_size(uint32 curr_size, uint32 min_size) {
   uint32 new_size = curr_size != 0 ? 2 * curr_size : 32;
   while (new_size < min_size)
     new_size *= 2;
@@ -347,7 +347,7 @@ bool is_ne_float_seq(OBJ obj) {
 
 OBJ *array_append(OBJ *array, int32 size, int32 &capacity, OBJ elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     OBJ *new_array = new_obj_array(capacity);
     memcpy(new_array, array, size * sizeof(OBJ));
     array = new_array;
@@ -358,7 +358,7 @@ OBJ *array_append(OBJ *array, int32 size, int32 &capacity, OBJ elt) {
 
 bool *array_append(bool *array, int32 size, int32 &capacity, bool elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     bool *new_array = new_bool_array(capacity);
     memcpy(new_array, array, size * sizeof(bool));
     array = new_array;
@@ -369,7 +369,7 @@ bool *array_append(bool *array, int32 size, int32 &capacity, bool elt) {
 
 double *array_append(double *array, int32 size, int32 &capacity, double elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     double *new_array = new_double_array(capacity);
     memcpy(new_array, array, size * sizeof(double));
     array = new_array;
@@ -380,7 +380,7 @@ double *array_append(double *array, int32 size, int32 &capacity, double elt) {
 
 int64 *array_append(int64 *array, int32 size, int32 &capacity, int64 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     int64 *new_array = new_int64_array(capacity);
     memcpy(new_array, array, size * sizeof(int64));
     array = new_array;
@@ -391,7 +391,7 @@ int64 *array_append(int64 *array, int32 size, int32 &capacity, int64 elt) {
 
 int32 *array_append(int32 *array, int32 size, int32 &capacity, int32 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     int32 *new_array = new_int32_array(capacity);
     memcpy(new_array, array, size * sizeof(int32));
     array = new_array;
@@ -402,7 +402,7 @@ int32 *array_append(int32 *array, int32 size, int32 &capacity, int32 elt) {
 
 uint32 *array_append(uint32 *array, int32 size, int32 &capacity, uint32 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     uint32 *new_array = new_uint32_array(capacity);
     memcpy(new_array, array, size * sizeof(uint32));
     array = new_array;
@@ -413,7 +413,7 @@ uint32 *array_append(uint32 *array, int32 size, int32 &capacity, uint32 elt) {
 
 int16 *array_append(int16 *array, int32 size, int32 &capacity, int16 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     int16 *new_array = new_int16_array(capacity);
     memcpy(new_array, array, size * sizeof(int16));
     array = new_array;
@@ -424,7 +424,7 @@ int16 *array_append(int16 *array, int32 size, int32 &capacity, int16 elt) {
 
 uint16 *array_append(uint16 *array, int32 size, int32 &capacity, uint16 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     uint16 *new_array = new_uint16_array(capacity);
     memcpy(new_array, array, size * sizeof(uint16));
     array = new_array;
@@ -435,7 +435,7 @@ uint16 *array_append(uint16 *array, int32 size, int32 &capacity, uint16 elt) {
 
 int8 *array_append(int8 *array, int32 size, int32 &capacity, int8 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     int8 *new_array = new_int8_array(capacity);
     memcpy(new_array, array, size * sizeof(int8));
     array = new_array;
@@ -446,7 +446,7 @@ int8 *array_append(int8 *array, int32 size, int32 &capacity, int8 elt) {
 
 uint8 *array_append(uint8 *array, int32 size, int32 &capacity, uint8 elt) {
   if (size == capacity) {
-    capacity = next_size(capacity, size);
+    capacity = next_array_size(capacity, size);
     uint8 *new_array = new_uint8_array(capacity);
     memcpy(new_array, array, size * sizeof(uint8));
     array = new_array;
