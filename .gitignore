@@ -37,3 +37,4 @@ cellc-1.cpp
 cellc-2.cpp
 cellc-3.cpp
 debug/
+src/stats.cpp

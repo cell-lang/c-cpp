@@ -88,8 +88,8 @@ struct SEQ_OBJ {
   uint32  capacity;
   uint32  used;
   union {
-    OBJ   objs[1];
-    uint8 uint8s[1];
+    OBJ   obj[1];
+    uint8 uint8_[1];
   } buffer;
 };
 
@@ -119,8 +119,8 @@ typedef enum {ELT_TYPE_OBJ, ELT_TYPE_UINT8} ELT_TYPE;
 
 struct SEQ_ITER {
   union {
-    OBJ   *objs;
-    uint8 *uint8s;
+    OBJ   *obj;
+    uint8 *uint8_;
   } buffer;
   uint32    idx;
   uint32    len;
@@ -366,19 +366,18 @@ OBJ lookup_field(OBJ rec, uint16 field_symb_id);
 ////////////////////////////////// instrs.cpp //////////////////////////////////
 
 void init(STREAM &s);
-void append(STREAM &s, OBJ obj);                // obj must be already reference-counted
-OBJ build_seq(OBJ* elems, uint32 length);       // Objects in elems must be already reference-counted
+void append(STREAM &s, OBJ obj);
+OBJ build_seq(OBJ* elems, uint32 length);
 OBJ build_seq(STREAM &s);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
 OBJ blank_array(int64 size);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
-OBJ append_to_seq(OBJ seq, OBJ obj);            // Both seq and obj must already be reference counted
-OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value); // Value must be reference counted already
+OBJ append_to_seq(OBJ seq, OBJ obj);
+// OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value);
 OBJ join_seqs(OBJ left, OBJ right);
 OBJ rev_seq(OBJ seq);
-void set_at(OBJ seq, uint32 idx, OBJ value);    // Value must be already reference counted
 OBJ internal_sort(OBJ set);
 OBJ parse_value(OBJ str);
 OBJ print_value(OBJ);

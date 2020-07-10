@@ -649,7 +649,7 @@ void parse_string(TOKEN *token, OBJ *var) {
   SEQ_OBJ *raw_str = new_obj_seq(length);
   *var = make_tag_obj(symb_id_string, make_seq(raw_str, length));
 
-  OBJ *buffer = raw_str->buffer.objs;
+  OBJ *buffer = raw_str->buffer.obj;
 
   for (uint32 i=0 ; i < length ; i++) {
     char ch = *(text++);

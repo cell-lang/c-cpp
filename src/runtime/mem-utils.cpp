@@ -223,12 +223,12 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
 
 // #ifndef NDEBUG
-//   if (is_fake(ptr->buffer.objs, length))
+//   if (is_fake(ptr->buffer.obj, length))
 //     printf("make_seq(..)\n");
 // #endif
 
   OBJ obj;
-  obj.core_data.ptr = ptr->buffer.objs;
+  obj.core_data.ptr = ptr->buffer.obj;
   obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_BASE_MASK;
   return obj;
 }
@@ -251,7 +251,7 @@ OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
 
   OBJ obj;
-  obj.core_data.ptr = ptr->buffer.uint8s;
+  obj.core_data.ptr = ptr->buffer.uint8_;
   obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_UINT8_BASE_MASK;
   return obj;
 }

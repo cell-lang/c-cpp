@@ -21,7 +21,7 @@ OBJ FileRead_P(OBJ filename, ENV &) {
   // if (size > 0) {
   //   SEQ_OBJ *seq = new_obj_seq(size);
   //   for (uint32 i=0 ; i < size ; i++)
-  //     seq->buffer.objs[i] = make_int((uint8) data[i]);
+  //     seq->buffer.obj[i] = make_int((uint8) data[i]);
   //   seq_obj = make_seq(seq, size);
   // }
 

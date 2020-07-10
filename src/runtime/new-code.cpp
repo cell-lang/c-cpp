@@ -86,33 +86,9 @@ bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// static uint64 counter_build_seq_int64;
-// static uint64 counter_build_seq_int32;
-// static uint64 counter_build_seq_uint32;
-// static uint64 counter_build_seq_int16;
-// static uint64 counter_build_seq_uint16;
-// static uint64 counter_build_seq_int8;
-// static uint64 counter_build_seq_uint8;
-
-void print_build_seq_stats() {
-  // extern uint64 counter_build_seq_obj;
-  // extern uint64 counter_build_seq_obj_stream;
-
-  // printf("obj:    %lld - %lld\n", counter_build_seq_obj, counter_build_seq_obj_stream);
-  // printf("int64:  %lld\n", counter_build_seq_int64);
-  // printf("int32:  %lld\n", counter_build_seq_int32);
-  // printf("uint32: %lld\n", counter_build_seq_uint32);
-  // printf("int16:  %lld\n", counter_build_seq_int16);
-  // printf("uint16: %lld\n", counter_build_seq_uint16);
-  // printf("int8:   %lld\n", counter_build_seq_int8);
-  // printf("uint8:  %lld\n", counter_build_seq_uint8);
-}
-
 OBJ build_seq(int64* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
-
-// counter_build_seq_int64++;
 
   int64 min = 0;
   int64 max = 127;
@@ -135,7 +111,7 @@ OBJ build_seq(int64* array, int32 size) {
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
@@ -144,12 +120,10 @@ OBJ build_seq(int32* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_int32++;
-
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
@@ -158,12 +132,10 @@ OBJ build_seq(uint32* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_uint32++;
-
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
@@ -172,12 +144,10 @@ OBJ build_seq(int16* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_int16++;
-
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
@@ -186,12 +156,10 @@ OBJ build_seq(uint16* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_uint16++;
-
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_int(array[i]);
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
@@ -200,13 +168,12 @@ OBJ build_seq(int8* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_int8++;
   for (int i=0 ; i < size ; i++)
     if (array[i] < 0) {
       SEQ_OBJ *seq = new_obj_seq(size);
 
       for (uint32 i=0 ; i < size ; i++)
-        seq->buffer.objs[i] = make_int(array[i]);
+        seq->buffer.obj[i] = make_int(array[i]);
 
       return make_seq(seq, size);
     }
@@ -217,14 +184,12 @@ OBJ build_seq(uint8 *array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-// counter_build_seq_uint8++;
-
   return make_slice_uint8(array, size);
 
   // SEQ_OBJ *seq = new_obj_seq(size);
 
   // for (uint32 i=0 ; i < size ; i++)
-  //   seq->buffer.objs[i] = make_int(array[i]);
+  //   seq->buffer.obj[i] = make_int(array[i]);
 
   // return make_seq(seq, size);
 }
@@ -236,7 +201,7 @@ OBJ build_seq(bool* array, int32 size) {
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_bool(array[i]);
+    seq->buffer.obj[i] = make_bool(array[i]);
 
   return make_seq(seq, size);
 }
@@ -248,7 +213,7 @@ OBJ build_seq(double* array, int32 size) {
   SEQ_OBJ *seq = new_obj_seq(size);
 
   for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.objs[i] = make_float(array[i]);
+    seq->buffer.obj[i] = make_float(array[i]);
 
   return make_seq(seq, size);
 }

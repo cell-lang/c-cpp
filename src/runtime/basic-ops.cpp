@@ -273,9 +273,9 @@ OBJ at(OBJ seq, int64 idx) {
 OBJ get_curr_obj(SEQ_ITER &it) {
   assert(!is_out_of_range(it));
   if (it.type == ELT_TYPE_OBJ)
-    return it.buffer.objs[it.idx];
+    return it.buffer.obj[it.idx];
   else
-    return make_int(it.buffer.uint8s[it.idx]);
+    return make_int(it.buffer.uint8_[it.idx]);
 }
 
 OBJ get_curr_obj(SET_ITER &it) {

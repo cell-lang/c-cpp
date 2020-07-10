@@ -64,7 +64,7 @@ OBJ /*owned_*/str_to_obj(const char *c_str) {
     else {
       int64 size = from_utf8(c_str, NULL);
       SEQ_OBJ *raw_str = new_obj_seq(size);
-      from_utf8(c_str, raw_str->buffer.objs);
+      from_utf8(c_str, raw_str->buffer.obj);
       raw_str_obj = make_seq(raw_str, size);
     }
   }

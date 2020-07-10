@@ -80,7 +80,7 @@ SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
   assert(size > 0);
 
   SEQ_OBJ *seq_copy = new_obj_seq(size);
-  OBJ *buffer = seq_copy->buffer.objs;
+  OBJ *buffer = seq_copy->buffer.obj;
   for (int i=0 ; i < size ; i++)
     buffer[i] = copy_obj(array[i]);
   return seq_copy;
@@ -255,7 +255,7 @@ OBJ copy_obj(OBJ obj) {
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
       // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
       SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
-      return repoint_to_copy(obj, seq_copy->buffer.objs);
+      return repoint_to_copy(obj, seq_copy->buffer.obj);
     }
 
     case TYPE_NE_SET: {
