@@ -260,14 +260,10 @@ int64 unique_nat() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+//## REMOVE WHEN DONE
 OBJ at(OBJ seq, int64 idx) {
-  assert(is_seq(seq));
-  if (((uint64) idx) >= get_seq_length(seq))
-    soft_fail("Invalid sequence index");
-  OBJ_TYPE type = get_physical_type(seq);
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
-    return make_int(get_seq_elts_ptr_uint8(seq)[idx]);
-  return get_seq_elts_ptr(seq)[idx];
+  OBJ get_obj_at(OBJ seq, int64 idx);
+  return get_obj_at(seq, idx);
 }
 
 OBJ get_curr_obj(SEQ_ITER &it) {

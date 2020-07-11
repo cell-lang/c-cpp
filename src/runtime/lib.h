@@ -372,7 +372,6 @@ OBJ build_seq(STREAM &s);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
-OBJ blank_array(int64 size);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
 OBJ append_to_seq(OBJ seq, OBJ obj);
 // OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value);
@@ -397,6 +396,9 @@ OBJ build_const_int8_seq(const int8* buffer, uint32 len);
 OBJ build_const_int16_seq(const int16* buffer, uint32 len);
 OBJ build_const_int32_seq(const int32* buffer, uint32 len);
 OBJ build_const_int64_seq(const int64* buffer, uint32 len);
+
+OBJ build_const_seq(int16* array, uint32 size);
+OBJ build_const_seq(uint8 *array, uint32 size);
 
 //////////////////////////////// bin-rel-obj.cpp ///////////////////////////////
 
@@ -437,13 +439,13 @@ void internal_fail();
 
 ////////////////////////////////// sorting.cpp /////////////////////////////////
 
-void stable_index_sort(uint32 *index, OBJ *values, uint32 count);
-void stable_index_sort(uint32 *index, OBJ *major_sort, OBJ *minor_sort, uint32 count);
-void stable_index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
+void stable_index_sort(uint32 *indexes, OBJ *values, uint32 count);
+void stable_index_sort(uint32 *indexes, OBJ *major_sort, OBJ *minor_sort, uint32 count);
+void stable_index_sort(uint32 *indexes, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
 
-void index_sort(uint32 *index, OBJ *values, uint32 count);
-void index_sort(uint32 *index, OBJ *major_sort, OBJ *minor_sort, uint32 count);
-void index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
+void index_sort(uint32 *indexes, OBJ *values, uint32 count);
+void index_sort(uint32 *indexes, OBJ *major_sort, OBJ *minor_sort, uint32 count);
+void index_sort(uint32 *indexes, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
 
 /////////////////////////////////// algs.cpp ///////////////////////////////////
 
