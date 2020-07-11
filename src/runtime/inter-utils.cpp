@@ -1,3 +1,6 @@
+#include <map>
+#include <vector>
+
 #include "lib.h"
 #include "extern.h"
 

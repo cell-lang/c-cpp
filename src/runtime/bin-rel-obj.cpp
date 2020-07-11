@@ -9,7 +9,7 @@ void build_map_right_to_left_sorted_idx_array(OBJ map) {
   uint32 *rev_idxs = get_right_to_left_indexes(ptr);
   if (rev_idxs[0] != INVALID_INDEX)
     return;
-  stable_index_sort(rev_idxs, get_right_col_array_ptr(ptr), ptr->size);
+  stable_index_sort(rev_idxs, ptr->size, get_right_col_array_ptr(ptr));
 
 #ifndef NDEBUG
   uint32 size = ptr->size;
@@ -40,7 +40,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
 
     // Creating the array of indexes sorted by column 1, column 2, index
   uint32 *index = new_uint32_array(size);
-  index_sort(index, vals1, vals2, size);
+  index_sort(index, size, vals1, vals2);
 
   // Counting the number of unique tuples and unique values in the left column,
   // and releasing unnecessary objects
@@ -86,7 +86,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
 
   // Creating the reverse index
   uint32 *rev_index = get_right_to_left_indexes(rel);
-  stable_index_sort(rev_index, right_col, count);
+  stable_index_sort(rev_index, count, right_col);
 
 #ifndef NDEBUG
   for (uint32 i=1 ; i < count ; i++) {

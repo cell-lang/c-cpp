@@ -439,13 +439,13 @@ void internal_fail();
 
 ////////////////////////////////// sorting.cpp /////////////////////////////////
 
-void stable_index_sort(uint32 *indexes, OBJ *values, uint32 count);
-void stable_index_sort(uint32 *indexes, OBJ *major_sort, OBJ *minor_sort, uint32 count);
-void stable_index_sort(uint32 *indexes, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort);
 
-void index_sort(uint32 *indexes, OBJ *values, uint32 count);
-void index_sort(uint32 *indexes, OBJ *major_sort, OBJ *minor_sort, uint32 count);
-void index_sort(uint32 *indexes, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count);
+void index_sort(uint32 *indexes, uint32 count, OBJ *values);
+void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
+void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort);
 
 /////////////////////////////////// algs.cpp ///////////////////////////////////
 

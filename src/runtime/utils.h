@@ -6,12 +6,6 @@
 #include <math.h>
 #include <stdio.h>
 
-#include <map>
-#include <vector>
-#include <set>
-#include <algorithm>
-#include <iostream>
-
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifndef NDEBUG

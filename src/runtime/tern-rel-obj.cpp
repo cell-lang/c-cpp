@@ -7,7 +7,7 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
 
   // Creating the array of indexes sorted by column 1, column 2, column 3, index
   uint32 *index = new_uint32_array(size);
-  index_sort(index, vals1, vals2, vals3, size);
+  index_sort(index, size, vals1, vals2, vals3);
 
   // Counting the number of unique tuples and releasing unnecessary objects
   uint32 unique_tuples = 1;
@@ -50,8 +50,8 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   // Creating the two indexes
   uint32 *index_1 = get_rotated_index(rel, 1);
   uint32 *index_2 = get_rotated_index(rel, 2);
-  stable_index_sort(index_1, col2, col3, count);
-  stable_index_sort(index_2, col3, count);
+  stable_index_sort(index_1, count, col2, col3);
+  stable_index_sort(index_2, count, col3);
 
 #ifndef NDEBUG
   for (uint32 i=1 ; i < count ; i++) {

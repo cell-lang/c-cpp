@@ -1,172 +1,227 @@
 #include "lib.h"
 
 
-struct obj_idx_less {
-  OBJ *objs;
-  obj_idx_less(OBJ *objs) : objs(objs) {}
 
-  bool operator () (uint32 idx1, uint32 idx2) {
-    return comp_objs(objs[idx1], objs[idx2]) > 0;
+uint32 *stable_sort_obj_index(uint32 *ys, uint32 *zs, uint32 size, OBJ *objs) {
+  int sort_len = 1;
+  while (sort_len < size) {
+    // Merging subarrays in ys into zs
+    uint32 offset = 0;
+    while (offset < size) {
+      uint32 end1 = offset + sort_len;
+
+      if (end1 < size) {
+        uint32 end2 = end1 + sort_len;
+        if (end2 > size)
+          end2 = size;
+
+        uint32 i1 = offset;
+        uint32 i2 = end1;
+        uint32 j = offset;
+
+        uint32 y1 = ys[i1];
+        uint32 y2 = ys[i2];
+
+        while (j < end2) {
+          int rc = comp_objs(objs[y1], objs[y2]);
+
+          if (rc >= 0) { // y1 <= y2
+            zs[j] = y1;
+            j = j + 1;
+            i1 = i1 + 1;
+            if (i1 == end1) {
+              while (i2 < end2) {
+                zs[j] = ys[i2];
+                j = j + 1;
+                i2 = i2 + 1;
+              }
+            }
+            else
+              y1 = ys[i1];
+          }
+          else { // y1 > y2
+            zs[j] = y2;
+            j = j + 1;
+            i2 = i2 + 1;
+            if (i2 == end2) {
+              while (i1 < end1) {
+                zs[j] = ys[i1];
+                j = j + 1;
+                i1 = i1 + 1;
+              }
+            }
+            else
+              y2 = ys[i2];
+          }
+        }
+      }
+      else
+        for (uint32 i = offset ; i < size ; i++)
+          zs[i] = ys[i];
+
+      offset = offset + 2 * sort_len;
+    }
+
+    uint32 *tmp = ys;
+    ys = zs;
+    zs = tmp;
+
+    sort_len = 2 * sort_len;
   }
-};
 
-struct obj_idx_less_no_eq {
-  OBJ *values;
-  obj_idx_less_no_eq(OBJ *values) : values(values) {}
+  return ys;
+}
 
-  bool operator () (uint32 idx1, uint32 idx2) {
-    int cr = comp_objs(values[idx1], values[idx2]);
-    return cr != 0 ? cr > 0 : idx1 < idx2;
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 *stable_sort_obj_index_2(uint32 *ys, uint32 *zs, uint32 size, OBJ *major, OBJ *minor) {
+  int sort_len = 1;
+  while (sort_len < size) {
+    // Merging subarrays in ys into zs
+    uint32 offset = 0;
+    while (offset < size) {
+      uint32 end1 = offset + sort_len;
+
+      if (end1 < size) {
+        uint32 end2 = end1 + sort_len;
+        if (end2 > size)
+          end2 = size;
+
+        uint32 i1 = offset;
+        uint32 i2 = end1;
+        uint32 j = offset;
+
+        uint32 y1 = ys[i1];
+        uint32 y2 = ys[i2];
+
+        while (j < end2) {
+          int rc = comp_objs(major[y1], major[y2]);
+          if (rc == 0)
+            rc = comp_objs(minor[y1], minor[y2]);
+
+          if (rc >= 0) { // y1 <= y2
+            zs[j] = y1;
+            j = j + 1;
+            i1 = i1 + 1;
+            if (i1 == end1) {
+              while (i2 < end2) {
+                zs[j] = ys[i2];
+                j = j + 1;
+                i2 = i2 + 1;
+              }
+            }
+            else
+              y1 = ys[i1];
+          }
+          else { // y1 > y2
+            zs[j] = y2;
+            j = j + 1;
+            i2 = i2 + 1;
+            if (i2 == end2) {
+              while (i1 < end1) {
+                zs[j] = ys[i1];
+                j = j + 1;
+                i1 = i1 + 1;
+              }
+            }
+            else
+              y2 = ys[i2];
+          }
+        }
+      }
+      else
+        for (uint32 i = offset ; i < size ; i++)
+          zs[i] = ys[i];
+
+      offset = offset + 2 * sort_len;
+    }
+
+    uint32 *tmp = ys;
+    ys = zs;
+    zs = tmp;
+
+    sort_len = 2 * sort_len;
   }
-};
+
+  return ys;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct obj_pair_idx_less {
-  OBJ *major_sort, *minor_sort;
-  obj_pair_idx_less(OBJ *major_sort, OBJ *minor_sort) : major_sort(major_sort), minor_sort(minor_sort) {}
+uint32 *stable_sort_obj_index_3(uint32 *ys, uint32 *zs, uint32 size, OBJ *major, OBJ *middle, OBJ *minor) {
+  int sort_len = 1;
+  while (sort_len < size) {
+    // Merging subarrays in ys into zs
+    uint32 offset = 0;
+    while (offset < size) {
+      uint32 end1 = offset + sort_len;
 
-  bool operator () (uint32 idx1, uint32 idx2) {
-    int cr = comp_objs(major_sort[idx1], major_sort[idx2]);
-    if (cr != 0)
-      return cr > 0;
-    cr = comp_objs(minor_sort[idx1], minor_sort[idx2]);
-    if (cr != 0)
-      return cr > 0;
-    return idx1 < idx2;
+      if (end1 < size) {
+        uint32 end2 = end1 + sort_len;
+        if (end2 > size)
+          end2 = size;
+
+        uint32 i1 = offset;
+        uint32 i2 = end1;
+        uint32 j = offset;
+
+        uint32 y1 = ys[i1];
+        uint32 y2 = ys[i2];
+
+        while (j < end2) {
+          int rc = comp_objs(major[y1], major[y2]);
+          if (rc == 0) {
+            rc = comp_objs(middle[y1], middle[y2]);
+            if (rc == 0)
+              rc = comp_objs(minor[y1], minor[y2]);
+          }
+
+          if (rc >= 0) { // y1 <= y2
+            zs[j] = y1;
+            j = j + 1;
+            i1 = i1 + 1;
+            if (i1 == end1) {
+              while (i2 < end2) {
+                zs[j] = ys[i2];
+                j = j + 1;
+                i2 = i2 + 1;
+              }
+            }
+            else
+              y1 = ys[i1];
+          }
+          else { // y1 > y2
+            zs[j] = y2;
+            j = j + 1;
+            i2 = i2 + 1;
+            if (i2 == end2) {
+              while (i1 < end1) {
+                zs[j] = ys[i1];
+                j = j + 1;
+                i1 = i1 + 1;
+              }
+            }
+            else
+              y2 = ys[i2];
+          }
+        }
+      }
+      else
+        for (uint32 i = offset ; i < size ; i++)
+          zs[i] = ys[i];
+
+      offset = offset + 2 * sort_len;
+    }
+
+    uint32 *tmp = ys;
+    ys = zs;
+    zs = tmp;
+
+    sort_len = 2 * sort_len;
   }
-};
 
-////////////////////////////////////////////////////////////////////////////////
-
-struct obj_triple_idx_less {
-  OBJ *col1, *col2, *col3;
-  obj_triple_idx_less(OBJ *col1, OBJ *col2, OBJ *col3) : col1(col1), col2(col2), col3(col3) {}
-
-  bool operator () (uint32 idx1, uint32 idx2) {
-    int cr = comp_objs(col1[idx1], col1[idx2]);
-    if (cr != 0)
-      return cr > 0;
-    cr = comp_objs(col2[idx1], col2[idx2]);
-    if (cr != 0)
-      return cr > 0;
-    cr = comp_objs(col3[idx1], col3[idx2]);
-    if (cr != 0)
-      return cr > 0;
-    return idx1 < idx2;
-  }
-};
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void stable_index_sort(uint32 *index, OBJ *values, uint32 count) {
-  for (uint32 i=0 ; i < count ; i++)
-    index[i] = i;
-  std::sort(index, index+count, obj_idx_less_no_eq(values));
+  return ys;
 }
-
-void stable_index_sort(uint32 *index, OBJ *major_sort, OBJ *minor_sort, uint32 count) {
-  for (uint32 i=0 ; i < count ; i++)
-    index[i] = i;
-  std::sort(index, index+count, obj_pair_idx_less(major_sort, minor_sort));
-}
-
-void stable_index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count) {
-  for (uint32 i=0 ; i < count ; i++)
-    index[i] = i;
-  std::sort(index, index+count, obj_triple_idx_less(major_sort, middle_sort, minor_sort));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void index_sort(uint32 *index, OBJ *values, uint32 count) {
-  for (uint32 i=0 ; i < count ; i++)
-    index[i] = i;
-  std::sort(index, index+count, obj_idx_less(values));
-}
-
-void index_sort(uint32 *index, OBJ *major_sort, OBJ *minor_sort, uint32 count) {
-  stable_index_sort(index, major_sort, minor_sort, count);
-}
-
-void index_sort(uint32 *index, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort, uint32 count) {
-  stable_index_sort(index, major_sort, middle_sort, minor_sort, count);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-// OBJ *custom_sort(OBJ *ys, OBJ *zs, int size) {
-//   int sort_len = 1;
-//   while (sort_len < size) {
-//     // Merging subarrays in ys into zs
-//     int offset = 0;
-//     while (offset < size) {
-//       int end1 = offset + sort_len;
-
-//       if (end1 < size) {
-//         int end2 = end1 + sort_len;
-//         if (end2 > size)
-//           end2 = size;
-
-//         int i1 = offset;
-//         int i2 = end1;
-//         int j = offset;
-
-//         OBJ y1 = ys[i1];
-//         OBJ y2 = ys[i2];
-
-//         while (j < end2) {
-
-//           int rc = comp_objs(y1, y2);
-
-//           if (rc > 0) { // y1 < y2
-//             zs[j] = y1;
-//             j = j + 1;
-//             i1 = i1 + 1;
-//             if (i1 == end1) {
-//               while (i2 < end2) {
-//                 zs[j] = ys[i2];
-//                 j = j + 1;
-//                 i2 = i2 + 1;
-//               }
-//             }
-//             else
-//               y1 = ys[i1];
-//           }
-//           else { //if (rc < 0) { // y1 >= y2
-//             zs[j] = y2;
-//             j = j + 1;
-//             i2 = i2 + 1;
-//             if (i2 == end2) {
-//               while (i1 < end1) {
-//                 zs[j] = ys[i1];
-//                 j = j + 1;
-//                 i1 = i1 + 1;
-//               }
-//             }
-//             else
-//               y2 = ys[i2];
-//           }
-//         }
-//       }
-//       else
-//         for (int i = offset ; i < size ; i++)
-//           zs[i] = ys[i];
-
-//       offset = offset + 2 * sort_len;
-//     }
-
-//     OBJ *tmp = ys;
-//     ys = zs;
-//     zs = tmp;
-
-//     sort_len = 2 * sort_len;
-//   }
-
-//   return ys;
-// }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -736,7 +791,161 @@ not_all_inline_not_sorted:
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values) {
+  for (uint32 i=0 ; i < count ; i++)
+    indexes[i] = i;
+  uint32 *buffer = new_uint32_array(count); //## REMEMBER TO RELEASE THE MEMORY ONCE THE ALLOCATOR IS DONE
+  uint32 *final = stable_sort_obj_index(indexes, buffer, count, values);
+  if (final != indexes)
+    memcpy(indexes, final, count * sizeof(uint32));
+
+#ifndef NDEBUG
+  for (uint32 i=1 ; i < count ; i++) {
+    uint32 pix = indexes[i - 1];
+    uint32 cix = indexes[i];
+    int cr = comp_objs(values[pix], values[cix]);
+    assert(cr > 0 | (cr == 0 & pix < cix));
+  }
+#endif
+}
+
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major, OBJ *minor) {
+  for (uint32 i=0 ; i < count ; i++)
+    indexes[i] = i;
+  uint32 *buffer = new_uint32_array(count); //## REMEMBER TO RELEASE THE MEMORY ONCE THE ALLOCATOR IS DONE
+  uint32 *final = stable_sort_obj_index_2(indexes, buffer, count, major, minor);
+  if (final != indexes)
+    memcpy(indexes, final, count * sizeof(uint32));
+
+#ifndef NDEBUG
+  for (uint32 i=1 ; i < count ; i++) {
+    uint32 pix = indexes[i - 1];
+    uint32 cix = indexes[i];
+    int cr = comp_objs(major[pix], major[cix]);
+    assert(cr >= 0);
+    if (cr == 0) {
+      cr = comp_objs(minor[pix], minor[cix]);
+      assert(cr > 0 | (cr == 0 & pix < cix));
+    }
+  }
+#endif
+}
+
+void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major, OBJ *middle, OBJ *minor) {
+  for (uint32 i=0 ; i < count ; i++)
+    indexes[i] = i;
+  uint32 *buffer = new_uint32_array(count);
+  uint32 *final = stable_sort_obj_index_3(indexes, buffer, count, major, middle, minor);
+  if (final != indexes)
+    memcpy(indexes, final, count * sizeof(uint32));
+
+#ifndef NDEBUG
+  for (uint32 i=1 ; i < count ; i++) {
+    uint32 pix = indexes[i - 1];
+    uint32 cix = indexes[i];
+    int cr = comp_objs(major[pix], major[cix]);
+    assert(cr >= 0);
+    if (cr == 0) {
+      cr = comp_objs(middle[pix], middle[cix]);
+      assert(cr >= 0);
+      if (cr == 0) {
+        cr = comp_objs(minor[pix], minor[cix]);
+        assert(cr > 0 | (cr == 0 & pix < cix));
+      }
+    }
+  }
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////////////////
+
+void index_sort(uint32 *indexes, uint32 count, OBJ *values) {
+  stable_index_sort(indexes, count, values);
+}
+
+void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort) {
+  stable_index_sort(indexes, count, major_sort, minor_sort);
+}
+
+void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort) {
+  stable_index_sort(indexes, count, major_sort, middle_sort, minor_sort);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// OBJ *custom_sort(OBJ *ys, OBJ *zs, int size) {
+//   int sort_len = 1;
+//   while (sort_len < size) {
+//     // Merging subarrays in ys into zs
+//     int offset = 0;
+//     while (offset < size) {
+//       int end1 = offset + sort_len;
+
+//       if (end1 < size) {
+//         int end2 = end1 + sort_len;
+//         if (end2 > size)
+//           end2 = size;
+
+//         int i1 = offset;
+//         int i2 = end1;
+//         int j = offset;
+
+//         OBJ y1 = ys[i1];
+//         OBJ y2 = ys[i2];
+
+//         while (j < end2) {
+
+//           int rc = comp_objs(y1, y2);
+
+//           if (rc > 0) { // y1 < y2
+//             zs[j] = y1;
+//             j = j + 1;
+//             i1 = i1 + 1;
+//             if (i1 == end1) {
+//               while (i2 < end2) {
+//                 zs[j] = ys[i2];
+//                 j = j + 1;
+//                 i2 = i2 + 1;
+//               }
+//             }
+//             else
+//               y1 = ys[i1];
+//           }
+//           else { //if (rc < 0) { // y1 >= y2
+//             zs[j] = y2;
+//             j = j + 1;
+//             i2 = i2 + 1;
+//             if (i2 == end2) {
+//               while (i1 < end1) {
+//                 zs[j] = ys[i1];
+//                 j = j + 1;
+//                 i1 = i1 + 1;
+//               }
+//             }
+//             else
+//               y2 = ys[i2];
+//           }
+//         }
+//       }
+//       else
+//         for (int i = offset ; i < size ; i++)
+//           zs[i] = ys[i];
+
+//       offset = offset + 2 * sort_len;
+//     }
+
+//     OBJ *tmp = ys;
+//     ys = zs;
+//     zs = tmp;
+
+//     sort_len = 2 * sort_len;
+//   }
+
+//   return ys;
+// }
 
 // uint32 sort_unique(OBJ *objs, uint32 size) {
 //   if (size < 2)
@@ -812,129 +1021,4 @@ not_all_inline_not_sorted:
 //     }
 
 //   return idx + 1;
-// }
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-// uint64 counter_sort_small;
-// uint64 counter_sort_large;
-
-// uint64 counter_sort_already_sorted;
-
-// uint64 counter_opt_repr;
-// uint64 counter_same_repr;
-// uint64 counter_at_least_one_opt_repr;
-
-// void print_sort_stats() {
-//   printf(
-//     "small: %lld, large: %lld, already sorted: %lld, optimized: %lld, uniform: %lld, at least one: %lld\n",
-//     counter_sort_small,
-//     counter_sort_large,
-//     counter_sort_already_sorted,
-//     counter_opt_repr,
-//     counter_same_repr,
-//     counter_at_least_one_opt_repr
-//   );
-// }
-
-
-// static void analyze_1(OBJ *objs, uint32 size) {
-//   uint32 get_tags_count(OBJ obj);
-
-//   OBJ obj = objs[0];
-//   if (get_tags_count(obj) == 0 & get_physical_type(obj) == TYPE_OPT_TAG_REC) {
-//     uint16 repr_id = get_opt_repr_id(obj);
-//     bool uniform = true;
-//     for (int i=1 ; i < size ; i++) {
-//       OBJ obj = objs[i];
-//       if (get_tags_count(obj) != 0)
-//         return;
-//       if (get_physical_type(obj) != TYPE_OPT_TAG_REC)
-//         return;
-//       if (get_opt_repr_id(obj) != repr_id)
-//         uniform = false;
-//     }
-//     counter_opt_repr++;
-//     if (uniform)
-//       counter_same_repr++;
-//   }
-// }
-
-// static void analyze_2(OBJ *objs, uint32 size) {
-//   uint32 get_tags_count(OBJ obj);
-
-//   for (int i=0 ; i < size ; i++) {
-//     OBJ obj = objs[i];
-//     if (get_tags_count(obj) == 0 & get_physical_type(obj) == TYPE_OPT_TAG_REC) {
-//       counter_at_least_one_opt_repr++;
-//       return;
-//     }
-//   }
-// }
-
-// static int64 counter_inline_0_all_inline;
-// static int64 counter_inline_0_not_all_inline;
-
-// static int64 counter_all_inline;
-// static int64 counter_none_inline;
-// static int64 counter_some_inline;
-
-void print_sort_stats() {
-  // printf(
-  //   "Inline when first one is inline: all: %lld, any: %lld\n",
-  //   counter_inline_0_all_inline,
-  //   counter_inline_0_not_all_inline
-  // );
-
-  // printf(
-  //   "Inline: all: %lld, none: %lld, some: %lld\n",
-  //   counter_all_inline,
-  //   counter_none_inline,
-  //   counter_some_inline
-  // );
-}
-
-// static void analyze_3(OBJ *objs, uint32 size) {
-//   OBJ obj = objs[0];
-//   if (is_inline_obj(obj)) {
-//     for (int i=1 ; i < size ; i++) {
-//       obj = objs[i];
-//       if (!is_inline_obj(obj)) {
-//         counter_inline_0_not_all_inline++;
-//         return;
-//       }
-//     }
-//     counter_inline_0_all_inline++;
-//   }
-// }
-
-// static void analyze_4(OBJ *objs, uint32 size) {
-//   uint32 ic = 0, nic = 0;
-
-//   for (int i=0 ; i < size ; i++) {
-//     OBJ obj = objs[i];
-//     if (is_inline_obj(obj))
-//       ic++;
-//     else
-//       nic++;
-//   }
-
-//   if (ic > 0 & nic == 0)
-//     counter_all_inline++;
-
-//   if (ic == 0 & nic > 0)
-//     counter_none_inline++;
-
-//   if (ic > 0 & nic > 0)
-//     counter_some_inline++;
-// }
-
-
-// void analyze(OBJ *objs, uint32 size) {
-//   // analyze_1(objs, size);
-//   // analyze_2(objs, size);
-//   // analyze_3(objs, size);
-//   // analyze_4(objs, size);
 // }

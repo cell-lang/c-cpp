@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "lib.h"
 
 

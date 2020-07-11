@@ -298,7 +298,7 @@ uint32 sort_and_check_no_dups(OBJ *keys, OBJ *values, uint32 size) {
     return size;
 
   uint32 *idxs = new_uint32_array(size);
-  index_sort(idxs, keys, size);
+  index_sort(idxs, size, keys);
 
   for (uint32 i=0 ; i < size ; i++)
     if (idxs[i] != i) {
