@@ -320,6 +320,7 @@ int comp_floats(double, double);
 
 OBJ repoint_to_copy(OBJ, void*);
 OBJ repoint_slice_to_seq(OBJ, SEQ_OBJ*);
+OBJ repoint_uint8_seq_to_slice(OBJ, uint8*);
 
 //////////////////////////////// basic-ops.cpp /////////////////////////////////
 

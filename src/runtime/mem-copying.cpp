@@ -309,7 +309,13 @@ OBJ copy_obj(OBJ obj) {
       return repoint_to_copy(obj, copy);
     }
 
-    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SEQ_UINT8: {
+      int len = read_size_field(obj);
+      uint8 *elts_copy = new_uint8_array(len);
+      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(uint8));
+      return repoint_uint8_seq_to_slice(obj, elts_copy);
+    }
+
     case TYPE_NE_SLICE_UINT8: {
       int len = read_size_field(obj);
       uint8 *elts_copy = new_uint8_array(len);

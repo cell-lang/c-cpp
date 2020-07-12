@@ -165,6 +165,16 @@ OBJ_TYPE get_logical_type(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool is_single_tag_type(OBJ_TYPE type) {
+  return type == TYPE_NE_SEQ |
+         type == TYPE_NE_SET |
+         type == TYPE_NE_SLICE |
+         type == TYPE_NE_SEQ_UINT8 |
+         type == TYPE_NE_SLICE_UINT8;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 OBJ make_blank_obj() {
   OBJ obj;
   obj.core_data.int_ = 0;
@@ -342,14 +352,14 @@ OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
 
   OBJ_TYPE type = get_physical_type(obj);
 
-  if (type == TYPE_NE_SEQ | type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SET) {
+  if (is_single_tag_type(type)) {
     if (get_tags_count(obj) == 0) {
       // No need to clear anything, both fields are already blank
       obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
       return obj;
     }
   }
-  else if (type != TYPE_NE_SLICE & type != TYPE_NE_SLICE_UINT8) {
+  else {
     uint8 tags_count = get_tags_count(obj);
 
     if (type == TYPE_OPT_REC & tags_count == 0) {
@@ -424,7 +434,6 @@ uint32 get_set_size(OBJ set) {
 
 uint16 get_tag_id(OBJ obj) {
   assert(is_tag_obj(obj));
-  assert(get_physical_type(obj) != TYPE_NE_SLICE);
 
   if (get_tags_count(obj) != 0)
     return GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
@@ -438,9 +447,8 @@ OBJ get_inner_obj(OBJ obj) {
   assert(is_tag_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
-  assert(type != TYPE_NE_SLICE & type != TYPE_NE_SLICE_UINT8);
 
-  if (type == TYPE_NE_SEQ | type == TYPE_NE_SEQ_UINT8) {
+  if (is_single_tag_type(type)) {
     assert(get_tags_count(obj) == 1);
     obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK);
     return obj;
@@ -658,21 +666,6 @@ bool is_inline_obj(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ_TYPE get_ref_obj_type(OBJ obj) {
-  assert(!is_inline_obj(obj));
-
-  OBJ_TYPE type = get_physical_type(obj);
-  assert( type == TYPE_NE_SEQ | type == TYPE_NE_SLICE | type == TYPE_NE_SET | type == TYPE_NE_BIN_REL |
-          type == TYPE_NE_LOG_MAP | type == TYPE_NE_MAP | type == TYPE_NE_TERN_REL | type == TYPE_TAG_OBJ);
-
-  if (type == TYPE_NE_SLICE)
-    return TYPE_NE_SEQ;
-  else if (type == TYPE_NE_LOG_MAP)
-    return TYPE_NE_BIN_REL;
-  else
-    return type;
-}
-
 void *get_ref_obj_ptr(OBJ obj) {
   assert(!is_inline_obj(obj));
 
@@ -744,9 +737,22 @@ OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
 
 OBJ repoint_slice_to_seq(OBJ obj, SEQ_OBJ *ptr) {
   assert(get_physical_type(obj) == TYPE_NE_SLICE);
-  assert(get_tags_count(obj) == 0);
+  assert(get_tags_count(obj) == 0 | get_tags_count(obj) == 1);
 
-  return make_seq(ptr, ptr->used);
+  OBJ new_obj = make_seq(ptr, ptr->used);
+  if (get_tags_count(obj) != 0)
+    new_obj = make_tag_obj(get_tag_id(obj), new_obj);
+  return new_obj;
+}
+
+OBJ repoint_uint8_seq_to_slice(OBJ obj, uint8 *elts) {
+  assert(get_physical_type(obj) == TYPE_NE_SEQ_UINT8);
+  assert(get_tags_count(obj) == 0 | get_tags_count(obj) == 1);
+
+  OBJ new_obj = make_slice_uint8(elts, read_size_field(obj));
+  if (get_tags_count(obj) != 0)
+    new_obj = make_tag_obj(get_tag_id(obj), new_obj);
+  return new_obj;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
