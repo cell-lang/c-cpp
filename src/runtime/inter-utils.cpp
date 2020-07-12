@@ -254,7 +254,7 @@ typedef struct {
 } SYMBOL_HASHTABLE;
 
 
-uint32 hashtable_step(uint32 hashcode) {
+inline uint32 hashtable_step(uint32 hashcode) {
   // Using an odd step size should guarantee that all slots are eventually visited
   //## I'M STILL NOT ENTIRELY SURE ABOUT THIS. CHECK!
   return (hashcode & 0xF) | 1;
