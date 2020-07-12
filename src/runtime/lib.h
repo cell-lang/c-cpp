@@ -189,6 +189,9 @@ const uint16 symb_id_failure  = 9;
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
+void *alloc_static_block(uint32 byte_size);
+void *release_static_block(void *ptr, uint32 byte_size);
+
 void* new_obj(uint32 byte_size);
 void* new_raw_mem(uint32 byte_size);
 
@@ -465,13 +468,9 @@ int cmp_objs(OBJ obj1, OBJ obj2);
 
 /////////////////////////////// inter-utils.cpp ////////////////////////////////
 
-void add_obj_to_cache(OBJ);
-
+const char *symb_to_raw_str(uint16);
 uint16 lookup_symb_id(const char *, uint32);
 
-const char *symb_to_raw_str(uint16);
-
-OBJ extern_str_to_symb(const char *);
 
 OBJ /*owned_*/str_to_obj(const char* c_str);
 

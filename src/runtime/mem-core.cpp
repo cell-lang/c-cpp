@@ -12,6 +12,17 @@ static uint64 total_temp = 0;
 static uint64 total_static = 0;
 
 
+void *alloc_static_block(uint32 byte_size) {
+  total_static += 8 * ((byte_size + 7) / 8);
+  return malloc(byte_size);
+}
+
+void *release_static_block(void *ptr, uint32 byte_size) {
+  free(ptr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void *new_obj(uint32 byte_size) {
   if (static_allocation) {
     total_static += 8 * ((byte_size + 7) / 8);

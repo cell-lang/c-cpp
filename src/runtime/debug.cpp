@@ -1,39 +1,42 @@
-#include <vector>
-
 #include "lib.h"
 
 
-std::vector<const char *> function_names;
-std::vector<uint32>       arities;
-std::vector<OBJ *>        param_lists;
+#ifndef NDEBUG
+static const int MAX_TRACKED_STACK_DEPTH = 2048;
+static const char *function_names[MAX_TRACKED_STACK_DEPTH];
+static uint32 arities[MAX_TRACKED_STACK_DEPTH];
+static OBJ *param_lists[MAX_TRACKED_STACK_DEPTH];
+static int call_stack_depth;
+#endif
 
 void push_call_info(const char *fn_name, uint32 arity, OBJ *params) {
-// #ifndef NDEBUG
-//   function_names.push_back(fn_name);
-//   arities.push_back(arity);
-//   param_lists.push_back(params);
-// #endif
+#ifndef NDEBUG
+  if (call_stack_depth < MAX_TRACKED_STACK_DEPTH) {
+    function_names[call_stack_depth] = fn_name;
+    arities[call_stack_depth] = arity;
+    param_lists[call_stack_depth] = params;
+  }
+  call_stack_depth++;
+#endif
 }
 
 void pop_call_info() {
-// #ifndef NDEBUG
-//   uint32 arity = arities.back();
-//   if (arity > 0)
-//     delete_obj_array(param_lists.back(), arity);
-
-//   function_names.pop_back();
-//   arities.pop_back();
-//   param_lists.pop_back();
-// #endif
+#ifndef NDEBUG
+  call_stack_depth--;
+#endif
 }
 
 void pop_try_mode_call_info(int depth) {
-  while (function_names.size() > depth)
+#ifndef NDEBUG
+  while (call_stack_depth > depth)
     pop_call_info();
+#endif
 }
 
 int get_call_stack_depth() {
-  return function_names.size();
+#ifndef NDEBUG
+  return call_stack_depth;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,7 +44,6 @@ int get_call_stack_depth() {
 void printed_obj_or_filename(OBJ obj, bool add_path, char *buffer, uint32 buff_size) {
   const uint32 MAX_OBJ_COUNT = 1024;
   static uint32 filed_objs_count = 0;
-  // Deliberate bug: storing objects without reference counting them.
   static OBJ filed_objs[MAX_OBJ_COUNT];
 
   assert(buff_size >= 64);
@@ -90,7 +92,7 @@ void print_indented_param(FILE *fp, OBJ param, bool is_last) {
   fflush(fp);
 }
 
-
+#ifndef NDEBUG
 void print_stack_frame(FILE *fp, uint32 frame_idx) {
   const char *fn_name = function_names[frame_idx];
   uint32 arity = arities[frame_idx];
@@ -110,13 +112,19 @@ void print_stack_frame(uint32 frame_idx) {
   const char *fn_name = function_names[frame_idx];
   fprintf(stderr, "%s\n", fn_name);
 }
-
+#endif
 
 void print_call_stack() {
 #ifndef NDEBUG
-  uint32 size = function_names.size();
+  uint32 size = call_stack_depth <= MAX_TRACKED_STACK_DEPTH ? call_stack_depth : MAX_TRACKED_STACK_DEPTH;
   for (uint32 i=0 ; i < size ; i++)
     print_stack_frame(i);
+  if (call_stack_depth > MAX_TRACKED_STACK_DEPTH)
+    fprintf(
+      stderr,
+      "\nThere are another %d stack frames below, but they weren't kept track of\n",
+      call_stack_depth - MAX_TRACKED_STACK_DEPTH
+    );
   fputs("\nNow trying to write a full dump of the stack to the file debug/stack_trace.txt.\nPlease be patient. This may take a while...", stderr);
   fflush(stderr);
   FILE *fp = fopen("debug/stack_trace.txt", "w");

@@ -1,6 +1,3 @@
-#include <map>
-#include <vector>
-
 #include "lib.h"
 #include "extern.h"
 
@@ -229,59 +226,172 @@ char *obj_to_str(OBJ str_obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool str_ord(const char *str1, const char *str2) {
-  return strcmp(str1, str2) > 0;
+static uint32 string_hashcode(const char *str, uint32 len) {
+  uint32 hcode = 0;
+  for (int i=0 ; i < len ; i++)
+    hcode = 31 * hcode + str[i];
+  return hcode;
 }
 
-typedef std::map<const char *, uint32, bool(*)(const char *, const char *)> str_idx_map_type;
+static bool string_eq(const char *str1, const char *str2, uint32 len) {
+  for (int i=0 ; i < len ; i++)
+    if (str1[i] != str2[i])
+      return false;
+  return str1[len] == '\0';
+}
 
-str_idx_map_type str_to_symb_map(str_ord);
-//## THESE STRINGS ARE NEVER CLEANED UP. NOT MUCH OF A PROBLEM IN PRACTICE, BUT STILL A BUG...
-std::vector<const char *> dynamic_symbs_strs;
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct {
+  const char *str;
+  uint16 id;
+} SYMBOL_HASHTABLE_ENTRY;
+
+typedef struct {
+  SYMBOL_HASHTABLE_ENTRY *entries;
+  uint32 capacity;
+  uint32 count;
+} SYMBOL_HASHTABLE;
+
+
+uint32 hashtable_step(uint32 hashcode) {
+  // Using an odd step size should guarantee that all slots are eventually visited
+  //## I'M STILL NOT ENTIRELY SURE ABOUT THIS. CHECK!
+  return (hashcode & 0xF) | 1;
+}
+
+SYMBOL_HASHTABLE_ENTRY *symbol_hashtable_lookup(SYMBOL_HASHTABLE *hashtable, const char *str, uint32 len) {
+  uint32 hcode = string_hashcode(str, len);
+  uint32 step = hashtable_step(hcode);
+
+  SYMBOL_HASHTABLE_ENTRY *entries = hashtable->entries;
+  uint32 capacity = hashtable->capacity;
+  if (capacity == 0)
+    return NULL;
+
+  uint32 idx = hcode % capacity;
+  for ( ; ; ) {
+    SYMBOL_HASHTABLE_ENTRY *entry = entries + idx;
+    const char *entry_str = entry->str;
+    if (entry_str == NULL)
+      return NULL;
+    if (string_eq(entry_str, str, len))
+      return entry;
+    idx = (idx + step) % capacity;
+  }
+}
+
+void symbol_hashtable_insert_unsafe(SYMBOL_HASHTABLE *hashtable, uint16 id, const char *str) {
+  // Assuming the hashtable is not full and the symbol has not been inserted yet
+  assert(hashtable->count < hashtable->capacity);
+  assert(symbol_hashtable_lookup(hashtable, str, strlen(str)) == NULL);
+
+  uint32 hcode = string_hashcode(str, strlen(str));
+  uint32 step = hashtable_step(hcode);
+
+  SYMBOL_HASHTABLE_ENTRY *entries = hashtable->entries;
+  uint32 capacity = hashtable->capacity;
+  hashtable->count++;
+
+  uint32 idx = hcode % capacity;
+  for ( ; ; ) {
+    SYMBOL_HASHTABLE_ENTRY *entry = entries + idx;
+    if (entry->str == NULL) {
+      entry->str = str;
+      entry->id = id;
+      return;
+    }
+    idx = (idx + step) % capacity;
+  }
+}
+
+void symbol_hashtable_insert(SYMBOL_HASHTABLE *hashtable, uint16 id, const char *str) {
+  // Assuming the symbol is not there yet
+  assert(symbol_hashtable_lookup(hashtable, str, strlen(str)) == NULL);
+
+  if (hashtable->entries == NULL) {
+    uint32 mem_size = 1024 * sizeof(SYMBOL_HASHTABLE_ENTRY);
+    hashtable->entries = (SYMBOL_HASHTABLE_ENTRY *) alloc_static_block(mem_size);
+    memset(hashtable->entries, 0, mem_size);
+    hashtable->capacity = 1024;
+    hashtable->count = 0;
+  }
+  else if (hashtable->capacity < 2 * hashtable->count) {
+    SYMBOL_HASHTABLE_ENTRY *entries = hashtable->entries;
+    uint32 capacity = hashtable->capacity;
+
+    uint32 mem_size = 2 * capacity * sizeof(SYMBOL_HASHTABLE_ENTRY);
+    hashtable->entries = (SYMBOL_HASHTABLE_ENTRY *) alloc_static_block(mem_size);
+    memset(hashtable->entries, 0, mem_size);
+    hashtable->capacity = 2 * capacity;
+    hashtable->count = 0;
+
+    for (int i=0 ; i < capacity ; i++) {
+      SYMBOL_HASHTABLE_ENTRY *entry = entries + i;
+      if (entry->str != NULL) {
+        symbol_hashtable_insert_unsafe(hashtable, entry->id, entry->str);
+        assert(symbol_hashtable_lookup(hashtable, entry->str, strlen(entry->str))->id == entry->id);
+      }
+    }
+
+    release_static_block(entries, capacity * sizeof(SYMBOL_HASHTABLE_ENTRY));
+  }
+
+  symbol_hashtable_insert_unsafe(hashtable, id, str);
+  assert(symbol_hashtable_lookup(hashtable, str, strlen(str))->id == id);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static SYMBOL_HASHTABLE symbols_hashtable;
+static const char **dynamic_symbs_strs;
+static uint32 dynamic_symbs_strs_capacity;
+static uint32 dynamic_symbs_count;
+
 
 const char *symb_to_raw_str(uint16 symb_id) {
   uint32 count = embedded_symbs_count();
+  assert(symb_id < count + dynamic_symbs_count);
   if (symb_id < count)
     return symb_repr(symb_id);
   else
     return dynamic_symbs_strs[symb_id - count];
 }
 
-// OBJ to_str(OBJ obj) {
-//   return str_to_obj(symb_to_raw_str(get_symb_id(obj)));
-// }
-
-uint16 lookup_symb_id(const char *str_, uint32 len) {
+uint16 lookup_symb_id(const char *str, uint32 len) {
   uint32 count = embedded_symbs_count();
 
-  if (str_to_symb_map.size() == 0)
-    for (uint32 i=0 ; i < count ; i++)
-      str_to_symb_map[symb_repr(i)] = i;
+  if (symbols_hashtable.capacity == 0)
+    for (uint32 i=0 ; i < count ; i++) {
+      const char *symb_str = symb_repr(i);
+      uint32 len = strlen(symb_str);
+      assert(symbol_hashtable_lookup(&symbols_hashtable, symb_str, len) == NULL);
+      symbol_hashtable_insert(&symbols_hashtable, i, symb_str);
+      assert(symbol_hashtable_lookup(&symbols_hashtable, symb_str, strlen(symb_str))->id == i);
+    }
 
-  char *str = strndup(str_, len);
+  SYMBOL_HASHTABLE_ENTRY *entry = symbol_hashtable_lookup(&symbols_hashtable, str, len);
+  if (entry != NULL)
+    return entry->id;
 
-  str_idx_map_type::iterator it = str_to_symb_map.find(str);
-  if (it != str_to_symb_map.end()) {
-    free(str);
-    return it->second;
-  }
-
-  uint32 next_symb_id = count + dynamic_symbs_strs.size();
+  uint32 next_symb_id = count + dynamic_symbs_count;
   if (next_symb_id > 0xFFFF)
     impl_fail("Exceeded maximum permitted number of symbols (= 2^16)");
-  dynamic_symbs_strs.push_back(str);
-  str_to_symb_map[str] = next_symb_id;
+
+  if (dynamic_symbs_count == dynamic_symbs_strs_capacity) {
+    uint32 new_capacity = dynamic_symbs_strs_capacity != 0 ? 2 * dynamic_symbs_strs_capacity : 256;
+    const char **new_strs = (const char **) alloc_static_block(new_capacity * sizeof(const char *));
+    memcpy(new_strs, dynamic_symbs_strs, dynamic_symbs_count * sizeof(const char *));
+    dynamic_symbs_strs = new_strs;
+    dynamic_symbs_strs_capacity = new_capacity;
+  }
+
+  char *str_copy = (char *) alloc_static_block(len + 1);
+  memcpy(str_copy, str, len);
+  str_copy[len] = '\0';
+
+  dynamic_symbs_strs[dynamic_symbs_count++] = str_copy;
+  symbol_hashtable_insert(&symbols_hashtable, next_symb_id, str_copy);
+
   return next_symb_id;
-}
-
-// OBJ to_symb(OBJ obj) {
-//   char *str = obj_to_str(obj);
-//   uint32 len = strlen(str);
-//   uint16 symb_id = lookup_symb_id(str, len);
-//   return make_symb(symb_id);
-// }
-
-OBJ extern_str_to_symb(const char *str) {
-  //## CHECK THAT IT'S A VALID SYMBOL, AND THAT IT'S AMONG THE "STATIC" ONES
-  return make_symb(lookup_symb_id(str, strlen(str)));
 }
