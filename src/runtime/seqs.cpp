@@ -321,11 +321,6 @@ OBJ build_seq(OBJ *elts, uint32 length) {
   if (length == 0)
     return make_empty_seq();
 
-  // return make_slice(elts, length);
-
-// void gather_build_seq_obj_stats(OBJ *elts, uint32 length);
-// gather_build_seq_obj_stats(elts, length);
-
   for (int i=0 ; i < length ; i++) {
     OBJ elt = elts[i];
     if (!is_int(elt))
@@ -338,7 +333,31 @@ OBJ build_seq(OBJ *elts, uint32 length) {
   return build_seq_uint8(elts, length);
 }
 
-OBJ build_seq(int64* array, int32 size) {
+OBJ build_seq_bool(bool* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
+  SEQ_OBJ *seq = new_obj_seq(size);
+
+  for (uint32 i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_bool(array[i]);
+
+  return make_seq(seq, size);
+}
+
+OBJ build_seq_double(double* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
+
+  SEQ_OBJ *seq = new_obj_seq(size);
+
+  for (uint32 i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_float(array[i]);
+
+  return make_seq(seq, size);
+}
+
+OBJ build_seq_int64(int64* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
@@ -354,43 +373,23 @@ OBJ build_seq(int64* array, int32 size) {
   }
 
   if (min == 0 & max <= 255) {
-
-    // counter_build_seq_int64_uint8++;
-    // if (size <= 8)
-    //   counter_build_seq_small_8++;
-
     uint8 *uint8_array = (uint8 *) array;
     for (uint32 i=0 ; i < size ; i++)
       uint8_array[i] = array[i];
-
-
     return make_slice_uint8(uint8_array, size);
   }
 
-  // if (min >= -128 & max < 128) {
-  //   counter_build_seq_int64_int8++;
-  //   if (size <= 8)
-  //     counter_build_seq_small_8++;
-  // }
-  // else if (min >= -32768 & max < 32768) {
-  //   counter_build_seq_int64_int16++;
-  //   if (size <= 4)
-  //     counter_build_seq_small_16++;
-  // }
-  // else if (min >= 0 & max < 65536) {
-  //   counter_build_seq_int64_uint16++;
-  //   if (size <= 4)
-  //     counter_build_seq_small_16++;
-  // }
-  // else if (min >= -2147483648LL & max < 2147483648LL) {
-  //   counter_build_seq_int64_int32;
-  // }
-  // else if (min >= 0 & max < 4294967296LL) {
-  //   counter_build_seq_int64_uint32++;
-  // }
-  // else {
-  //   counter_build_seq_int64++;
-  // }
+  SEQ_OBJ *seq = new_obj_seq(size);
+
+  for (uint32 i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_int(array[i]);
+
+  return make_seq(seq, size);
+}
+
+OBJ build_seq_int32(int32* array, int32 size) {
+  if (size == 0)
+    return make_empty_seq();
 
   SEQ_OBJ *seq = new_obj_seq(size);
 
@@ -400,11 +399,9 @@ OBJ build_seq(int64* array, int32 size) {
   return make_seq(seq, size);
 }
 
-OBJ build_seq(int32* array, int32 size) {
+OBJ build_seq_int16(int16* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
-
-// counter_build_seq_int32++;
 
   SEQ_OBJ *seq = new_obj_seq(size);
 
@@ -414,54 +411,9 @@ OBJ build_seq(int32* array, int32 size) {
   return make_seq(seq, size);
 }
 
-OBJ build_seq(uint32* array, int32 size) {
+OBJ build_seq_int8(int8* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
-
-// counter_build_seq_uint32++;
-
-  SEQ_OBJ *seq = new_obj_seq(size);
-
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.obj[i] = make_int(array[i]);
-
-  return make_seq(seq, size);
-}
-
-OBJ build_seq(int16* array, int32 size) {
-  if (size == 0)
-    return make_empty_seq();
-
-// counter_build_seq_int16++;
-
-  SEQ_OBJ *seq = new_obj_seq(size);
-
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.obj[i] = make_int(array[i]);
-
-  return make_seq(seq, size);
-}
-
-OBJ build_seq(uint16* array, int32 size) {
-  if (size == 0)
-    return make_empty_seq();
-
-// counter_build_seq_uint16++;
-
-  SEQ_OBJ *seq = new_obj_seq(size);
-
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.obj[i] = make_int(array[i]);
-
-  return make_seq(seq, size);
-}
-
-OBJ build_seq(int8* array, int32 size) {
-  if (size == 0)
-    return make_empty_seq();
-
-  // if (size <= 8)
-  //   counter_build_seq_small_8++;
 
   for (int i=0 ; i < size ; i++)
     if (array[i] < 0) {
@@ -470,175 +422,66 @@ OBJ build_seq(int8* array, int32 size) {
       for (uint32 i=0 ; i < size ; i++)
         seq->buffer.obj[i] = make_int(array[i]);
 
-// counter_build_seq_int8++;
-
       return make_seq(seq, size);
     }
-
-// counter_build_seq_int8_uint7++;
 
   return make_slice_uint8((uint8 *) array, size);
 }
 
-OBJ build_seq(uint8 *array, int32 size) {
+OBJ build_seq_uint8(uint8 *array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
-  // if (size <= 8)
-    // counter_build_seq_small_8++;
-
-// counter_build_seq_uint8++;
-
   return make_slice_uint8(array, size);
-
-  // SEQ_OBJ *seq = new_obj_seq(size);
-
-  // for (uint32 i=0 ; i < size ; i++)
-  //   seq->buffer.obj[i] = make_int(array[i]);
-
-  // return make_seq(seq, size);
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
+OBJ build_const_seq_uint8(const uint8 *array, uint32 size) {
+  assert(size != 0);
+  return make_slice_uint8((uint8 *) array, size);
+}
 
-
-OBJ build_const_seq(int16* array, uint32 size) {
+OBJ build_const_seq_int8(const int8 *array, uint32 size) {
   assert(size != 0);
 
   SEQ_OBJ *seq = new_obj_seq(size);
 
-  for (uint32 i=0 ; i < size ; i++)
+  for (int i=0 ; i < size ; i++)
     seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
 
-
-OBJ build_const_seq(uint8 *array, uint32 size) {
+OBJ build_const_seq_int16(const int16 *array, uint32 size) {
   assert(size != 0);
 
-  return make_slice_uint8(array, size);
-}
-
-
-
-
-
-
-
-
-
-
-
-OBJ build_seq(bool* array, int32 size) {
-  if (size == 0)
-    return make_empty_seq();
-
   SEQ_OBJ *seq = new_obj_seq(size);
 
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.obj[i] = make_bool(array[i]);
+  for (int i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
 
-OBJ build_seq(double* array, int32 size) {
-  if (size == 0)
-    return make_empty_seq();
+OBJ build_const_seq_int32(const int32 *array, uint32 size) {
+  assert(size != 0);
 
   SEQ_OBJ *seq = new_obj_seq(size);
 
-  for (uint32 i=0 ; i < size ; i++)
-    seq->buffer.obj[i] = make_float(array[i]);
+  for (int i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_int(array[i]);
 
   return make_seq(seq, size);
 }
 
+OBJ build_const_seq_int64(const int64 *array, uint32 size) {
+  assert(size != 0);
 
+  SEQ_OBJ *seq = new_obj_seq(size);
 
+  for (int i=0 ; i < size ; i++)
+    seq->buffer.obj[i] = make_int(array[i]);
 
-////////////////////////////////////////////////////////////////////////////////
-
-OBJ build_const_uint8_seq(const uint8* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_uint16_seq(const uint16* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_uint32_seq(const uint32* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_int8_seq(const int8* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_int16_seq(const int16* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_int32_seq(const int32* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
-}
-
-OBJ build_const_int64_seq(const int64* buffer, uint32 len) {
-  if (len == 0)
-    return make_empty_seq();
-
-  SEQ_OBJ *seq = new_obj_seq(len);
-
-  for (int i=0 ; i < len ; i++)
-    seq->buffer.obj[i] = make_int(buffer[i]);
-
-  return make_seq(seq, len);
+  return make_seq(seq, size);
 }

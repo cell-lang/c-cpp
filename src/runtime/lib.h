@@ -372,7 +372,6 @@ OBJ lookup_field(OBJ rec, uint16 field_symb_id);
 void init(STREAM &s);
 void append(STREAM &s, OBJ obj);
 OBJ build_seq(OBJ* elems, uint32 length);
-OBJ build_seq(STREAM &s);
 OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
@@ -393,16 +392,13 @@ void move_forward(TERN_REL_ITER &it);
 void fail();
 void runtime_check(OBJ cond);
 
-OBJ build_const_uint8_seq(const uint8* buffer, uint32 len);
-OBJ build_const_uint16_seq(const uint16* buffer, uint32 len);
-OBJ build_const_uint32_seq(const uint32* buffer, uint32 len);
-OBJ build_const_int8_seq(const int8* buffer, uint32 len);
-OBJ build_const_int16_seq(const int16* buffer, uint32 len);
-OBJ build_const_int32_seq(const int32* buffer, uint32 len);
-OBJ build_const_int64_seq(const int64* buffer, uint32 len);
-
-OBJ build_const_seq(int16* array, uint32 size);
-OBJ build_const_seq(uint8 *array, uint32 size);
+OBJ build_const_seq_uint8(const uint8* array, uint32 size);
+// OBJ build_const_seq_uint16(const uint16* array, uint32 size);
+// OBJ build_const_seq_uint32(const uint32* array, uint32 size);
+OBJ build_const_seq_int8(const int8* array, uint32 size);
+OBJ build_const_seq_int16(const int16* array, uint32 size);
+OBJ build_const_seq_int32(const int32* array, uint32 size);
+OBJ build_const_seq_int64(const int64* array, uint32 size);
 
 //////////////////////////////// bin-rel-obj.cpp ///////////////////////////////
 
@@ -542,16 +538,16 @@ int64*  get_long_array(OBJ seq, int64 *buffer, int32 size);
 double* get_double_array(OBJ seq, double *buffer, int32 size);
 bool*   get_bool_array(OBJ seq, bool *buffer, int32 size);
 
-OBJ build_seq(int64* array, int32 size);
-OBJ build_seq(int32* array, int32 size);
-OBJ build_seq(uint32* array, int32 size);
-OBJ build_seq(int16* array, int32 size);
-OBJ build_seq(uint16* array, int32 size);
-OBJ build_seq(int8* array, int32 size);
-OBJ build_seq(uint8* array, int32 size);
+OBJ build_seq_int64(int64* array, int32 size);
+OBJ build_seq_int32(int32* array, int32 size);
+OBJ build_seq_uint32(uint32* array, int32 size);
+OBJ build_seq_int16(int16* array, int32 size);
+OBJ build_seq_uint16(uint16* array, int32 size);
+OBJ build_seq_int8(int8* array, int32 size);
+OBJ build_seq_uint8(uint8* array, int32 size);
 
-OBJ build_seq(bool* array, int32 size);
-OBJ build_seq(double* array, int32 size);
+OBJ build_seq_bool(bool* array, int32 size);
+OBJ build_seq_double(double* array, int32 size);
 
 OBJ build_record(uint16 *labels, OBJ *value, int32 count);
 

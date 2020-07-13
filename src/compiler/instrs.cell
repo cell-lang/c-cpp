@@ -258,9 +258,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
     mk_set_from_stream()        = native_call(var, "build_set",         (expr.stream)),
     mk_set()                    = native_call(var, "build_set",         (expr.elems, expr.size)),
     mk_set_from_array()         = native_call(var, "build_set",         (expr.array, expr.size)),
-    mk_seq_from_stream()        = native_call(var, "build_seq",         (expr.stream)),
-    mk_seq()                    = native_call(var, "build_seq",         (expr.elems, expr.size)),
-    mk_seq_from_array()         = native_mk_seq_from_array_code(expr.array, expr.size, var),
+    mk_seq()                    = native_mk_seq_code(expr.array, expr.size, var),
     build_const_int_seq()       = native_build_const_int_seq_code(expr.seq_id, var),
     mk_map_from_streams()       = native_call(var, "build_map",         (expr.key_stream, expr.value_stream)),
     mk_map()                    = native_call(var, "build_map",         (expr.keys, expr.values, expr.size)),
@@ -287,8 +285,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
     _                           = auto_expr_native_code(expr, var);
 
 
-  String native_mk_seq_from_array_code(ArrayVar array, Int32Expr size, WriteObjVar var) {
-    return native_call(var, "build_seq", (array, size));
+  String native_mk_seq_code(ArrayVar array, Int32Expr size, WriteObjVar var) {
+    fn_name = match (array.repr)
+      object  = "build_seq",
+      _       = "build_seq_" & native_type(array.repr);
+    return native_call(var, fn_name, (array, size));
   }
 
 
@@ -301,7 +302,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
     type, len = item(prg_data.int_seqs_types_and_lengths, seq_id);
     seq_name = const_int_seq_name(seq_id);
-    return native_var_ref_name(var) & " = build_seq(" & seq_name & ", " & _print_(len) & ");";
+    return native_var_ref_name(var) & " = build_const_seq_" & type & "(" & seq_name & ", " & _print_(len) & ");";
   }
 
   ///////////////////////////////////////////////////////////////////////////////

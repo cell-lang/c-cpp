@@ -234,16 +234,17 @@ String* symbols_arrays_decls([(Symbol+, Nat)] symbs_seqs) {
 String native_int_type(Int min_val, Int max_val) {
   for lb, up, type_name <- type_bounds
     return type_name if min_val >= lb and max_val < up;
-  return "long";
+  return "int64";
 
 
   (Int, Int, String)+ type_bounds = (
     (0,             pow(2, 8),    "uint8"),
     (-pow(2, 7),    pow(2, 7),    "int8"),
-    (0,             pow(2, 16),   "uint16"),
     (-pow(2, 15),   pow(2, 15),   "int16"),
-    (0,             pow(2, 32),   "uint32"),
     (-pow(2, 31),   pow(2, 31),   "int32")
+
+    // (0,             pow(2, 16),   "uint16"),
+    // (0,             pow(2, 32),   "uint32")
   );
 }
 
