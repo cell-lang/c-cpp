@@ -14,7 +14,7 @@ bool is_str(uint16 tag_id, OBJ obj) {
 
   OBJ_TYPE type = get_physical_type(obj);
 
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8 | type == TYPE_NE_SEQ_UINT8_INLINE)
     return true;
 
   uint32 len = get_seq_length(obj);
@@ -72,6 +72,27 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
 
     for (uint32 i=0 ; i < len ; i++) {
       int64 ch = chars[i];
+      if (ch >= ' ' & ch <= '~') {
+        buffer[0] = '\\';
+        buffer[1] = ch;
+        buffer[2] = '\0';
+        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
+      }
+      else if (ch == '\n') {
+        emit(data, "\\n", TEXT);
+      }
+      else if (ch == '\t') {
+        emit(data, "\\t", TEXT);
+      }
+      else {
+        sprintf(buffer, "\\%04llx", ch);
+        emit(data, buffer, TEXT);
+      }
+    }
+  }
+  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    for (uint32 i=0 ; i < len ; i++) {
+      int64 ch = inline_uint8_at(char_seq.core_data.int_, i);
       if (ch >= ' ' & ch <= '~') {
         buffer[0] = '\\';
         buffer[1] = ch;
@@ -160,13 +181,20 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
         print_obj(elems[i], emit, data);
       }
     }
-    else {
-      assert(type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8);
+    else if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
       uint8 *elts = get_seq_elts_ptr_uint8(obj);
       for (uint32 i=0 ; i < len ; i++) {
         if (i > 0)
           emit(data, ", ", TEXT);
         print_obj(make_int(elts[i]), emit, data);
+      }
+    }
+    else {
+      assert(type == TYPE_NE_SEQ_UINT8_INLINE);
+      for (uint32 i=0 ; i < len ; i++) {
+        if (i > 0)
+          emit(data, ", ", TEXT);
+        print_obj(make_int(inline_uint8_at(obj.core_data.int_, i)), emit, data);
       }
     }
   }

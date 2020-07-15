@@ -708,11 +708,11 @@ OBJ *custom_inline_sort_unique(OBJ *zs, OBJ *ys, uint32 *sizes, uint32 size, uin
 
 uint32 sort_unique(OBJ *objs, uint32 size) {
   OBJ obj = objs[0];
-  if (is_inline_obj(obj)) {
+  if (is_always_inline(obj)) {
     bool already_sorted = true;
     for (int i=1 ; i < size ; i++) {
       OBJ obj_i = objs[i];
-      if (!is_inline_obj(obj_i)) {
+      if (!is_always_inline(obj_i)) {
         goto not_all_inline;
         //## SOMEHOW THIS MADE IT SLOWER. TRY AGAIN SOMETIMES
         // if (already_sorted && is_sorted(objs + i, size - i)) {
@@ -955,11 +955,11 @@ void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort
 //   uint32 high_idx = size - 1; // size is greater than 0 (actually 1) here, so this is always non-negative (actually positive)
 //   for ( ; ; ) {
 //     // Advancing the lower cursor to the next non-inline object
-//     while (low_idx < high_idx & is_inline_obj(objs[low_idx]))
+//     while (low_idx < high_idx & is_always_inline(objs[low_idx]))
 //       low_idx++;
 
 //     // Advancing the upper cursor to the next inline object
-//     while (high_idx > low_idx & not is_inline_obj(objs[high_idx]))
+//     while (high_idx > low_idx & not is_always_inline(objs[high_idx]))
 //       high_idx--;
 
 //     if (low_idx == high_idx)
@@ -970,7 +970,7 @@ void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort
 //     objs[high_idx] = tmp;
 //   }
 
-//   uint32 inline_count = is_inline_obj(objs[low_idx]) ? low_idx + 1 : low_idx;
+//   uint32 inline_count = is_always_inline(objs[low_idx]) ? low_idx + 1 : low_idx;
 
 //   uint32 idx = 0;
 //   if (inline_count > 0) {

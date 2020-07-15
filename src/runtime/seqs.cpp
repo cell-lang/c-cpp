@@ -3,11 +3,18 @@
 
 OBJ get_obj_at(OBJ seq, int64 idx) {
   assert(is_seq(seq));
+
   if (((uint64) idx) >= get_seq_length(seq))
     soft_fail("Invalid sequence index");
+
   OBJ_TYPE type = get_physical_type(seq);
+
   if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
     return make_int(get_seq_elts_ptr_uint8(seq)[idx]);
+
+  if (type == TYPE_NE_SEQ_UINT8_INLINE)
+    return make_int(inline_uint8_at(seq.core_data.int_, idx));
+
   return get_seq_elts_ptr(seq)[idx];
 }
 
@@ -16,6 +23,7 @@ double get_float_at(OBJ seq, int64 idx) {
 }
 
 int64 get_int_at(OBJ seq, int64 idx) {
+  //## TODO: IMPLEMENT THIS FOR REAL!!
   return get_int(at(seq, idx));
 }
 
@@ -37,10 +45,19 @@ OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
   if (buffer == NULL)
     buffer = new_obj_array(len);
 
-  uint8 *elts = get_seq_elts_ptr_uint8(seq);
+  if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint64 data = seq.core_data.int_;
+    for (int i=0 ; i < len ; i++) {
+      buffer[i] = make_int(data & 0xFF);
+      data >>= 8;
+    }
+  }
+  else {
+    uint8 *elts = get_seq_elts_ptr_uint8(seq);
 
-  for (int i=0 ; i < len ; i++)
-    buffer[i] = make_int(elts[i]);
+    for (int i=0 ; i < len ; i++)
+      buffer[i] = make_int(elts[i]);
+  }
 
   return buffer;
 }
@@ -56,6 +73,13 @@ int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
     uint8 *elts = get_seq_elts_ptr_uint8(seq);
     for (int i=0 ; i < len ; i++)
       buffer[i] = elts[i];
+  }
+  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint64 data = seq.core_data.int_;
+    for (int i=0 ; i < len ; i++) {
+      buffer[i] = data & 0xFF;
+      data >>= 8;
+    }
   }
   else {
     OBJ *seq_buffer = get_seq_elts_ptr(seq);
@@ -109,6 +133,10 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
     uint8 *elts = get_seq_elts_ptr_uint8(seq);
     return make_slice_uint8(elts + idx_first, len);
   }
+  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint64 data = seq.core_data.int_ >> (8 * idx_first);
+    return make_seq_uint8_inline(data, len);
+  }
   else {
     OBJ *ptr = get_seq_elts_ptr(seq);
     return make_slice(ptr + idx_first, len);
@@ -120,19 +148,16 @@ OBJ append_to_seq(OBJ seq, OBJ obj) {
     if (is_int(obj)) {
       int64 value = get_int(obj);
       if (value >= 0 & value <= 255) {
-        SEQ_OBJ *seq_ptr = new_uint8_seq(1, 16);
-        seq_ptr->buffer.uint8_[0] = value;
-        return make_seq_uint8(seq_ptr, 1);
+        assert(get_int_at(make_seq_uint8_inline(value, 1), 0) == value);
+        assert(get_seq_length(make_seq_uint8_inline(value, 1)) == 1);
+
+        return make_seq_uint8_inline(value, 1);
       }
     }
 
     OBJ *ptr = new_obj_array(1);
     ptr[0] = obj;
     return make_slice(ptr, 1);
-
-    // SEQ_OBJ *seq_ptr = new_obj_seq(1, 2);
-    // seq_ptr->buffer.obj[0] = obj;
-    // return make_seq(seq_ptr, 1);
   }
 
   uint32 len = get_seq_length(seq);
@@ -197,6 +222,30 @@ OBJ append_to_seq(OBJ seq, OBJ obj) {
       return concat_uint8_obj(get_seq_elts_ptr_uint8(seq), len, &obj, 1);
     }
 
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      if (is_int(obj)) {
+        int64 value = get_int(obj);
+        if (value >= 0 & value < 255) {
+          if (len < 8) {
+            return make_seq_uint8_inline(inline_uint8_array_set_at(seq.core_data.int_, len, value), len + 1);
+          }
+          else {
+            assert(len == 8);
+            uint8 value_uint8 = value;
+            //## THIS COULD BE IMPROVED, ALTHOUGH IT MAY NOT MATTER IN PRACTICE
+            uint8 buffer[8];
+            copy_uint8_array(buffer, seq.core_data.int_);
+            return concat_uint8(buffer, len, &value_uint8, 1);
+          }
+        }
+      }
+
+      //## THIS ONE TOO COULD BE IMPROVED, ALTHOUGH IN PRACTICE IT MAY MATTER EVEN LESS
+      uint8 buffer[8];
+      copy_uint8_array(buffer, seq.core_data.int_);
+      return concat_uint8_obj(buffer, len, &obj, 1);
+    }
+
     default:
       internal_fail();
   }
@@ -248,6 +297,12 @@ OBJ join_seqs(OBJ left, OBJ right) {
     if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
       return in_place_concat_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
 
+    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+      uint8 buffer[8];
+      copy_uint8_array(buffer, right.core_data.int_);
+      return in_place_concat_uint8(ptrl, lenl, buffer, lenr);
+    }
+
     return concat_uint8_obj(ptrl->buffer.uint8_, lenl, get_seq_elts_ptr(right), lenr);
   }
 
@@ -257,7 +312,55 @@ OBJ join_seqs(OBJ left, OBJ right) {
     if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
       return concat_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
 
+    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+      uint8 buffer[8];
+      copy_uint8_array(buffer, right.core_data.int_);
+      return concat_uint8(eltsl, lenl, buffer, lenr);
+    }
+
     return concat_uint8_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
+  }
+
+  if (typel == TYPE_NE_SEQ_UINT8_INLINE) {
+    if (len <= 8) {
+      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8) {
+        //## IS THIS CASE EVEN EVER SUPPOSED TO HAPPEN?
+        uint8 *eltsr = get_seq_elts_ptr_uint8(right);
+        uint64 packed_array = left.core_data.int_;
+        for (int i=0 ; i < lenr ; i++)
+          packed_array = inline_uint8_array_set_at(packed_array, i + lenl, eltsr[i]);
+        //## A CHECK WOULD BE NICE HERE
+        return make_seq_uint8_inline(packed_array, len);
+      }
+
+      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+        // uint64 data = left.core_data.int_ | (right.core_data.int_ << (8 * lenl));
+        // return make_seq_uint8_inline(data, len);
+        //## A CHECK WOULD BE NICE HERE
+        //## ALSO, THIS IMPLEMENTATION IS REALLY UGLY
+        uint64 packed_array = left.core_data.int_;
+        for (int i=0 ; i < lenr ; i++)
+          packed_array = inline_uint8_array_set_at(packed_array, i + lenl, inline_uint8_at(right.core_data.int_, i));
+        return make_seq_uint8_inline(packed_array, len);
+      }
+    }
+    else {
+      uint8 bufferl[8];
+      copy_uint8_array(bufferl, left.core_data.int_);
+
+      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+        return concat_uint8(bufferl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+        uint8 bufferr[8];
+        copy_uint8_array(bufferr, right.core_data.int_);
+        return concat_uint8(bufferl, lenl, bufferr, lenr);
+      }
+    }
+
+    uint8 bufferl[8];
+    copy_uint8_array(bufferl, left.core_data.int_);
+    return concat_uint8_obj(bufferl, lenl, get_seq_elts_ptr(right), lenr);
   }
 
   if (typel == TYPE_NE_SLICE) {
@@ -265,6 +368,12 @@ OBJ join_seqs(OBJ left, OBJ right) {
 
     if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
       return concat_obj_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+      uint8 bufferr[8];
+      copy_uint8_array(bufferr, right.core_data.int_);
+      return concat_obj_uint8(eltsl, lenl, bufferr, lenr);
+    }
 
     return concat_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
   }
@@ -275,6 +384,12 @@ OBJ join_seqs(OBJ left, OBJ right) {
 
   if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
     return in_place_concat_obj_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+  if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint8 bufferr[8];
+    copy_uint8_array(bufferr, right.core_data.int_);
+    return in_place_concat_obj_uint8(ptrl, lenl, bufferr, lenr);
+  }
 
   return in_place_concat_obj(ptrl, lenl, get_seq_elts_ptr(right), lenr);
 }
@@ -296,6 +411,17 @@ OBJ rev_seq(OBJ seq) {
 
     return make_slice_uint8(rev_elems, len);
   }
+  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint8 buffer[8];
+    copy_uint8_array(buffer, seq.core_data.int_);
+    for (int i=0 ; i < len / 2 ; i++) {
+      uint32 j = len - i - 1;
+      uint8 tmp = buffer[i];
+      buffer[i] = buffer[j];
+      buffer[j] = tmp;
+    }
+    return make_seq_uint8_inline(pack_uint8_array(buffer, len), len);
+  }
   else {
     OBJ *elems = get_seq_elts_ptr(seq);
 
@@ -310,13 +436,6 @@ OBJ rev_seq(OBJ seq) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) OBJ build_seq_uint8(OBJ *elts, uint32 length) {
-  uint8 *uint8_elts = (uint8 *) elts;
-  for (int i=0 ; i < length ; i++)
-    uint8_elts[i] = get_int(elts[i]);
-  return make_slice_uint8(uint8_elts, length);
-}
-
 OBJ build_seq(OBJ *elts, uint32 length) {
   if (length == 0)
     return make_empty_seq();
@@ -330,7 +449,18 @@ OBJ build_seq(OBJ *elts, uint32 length) {
       return make_slice(elts, length);
   }
 
-  return build_seq_uint8(elts, length);
+  if (length <= 8) {
+    int64 raw_data = 0;
+    for (int i=0 ; i < length ; i++)
+      raw_data |= get_int(elts[i]) << (8 * i);
+    return make_seq_uint8_inline(raw_data, length);
+  }
+  else {
+    uint8 *uint8_elts = (uint8 *) elts;
+    for (int i=0 ; i < length ; i++)
+      uint8_elts[i] = get_int(elts[i]);
+    return make_slice_uint8(uint8_elts, length);
+  }
 }
 
 OBJ build_seq_bool(bool* array, int32 size) {
@@ -373,10 +503,18 @@ OBJ build_seq_int64(int64* array, int32 size) {
   }
 
   if (min == 0 & max <= 255) {
-    uint8 *uint8_array = (uint8 *) array;
-    for (uint32 i=0 ; i < size ; i++)
-      uint8_array[i] = array[i];
-    return make_slice_uint8(uint8_array, size);
+    if (size <= 8) {
+      int64 raw_data = 0;
+      for (int i=0 ; i < size ; i++)
+        raw_data |= array[i] << (8 * i);
+      return make_seq_uint8_inline(raw_data, size);
+    }
+    else {
+      uint8 *uint8_array = (uint8 *) array;
+      for (uint32 i=0 ; i < size ; i++)
+        uint8_array[i] = array[i];
+      return make_slice_uint8(uint8_array, size);
+    }
   }
 
   SEQ_OBJ *seq = new_obj_seq(size);
@@ -425,12 +563,20 @@ OBJ build_seq_int8(int8* array, int32 size) {
       return make_seq(seq, size);
     }
 
-  return make_slice_uint8((uint8 *) array, size);
+  //## THE 'BUG' THAT CAUSED THIS SHOULD BE FIXED NOW. CHECK
+  return build_seq_uint8((uint8 *) array, size);
 }
 
 OBJ build_seq_uint8(uint8 *array, int32 size) {
   if (size == 0)
     return make_empty_seq();
+
+  if (size <= 8) {
+    int64 raw_data = 0;
+    for (int i=0 ; i < size ; i++)
+      raw_data |= ((uint64) array[i]) << (8 * i);
+    return make_seq_uint8_inline(raw_data, size);
+  }
 
   return make_slice_uint8(array, size);
 }
@@ -439,7 +585,13 @@ OBJ build_seq_uint8(uint8 *array, int32 size) {
 
 OBJ build_const_seq_uint8(const uint8 *array, uint32 size) {
   assert(size != 0);
-  return make_slice_uint8((uint8 *) array, size);
+  // assert((((uint64) array) & 7) == 0); //## THIS ACTUALLY HAPPENS, AND IT'S NOT AN EXCEPTION
+
+  if (size <= 8)
+    //## ADD A CHECK HERE
+    return make_seq_uint8_inline(* (uint64 *) array, size);
+  else
+    return make_slice_uint8((uint8 *) array, size);
 }
 
 OBJ build_const_seq_int8(const int8 *array, uint32 size) {

@@ -5,7 +5,7 @@
 // The array mustn't contain duplicates
 uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) {
   if (len > 0) {
-    if (is_inline_obj(obj)) {
+    if (is_always_inline(obj)) {
       if (len <= 12) {
         for (int i=0 ; i < len ; i++)
           if (are_shallow_eq(sorted_array[i], obj)) {
@@ -17,7 +17,7 @@ uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) {
       }
 
       OBJ last_obj = sorted_array[len - 1];
-      if (!is_inline_obj(last_obj))
+      if (!is_always_inline(last_obj))
         goto std_alg;
 
       int64 low_idx = 0;
@@ -414,15 +414,15 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
   if (are_shallow_eq(obj1, obj2))
     return 0;
 
-  bool is_inline_1 = is_inline_obj(obj1);
-  bool is_inline_2 = is_inline_obj(obj2);
+  bool is_always_inline_1 = is_always_inline(obj1);
+  bool is_always_inline_2 = is_always_inline(obj2);
 
-  if (is_inline_1)
-    if (is_inline_2)
+  if (is_always_inline_1)
+    if (is_always_inline_2)
       return shallow_cmp(obj1, obj2);
     else
       return 1;
-  else if (is_inline_2)
+  else if (is_always_inline_2)
     return -1;
 
   OBJ_TYPE type1 = get_logical_type(obj1);

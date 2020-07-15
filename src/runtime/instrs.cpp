@@ -278,11 +278,19 @@ void get_set_iter(SET_ITER &it, OBJ set) {
 void get_seq_iter(SEQ_ITER &it, OBJ seq) {
   it.idx = 0;
   if (!is_empty_seq(seq)) {
-    it.len = get_seq_length(seq);
+    int len = get_seq_length(seq);
+    it.len = len;
 
     OBJ_TYPE type = get_physical_type(seq);
     if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
       it.buffer.uint8_ = get_seq_elts_ptr_uint8(seq);
+      it.type = ELT_TYPE_UINT8;
+    }
+    else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+      uint8 *tmp_buff = new_uint8_array(8);
+      for (int i=0 ; i < len ; i++)
+        tmp_buff[i] = inline_uint8_at(seq.core_data.int_, i);
+      it.buffer.uint8_ = tmp_buff;
       it.type = ELT_TYPE_UINT8;
     }
     else {

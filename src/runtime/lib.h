@@ -14,32 +14,34 @@ typedef unsigned long long  uint64;
 
 enum OBJ_TYPE {
   // Always inline
-  TYPE_BLANK_OBJ      = 0,
-  TYPE_NULL_OBJ       = 1,
-  TYPE_SYMBOL         = 2,
-  TYPE_INTEGER        = 3,
-  TYPE_FLOAT          = 4,
-  TYPE_EMPTY_SEQ      = 5,
-  TYPE_EMPTY_REL      = 6,
-  // Always references
-  TYPE_NE_SEQ         = 7,    // -> OBJ[] / SEQ_OBJ
-  TYPE_NE_SET         = 8,    // -> SET_OBJ
-  TYPE_NE_BIN_REL     = 9,    // -> BIN_REL_OBJ
-  TYPE_NE_TERN_REL    = 10,   // -> TERN_REL_OBJ
-  TYPE_TAG_OBJ        = 11,   // -> TAG_OBJ
+  TYPE_BLANK_OBJ            = 0,
+  TYPE_NULL_OBJ             = 1,
+  TYPE_SYMBOL               = 2,
+  TYPE_INTEGER              = 3,
+  TYPE_FLOAT                = 4,
+  TYPE_EMPTY_SEQ            = 5,
+  TYPE_EMPTY_REL            = 6,
+  // Always references (except for small sequences of integers)
+  TYPE_NE_SEQ               = 7,    // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_SET               = 8,    // -> SET_OBJ
+  TYPE_NE_BIN_REL           = 9,    // -> BIN_REL_OBJ
+  TYPE_NE_TERN_REL          = 10,   // -> TERN_REL_OBJ
+  TYPE_TAG_OBJ              = 11,   // -> TAG_OBJ
   // Purely physical types
-  TYPE_NE_SLICE       = 12,   // -> OBJ[] / SEQ_OBJ
-  TYPE_NE_MAP         = 13,   // -> BIN_REL_OBJ--
-  TYPE_NE_LOG_MAP     = 14,   // -> BIN_REL_OBJ-
-  TYPE_OPT_REC        = 15,   // -> OBJ_*
-  TYPE_OPT_TAG_REC    = 16,   // -> OBJ_*
-  TYPE_NE_SEQ_UINT8   = 17,   // -> uint8
-  TYPE_NE_SLICE_UINT8 = 18    // -> uint8
+  TYPE_NE_SLICE             = 12,   // -> OBJ[] / SEQ_OBJ
+  TYPE_NE_MAP               = 13,   // -> BIN_REL_OBJ--
+  TYPE_NE_LOG_MAP           = 14,   // -> BIN_REL_OBJ-
+  TYPE_OPT_REC              = 15,   // -> OBJ_*
+  TYPE_OPT_TAG_REC          = 16,   // -> OBJ_*
+  TYPE_NE_SEQ_UINT8         = 17,   // -> uint8
+  TYPE_NE_SLICE_UINT8       = 18,   // -> uint8
+  TYPE_NE_SEQ_UINT8_INLINE  = 19
 };
 
 
-const OBJ_TYPE MAX_INLINE_OBJ_TYPE = TYPE_EMPTY_REL;
-const OBJ_TYPE MAX_LOGICAL_TYPE    = TYPE_TAG_OBJ;
+const OBJ_TYPE MAX_ALWAYS_INLINE_OBJ_TYPE   = TYPE_EMPTY_REL;
+const OBJ_TYPE MIN_INLINE_PHYSICAL_OBJ_TYPE = TYPE_NE_SEQ_UINT8_INLINE;
+const OBJ_TYPE MAX_LOGICAL_TYPE             = TYPE_TAG_OBJ;
 
 struct OBJ {
   union {
@@ -278,6 +280,7 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice(OBJ *ptr, uint32 length);
 OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice_uint8(uint8 *ptr, uint32 length);
+OBJ make_seq_uint8_inline(uint64 data, uint32 length);
 OBJ make_set(SET_OBJ*, uint32 size);
 OBJ make_bin_rel(BIN_REL_OBJ*);
 OBJ make_tern_rel(TERN_REL_OBJ*);
@@ -311,6 +314,7 @@ void* get_opt_tag_rec_ptr(OBJ);
 void* get_opt_repr_ptr(OBJ);
 uint16 get_opt_repr_id(OBJ);
 
+bool is_always_inline(OBJ);
 bool is_inline_obj(OBJ);
 
 OBJ_TYPE get_ref_obj_type(OBJ);
@@ -618,3 +622,30 @@ void clear_unused_mem();
 
 void switch_to_static_allocator();
 void switch_to_twin_stacks_allocator();
+
+
+inline uint8 inline_uint8_at(uint64 packed_array, uint32 idx) {
+  return (packed_array >> (8 * idx)) & 0xFF;
+}
+
+inline uint64 inline_uint8_array_set_at(uint64 packed_array, uint32 idx, uint8 value) {
+  uint64 updated_packed_array = (packed_array & ~(0xFFULL << (8 * idx))) | (((uint64) value) << (8 * idx));
+  assert(inline_uint8_at(updated_packed_array, idx) == value);
+  for (int i=0 ; i < idx ; i++)
+    assert(inline_uint8_at(updated_packed_array, i) == inline_uint8_at(packed_array, i));
+  return updated_packed_array;
+}
+
+inline void copy_uint8_array(uint8 *array, uint64 packed_array) {
+  for (int i=0 ; i < 8 ; i++)
+    array[i] = inline_uint8_at(packed_array, i);
+}
+
+inline uint64 pack_uint8_array(uint8 *array, uint32 size) {
+  uint64 packed_array = 0;
+  for (int i=0 ; i < size ; i++)
+    packed_array |= ((uint64) array[i]) << (8 * i);
+  for (int i=0 ; i < size ; i++)
+    assert(inline_uint8_at(packed_array, i) == array[i]);
+  return packed_array;
+}

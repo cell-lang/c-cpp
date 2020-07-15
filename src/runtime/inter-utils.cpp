@@ -162,6 +162,11 @@ int64 utf8_size(OBJ str_obj) {
     uint8 *chars = get_seq_elts_ptr_uint8(raw_str_obj);
     return to_utf8(chars, len, NULL);
   }
+  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint8 buffer[8];
+    copy_uint8_array(buffer, raw_str_obj.core_data.int_);
+    return to_utf8(buffer, len, NULL);
+  }
   else {
     OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
     return to_utf8(seq_buffer, len, NULL);
@@ -180,6 +185,14 @@ void obj_to_str(OBJ str_obj, char *buffer, uint32 size) {
       if (size < min_size)
         internal_fail();
       to_utf8(chars, len, buffer);
+    }
+    else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+      uint8 input_buffer[8];
+      copy_uint8_array(input_buffer, raw_str_obj.core_data.int_);
+      int64 min_size = to_utf8(input_buffer, len, NULL);
+      if (size < min_size)
+        internal_fail();
+      to_utf8(input_buffer, len, buffer);
     }
     else {
       OBJ *seq_buffer = get_seq_elts_ptr(raw_str_obj);
@@ -203,17 +216,25 @@ char *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
   size = len;
 
   OBJ_TYPE type = get_physical_type(byte_seq_obj);
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
+
+  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
     return (char *) get_seq_elts_ptr_uint8(byte_seq_obj);
+
+  char *buffer = new_byte_array(len);
+
+  if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+    for (int i=0 ; i < len ; i++)
+      buffer[i] = inline_uint8_at(byte_seq_obj.core_data.int_, i);
+  }
+  else {
+    OBJ *elems = get_seq_elts_ptr(byte_seq_obj);
+    for (uint32 i=0 ; i < len ; i++) {
+      long long val = get_int(elems[i]);
+      assert(val >= 0 && val <= 255);
+      buffer[i] = (char) val;
+    }
   }
 
-  OBJ *elems = get_seq_elts_ptr(byte_seq_obj);
-  char *buffer = new_byte_array(len);
-  for (uint32 i=0 ; i < len ; i++) {
-    long long val = get_int(elems[i]);
-    assert(val >= 0 && val <= 255);
-    buffer[i] = (char) val;
-  }
   return buffer;
 }
 

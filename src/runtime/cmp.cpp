@@ -75,11 +75,13 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
     case TYPE_NE_SEQ: {
       assert(
         phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE |
-        phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8
+        phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8 |
+        phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE
       );
       assert(
         phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE |
-        phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8
+        phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8 |
+        phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE
       );
 
       int64 len1 = read_size_field(obj1);
@@ -100,6 +102,15 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
           }
           return 0;
         }
+        else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+          for (int i=0 ; i < len1 ; i++) {
+            int elt1 = elts1_u8[i];
+            int elt2 = inline_uint8_at(obj2.core_data.int_, i);
+            if (elt1 != elt2)
+              return elt2 - elt1;
+          }
+          return 0;
+        }
         else {
           elts2 = (OBJ *) obj2.core_data.ptr;
           for (int i=0 ; i < len1 ; i++) {
@@ -108,6 +119,41 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
             if (elt_2_type != TYPE_INTEGER)
               return elt_2_type - TYPE_INTEGER;
             uint8 elt1 = elts1_u8[i];
+            int64 elt2_i64 = get_int(elt2);
+            if (elt1 != elt2_i64)
+              return elt2_i64 - elt1; //## BUG
+          }
+          return 0;
+        }
+      }
+      else if (phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE) {
+        if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
+          uint8 *elts2_u8 = (uint8 *) obj2.core_data.ptr;
+          for (int i=0 ; i < len1 ; i++) {
+            int elt1 = inline_uint8_at(obj1.core_data.int_, i);
+            int elt2 = elts2_u8[i];
+            if (elt1 != elt2)
+              return elt2 - elt1;
+          }
+          return 0;
+        }
+        else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+          for (int i=0 ; i < len1 ; i++) {
+            int elt1 = inline_uint8_at(obj1.core_data.int_, i);
+            int elt2 = inline_uint8_at(obj2.core_data.int_, i);
+            if (elt1 != elt2)
+              return elt2 - elt1;
+          }
+          return 0;
+        }
+        else {
+          elts2 = (OBJ *) obj2.core_data.ptr;
+          for (int i=0 ; i < len1 ; i++) {
+            OBJ elt2 = elts2[i];
+            OBJ_TYPE elt_2_type = get_logical_type(elt2);
+            if (elt_2_type != TYPE_INTEGER)
+              return elt_2_type - TYPE_INTEGER;
+            uint8 elt1 = inline_uint8_at(obj1.core_data.int_, i);
             int64 elt2_i64 = get_int(elt2);
             if (elt1 != elt2_i64)
               return elt2_i64 - elt1; //## BUG
@@ -125,6 +171,20 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
             return TYPE_INTEGER - elt_1_type;
           int64 elt1_i64 = get_int(elt1);
           uint8 elt2 = elts2_u8[i];
+          if (elt1_i64 != elt2)
+            return elt2 - elt1_i64; //## BUG
+        }
+        return 0;
+      }
+      else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+        elts1 = (OBJ *) obj1.core_data.ptr;
+        for (int i=0 ; i < len1 ; i++) {
+          OBJ elt1 = elts1[i];
+          OBJ_TYPE elt_1_type = get_logical_type(elt1);
+          if (elt_1_type != TYPE_INTEGER)
+            return TYPE_INTEGER - elt_1_type;
+          int64 elt1_i64 = get_int(elt1);
+          uint8 elt2 = inline_uint8_at(obj2.core_data.int_, i);
           if (elt1_i64 != elt2)
             return elt2 - elt1_i64; //## BUG
         }
@@ -332,13 +392,13 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
   OBJ_TYPE type1 = get_physical_type(obj1);
   OBJ_TYPE type2 = get_physical_type(obj2);
 
-  if (type1 <= MAX_INLINE_OBJ_TYPE) {
-    if (type2 <= MAX_INLINE_OBJ_TYPE)
+  if (type1 <= MAX_ALWAYS_INLINE_OBJ_TYPE) {
+    if (type2 <= MAX_ALWAYS_INLINE_OBJ_TYPE)
       return shallow_cmp(obj1, obj2);
     else
       return 1;
   }
-  else if (type2 <= MAX_INLINE_OBJ_TYPE)
+  else if (type2 <= MAX_ALWAYS_INLINE_OBJ_TYPE)
     return -1;
 
   int tags_count_1 = get_tags_count(obj1);
@@ -521,7 +581,7 @@ inline int sign(int value) {
   if (are_shallow_eq(obj1, obj2))
     return true;
 
-  if (is_inline_obj(obj1) | is_inline_obj(obj2))
+  if (is_always_inline(obj1) | is_always_inline(obj2))
     return false;
 
   return fast_cmp_objs(obj1, obj2) == 0;
