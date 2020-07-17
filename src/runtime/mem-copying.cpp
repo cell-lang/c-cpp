@@ -224,10 +224,9 @@ BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map) {
 }
 
 TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
-  if (tag_obj->unused_field == 0) {
+  // if (tag_obj->unused_field == 0) {
     // The object has not been copied yet, so we do it now
     TAG_OBJ *tag_obj_copy = new_tag_obj();
-    tag_obj_copy->tag_id = tag_obj->tag_id;
     tag_obj_copy->obj = copy_obj(tag_obj->obj);
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
@@ -236,12 +235,12 @@ TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
     // * (TAG_OBJ **) &tag_obj->obj = tag_obj_copy;
     // Returning the new object
     return tag_obj_copy;
-  }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    TAG_OBJ *tag_obj_copy = * (TAG_OBJ **) &tag_obj->obj;
-    return tag_obj_copy;
-  }
+  // }
+  // else {
+  //   // The object has already been copied. We just return a pointer to the copy
+  //   TAG_OBJ *tag_obj_copy = * (TAG_OBJ **) &tag_obj->obj;
+  //   return tag_obj_copy;
+  // }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

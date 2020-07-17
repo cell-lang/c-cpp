@@ -8,6 +8,7 @@ uint16 get_inline_tag_id(OBJ obj);
 uint16 get_nested_inline_tag_id(OBJ obj);
 OBJ untag_opt_tag_rec(OBJ obj);
 OBJ clear_both_inline_tags(OBJ obj);
+OBJ clear_all_inline_tags(OBJ obj);
 OBJ_TYPE physical_to_logical_type(OBJ_TYPE type);
 
 
@@ -333,37 +334,41 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
           return fast_cmp_bin_rels_slow(untag_opt_tag_rec(obj1), untag_opt_tag_rec(obj2)); //## OPTIMIZABLE
         }
         else {
-          uint16 tag_id_1 = opt_repr_get_tag_id(get_opt_repr_id(obj1));
           TAG_OBJ *ptr = (TAG_OBJ *) obj2.core_data.ptr;
-          uint16 tag_id_2 = ptr->tag_id;
+          //## CAN THIS BE OPTIMIZED? WE ALREADY KNOW THE FIRST OBJECT IS
+          //## AN AD-HOC RECORD, AND THE SECOND ONE A TAGGED VALUE
+          return fast_cmp_objs(clear_all_inline_tags(obj1), ptr->obj);
 
-          if (tag_id_1 != tag_id_2)
-            return tag_id_2 - tag_id_1;
+          // uint16 tag_id_1 = opt_repr_get_tag_id(get_opt_repr_id(obj1));
+          // TAG_OBJ *ptr = (TAG_OBJ *) obj2.core_data.ptr;
+          // uint16 tag_id_2 = ptr->tag_id;
 
-          return fast_cmp_objs(untag_opt_tag_rec(obj1), ptr->obj);
+          // if (tag_id_1 != tag_id_2)
+          //   return tag_id_2 - tag_id_1;
+
+          // return fast_cmp_objs(untag_opt_tag_rec(obj1), ptr->obj);
         }
       }
       else {
         if (phys_type_2 == TYPE_OPT_TAG_REC) {
+          //## CAN THIS BE OPTIMIZED? WE ALREADY KNOW THE FIRST OBJECT IS
+          //## A TAGGED VALUE, AND THE SECOND ONE AN AD-HOC RECORD
           TAG_OBJ *ptr = (TAG_OBJ *) obj1.core_data.ptr;
-          uint16 tag_id_1 = ptr->tag_id;
-          uint16 tag_id_2 = opt_repr_get_tag_id(get_opt_repr_id(obj2));
+          return fast_cmp_objs(ptr->obj, clear_all_inline_tags(obj2));
 
-          if (tag_id_1 != tag_id_2)
-            return tag_id_2 - tag_id_1;
+          // TAG_OBJ *ptr = (TAG_OBJ *) obj1.core_data.ptr;
+          // uint16 tag_id_1 = ptr->tag_id;
+          // uint16 tag_id_2 = opt_repr_get_tag_id(get_opt_repr_id(obj2));
 
-          return fast_cmp_objs(ptr->obj, untag_opt_tag_rec(obj2));
+          // if (tag_id_1 != tag_id_2)
+          //   return tag_id_2 - tag_id_1;
+
+          // return fast_cmp_objs(ptr->obj, untag_opt_tag_rec(obj2));
         }
         else {
           TAG_OBJ *ptr1 = (TAG_OBJ *) obj1.core_data.ptr;
           TAG_OBJ *ptr2 = (TAG_OBJ *) obj2.core_data.ptr;
-
-          uint16 tag_id_1 = ptr1->tag_id;
-          uint16 tag_id_2 = ptr2->tag_id;
-
-          if (tag_id_1 != tag_id_2)
-            return tag_id_2 - tag_id_1;
-
+          //## CAN THIS BE OPTIMIZED? WE ALREADY KNOW BOTH OBJECT ARE TAGGED
           return fast_cmp_objs(ptr1->obj, ptr2->obj);
         }
       }
@@ -432,13 +437,14 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
           if (type2 == TYPE_TAG_OBJ) {
             tag_id_1 = get_nested_inline_tag_id(obj1);
             TAG_OBJ *ptr = (TAG_OBJ *) obj2.core_data.ptr;
-            tag_id_2 = ptr->tag_id;
+            OBJ untagged_obj_2 = ptr->obj;
+            tag_id_2 = get_tag_id(untagged_obj_2);
 
             if (tag_id_1 != tag_id_2)
               return tag_id_2 - tag_id_1;
 
             // ptr->obj could be an inline object
-            return fast_cmp_objs(clear_both_inline_tags(obj1), ptr->obj); //## OPTIMIZABLE
+            return fast_cmp_objs(clear_both_inline_tags(obj1), get_inner_obj(untagged_obj_2)); //## OPTIMIZABLE
           }
           else if (type2 == TYPE_OPT_TAG_REC) {
             tag_id_1 = get_nested_inline_tag_id(obj1);
@@ -461,13 +467,14 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
         if (type1 == TYPE_TAG_OBJ) {
           TAG_OBJ *ptr = (TAG_OBJ *) obj1.core_data.ptr;
-          tag_id_1 = ptr->tag_id;
+          OBJ untagged_obj_1 = ptr->obj;
+          tag_id_1 = get_tag_id(untagged_obj_1);
           tag_id_2 = get_nested_inline_tag_id(obj2);
 
           if (tag_id_1 != tag_id_2)
             return tag_id_2 - tag_id_1;
 
-          return fast_cmp_objs(ptr->obj, clear_both_inline_tags(obj2)); //## OPTIMIZABLE
+          return fast_cmp_objs(get_inner_obj(ptr->obj), clear_both_inline_tags(obj2)); //## OPTIMIZABLE
 
         }
         else if (type1 == TYPE_OPT_TAG_REC) {
@@ -488,17 +495,9 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
       // obj1 has inline tags, obj2 doesn't
 
-      if (type2 == TYPE_TAG_OBJ) {
-        uint16 tag_id_1 = get_inline_tag_id(obj1);
-        TAG_OBJ *ptr = (TAG_OBJ *) obj2.core_data.ptr;
-        uint16 tag_id_2 = ptr->tag_id;
+      assert(type2 != TYPE_TAG_OBJ);
 
-        if (tag_id_1 != tag_id_2)
-          return tag_id_2 - tag_id_1;
-
-        return fast_cmp_objs(get_inner_obj(obj1), ptr->obj); //## OPTIMIZABLE
-      }
-      else if (type2 == TYPE_OPT_TAG_REC) {
+      if (type2 == TYPE_OPT_TAG_REC) {
         uint16 tag_id_1 = get_inline_tag_id(obj1);
         uint16 tag_id_2 = opt_repr_get_tag_id(get_opt_repr_id(obj2));
 
@@ -516,17 +515,9 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
     // obj1 has no inline tags, obj2 does
 
-    if (type1 == TYPE_TAG_OBJ) {
-      TAG_OBJ *ptr = (TAG_OBJ *) obj1.core_data.ptr;
-      uint16 tag_id_1 = ptr->tag_id;
-      uint16 tag_id_2 = get_inline_tag_id(obj2);
+    assert(type1 != TYPE_TAG_OBJ);
 
-      if (tag_id_1 != tag_id_2)
-        return tag_id_2 - tag_id_1;
-
-      return fast_cmp_objs(ptr->obj, get_inner_obj(obj2)); //## OPTIMIZABLE
-    }
-    else if (type1 == TYPE_OPT_TAG_REC) {
+    if (type1 == TYPE_OPT_TAG_REC) {
       uint16 tag_id_1 = opt_repr_get_tag_id(get_opt_repr_id(obj1));
       uint16 tag_id_2 = get_inline_tag_id(obj2);
 

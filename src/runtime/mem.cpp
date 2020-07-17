@@ -131,7 +131,6 @@ TERN_REL_OBJ *new_tern_rel(uint32 size) {
 
 TAG_OBJ *new_tag_obj() {
   TAG_OBJ *tag_obj = (TAG_OBJ *) new_obj(tag_obj_mem_size());
-  tag_obj->unused_field = 0;
   return tag_obj;
 }
 

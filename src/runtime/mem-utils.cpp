@@ -66,7 +66,7 @@ const uint64 NE_BIN_REL_MASK                = MAKE_TYPE(TYPE_NE_BIN_REL);
 const uint64 NE_MAP_MASK                    = MAKE_TYPE(TYPE_NE_MAP);
 const uint64 NE_LOG_MAP_MASK                = MAKE_TYPE(TYPE_NE_LOG_MAP);
 const uint64 NE_TERN_REL_MASK               = MAKE_TYPE(TYPE_NE_TERN_REL);
-const uint64 TAG_OBJ_MASK                   = MAKE_TYPE(TYPE_TAG_OBJ);
+const uint64 TAG_OBJ_BASE_MASK              = MAKE_TYPE(TYPE_TAG_OBJ);
 const uint64 OPT_REC_BASE_MASK              = MAKE_TYPE(TYPE_OPT_REC);
 const uint64 OPT_TAG_REC_BASE_MASK          = MAKE_TYPE(TYPE_OPT_TAG_REC);
 const uint64 NE_SEQ_UINT8_BASE_MASK         = MAKE_TYPE(TYPE_NE_SEQ_UINT8);
@@ -147,25 +147,30 @@ uint32 get_tags_count(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
+  static OBJ_TYPE log_types[8] = {
+    TYPE_NE_SEQ,      // TYPE_NE_SLICE
+    TYPE_NE_BIN_REL,  // TYPE_NE_MAP
+    TYPE_NE_BIN_REL,  // TYPE_NE_LOG_MAP
+    TYPE_NE_BIN_REL,  // TYPE_OPT_REC
+    TYPE_TAG_OBJ,     // TYPE_OPT_TAG_REC
+    TYPE_NE_SEQ,      // TYPE_NE_SEQ_UINT8
+    TYPE_NE_SEQ,      // TYPE_NE_SLICE_UINT8
+    TYPE_NE_SEQ       // TYPE_NE_SEQ_UINT8_INLINE
+  };
+
+  if (type <= MAX_LOGICAL_TYPE) {
+    return type;
+  }
+  else {
+    int idx = type - MAX_LOGICAL_TYPE - 1;
+    assert(idx < sizeof(log_types) / sizeof(OBJ_TYPE));
+    return log_types[idx];
+  }
+}
+
 OBJ_TYPE get_logical_type(OBJ obj) {
-  OBJ_TYPE type = get_physical_type(obj);
-
-  if (type == TYPE_NE_SLICE)
-    return TYPE_NE_SEQ;
-
-  if (get_tags_count(obj) > 0)
-    return TYPE_TAG_OBJ;
-
-  if (type == TYPE_OPT_TAG_REC)
-    return TYPE_TAG_OBJ;
-
-  if (type == TYPE_NE_MAP | type == TYPE_NE_LOG_MAP | type == TYPE_OPT_REC)
-    return TYPE_NE_BIN_REL;
-
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8 | type == TYPE_NE_SEQ_UINT8_INLINE)
-    return TYPE_NE_SEQ;
-
-  return type;
+  return get_tags_count(obj) != 0 ? TYPE_TAG_OBJ : physical_to_logical_type(get_physical_type(obj));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -223,17 +228,17 @@ OBJ make_float(double value) {
   return obj;
 }
 
-static bool is_fake(OBJ *elts, uint32 length) {
-  for (int i=0 ; i < length ; i++) {
-    OBJ elt = elts[i];
-    if (!is_int(elt))
-      return false;
-    int64 value = get_int(elt);
-    if (value < 0 | value > 255)
-      return false;
-  }
-  return true;
-}
+// static bool is_fake(OBJ *elts, uint32 length) {
+//   for (int i=0 ; i < length ; i++) {
+//     OBJ elt = elts[i];
+//     if (!is_int(elt))
+//       return false;
+//     int64 value = get_int(elt);
+//     if (value < 0 | value > 255)
+//       return false;
+//   }
+//   return true;
+// }
 
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
@@ -349,20 +354,6 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
   return obj;
 }
 
-static OBJ make_tag_obj(TAG_OBJ *ptr) {
-  OBJ obj;
-  obj.core_data.ptr = ptr;
-  obj.extra_data = TAG_OBJ_MASK;
-  return obj;
-}
-
-static OBJ make_ref_tag_obj(uint16 tag_id, OBJ obj) {
-  TAG_OBJ *tag_obj = new_tag_obj();
-  tag_obj->tag_id = tag_id;
-  tag_obj->obj = obj;
-  return make_tag_obj(tag_obj);
-}
-
 OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
 
   OBJ_TYPE type = get_physical_type(obj);
@@ -393,13 +384,20 @@ OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
     }
   }
 
-  return make_ref_tag_obj(tag_id, obj);
+  OBJ tag_obj;
+  TAG_OBJ *ptr = new_tag_obj();
+  ptr->obj = obj;
+  tag_obj.core_data.ptr = ptr;
+  tag_obj.extra_data = TAG_OBJ_BASE_MASK | MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
+  return tag_obj;
 }
 
 
 OBJ make_tag_obj(uint16 tag_id, OBJ obj) {
   OBJ tag_obj = make_tag_obj_(tag_id, obj);
   assert(!(get_physical_type(tag_obj) == TYPE_NE_SET & get_tags_count(tag_obj) == 2));
+  assert(get_tag_id(tag_obj) == tag_id);
+  assert(are_shallow_eq(get_inner_obj(tag_obj), obj));
   return tag_obj;
 }
 
@@ -449,13 +447,12 @@ uint32 get_set_size(OBJ set) {
 
 uint16 get_tag_id(OBJ obj) {
   assert(is_tag_obj(obj));
+  assert(get_tags_count(obj) != 0 || get_physical_type(obj) == TYPE_OPT_TAG_REC);
 
   if (get_tags_count(obj) != 0)
     return GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
-  else if (get_physical_type(obj) == TYPE_OPT_TAG_REC)
-    return opt_repr_get_tag_id(get_opt_repr_id(obj));
   else
-    return ((TAG_OBJ *) obj.core_data.ptr)->tag_id;
+    return opt_repr_get_tag_id(get_opt_repr_id(obj));
 }
 
 OBJ get_inner_obj(OBJ obj) {
@@ -470,19 +467,20 @@ OBJ get_inner_obj(OBJ obj) {
   }
 
   uint8 tags_count = get_tags_count(obj);
-  if (tags_count > 0) {
-    uint16 inner_tag = GET(obj.extra_data, INNER_TAG_SHIFT, TAG_WIDTH);
-    uint64 cleared_extra_data = CLEAR(obj.extra_data, INNER_TAG_MASK | TAG_MASK | TAGS_COUNT_MASK);
-    obj.extra_data = cleared_extra_data | MAKE_TAG(inner_tag) | MAKE_TAGS_COUNT(tags_count-1);
-    return obj;
-  }
 
-  if (type == TYPE_OPT_TAG_REC) {
+  if (type == TYPE_TAG_OBJ & tags_count == 1)
+    return ((TAG_OBJ *) obj.core_data.ptr)->obj;
+
+  if (tags_count == 0) {
+    assert(type == TYPE_OPT_TAG_REC);
     obj.extra_data = CLEAR(obj.extra_data, TYPE_MASK) | OPT_REC_BASE_MASK;
     return obj;
   }
 
-  return ((TAG_OBJ *) obj.core_data.ptr)->obj;
+  uint16 inner_tag = GET(obj.extra_data, INNER_TAG_SHIFT, TAG_WIDTH);
+  uint64 cleared_extra_data = CLEAR(obj.extra_data, INNER_TAG_MASK | TAG_MASK | TAGS_COUNT_MASK);
+  obj.extra_data = cleared_extra_data | MAKE_TAG(inner_tag) | MAKE_TAGS_COUNT(tags_count-1);
+  return obj;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -647,8 +645,7 @@ bool is_tern_rel(OBJ obj) {
 }
 
 bool is_tag_obj(OBJ obj) {
-  OBJ_TYPE type = get_physical_type(obj);
-  return get_tags_count(obj) != 0 | type == TYPE_TAG_OBJ | type == TYPE_OPT_TAG_REC;
+  return get_tags_count(obj) != 0 | get_physical_type(obj) == TYPE_OPT_TAG_REC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -801,17 +798,7 @@ OBJ clear_both_inline_tags(OBJ obj) {
   return get_inner_obj(get_inner_obj(obj)); //## IMPLEMENT FOR REAL
 }
 
-OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
-  static OBJ_TYPE log_types[8] = {
-    TYPE_NE_SEQ,      // TYPE_NE_SLICE
-    TYPE_NE_BIN_REL,  // TYPE_NE_MAP
-    TYPE_NE_BIN_REL,  // TYPE_NE_LOG_MAP
-    TYPE_NE_BIN_REL,  // TYPE_OPT_REC
-    TYPE_TAG_OBJ,     // TYPE_OPT_TAG_REC
-    TYPE_NE_SEQ,      // TYPE_NE_SEQ_UINT8
-    TYPE_NE_SEQ,      // TYPE_NE_SLICE_UINT8
-    TYPE_NE_SEQ       // TYPE_NE_SEQ_UINT8_INLINE
-  };
-
-  return type <= MAX_LOGICAL_TYPE ? type : log_types[type - MAX_LOGICAL_TYPE - 1];
+OBJ clear_all_inline_tags(OBJ obj) {
+  assert(!is_single_tag_type(get_physical_type(obj)));
+  obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | INNER_TAG_MASK);
 }

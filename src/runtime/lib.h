@@ -26,6 +26,7 @@ enum OBJ_TYPE {
   TYPE_NE_SET               = 8,    // -> SET_OBJ
   TYPE_NE_BIN_REL           = 9,    // -> BIN_REL_OBJ
   TYPE_NE_TERN_REL          = 10,   // -> TERN_REL_OBJ
+  //## FIND OTHER NAME
   TYPE_TAG_OBJ              = 11,   // -> TAG_OBJ
   // Purely physical types
   TYPE_NE_SLICE             = 12,   // -> OBJ[] / SEQ_OBJ
@@ -96,7 +97,7 @@ struct SEQ_OBJ {
 };
 
 struct SET_OBJ {
-  OBJ     buffer[1];
+  OBJ buffer[1];
 };
 
 struct BIN_REL_OBJ {
@@ -109,10 +110,8 @@ struct TERN_REL_OBJ {
   OBJ     buffer[1];
 };
 
-struct TAG_OBJ {
-  uint16 tag_id;
-  uint16 unused_field;
-  OBJ    obj;
+struct TAG_OBJ { //## FIND OTHER NAME
+  OBJ obj;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
