@@ -43,12 +43,14 @@ enum OBJ_TYPE {
 const OBJ_TYPE MAX_ALWAYS_INLINE_OBJ_TYPE   = TYPE_EMPTY_REL;
 const OBJ_TYPE MIN_INLINE_PHYSICAL_OBJ_TYPE = TYPE_NE_SEQ_UINT8_INLINE;
 const OBJ_TYPE MAX_LOGICAL_TYPE             = TYPE_TAG_OBJ;
+const OBJ_TYPE MAX_PHYSICAL_TYPE            = TYPE_NE_SEQ_UINT8_INLINE;
+
 
 struct OBJ {
   union {
     int64   int_;
     double  float_;
-    void*   ptr;
+    void   *ptr;
   } core_data;
 
   uint64 extra_data;

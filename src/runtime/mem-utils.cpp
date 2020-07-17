@@ -140,7 +140,11 @@ OBJ_TYPE get_physical_type(OBJ obj) {
 }
 
 uint32 get_tags_count(OBJ obj) {
-  return GET(obj.extra_data, TAGS_COUNT_SHIFT, TAGS_COUNT_WIDTH); // Masking is actually unnecessary here
+  return obj.extra_data >> TAGS_COUNT_SHIFT;
+}
+
+uint32 get_ex_type(OBJ obj) {
+  return obj.extra_data >> TYPE_SHIFT;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -172,16 +176,19 @@ OBJ_TYPE get_logical_type(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_single_tag_type(OBJ_TYPE type) {
-  return type == TYPE_NE_SEQ |
-         type == TYPE_NE_SET |
-         type == TYPE_NE_BIN_REL |
-         type == TYPE_NE_TERN_REL|
-         type == TYPE_NE_MAP |
-         type == TYPE_NE_LOG_MAP |
-         type == TYPE_NE_SLICE |
-         type == TYPE_NE_SEQ_UINT8 |
-         type == TYPE_NE_SLICE_UINT8 |
-         type == TYPE_NE_SEQ_UINT8_INLINE;
+  const uint32 BIT_MAP =
+    (1 << TYPE_NE_SEQ) |
+    (1 << TYPE_NE_SET) |
+    (1 << TYPE_NE_BIN_REL) |
+    (1 << TYPE_NE_TERN_REL)|
+    (1 << TYPE_NE_MAP) |
+    (1 << TYPE_NE_LOG_MAP) |
+    (1 << TYPE_NE_SLICE) |
+    (1 << TYPE_NE_SEQ_UINT8) |
+    (1 << TYPE_NE_SLICE_UINT8) |
+    (1 << TYPE_NE_SEQ_UINT8_INLINE);
+
+  return ((BIT_MAP >> type) & 1) == 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -356,31 +363,26 @@ OBJ make_tern_rel(TERN_REL_OBJ *ptr, uint32 size) {
 
 OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
   OBJ_TYPE type = get_physical_type(obj);
+  uint8 tags_count = get_tags_count(obj);
 
-  if (is_single_tag_type(type)) {
-    if (get_tags_count(obj) == 0) {
-      // No need to clear anything, both fields are already blank
-      obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
-      return obj;
-    }
-  }
-  else {
-    uint8 tags_count = get_tags_count(obj);
-
-    if (type == TYPE_OPT_REC & tags_count == 0) {
+  if (tags_count == 0) {
+    if (type == TYPE_OPT_REC) {
       uint16 repr_id = get_opt_repr_id(obj);
       uint16 repr_tag_id = opt_repr_get_tag_id(repr_id);
       if (tag_id == repr_tag_id)
         return make_opt_tag_rec(get_opt_repr_ptr(obj), repr_id);
     }
 
-    if (tags_count < 2) {
-      uint16 curr_tag_id = GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
-      uint64 mask_diff = MAKE_INNER_TAG(curr_tag_id) | MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(tags_count + 1);
-      // No need to clear the inner tag here, it's already 0
-      obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK) | mask_diff;
-      return obj;
-    }
+    obj.extra_data |= MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
+    return obj;
+  }
+
+  if (tags_count == 1 & !is_single_tag_type(type)) {
+    uint16 curr_tag_id = GET(obj.extra_data, TAG_SHIFT, TAG_WIDTH);
+    uint64 mask_diff = MAKE_INNER_TAG(curr_tag_id) | MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(2);
+    // No need to clear the inner tag here, it's already 0
+    obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK) | mask_diff;
+    return obj;
   }
 
   OBJ tag_obj;
@@ -455,7 +457,7 @@ uint16 get_tag_id(OBJ obj) {
     return opt_repr_get_tag_id(get_opt_repr_id(obj));
 }
 
-OBJ get_inner_obj(OBJ obj) {
+OBJ ref_get_inner_obj(OBJ obj) {
   assert(is_tag_obj(obj));
 
   OBJ_TYPE type = get_physical_type(obj);
@@ -481,6 +483,40 @@ OBJ get_inner_obj(OBJ obj) {
   uint64 cleared_extra_data = CLEAR(obj.extra_data, INNER_TAG_MASK | TAG_MASK | TAGS_COUNT_MASK);
   obj.extra_data = cleared_extra_data | MAKE_TAG(inner_tag) | MAKE_TAGS_COUNT(tags_count-1);
   return obj;
+}
+
+OBJ new_get_inner_obj(OBJ obj) {
+  assert(is_tag_obj(obj));
+
+  uint32 tags_count = get_tags_count(obj);
+
+  if (tags_count == 1) {
+    OBJ_TYPE type = get_physical_type(obj);
+    if (type != TYPE_TAG_OBJ) {
+      obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | TAGS_COUNT_MASK);
+      return obj;
+    }
+    else
+      return ((TAG_OBJ *) obj.core_data.ptr)->obj;
+  }
+  else if (tags_count == 2) {
+    uint16 inner_tag = GET(obj.extra_data, INNER_TAG_SHIFT, TAG_WIDTH);
+    uint64 cleared_extra_data = CLEAR(obj.extra_data, INNER_TAG_MASK | TAG_MASK | TAGS_COUNT_MASK);
+    obj.extra_data = cleared_extra_data | MAKE_TAG(inner_tag) | MAKE_TAGS_COUNT(1);
+    return obj;
+  }
+  else {
+    assert(tags_count == 0);
+    assert(get_physical_type(obj) == TYPE_OPT_TAG_REC);
+
+    obj.extra_data = CLEAR(obj.extra_data, TYPE_MASK) | OPT_REC_BASE_MASK;
+    return obj;
+  }
+}
+
+OBJ get_inner_obj(OBJ obj) {
+  assert(are_shallow_eq(new_get_inner_obj(obj), ref_get_inner_obj(obj)));
+  return new_get_inner_obj(obj);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -556,11 +592,12 @@ bool is_null_obj(OBJ obj) {
 
 bool is_symb(OBJ obj) {
   assert(
-    (CLEAR(obj.extra_data, SYMB_IDX_MASK) == SYMBOL_BASE_MASK)
+    (get_ex_type(obj) == TYPE_SYMBOL)
       ==
-    ((obj.extra_data >> SYMB_IDX_WIDTH) == (SYMBOL_BASE_MASK >> SYMB_IDX_WIDTH))
+    (get_tags_count(obj) == 0 & get_physical_type(obj) == TYPE_SYMBOL)
   );
-  return CLEAR(obj.extra_data, SYMB_IDX_MASK) == SYMBOL_BASE_MASK;
+
+  return get_ex_type(obj) == TYPE_SYMBOL;
 }
 
 bool is_bool(OBJ obj) {
@@ -577,15 +614,15 @@ bool is_float(OBJ obj) {
 }
 
 bool is_seq(OBJ obj) {
-  OBJ_TYPE physical_type = get_physical_type(obj);
-  return ( physical_type == TYPE_EMPTY_SEQ           |
-           physical_type == TYPE_NE_SEQ              |
-           physical_type == TYPE_NE_SLICE            |
-           physical_type == TYPE_NE_SEQ_UINT8        |
-           physical_type == TYPE_NE_SLICE_UINT8      |
-           physical_type == TYPE_NE_SEQ_UINT8_INLINE
-         ) &
-         get_tags_count(obj) == 0;
+  uint32 ex_type = get_ex_type(obj);
+  return (
+    ex_type == TYPE_EMPTY_SEQ           |
+    ex_type == TYPE_NE_SEQ              |
+    ex_type == TYPE_NE_SLICE            |
+    ex_type == TYPE_NE_SEQ_UINT8        |
+    ex_type == TYPE_NE_SLICE_UINT8      |
+    ex_type == TYPE_NE_SEQ_UINT8_INLINE
+ );
 }
 
 bool is_empty_seq(OBJ obj) {
@@ -593,14 +630,14 @@ bool is_empty_seq(OBJ obj) {
 }
 
 bool is_ne_seq(OBJ obj) {
-  OBJ_TYPE physical_type = get_physical_type(obj);
+  uint32 ex_type = get_ex_type(obj);
   return (
-    physical_type == TYPE_NE_SEQ              |
-    physical_type == TYPE_NE_SLICE            |
-    physical_type == TYPE_NE_SEQ_UINT8        |
-    physical_type == TYPE_NE_SLICE_UINT8      |
-    physical_type == TYPE_NE_SEQ_UINT8_INLINE
-    ) & get_tags_count(obj) == 0;
+    ex_type == TYPE_NE_SEQ              |
+    ex_type == TYPE_NE_SLICE            |
+    ex_type == TYPE_NE_SEQ_UINT8        |
+    ex_type == TYPE_NE_SLICE_UINT8      |
+    ex_type == TYPE_NE_SEQ_UINT8_INLINE
+  );
 }
 
 bool is_empty_rel(OBJ obj) {
@@ -608,44 +645,48 @@ bool is_empty_rel(OBJ obj) {
 }
 
 bool is_ne_set(OBJ obj) {
-  return (get_physical_type(obj) == TYPE_NE_SET) & get_tags_count(obj) == 0;
+  assert(
+    (get_ex_type(obj) == TYPE_NE_SET) ==
+    ((get_physical_type(obj) == TYPE_NE_SET) & get_tags_count(obj) == 0)
+  );
+  return get_ex_type(obj) == TYPE_NE_SET;
 }
 
 bool is_set(OBJ obj) {
-  uint64 type = get_physical_type(obj);
-  return (type == TYPE_NE_SET | type == TYPE_EMPTY_REL) & get_tags_count(obj) == 0;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_NE_SET | ex_type == TYPE_EMPTY_REL;
 }
 
 bool is_ne_bin_rel(OBJ obj) {
-  uint64 extra_data = obj.extra_data;
-  return CLEAR(extra_data, LENGTH_MASK) == NE_BIN_REL_BASE_MASK |
-         CLEAR(extra_data, LENGTH_MASK) == NE_MAP_BASE_MASK |
-         CLEAR(extra_data, LENGTH_MASK) == NE_LOG_MAP_BASE_MASK |
-         CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_NE_BIN_REL | ex_type == TYPE_NE_MAP |
+         ex_type == TYPE_NE_LOG_MAP | ex_type == TYPE_OPT_REC;
 }
 
 bool is_ne_map(OBJ obj) {
-  uint64 extra_data = obj.extra_data;
-  return CLEAR(extra_data, LENGTH_MASK) == NE_MAP_BASE_MASK |
-         CLEAR(extra_data, LENGTH_MASK) == NE_LOG_MAP_BASE_MASK |
-         CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_NE_MAP | ex_type == TYPE_NE_LOG_MAP | ex_type == TYPE_OPT_REC;
 }
 
 bool is_bin_rel(OBJ obj) {
-  return is_empty_rel(obj) | is_ne_bin_rel(obj);
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_EMPTY_REL | ex_type == TYPE_NE_BIN_REL | ex_type == TYPE_NE_MAP |
+         ex_type == TYPE_NE_LOG_MAP | ex_type == TYPE_OPT_REC;
 }
 
 bool is_ne_tern_rel(OBJ obj) {
-  uint64 extra_data = obj.extra_data;
-  return CLEAR(extra_data, LENGTH_MASK) == NE_TERN_REL_BASE_MASK;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_NE_TERN_REL;
 }
 
 bool is_tern_rel(OBJ obj) {
-  return is_empty_rel(obj) | is_ne_tern_rel(obj);
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_EMPTY_REL | ex_type == TYPE_NE_TERN_REL;
 }
 
 bool is_tag_obj(OBJ obj) {
-  return get_tags_count(obj) != 0 | get_physical_type(obj) == TYPE_OPT_TAG_REC;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_OPT_TAG_REC | ex_type > MAX_PHYSICAL_TYPE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -661,13 +702,13 @@ bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_opt_rec(OBJ obj) {
-  return get_tags_count(obj) == 0 & get_physical_type(obj) == TYPE_OPT_REC; //## COULD BE OPTIMIZED
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_OPT_REC;
 }
 
 bool is_opt_rec_or_tag_rec(OBJ obj) {
-  assert(get_tags_count(obj) == 0);
-  OBJ_TYPE type = get_physical_type(obj);
-  return type == TYPE_OPT_REC | type == TYPE_OPT_TAG_REC;
+  uint32 ex_type = get_ex_type(obj);
+  return ex_type == TYPE_OPT_REC | ex_type == TYPE_OPT_TAG_REC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
