@@ -140,8 +140,7 @@ SET_OBJ *make_or_get_set_obj_copy(OBJ *elts, uint32 size) {
   // }
 }
 
-BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
-  uint32 size = rel->size;
+BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel, uint32 size) {
   if (size > 0) {
     // The object has not been copied yet, so we do it now.
     BIN_REL_OBJ *rel_copy = new_bin_rel(size);
@@ -151,8 +150,8 @@ BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
     for (int i=0 ; i < 2 * size ; i++)
       buff_copy[i] = copy_obj(buff[i]);
     // Now we copy the extra data at the end
-    uint32 *rev_idxs = get_right_to_left_indexes(rel);
-    uint32 *rev_idxs_copy = get_right_to_left_indexes(rel_copy);
+    uint32 *rev_idxs = get_right_to_left_indexes(rel, size);
+    uint32 *rev_idxs_copy = get_right_to_left_indexes(rel_copy, size);
     memcpy(rev_idxs_copy, rev_idxs, size * sizeof(uint32));
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
@@ -169,8 +168,7 @@ BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel) {
   }
 }
 
-TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel) {
-  uint32 size = rel->size;
+TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel, uint32 size) {
   if (size > 0) {
     // The object has not been copied yet, so we do it now.
     TERN_REL_OBJ *rel_copy = new_tern_rel(size);
@@ -180,8 +178,8 @@ TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel) {
     for (int i=0 ; i < 3 * size ; i++)
       buff_copy[i] = copy_obj(buff[i]);
     // Now we copy the extra data at the end
-    uint32 *idxs_start = get_rotated_index(rel, 1);
-    uint32 *copy_idxs_start = get_rotated_index(rel_copy, 1);
+    uint32 *idxs_start = get_rotated_index(rel, size, 1);
+    uint32 *copy_idxs_start = get_rotated_index(rel_copy, size, 1);
     memcpy(copy_idxs_start, idxs_start, 2 * size * sizeof(uint32));
     // We mark the old object as "copied", and we store a pointer to the copy
     // into it. The fields of the original object are never going to be used again,
@@ -198,8 +196,7 @@ TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel) {
   }
 }
 
-BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map) {
-  uint32 size = map->size;
+BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map, uint32 size) {
   if (size > 0) {
     // The object has not been copied yet, so we do it now.
     BIN_REL_OBJ *map_copy = new_map(size);
@@ -264,12 +261,12 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_BIN_REL: {
-      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj));
+      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
       return repoint_to_copy(obj, rel_copy);
     }
 
     case TYPE_NE_TERN_REL: {
-      TERN_REL_OBJ *rel_copy = make_or_get_tern_rel_obj_copy(get_tern_rel_ptr(obj));
+      TERN_REL_OBJ *rel_copy = make_or_get_tern_rel_obj_copy(get_tern_rel_ptr(obj), read_size_field(obj));
       return repoint_to_copy(obj, rel_copy);
     }
 
@@ -285,12 +282,12 @@ OBJ copy_obj(OBJ obj) {
     }
 
     case TYPE_NE_MAP: {
-      BIN_REL_OBJ *map_copy = make_or_get_map_obj_copy(get_bin_rel_ptr(obj));
+      BIN_REL_OBJ *map_copy = make_or_get_map_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
       return repoint_to_copy(obj, map_copy);
     }
 
     case TYPE_NE_LOG_MAP: {
-      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj));
+      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
       return repoint_to_copy(obj, rel_copy);
     }
 

@@ -199,7 +199,7 @@ OBJ internal_sort(OBJ set) {
   if (is_empty_rel(set))
     return make_empty_seq();
 
-  uint32 size = get_set_size(set);
+  uint32 size = get_rel_size(set);
   OBJ *src = get_set_elts_ptr(set);
 
   if (is_int(src[0]) & is_int(src[size-1])) {
@@ -267,7 +267,7 @@ void get_set_iter(SET_ITER &it, OBJ set) {
   it.idx = 0;
   if (!is_empty_rel(set)) {
     it.buffer = get_set_elts_ptr(set);
-    it.size = get_set_size(set);
+    it.size = get_rel_size(set);
   }
   else {
     it.buffer = 0;  //## NOT STRICTLY NECESSARY

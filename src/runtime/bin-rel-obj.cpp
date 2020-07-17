@@ -6,15 +6,15 @@ void build_map_right_to_left_sorted_idx_array(OBJ map) {
   assert(get_physical_type(map) == TYPE_NE_MAP);
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(map);
-  uint32 *rev_idxs = get_right_to_left_indexes(ptr);
+  uint32 size = get_rel_size(map);
+  uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);
   if (rev_idxs[0] != INVALID_INDEX)
     return;
-  stable_index_sort(rev_idxs, ptr->size, get_right_col_array_ptr(ptr));
+  stable_index_sort(rev_idxs, size, get_right_col_array_ptr(ptr, size));
 
 #ifndef NDEBUG
-  uint32 size = ptr->size;
   OBJ *left_col = get_left_col_array_ptr(ptr);
-  OBJ *right_col = get_right_col_array_ptr(ptr);
+  OBJ *right_col = get_right_col_array_ptr(ptr, size);
 
   for (uint32 i=1 ; i < size ; i++) {
     int cr_M = comp_objs(left_col[i-1], left_col[i]);
@@ -70,7 +70,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   BIN_REL_OBJ *rel = new_bin_rel(unique_tuples);
 
   OBJ *left_col = get_left_col_array_ptr(rel);
-  OBJ *right_col = get_right_col_array_ptr(rel);
+  OBJ *right_col = get_right_col_array_ptr(rel, unique_tuples);
 
   // Copying the sorted, non-duplicate tuples into their final destination
   uint32 count = 0;
@@ -85,7 +85,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   assert(count == unique_tuples);
 
   // Creating the reverse index
-  uint32 *rev_index = get_right_to_left_indexes(rel);
+  uint32 *rev_index = get_right_to_left_indexes(rel, count);
   stable_index_sort(rev_index, count, right_col);
 
 #ifndef NDEBUG
@@ -104,7 +104,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   }
 #endif
 
-  return left_col_is_unique ? make_log_map(rel) : make_bin_rel(rel);
+  return left_col_is_unique ? make_log_map(rel, count) : make_bin_rel(rel, count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,14 +129,14 @@ OBJ build_map(OBJ *keys, OBJ *values, uint32 size) {
 
   BIN_REL_OBJ *map = new_map(actual_size);
   OBJ *ks  = map->buffer;
-  OBJ *vs  = ks + map->size;
+  OBJ *vs  = ks + actual_size;
 
   for (uint32 i=0 ; i < actual_size ; i++) {
     ks[i] = keys[i];
     vs[i] = values[i];
   }
 
-  return make_map(map);
+  return make_map(map, actual_size);
 }
 
 OBJ build_map(STREAM &key_stream, STREAM &value_stream) {
@@ -183,11 +183,12 @@ void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel) {
   }
   else if (!is_empty_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
+    uint32 size = get_rel_size(rel);
     it.iter.bin_rel.left_col = get_left_col_array_ptr(ptr);
-    it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr);
+    it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr, size);
     it.iter.bin_rel.rev_idxs = NULL;
     it.idx = 0;
-    it.end = ptr->size;
+    it.end = size;
     it.type = BIN_REL_ITER::BRIT_BIN_REL;
   }
   else
@@ -221,7 +222,7 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
   }
   else if (is_ne_bin_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = ptr->size;
+    uint32 size = get_rel_size(rel);
     OBJ *left_col = get_left_col_array_ptr(ptr);
 
     uint32 count;
@@ -229,7 +230,7 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
 
     if (count > 0) {
       it.iter.bin_rel.left_col = left_col;
-      it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr);
+      it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr, size);
       it.iter.bin_rel.rev_idxs = NULL;
       it.idx = first;
       it.end = first + count;
@@ -286,9 +287,9 @@ void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
       build_map_right_to_left_sorted_idx_array(rel);
 
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = ptr->size;
-    OBJ *right_col = get_right_col_array_ptr(ptr);
-    uint32 *rev_idxs = get_right_to_left_indexes(ptr);
+    uint32 size = get_rel_size(rel);
+    OBJ *right_col = get_right_col_array_ptr(ptr, size);
+    uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);
 
     uint32 count;
     uint32 first = find_idxs_range(rev_idxs, right_col, size, arg2, count);

@@ -43,7 +43,7 @@ bool is_record(OBJ obj) {
     return true;
 
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-  uint32 size = map->size;
+  uint32 size = get_rel_size(obj);
   OBJ *keys = get_left_col_array_ptr(map);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -206,7 +206,7 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
 void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
   if (!is_empty_rel(obj)) {
-    uint32 size = get_set_size(obj);
+    uint32 size = get_rel_size(obj);
     OBJ *elems = get_set_elts_ptr(obj);
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)
@@ -222,9 +222,9 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
   emit(data, "[", TEXT);
 
   BIN_REL_OBJ *rel = get_bin_rel_ptr(obj);
-  uint32 size = rel->size;
+  uint32 size = get_rel_size(obj);
   OBJ *left_col = get_left_col_array_ptr(rel);
-  OBJ *right_col = get_right_col_array_ptr(rel);
+  OBJ *right_col = get_right_col_array_ptr(rel, size);
 
   for (uint32 i=0 ; i < size ; i++) {
     if (i > 0)
@@ -245,9 +245,9 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
 
 void print_ne_map(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-  uint32 size = map->size;
+  uint32 size = get_rel_size(obj);
   OBJ *keys = get_left_col_array_ptr(map);
-  OBJ *values = get_right_col_array_ptr(map);
+  OBJ *values = get_right_col_array_ptr(map, size);
 
   emit(data, "[", TEXT);
 
@@ -295,9 +295,9 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
   }
   else {
     BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-    uint32 size = map->size;
+    uint32 size = get_rel_size(obj);
     OBJ *keys = get_left_col_array_ptr(map);
-    OBJ *values = get_right_col_array_ptr(map);
+    OBJ *values = get_right_col_array_ptr(map, size);
 
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)
@@ -319,10 +319,10 @@ void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION),
   emit(data, "[", TEXT);
 
   TERN_REL_OBJ *rel = get_tern_rel_ptr(obj);
-  uint32 size = rel->size;
-  OBJ *col1 = get_col_array_ptr(rel, 0);
-  OBJ *col2 = get_col_array_ptr(rel, 1);
-  OBJ *col3 = get_col_array_ptr(rel, 2);
+  uint32 size = get_rel_size(obj);
+  OBJ *col1 = get_col_array_ptr(rel, size, 0);
+  OBJ *col2 = get_col_array_ptr(rel, size, 1);
+  OBJ *col3 = get_col_array_ptr(rel, size, 2);
 
   for (uint32 i=0 ; i < size ; i++) {
     if (i > 0)

@@ -448,8 +448,8 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
     }
 
     case TYPE_NE_SET: {
-      uint32 size1 = get_set_size(obj1);
-      uint32 size2 = get_set_size(obj2);
+      uint32 size1 = get_rel_size(obj1);
+      uint32 size2 = get_rel_size(obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG BUG BUG
       count = size1;
@@ -478,7 +478,7 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
         }
         else {
           BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
-          uint32 size2 = rel2->size;
+          uint32 size2 = get_rel_size(obj2);
           if (size1 != size2)
             return size2 - size1; //## BUG BUG BUG
           else
@@ -488,7 +488,7 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
       }
       else if (is_opt_rec(obj2)) {
         BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
-        uint32 size1 = rel1->size;
+        uint32 size1 = get_rel_size(obj1);
 
         void *ptr2 = get_opt_repr_ptr(obj2);
         uint16 repr_id_2 = get_opt_repr_id(obj2);
@@ -503,8 +503,8 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
 
       BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
       BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
-      uint32 size1 = rel1->size;
-      uint32 size2 = rel2->size;
+      uint32 size1 = get_rel_size(obj1);
+      uint32 size2 = get_rel_size(obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG BUG BUG
       count = 2 * size1;
@@ -516,8 +516,8 @@ int slow_cmp_objs(OBJ obj1, OBJ obj2) {
     case TYPE_NE_TERN_REL: {
       TERN_REL_OBJ *rel1 = get_tern_rel_ptr(obj1);
       TERN_REL_OBJ *rel2 = get_tern_rel_ptr(obj2);
-      uint32 size1 = rel1->size;
-      uint32 size2 = rel2->size;
+      uint32 size1 = get_rel_size(obj1);
+      uint32 size2 = get_rel_size(obj2);
       if (size1 != size2)
         return size2 - size1; //## BUG BUG BUG
       count = 3 * size1;

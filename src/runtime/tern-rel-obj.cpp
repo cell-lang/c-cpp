@@ -30,9 +30,9 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   // Creating the new binary relation object
   TERN_REL_OBJ *rel = new_tern_rel(unique_tuples);
 
-  OBJ *col1 = get_col_array_ptr(rel, 0);
-  OBJ *col2 = get_col_array_ptr(rel, 1);
-  OBJ *col3 = get_col_array_ptr(rel, 2);
+  OBJ *col1 = get_col_array_ptr(rel, unique_tuples, 0);
+  OBJ *col2 = get_col_array_ptr(rel, unique_tuples, 1);
+  OBJ *col3 = get_col_array_ptr(rel, unique_tuples, 2);
 
   // Copying the sorted, non-duplicate tuples into their final destination
   uint32 count = 0;
@@ -48,8 +48,8 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   assert(count == unique_tuples);
 
   // Creating the two indexes
-  uint32 *index_1 = get_rotated_index(rel, 1);
-  uint32 *index_2 = get_rotated_index(rel, 2);
+  uint32 *index_1 = get_rotated_index(rel, count, 1);
+  uint32 *index_2 = get_rotated_index(rel, count, 2);
   stable_index_sort(index_1, count, col2, col3);
   stable_index_sort(index_2, count, col3);
 
@@ -80,7 +80,7 @@ OBJ build_tern_rel(OBJ *vals1, OBJ *vals2, OBJ *vals3, uint32 size) {
   }
 #endif
 
-  return make_tern_rel(rel);
+  return make_tern_rel(rel, count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,12 +111,13 @@ void get_tern_rel_iter(TERN_REL_ITER &it, OBJ rel) {
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    it.col1 = get_col_array_ptr(ptr, 0);
-    it.col2 = get_col_array_ptr(ptr, 1);
-    it.col3 = get_col_array_ptr(ptr, 2);
+    uint32 size = get_rel_size(rel);
+    it.col1 = get_col_array_ptr(ptr, size, 0);
+    it.col2 = get_col_array_ptr(ptr, size, 1);
+    it.col3 = get_col_array_ptr(ptr, size, 2);
     it.ordered_idxs = NULL;
     it.idx = 0;
-    it.end = ptr->size;
+    it.end = size;
   }
   else
     get_tern_rel_null_iter(it);
@@ -128,8 +129,8 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int col_idx, OBJ arg) {
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    uint32 size = ptr->size;
-    OBJ *col = get_col_array_ptr(ptr, col_idx);
+    uint32 size = get_rel_size(rel);
+    OBJ *col = get_col_array_ptr(ptr, size, col_idx);
 
     uint32 *index;
     uint32 count, first;
@@ -138,14 +139,14 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int col_idx, OBJ arg) {
       first = find_objs_range(col, size, arg, count);
     }
     else {
-      index = get_rotated_index(ptr, col_idx);
+      index = get_rotated_index(ptr, size, col_idx);
       first = find_idxs_range(index, col, size, arg, count);
     }
 
     if (count > 0) {
-      it.col1 = get_col_array_ptr(ptr, 0);
-      it.col2 = get_col_array_ptr(ptr, 1);
-      it.col3 = get_col_array_ptr(ptr, 2);
+      it.col1 = get_col_array_ptr(ptr, size, 0);
+      it.col2 = get_col_array_ptr(ptr, size, 1);
+      it.col3 = get_col_array_ptr(ptr, size, 2);
       it.ordered_idxs = index;
       it.idx = first;
       it.end = first + count;
@@ -162,9 +163,9 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int major_col_idx, OBJ maj
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    uint32 size = ptr->size;
-    OBJ *major_col = get_col_array_ptr(ptr, major_col_idx);
-    OBJ *minor_col = get_col_array_ptr(ptr, (major_col_idx + 1) % 3);
+    uint32 size = get_rel_size(rel);
+    OBJ *major_col = get_col_array_ptr(ptr, size, major_col_idx);
+    OBJ *minor_col = get_col_array_ptr(ptr, size, (major_col_idx + 1) % 3);
 
     uint32 *index;
     uint32 count, first;
@@ -173,14 +174,14 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int major_col_idx, OBJ maj
       first = find_objs_range(major_col, minor_col, size, major_arg, minor_arg, count);
     }
     else {
-      index = get_rotated_index(ptr, major_col_idx);
+      index = get_rotated_index(ptr, size, major_col_idx);
       first = find_idxs_range(index, major_col, minor_col, size, major_arg, minor_arg, count);
     }
 
     if (count > 0) {
-      it.col1 = get_col_array_ptr(ptr, 0);
-      it.col2 = get_col_array_ptr(ptr, 1);
-      it.col3 = get_col_array_ptr(ptr, 2);
+      it.col1 = get_col_array_ptr(ptr, size, 0);
+      it.col2 = get_col_array_ptr(ptr, size, 1);
+      it.col3 = get_col_array_ptr(ptr, size, 2);
       it.ordered_idxs = index;
       it.idx = first;
       it.end = first + count;

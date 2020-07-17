@@ -242,7 +242,7 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
         }
         else {
           BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
-          uint32 size2 = rel2->size;
+          uint32 size2 = read_size_field(obj2);
           if (size1 != size2)
             return size2 - size1; //## BUG
           else
@@ -252,7 +252,7 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       }
       else if (phys_type_2 == TYPE_OPT_REC) {
         BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
-        uint32 size1 = rel1->size;
+        uint32 size1 = read_size_field(obj1);
 
         void *ptr2 = get_opt_repr_ptr(obj2);
         uint16 repr_id_2 = get_opt_repr_id(obj2);
@@ -268,8 +268,8 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       BIN_REL_OBJ *rel1 = get_bin_rel_ptr(obj1);
       BIN_REL_OBJ *rel2 = get_bin_rel_ptr(obj2);
 
-      uint32 size1 = rel1->size;
-      uint32 size2 = rel2->size;
+      uint32 size1 = read_size_field(obj1);
+      uint32 size2 = read_size_field(obj2);
 
       if (size1 != size2)
         return size2 - size1; //## BUG
@@ -288,8 +288,8 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
       TERN_REL_OBJ *rel1 = (TERN_REL_OBJ *) obj1.core_data.ptr;
       TERN_REL_OBJ *rel2 = (TERN_REL_OBJ *) obj2.core_data.ptr;
 
-      uint32 size1 = rel1->size;
-      uint32 size2 = rel2->size;
+      uint32 size1 = read_size_field(obj1);
+      uint32 size2 = read_size_field(obj2);
 
       if (size1 != size2)
         return size2 - size1; //## BUG

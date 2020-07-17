@@ -41,24 +41,23 @@ OBJ *get_left_col_array_ptr(BIN_REL_OBJ *rel) {
   return rel->buffer;
 }
 
-OBJ *get_right_col_array_ptr(BIN_REL_OBJ *rel) {
-  return rel->buffer + rel->size;
+OBJ *get_right_col_array_ptr(BIN_REL_OBJ *rel, uint32 size) {
+  return rel->buffer + size;
 }
 
-uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel) {
-  return (uint32 *) (rel->buffer + 2 * rel->size);
+uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel, uint32 size) {
+  return (uint32 *) (rel->buffer + 2 * size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx) {
+OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, uint32 size, int idx) {
   assert(idx >= 0 & idx <= 2);
-  return rel->buffer + idx * rel->size;
+  return rel->buffer + idx * size;
 }
 
-uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount) {
+uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount) {
   assert(amount == 1 | amount == 2);
-  uint32 size = rel->size;
   uint32 *base_ptr = (uint32 *) (rel->buffer + 3 * size);
   return base_ptr + (amount-1) * size;
 }
@@ -107,26 +106,19 @@ BIN_REL_OBJ *new_map(uint32 size) {
   assert(size > 0);
 
   BIN_REL_OBJ *map = (BIN_REL_OBJ *) new_obj(map_obj_mem_size(size));
-  map->size = size;
-  uint32 *rev_idxs = get_right_to_left_indexes(map);
+  uint32 *rev_idxs = get_right_to_left_indexes(map, size);
   rev_idxs[0] = INVALID_INDEX;
   return map;
 }
 
 BIN_REL_OBJ *new_bin_rel(uint32 size) {
   assert(size > 0);
-
-  BIN_REL_OBJ *rel = (BIN_REL_OBJ *) new_obj(bin_rel_obj_mem_size(size));
-  rel->size = size;
-  return rel;
+  return (BIN_REL_OBJ *) new_obj(bin_rel_obj_mem_size(size));
 }
 
 TERN_REL_OBJ *new_tern_rel(uint32 size) {
   assert(size > 0);
-
-  TERN_REL_OBJ *rel = (TERN_REL_OBJ *) new_obj(tern_rel_obj_mem_size(size));
-  rel->size = size;
-  return rel;
+  return (TERN_REL_OBJ *) new_obj(tern_rel_obj_mem_size(size));
 }
 
 TAG_OBJ *new_tag_obj() {

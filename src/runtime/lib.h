@@ -52,44 +52,13 @@ struct OBJ {
   } core_data;
 
   uint64 extra_data;
-
-  // union {
-  //   struct {
-  //     uint16   symb_id;
-  //     uint16   inner_tag;
-  //     uint16   tag;
-  //     uint8    unused_byte;
-  //     unsigned type        : 4;
-  //     unsigned mem_layout  : 2;
-  //     unsigned num_tags    : 2;
-  //   } std;
-  //
-  //   struct {
-  //     uint32   length;
-  //     uint16   tag;
-  //     uint8    unused_byte;
-  //     unsigned type        : 4;
-  //     unsigned mem_layout  : 2;
-  //     unsigned num_tags    : 2;
-  //   } seq;
-  //
-  //   struct {
-  //     uint32   length;
-  //     unsigned offset      : 24;
-  //     unsigned type        : 4;
-  //     unsigned mem_layout  : 2;
-  //     unsigned num_tags    : 2;
-  //   } slice;
-  //
-  //   uint64 word;
-  // } extra_data;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 struct SEQ_OBJ {
-  uint32  capacity;
-  uint32  used;
+  uint32 capacity;
+  uint32 used;
   union {
     OBJ   obj[1];
     uint8 uint8_[1];
@@ -101,13 +70,11 @@ struct SET_OBJ {
 };
 
 struct BIN_REL_OBJ {
-  uint32  size;
-  OBJ     buffer[1];
+  OBJ buffer[1];
 };
 
 struct TERN_REL_OBJ {
-  uint32  size;
-  OBJ     buffer[1];
+  OBJ buffer[1];
 };
 
 struct TAG_OBJ { //## FIND OTHER NAME
@@ -199,19 +166,19 @@ void* new_raw_mem(uint32 byte_size);
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 
 OBJ* get_left_col_array_ptr(BIN_REL_OBJ*);
-OBJ* get_right_col_array_ptr(BIN_REL_OBJ*);
-uint32 *get_right_to_left_indexes(BIN_REL_OBJ*);
+OBJ* get_right_col_array_ptr(BIN_REL_OBJ *rel, uint32 size);
+uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel, uint32 size);
 
-OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, int idx);
-uint32 *get_rotated_index(TERN_REL_OBJ *rel, int amount);
+OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, uint32 size, int idx);
+uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount);
 
 SET_OBJ      *new_set(uint32 size);
-SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets size and capacity
+SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets used and capacity
 SEQ_OBJ      *new_obj_seq(uint32 length, uint32 capacity);    // Ditto
 SEQ_OBJ      *new_uint8_seq(uint32 length, uint32 capacity);  // Ditto
-BIN_REL_OBJ  *new_map(uint32 size);                           // Sets size, and clears rev_idxs
-BIN_REL_OBJ  *new_bin_rel(uint32 size);                       // Sets size
-TERN_REL_OBJ *new_tern_rel(uint32 size);                      // Sets size
+BIN_REL_OBJ  *new_map(uint32 size);                           // Clears rev_idxs
+BIN_REL_OBJ  *new_bin_rel(uint32 size);
+TERN_REL_OBJ *new_tern_rel(uint32 size);
 TAG_OBJ      *new_tag_obj();
 
 OBJ* new_obj_array(uint32 size);
@@ -263,7 +230,7 @@ bool   get_bool(OBJ);
 int64  get_int(OBJ);
 double get_float(OBJ);
 uint32 get_seq_length(OBJ);
-uint32 get_set_size(OBJ);
+uint32 get_rel_size(OBJ);
 uint16 get_tag_id(OBJ);
 OBJ    get_inner_obj(OBJ);
 
@@ -281,10 +248,10 @@ OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice_uint8(uint8 *ptr, uint32 length);
 OBJ make_seq_uint8_inline(uint64 data, uint32 length);
 OBJ make_set(SET_OBJ*, uint32 size);
-OBJ make_bin_rel(BIN_REL_OBJ*);
-OBJ make_tern_rel(TERN_REL_OBJ*);
-OBJ make_log_map(BIN_REL_OBJ*);
-OBJ make_map(BIN_REL_OBJ*);
+OBJ make_bin_rel(BIN_REL_OBJ*, uint32 size);
+OBJ make_tern_rel(TERN_REL_OBJ*, uint32 size);
+OBJ make_log_map(BIN_REL_OBJ*, uint32 size);
+OBJ make_map(BIN_REL_OBJ*, uint32 size);
 OBJ make_tag_obj(uint16 tag_id, OBJ obj);
 OBJ make_opt_tag_rec(void *ptr, uint16 repr_id);
 

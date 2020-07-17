@@ -8,7 +8,7 @@ const uint32 SEQ_BUFFER_FIELD_OFFSET = offsetof(SEQ_OBJ, buffer);
 
 #define MASK(S, W)      (((1ULL << (W)) - 1) << (S))
 #define MAKE(V, S)      (((uint64) (V)) << (S))
-#define GET(V, S, W)    (((V) & MASK(S, W)) >> (S))
+#define GET(V, S, W)    (((V) & MASK((S), (W))) >> (S))
 #define CLEAR(V, M)     ((V) & ~(M))
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,10 +62,10 @@ const uint64 EMPTY_REL_MASK                 = MAKE_TYPE(TYPE_EMPTY_REL);
 const uint64 NE_SEQ_BASE_MASK               = MAKE_TYPE(TYPE_NE_SEQ);
 const uint64 NE_SLICE_BASE_MASK             = MAKE_TYPE(TYPE_NE_SLICE);
 const uint64 NE_SET_BASE_MASK               = MAKE_TYPE(TYPE_NE_SET);
-const uint64 NE_BIN_REL_MASK                = MAKE_TYPE(TYPE_NE_BIN_REL);
-const uint64 NE_MAP_MASK                    = MAKE_TYPE(TYPE_NE_MAP);
-const uint64 NE_LOG_MAP_MASK                = MAKE_TYPE(TYPE_NE_LOG_MAP);
-const uint64 NE_TERN_REL_MASK               = MAKE_TYPE(TYPE_NE_TERN_REL);
+const uint64 NE_BIN_REL_BASE_MASK           = MAKE_TYPE(TYPE_NE_BIN_REL);
+const uint64 NE_MAP_BASE_MASK               = MAKE_TYPE(TYPE_NE_MAP);
+const uint64 NE_LOG_MAP_BASE_MASK           = MAKE_TYPE(TYPE_NE_LOG_MAP);
+const uint64 NE_TERN_REL_BASE_MASK          = MAKE_TYPE(TYPE_NE_TERN_REL);
 const uint64 TAG_OBJ_BASE_MASK              = MAKE_TYPE(TYPE_TAG_OBJ);
 const uint64 OPT_REC_BASE_MASK              = MAKE_TYPE(TYPE_OPT_REC);
 const uint64 OPT_TAG_REC_BASE_MASK          = MAKE_TYPE(TYPE_OPT_TAG_REC);
@@ -136,9 +136,7 @@ void print_ref(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ_TYPE get_physical_type(OBJ obj) {
-  uint64 field = GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH);
-  return (OBJ_TYPE) field;
-  // return (OBJ_TYPE) GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH);
+  return (OBJ_TYPE) GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH);
 }
 
 uint32 get_tags_count(OBJ obj) {
@@ -159,14 +157,12 @@ OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
     TYPE_NE_SEQ       // TYPE_NE_SEQ_UINT8_INLINE
   };
 
-  if (type <= MAX_LOGICAL_TYPE) {
+  if (type <= MAX_LOGICAL_TYPE)
     return type;
-  }
-  else {
-    int idx = type - MAX_LOGICAL_TYPE - 1;
-    assert(idx < sizeof(log_types) / sizeof(OBJ_TYPE));
-    return log_types[idx];
-  }
+
+  int idx = type - MAX_LOGICAL_TYPE - 1;
+  assert(idx < sizeof(log_types) / sizeof(OBJ_TYPE));
+  return log_types[idx];
 }
 
 OBJ_TYPE get_logical_type(OBJ obj) {
@@ -178,6 +174,10 @@ OBJ_TYPE get_logical_type(OBJ obj) {
 bool is_single_tag_type(OBJ_TYPE type) {
   return type == TYPE_NE_SEQ |
          type == TYPE_NE_SET |
+         type == TYPE_NE_BIN_REL |
+         type == TYPE_NE_TERN_REL|
+         type == TYPE_NE_MAP |
+         type == TYPE_NE_LOG_MAP |
          type == TYPE_NE_SLICE |
          type == TYPE_NE_SEQ_UINT8 |
          type == TYPE_NE_SLICE_UINT8 |
@@ -318,44 +318,43 @@ OBJ make_empty_rel() {
   return obj;
 }
 
-OBJ make_bin_rel(BIN_REL_OBJ *ptr) {
+OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = NE_BIN_REL_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_BIN_REL_BASE_MASK;
   return obj;
 }
 
-OBJ make_log_map(BIN_REL_OBJ *ptr) {
+OBJ make_log_map(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = NE_LOG_MAP_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_LOG_MAP_BASE_MASK;
   return obj;
 }
 
-OBJ make_map(BIN_REL_OBJ *ptr) {
+OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = NE_MAP_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_MAP_BASE_MASK;
   return obj;
 }
 
-OBJ make_tern_rel(TERN_REL_OBJ *ptr) {
+OBJ make_tern_rel(TERN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = NE_TERN_REL_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_TERN_REL_BASE_MASK;
   return obj;
 }
 
 OBJ make_tag_obj_(uint16 tag_id, OBJ obj) {
-
   OBJ_TYPE type = get_physical_type(obj);
 
   if (is_single_tag_type(type)) {
@@ -440,9 +439,10 @@ uint32 get_seq_length(OBJ seq) {
   return read_size_field(seq);
 }
 
-uint32 get_set_size(OBJ set) {
-  assert(is_set(set));
-  return read_size_field(set);
+uint32 get_rel_size(OBJ rel) {
+  assert(is_set(rel) | is_bin_rel(rel) | is_tern_rel(rel));
+  assert(get_physical_type(rel) != TYPE_OPT_REC);
+  return read_size_field(rel);
 }
 
 uint16 get_tag_id(OBJ obj) {
@@ -618,16 +618,16 @@ bool is_set(OBJ obj) {
 
 bool is_ne_bin_rel(OBJ obj) {
   uint64 extra_data = obj.extra_data;
-  return extra_data == NE_BIN_REL_MASK |
-         extra_data == NE_MAP_MASK |
-         extra_data == NE_LOG_MAP_MASK |
+  return CLEAR(extra_data, LENGTH_MASK) == NE_BIN_REL_BASE_MASK |
+         CLEAR(extra_data, LENGTH_MASK) == NE_MAP_BASE_MASK |
+         CLEAR(extra_data, LENGTH_MASK) == NE_LOG_MAP_BASE_MASK |
          CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
 }
 
 bool is_ne_map(OBJ obj) {
   uint64 extra_data = obj.extra_data;
-  return extra_data == NE_MAP_MASK |
-         extra_data == NE_LOG_MAP_MASK |
+  return CLEAR(extra_data, LENGTH_MASK) == NE_MAP_BASE_MASK |
+         CLEAR(extra_data, LENGTH_MASK) == NE_LOG_MAP_BASE_MASK |
          CLEAR(extra_data, OPT_REPR_ID_MASK) == OPT_REC_BASE_MASK;
 }
 
@@ -637,7 +637,7 @@ bool is_bin_rel(OBJ obj) {
 
 bool is_ne_tern_rel(OBJ obj) {
   uint64 extra_data = obj.extra_data;
-  return extra_data == NE_TERN_REL_MASK;
+  return CLEAR(extra_data, LENGTH_MASK) == NE_TERN_REL_BASE_MASK;
 }
 
 bool is_tern_rel(OBJ obj) {
@@ -661,8 +661,7 @@ bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_opt_rec(OBJ obj) {
-  assert(is_bin_rel(obj));
-  return get_physical_type(obj) == TYPE_OPT_REC;
+  return get_tags_count(obj) == 0 & get_physical_type(obj) == TYPE_OPT_REC; //## COULD BE OPTIMIZED
 }
 
 bool is_opt_rec_or_tag_rec(OBJ obj) {
@@ -794,11 +793,12 @@ OBJ untag_opt_tag_rec(OBJ obj) {
 
 OBJ clear_both_inline_tags(OBJ obj) {
   assert(get_tags_count(obj) == 2);
-
+  assert(!is_single_tag_type(get_physical_type(obj)));
   return get_inner_obj(get_inner_obj(obj)); //## IMPLEMENT FOR REAL
 }
 
 OBJ clear_all_inline_tags(OBJ obj) {
   assert(!is_single_tag_type(get_physical_type(obj)));
   obj.extra_data = CLEAR(obj.extra_data, TAG_MASK | INNER_TAG_MASK);
+  return obj;
 }
