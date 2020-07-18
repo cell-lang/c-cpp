@@ -291,107 +291,112 @@ OBJ join_seqs(OBJ left, OBJ right) {
   OBJ_TYPE typel = get_physical_type(left);
   OBJ_TYPE typer = get_physical_type(right);
 
-  if (typel == TYPE_NE_SEQ_UINT8) {
-    SEQ_OBJ *ptrl = get_seq_ptr(left);
-
-    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
-      return in_place_concat_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
-
-    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
-      uint8 buffer[8];
-      copy_uint8_array(buffer, right.core_data.int_);
-      return in_place_concat_uint8(ptrl, lenl, buffer, lenr);
-    }
-
-    return concat_uint8_obj(ptrl->buffer.uint8_, lenl, get_seq_elts_ptr(right), lenr);
-  }
-
-  if (typel == TYPE_NE_SLICE_UINT8) {
-    uint8 *eltsl = get_seq_elts_ptr_uint8(left);
-
-    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
-      return concat_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
-
-    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
-      uint8 buffer[8];
-      copy_uint8_array(buffer, right.core_data.int_);
-      return concat_uint8(eltsl, lenl, buffer, lenr);
-    }
-
-    return concat_uint8_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
-  }
-
-  if (typel == TYPE_NE_SEQ_UINT8_INLINE) {
-    if (len <= 8) {
-      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8) {
-        //## IS THIS CASE EVEN EVER SUPPOSED TO HAPPEN?
-        uint8 *eltsr = get_seq_elts_ptr_uint8(right);
-        uint64 packed_array = left.core_data.int_;
-        for (int i=0 ; i < lenr ; i++)
-          packed_array = inline_uint8_array_set_at(packed_array, i + lenl, eltsr[i]);
-        //## A CHECK WOULD BE NICE HERE
-        return make_seq_uint8_inline(packed_array, len);
-      }
-
-      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
-        // uint64 data = left.core_data.int_ | (right.core_data.int_ << (8 * lenl));
-        // return make_seq_uint8_inline(data, len);
-        //## A CHECK WOULD BE NICE HERE
-        //## ALSO, THIS IMPLEMENTATION IS REALLY UGLY
-        uint64 packed_array = left.core_data.int_;
-        for (int i=0 ; i < lenr ; i++)
-          packed_array = inline_uint8_array_set_at(packed_array, i + lenl, inline_uint8_at(right.core_data.int_, i));
-        return make_seq_uint8_inline(packed_array, len);
-      }
-    }
-    else {
-      uint8 bufferl[8];
-      copy_uint8_array(bufferl, left.core_data.int_);
+  switch (typel) {
+    case TYPE_NE_SEQ_UINT8: {
+      SEQ_OBJ *ptrl = get_seq_ptr(left);
 
       if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
-        return concat_uint8(bufferl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+        return in_place_concat_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+        uint8 buffer[8];
+        copy_uint8_array(buffer, right.core_data.int_);
+        return in_place_concat_uint8(ptrl, lenl, buffer, lenr);
+      }
+
+      return concat_uint8_obj(ptrl->buffer.uint8_, lenl, get_seq_elts_ptr(right), lenr);
+    }
+
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *eltsl = get_seq_elts_ptr_uint8(left);
+
+      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+        return concat_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+        uint8 buffer[8];
+        copy_uint8_array(buffer, right.core_data.int_);
+        return concat_uint8(eltsl, lenl, buffer, lenr);
+      }
+
+      return concat_uint8_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      if (len <= 8) {
+        if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8) {
+          //## IS THIS CASE EVEN EVER SUPPOSED TO HAPPEN?
+          uint8 *eltsr = get_seq_elts_ptr_uint8(right);
+          uint64 packed_array = left.core_data.int_;
+          for (int i=0 ; i < lenr ; i++)
+            packed_array = inline_uint8_array_set_at(packed_array, i + lenl, eltsr[i]);
+          //## A CHECK WOULD BE NICE HERE
+          return make_seq_uint8_inline(packed_array, len);
+        }
+
+        if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+          // uint64 data = left.core_data.int_ | (right.core_data.int_ << (8 * lenl));
+          // return make_seq_uint8_inline(data, len);
+          //## A CHECK WOULD BE NICE HERE
+          //## ALSO, THIS IMPLEMENTATION IS REALLY UGLY
+          uint64 packed_array = left.core_data.int_;
+          for (int i=0 ; i < lenr ; i++)
+            packed_array = inline_uint8_array_set_at(packed_array, i + lenl, inline_uint8_at(right.core_data.int_, i));
+          return make_seq_uint8_inline(packed_array, len);
+        }
+      }
+      else {
+        uint8 bufferl[8];
+        copy_uint8_array(bufferl, left.core_data.int_);
+
+        if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+          return concat_uint8(bufferl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+
+        if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+          uint8 bufferr[8];
+          copy_uint8_array(bufferr, right.core_data.int_);
+          return concat_uint8(bufferl, lenl, bufferr, lenr);
+        }
+      }
+
+      uint8 bufferl[8];
+      copy_uint8_array(bufferl, left.core_data.int_);
+      return concat_uint8_obj(bufferl, lenl, get_seq_elts_ptr(right), lenr);
+    }
+
+    case TYPE_NE_SLICE: {
+      OBJ *eltsl = get_seq_elts_ptr(left);
+
+      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+        return concat_obj_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
 
       if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
         uint8 bufferr[8];
         copy_uint8_array(bufferr, right.core_data.int_);
-        return concat_uint8(bufferl, lenl, bufferr, lenr);
+        return concat_obj_uint8(eltsl, lenl, bufferr, lenr);
       }
+
+      return concat_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
     }
 
-    uint8 bufferl[8];
-    copy_uint8_array(bufferl, left.core_data.int_);
-    return concat_uint8_obj(bufferl, lenl, get_seq_elts_ptr(right), lenr);
-  }
+    case TYPE_NE_SEQ: {
+      SEQ_OBJ *ptrl = get_seq_ptr(left);
 
-  if (typel == TYPE_NE_SLICE) {
-    OBJ *eltsl = get_seq_elts_ptr(left);
+      if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
+        return in_place_concat_obj_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
 
-    if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
-      return concat_obj_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
+      if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+        uint8 bufferr[8];
+        copy_uint8_array(bufferr, right.core_data.int_);
+        return in_place_concat_obj_uint8(ptrl, lenl, bufferr, lenr);
+      }
 
-    if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
-      uint8 bufferr[8];
-      copy_uint8_array(bufferr, right.core_data.int_);
-      return concat_obj_uint8(eltsl, lenl, bufferr, lenr);
+      return in_place_concat_obj(ptrl, lenl, get_seq_elts_ptr(right), lenr);
     }
 
-    return concat_obj(eltsl, lenl, get_seq_elts_ptr(right), lenr);
+    default:
+      internal_fail();
   }
-
-  assert(typel == TYPE_NE_SEQ);
-
-  SEQ_OBJ *ptrl = get_seq_ptr(left);
-
-  if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
-    return in_place_concat_obj_uint8(ptrl, lenl, get_seq_elts_ptr_uint8(right), lenr);
-
-  if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
-    uint8 bufferr[8];
-    copy_uint8_array(bufferr, right.core_data.int_);
-    return in_place_concat_obj_uint8(ptrl, lenl, bufferr, lenr);
-  }
-
-  return in_place_concat_obj(ptrl, lenl, get_seq_elts_ptr(right), lenr);
 }
 
 OBJ rev_seq(OBJ seq) {
