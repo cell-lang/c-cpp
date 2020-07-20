@@ -18,22 +18,20 @@ bool is_str(uint16 tag_id, OBJ obj) {
     return true;
 
   uint32 len = get_seq_length(obj);
-  OBJ *elems = get_seq_elts_ptr(obj);
 
   for (uint32 i=0 ; i < len ; i++) {
-    OBJ elem = elems[i];
+    OBJ elt = get_obj_at(obj, i);
 
-    if (!is_int(elem))
+    if (!is_int(elt))
       return false;
 
-    int64 value = get_int(elem);
+    int64 value = get_int(elt);
     if (value < 0 | value >= 65536)
       return false;
   }
 
   return true;
 }
-
 
 bool is_record(OBJ obj) {
   if (!is_ne_map(obj))
@@ -53,7 +51,6 @@ bool is_record(OBJ obj) {
   return true;
 }
 
-
 void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   char buffer[64];
 
@@ -65,78 +62,28 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
 
   uint32 len = get_seq_length(char_seq);
 
-  OBJ_TYPE type = get_physical_type(char_seq);
+  for (uint32 i=0 ; i < len ; i++) {
+    int64 ch = get_int_at(char_seq, i);
+    assert(ch >= 0 & ch < 65536);
 
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
-    uint8 *chars = get_seq_elts_ptr_uint8(char_seq);
-
-    for (uint32 i=0 ; i < len ; i++) {
-      int64 ch = chars[i];
-      if (ch >= ' ' & ch <= '~') {
-        buffer[0] = '\\';
-        buffer[1] = ch;
-        buffer[2] = '\0';
-        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
-      }
-      else if (ch == '\n') {
-        emit(data, "\\n", TEXT);
-      }
-      else if (ch == '\t') {
-        emit(data, "\\t", TEXT);
-      }
-      else {
-        sprintf(buffer, "\\%04llx", ch);
-        emit(data, buffer, TEXT);
-      }
+    if (ch >= ' ' & ch <= '~') {
+      buffer[0] = '\\';
+      buffer[1] = ch;
+      buffer[2] = '\0';
+      emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
     }
-  }
-  else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
-    for (uint32 i=0 ; i < len ; i++) {
-      int64 ch = inline_uint8_at(char_seq.core_data.int_, i);
-      if (ch >= ' ' & ch <= '~') {
-        buffer[0] = '\\';
-        buffer[1] = ch;
-        buffer[2] = '\0';
-        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
-      }
-      else if (ch == '\n') {
-        emit(data, "\\n", TEXT);
-      }
-      else if (ch == '\t') {
-        emit(data, "\\t", TEXT);
-      }
-      else {
-        sprintf(buffer, "\\%04llx", ch);
-        emit(data, buffer, TEXT);
-      }
+    else if (ch == '\n') {
+      emit(data, "\\n", TEXT);
     }
-  }
-  else {
-    OBJ *chars = get_seq_elts_ptr(char_seq);
-
-    for (uint32 i=0 ; i < len ; i++) {
-      int64 ch = get_int(chars[i]);
-      assert(ch >= 0 & ch < 65536);
-      if (ch >= ' ' & ch <= '~') {
-        buffer[0] = '\\';
-        buffer[1] = ch;
-        buffer[2] = '\0';
-        emit(data, buffer + (ch == '"' | ch == '\\' ? 0 : 1), TEXT);
-      }
-      else if (ch == '\n') {
-        emit(data, "\\n", TEXT);
-      }
-      else if (ch == '\t') {
-        emit(data, "\\t", TEXT);
-      }
-      else {
-        sprintf(buffer, "\\%04llx", ch);
-        emit(data, buffer, TEXT);
-      }
+    else if (ch == '\t') {
+      emit(data, "\\t", TEXT);
+    }
+    else {
+      sprintf(buffer, "\\%04llx", ch);
+      emit(data, buffer, TEXT);
     }
   }
 }
-
 
 void print_int(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   int64 n = get_int(obj);
@@ -144,7 +91,6 @@ void print_int(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *d
   sprintf(buffer, "%lld", n);
   emit(data, buffer, TEXT);
 }
-
 
 void print_float(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   double x = get_float(obj);
@@ -161,47 +107,26 @@ void print_float(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void 
   emit(data, buffer, TEXT);
 }
 
-
 void print_symb(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, symb_to_raw_str(get_symb_id(obj)), TEXT);
 }
 
-
 void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   if (print_parentheses)
     emit(data, "(", TEXT);
+
   if (!is_empty_seq(obj)) {
-    OBJ_TYPE type = get_physical_type(obj);
     uint32 len = get_seq_length(obj);
-    if (type == TYPE_NE_SEQ | type == TYPE_NE_SLICE) {
-      OBJ *elems = get_seq_elts_ptr(obj);
-      for (uint32 i=0 ; i < len ; i++) {
-        if (i > 0)
-          emit(data, ", ", TEXT);
-        print_obj(elems[i], emit, data);
-      }
-    }
-    else if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8) {
-      uint8 *elts = get_seq_elts_ptr_uint8(obj);
-      for (uint32 i=0 ; i < len ; i++) {
-        if (i > 0)
-          emit(data, ", ", TEXT);
-        print_obj(make_int(elts[i]), emit, data);
-      }
-    }
-    else {
-      assert(type == TYPE_NE_SEQ_UINT8_INLINE);
-      for (uint32 i=0 ; i < len ; i++) {
-        if (i > 0)
-          emit(data, ", ", TEXT);
-        print_obj(make_int(inline_uint8_at(obj.core_data.int_, i)), emit, data);
-      }
+    for (uint32 i=0 ; i < len ; i++) {
+      if (i > 0)
+        emit(data, ", ", TEXT);
+      print_obj(get_obj_at(obj, i), emit, data);
     }
   }
+
   if (print_parentheses)
     emit(data, ")", TEXT);
 }
-
 
 void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
@@ -216,7 +141,6 @@ void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *d
   }
   emit(data, "]", TEXT);
 }
-
 
 void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
@@ -242,7 +166,6 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
   emit(data, "]", TEXT);
 }
 
-
 void print_ne_map(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
   uint32 size = get_rel_size(obj);
@@ -263,7 +186,6 @@ void print_ne_map(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void
 
   emit(data, "]", TEXT);
 }
-
 
 void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   if (print_parentheses)
@@ -314,7 +236,6 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
     emit(data, ")", TEXT);
 }
 
-
 void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
 
@@ -342,7 +263,6 @@ void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION),
   emit(data, "]", TEXT);
 }
 
-
 void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   uint16 tag_id = get_tag_id(obj);
   OBJ inner_obj = get_inner_obj(obj);
@@ -365,7 +285,6 @@ void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), voi
     emit(data, ")", TEXT);
   }
 }
-
 
 void print_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, NULL, SUB_START);
@@ -443,11 +362,9 @@ void init(PRINT_BUFFER *pb) {
   pb->curr_depth = -1;
 }
 
-
 void cleanup(PRINT_BUFFER *pb) {
 
 }
-
 
 void adjust_buff_capacity(PRINT_BUFFER *pb, uint32 extra_capacity) {
   uint32 buff_size = pb->buff_size;
@@ -463,7 +380,6 @@ void adjust_buff_capacity(PRINT_BUFFER *pb, uint32 extra_capacity) {
   }
 }
 
-
 TEXT_FRAG *insert_new_fragment(PRINT_BUFFER *pb) {
   uint32 curr_capacity = pb->frags_buff_size;
   uint32 frags_count = pb->frags_count;
@@ -477,7 +393,6 @@ TEXT_FRAG *insert_new_fragment(PRINT_BUFFER *pb) {
   pb->frags_count = frags_count + 1;
   return pb->fragments + frags_count;
 }
-
 
 uint32 printable_frags_count(PRINT_BUFFER *pb) {
   uint32 fc = pb->frags_count;
@@ -500,7 +415,6 @@ uint32 printable_frags_count(PRINT_BUFFER *pb) {
 
   return 0;
 }
-
 
 void calculate_subobjects_lengths(PRINT_BUFFER *pb, int32 *ls) {
   int fc = pb->frags_count;
@@ -529,7 +443,6 @@ void calculate_subobjects_lengths(PRINT_BUFFER *pb, int32 *ls) {
       ls[i] = -1;
   }
 }
-
 
 void emit_known(PRINT_BUFFER *pb, void (*emit)(void *, const char *, uint32), void *data) {
   int pfc = printable_frags_count(pb);
@@ -589,7 +502,6 @@ void emit_known(PRINT_BUFFER *pb, void (*emit)(void *, const char *, uint32), vo
   }
 }
 
-
 void process_text(PRINT_BUFFER *pb, const char *text) {
   int len = strlen(text);
   adjust_buff_capacity(pb, len);
@@ -599,7 +511,6 @@ void process_text(PRINT_BUFFER *pb, const char *text) {
   assert(curr_frag->depth == pb->curr_depth);
   curr_frag->length += len;
 }
-
 
 void subobj_start(PRINT_BUFFER *pb) {
   int new_depth = pb->curr_depth + 1;
@@ -611,7 +522,6 @@ void subobj_start(PRINT_BUFFER *pb) {
   new_frag->length = 0;
 }
 
-
 void subobj_end(PRINT_BUFFER *pb) {
   int new_depth = pb->curr_depth - 1;
   pb->curr_depth = new_depth;
@@ -621,7 +531,6 @@ void subobj_end(PRINT_BUFFER *pb) {
   new_frag->start = pb->str_len;
   new_frag->length = 0;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -641,12 +550,10 @@ void emit_store(void *pb_, const void *data, EMIT_ACTION action) {
   }
 }
 
-
 void stdout_print(void *, const char *text, uint32 len) {
   fwrite(text, 1, len, stdout);
   fflush(stdout);
 }
-
 
 void print(OBJ obj) {
   PRINT_BUFFER pb;
@@ -659,11 +566,9 @@ void print(OBJ obj) {
   cleanup(&pb);
 }
 
-
 void write_to_file(void *fp, const char *text, uint32 len) {
   fwrite(text, 1, len, (FILE *) fp);
 }
-
 
 void append_to_string(void *ptr, const char *text, uint32 len) {
   char *str = (char *) ptr;
@@ -672,12 +577,10 @@ void append_to_string(void *ptr, const char *text, uint32 len) {
   str[curr_len + len] = '\0';
 }
 
-
 void calc_length(void *ptr, const char *text, uint32 len) {
   uint32 *total_len = (uint32 *) ptr;
   *total_len += len;
 }
-
 
 void print_to_buffer_or_file(OBJ obj, char *buffer, uint32 max_size, const char *fname) {
   PRINT_BUFFER pb;
@@ -701,7 +604,6 @@ void print_to_buffer_or_file(OBJ obj, char *buffer, uint32 max_size, const char 
   cleanup(&pb);
 }
 
-
 uint32 printed_obj(OBJ obj, char *buffer, uint32 max_size) {
   PRINT_BUFFER pb;
 
@@ -718,7 +620,6 @@ uint32 printed_obj(OBJ obj, char *buffer, uint32 max_size) {
   cleanup(&pb);
   return len + 1;
 }
-
 
 char *printed_obj(OBJ obj, char *alloc_buffer(void *, uint32), void *data) {
   PRINT_BUFFER pb;

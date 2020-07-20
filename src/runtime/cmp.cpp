@@ -61,6 +61,178 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+OBJ get_obj_at_hack(OBJ seq, int64 idx) {
+  OBJ_TYPE type = get_physical_type(seq);
+
+  if (type == TYPE_NE_SEQ | type == TYPE_NE_SLICE) {
+    OBJ *elts = (OBJ *) seq.core_data.ptr;
+    return elts[idx];
+  }
+
+  switch (type) {
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *elts = (uint8 *) seq.core_data.ptr;
+      return make_int(elts[idx]);
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE:
+      return make_int(inline_uint8_at(seq.core_data.int_, idx));
+
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16: {
+      int16 *elts = (int16 *) seq.core_data.ptr;
+      return make_int(elts[idx]);
+    }
+
+    case TYPE_NE_SEQ_INT16_INLINE:
+      return make_int(inline_int16_at(seq.core_data.int_, idx));
+
+    default:
+      internal_fail();
+  }
+}
+
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags(OBJ seq1, OBJ_TYPE phys_type_1, OBJ seq2, OBJ_TYPE phys_type_2) {
+  // assert(
+  //   phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE |
+  //   phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8 |
+  //   phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE
+  // );
+  // assert(
+  //   phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE |
+  //   phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8 |
+  //   phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE
+  // );
+
+  int64 len1 = read_size_field(seq1);
+  int64 len2 = read_size_field(seq2);
+
+  if (len1 != len2)
+    return len2 - len1;
+
+  for (int i=0 ; i < len1 ; i++) {
+    int cr = fast_cmp_objs(get_obj_at_hack(seq1, i), get_obj_at_hack(seq2, i));
+    if (cr != 0)
+      return cr;
+  }
+
+  return 0;
+
+  // if (phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8) {
+  //   uint8 *elts1_u8 = (uint8 *) seq1.core_data.ptr;
+  //   if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
+  //     uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       int elt1 = elts1_u8[i];
+  //       int elt2 = elts2_u8[i];
+  //       if (elt1 != elt2)
+  //         return elt2 - elt1;
+  //     }
+  //     return 0;
+  //   }
+  //   else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       int elt1 = elts1_u8[i];
+  //       int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+  //       if (elt1 != elt2)
+  //         return elt2 - elt1;
+  //     }
+  //     return 0;
+  //   }
+  //   else {
+  //     elts2 = (OBJ *) seq2.core_data.ptr;
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       OBJ elt2 = elts2[i];
+  //       OBJ_TYPE elt_2_type = get_logical_type(elt2);
+  //       if (elt_2_type != TYPE_INTEGER)
+  //         return elt_2_type - TYPE_INTEGER;
+  //       uint8 elt1 = elts1_u8[i];
+  //       int64 elt2_i64 = get_int(elt2);
+  //       if (elt1 != elt2_i64)
+  //         return elt2_i64 - elt1; //## BUG
+  //     }
+  //     return 0;
+  //   }
+  // }
+  // else if (phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE) {
+  //   if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
+  //     uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       int elt1 = inline_uint8_at(seq1.core_data.int_, i);
+  //       int elt2 = elts2_u8[i];
+  //       if (elt1 != elt2)
+  //         return elt2 - elt1;
+  //     }
+  //     return 0;
+  //   }
+  //   else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       int elt1 = inline_uint8_at(seq1.core_data.int_, i);
+  //       int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+  //       if (elt1 != elt2)
+  //         return elt2 - elt1;
+  //     }
+  //     return 0;
+  //   }
+  //   else {
+  //     elts2 = (OBJ *) seq2.core_data.ptr;
+  //     for (int i=0 ; i < len1 ; i++) {
+  //       OBJ elt2 = elts2[i];
+  //       OBJ_TYPE elt_2_type = get_logical_type(elt2);
+  //       if (elt_2_type != TYPE_INTEGER)
+  //         return elt_2_type - TYPE_INTEGER;
+  //       uint8 elt1 = inline_uint8_at(seq1.core_data.int_, i);
+  //       int64 elt2_i64 = get_int(elt2);
+  //       if (elt1 != elt2_i64)
+  //         return elt2_i64 - elt1; //## BUG
+  //     }
+  //     return 0;
+  //   }
+  // }
+  // else if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
+  //   elts1 = (OBJ *) seq1.core_data.ptr;
+  //   uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+  //   for (int i=0 ; i < len1 ; i++) {
+  //     OBJ elt1 = elts1[i];
+  //     OBJ_TYPE elt_1_type = get_logical_type(elt1);
+  //     if (elt_1_type != TYPE_INTEGER)
+  //       return TYPE_INTEGER - elt_1_type;
+  //     int64 elt1_i64 = get_int(elt1);
+  //     uint8 elt2 = elts2_u8[i];
+  //     if (elt1_i64 != elt2)
+  //       return elt2 - elt1_i64; //## BUG
+  //   }
+  //   return 0;
+  // }
+  // else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
+  //   elts1 = (OBJ *) seq1.core_data.ptr;
+  //   for (int i=0 ; i < len1 ; i++) {
+  //     OBJ elt1 = elts1[i];
+  //     OBJ_TYPE elt_1_type = get_logical_type(elt1);
+  //     if (elt_1_type != TYPE_INTEGER)
+  //       return TYPE_INTEGER - elt_1_type;
+  //     int64 elt1_i64 = get_int(elt1);
+  //     uint8 elt2 = inline_uint8_at(seq2.core_data.int_, i);
+  //     if (elt1_i64 != elt2)
+  //       return elt2 - elt1_i64; //## BUG
+  //   }
+  //   return 0;
+  // }
+
+  // count = len1;
+  // elts1 = (OBJ *) seq1.core_data.ptr;
+  // elts2 = (OBJ *) seq2.core_data.ptr;
+
+  // for (int i=0 ; i < len1 ; i++) {
+  //   int cr = fast_cmp_objs(elts1[i], elts2[i]);
+  //   if (cr != 0)
+  //     return cr;
+  // }
+
+  // return 0;
+}
+
 /* __attribute__ ((noinline)) */ int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_TYPE phys_type_1, OBJ obj2, OBJ_TYPE phys_type_2) {
   OBJ_TYPE log_type_1 = physical_to_logical_type(phys_type_1);
   OBJ_TYPE log_type_2 = physical_to_logical_type(phys_type_2);
@@ -73,131 +245,8 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
   OBJ *elts2;
 
   switch (log_type_1) {
-    case TYPE_NE_SEQ: {
-      assert(
-        phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE |
-        phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8 |
-        phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE
-      );
-      assert(
-        phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE |
-        phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8 |
-        phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE
-      );
-
-      int64 len1 = read_size_field(obj1);
-      int64 len2 = read_size_field(obj2);
-
-      if (len1 != len2)
-        return len2 - len1;
-
-      if (phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8) {
-        uint8 *elts1_u8 = (uint8 *) obj1.core_data.ptr;
-        if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-          uint8 *elts2_u8 = (uint8 *) obj2.core_data.ptr;
-          for (int i=0 ; i < len1 ; i++) {
-            int elt1 = elts1_u8[i];
-            int elt2 = elts2_u8[i];
-            if (elt1 != elt2)
-              return elt2 - elt1;
-          }
-          return 0;
-        }
-        else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-          for (int i=0 ; i < len1 ; i++) {
-            int elt1 = elts1_u8[i];
-            int elt2 = inline_uint8_at(obj2.core_data.int_, i);
-            if (elt1 != elt2)
-              return elt2 - elt1;
-          }
-          return 0;
-        }
-        else {
-          elts2 = (OBJ *) obj2.core_data.ptr;
-          for (int i=0 ; i < len1 ; i++) {
-            OBJ elt2 = elts2[i];
-            OBJ_TYPE elt_2_type = get_logical_type(elt2);
-            if (elt_2_type != TYPE_INTEGER)
-              return elt_2_type - TYPE_INTEGER;
-            uint8 elt1 = elts1_u8[i];
-            int64 elt2_i64 = get_int(elt2);
-            if (elt1 != elt2_i64)
-              return elt2_i64 - elt1; //## BUG
-          }
-          return 0;
-        }
-      }
-      else if (phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE) {
-        if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-          uint8 *elts2_u8 = (uint8 *) obj2.core_data.ptr;
-          for (int i=0 ; i < len1 ; i++) {
-            int elt1 = inline_uint8_at(obj1.core_data.int_, i);
-            int elt2 = elts2_u8[i];
-            if (elt1 != elt2)
-              return elt2 - elt1;
-          }
-          return 0;
-        }
-        else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-          for (int i=0 ; i < len1 ; i++) {
-            int elt1 = inline_uint8_at(obj1.core_data.int_, i);
-            int elt2 = inline_uint8_at(obj2.core_data.int_, i);
-            if (elt1 != elt2)
-              return elt2 - elt1;
-          }
-          return 0;
-        }
-        else {
-          elts2 = (OBJ *) obj2.core_data.ptr;
-          for (int i=0 ; i < len1 ; i++) {
-            OBJ elt2 = elts2[i];
-            OBJ_TYPE elt_2_type = get_logical_type(elt2);
-            if (elt_2_type != TYPE_INTEGER)
-              return elt_2_type - TYPE_INTEGER;
-            uint8 elt1 = inline_uint8_at(obj1.core_data.int_, i);
-            int64 elt2_i64 = get_int(elt2);
-            if (elt1 != elt2_i64)
-              return elt2_i64 - elt1; //## BUG
-          }
-          return 0;
-        }
-      }
-      else if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-        elts1 = (OBJ *) obj1.core_data.ptr;
-        uint8 *elts2_u8 = (uint8 *) obj2.core_data.ptr;
-        for (int i=0 ; i < len1 ; i++) {
-          OBJ elt1 = elts1[i];
-          OBJ_TYPE elt_1_type = get_logical_type(elt1);
-          if (elt_1_type != TYPE_INTEGER)
-            return TYPE_INTEGER - elt_1_type;
-          int64 elt1_i64 = get_int(elt1);
-          uint8 elt2 = elts2_u8[i];
-          if (elt1_i64 != elt2)
-            return elt2 - elt1_i64; //## BUG
-        }
-        return 0;
-      }
-      else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-        elts1 = (OBJ *) obj1.core_data.ptr;
-        for (int i=0 ; i < len1 ; i++) {
-          OBJ elt1 = elts1[i];
-          OBJ_TYPE elt_1_type = get_logical_type(elt1);
-          if (elt_1_type != TYPE_INTEGER)
-            return TYPE_INTEGER - elt_1_type;
-          int64 elt1_i64 = get_int(elt1);
-          uint8 elt2 = inline_uint8_at(obj2.core_data.int_, i);
-          if (elt1_i64 != elt2)
-            return elt2 - elt1_i64; //## BUG
-        }
-        return 0;
-      }
-
-      count = len1;
-      elts1 = (OBJ *) obj1.core_data.ptr;
-      elts2 = (OBJ *) obj2.core_data.ptr;
-
-      break;
-    }
+    case TYPE_NE_SEQ:
+      return fast_cmp_seqs_ignoring_inline_tags(obj1, phys_type_1, obj2, phys_type_2);
 
     case TYPE_NE_SET: {
       assert(phys_type_1 == TYPE_NE_SET);

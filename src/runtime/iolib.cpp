@@ -32,10 +32,10 @@ OBJ FileRead_P(OBJ filename, ENV &) {
 OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
   char *fname = obj_to_str(filename);
   uint32 size;
-  char *buffer = obj_to_byte_array(data, size);
+  uint8 *buffer = obj_to_byte_array(data, size);
   bool res;
   if (size > 0) {
-    res = file_write(fname, buffer, size, false);
+    res = file_write(fname, (char *) buffer, size, false);
   }
   else {
     char empty_buff[1];

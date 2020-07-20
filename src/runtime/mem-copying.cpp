@@ -319,6 +319,20 @@ OBJ copy_obj(OBJ obj) {
       return repoint_to_copy(obj, elts_copy);
     }
 
+    case TYPE_NE_SEQ_INT16: {
+      int len = read_size_field(obj);
+      int16 *elts_copy = new_int16_array(len);
+      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(int16));
+      return repoint_int16_seq_to_slice(obj, elts_copy);
+    }
+
+    case TYPE_NE_SLICE_INT16: {
+      int len = read_size_field(obj);
+      int16 *elts_copy = new_int16_array(len);
+      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(int16));
+      return repoint_to_copy(obj, elts_copy);
+    }
+
     default:
       internal_fail();
   }

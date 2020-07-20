@@ -16,6 +16,11 @@ uint64 uint8_seq_obj_mem_size(uint64 capacity) {
   return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(uint8);
 }
 
+uint64 int16_seq_obj_mem_size(uint64 capacity) {
+  assert(capacity > 0);
+  return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(int16);
+}
+
 uint64 bin_rel_obj_mem_size(uint64 size) {
   assert(size > 0);
   return sizeof(BIN_REL_OBJ) + (2 * size - 1) * sizeof(OBJ) + size * sizeof(uint32);
@@ -93,6 +98,16 @@ SEQ_OBJ *new_uint8_seq(uint32 length, uint32 capacity) {
   assert(capacity % 8 == 0);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(uint8_seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
+  seq->used = length;
+  return seq;
+}
+
+SEQ_OBJ *new_int16_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+  assert(capacity % 4 == 0);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int16_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
   seq->used = length;
   return seq;

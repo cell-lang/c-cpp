@@ -53,7 +53,6 @@ const uint64 TAG_MASK         = MASK(TAG_SHIFT, TAG_WIDTH);
 
 const uint64 BLANK_OBJ_MASK                 = MAKE_TYPE(TYPE_BLANK_OBJ);
 const uint64 NULL_OBJ_MASK                  = MAKE_TYPE(TYPE_NULL_OBJ);
-
 const uint64 SYMBOL_BASE_MASK               = MAKE_TYPE(TYPE_SYMBOL);
 const uint64 INTEGER_MASK                   = MAKE_TYPE(TYPE_INTEGER);
 const uint64 FLOAT_MASK                     = MAKE_TYPE(TYPE_FLOAT);
@@ -71,7 +70,10 @@ const uint64 OPT_REC_BASE_MASK              = MAKE_TYPE(TYPE_OPT_REC);
 const uint64 OPT_TAG_REC_BASE_MASK          = MAKE_TYPE(TYPE_OPT_TAG_REC);
 const uint64 NE_SEQ_UINT8_BASE_MASK         = MAKE_TYPE(TYPE_NE_SEQ_UINT8);
 const uint64 NE_SLICE_UINT8_BASE_MASK       = MAKE_TYPE(TYPE_NE_SLICE_UINT8);
+const uint64 NE_SEQ_INT16_BASE_MASK         = MAKE_TYPE(TYPE_NE_SEQ_INT16);
+const uint64 NE_SLICE_INT16_BASE_MASK       = MAKE_TYPE(TYPE_NE_SLICE_INT16);
 const uint64 NE_SEQ_UINT8_INLINE_BASE_MASK  = MAKE_TYPE(TYPE_NE_SEQ_UINT8_INLINE);
+const uint64 NE_SEQ_INT16_INLINE_BASE_MASK  = MAKE_TYPE(TYPE_NE_SEQ_INT16_INLINE);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -110,7 +112,10 @@ void print_ref(OBJ obj) {
     "TYPE_OPT_TAG_REC",
     "TYPE_NE_SEQ_UINT8",
     "TYPE_NE_SLICE_UINT8",
-    "TYPE_NE_SEQ_UINT8_INLINE"
+    "TYPE_NE_SEQ_INT16",
+    "TYPE_NE_SLICE_INT16",
+    "TYPE_NE_SEQ_UINT8_INLINE",
+    "TYPE_NE_SEQ_INT16_INLINE"
   };
 
   char buffer[256];
@@ -150,7 +155,7 @@ uint32 get_ex_type(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
-  static OBJ_TYPE log_types[8] = {
+  static OBJ_TYPE log_types[] = {
     TYPE_NE_SEQ,      // TYPE_NE_SLICE
     TYPE_NE_BIN_REL,  // TYPE_NE_MAP
     TYPE_NE_BIN_REL,  // TYPE_NE_LOG_MAP
@@ -158,7 +163,10 @@ OBJ_TYPE physical_to_logical_type(OBJ_TYPE type) {
     TYPE_TAG_OBJ,     // TYPE_OPT_TAG_REC
     TYPE_NE_SEQ,      // TYPE_NE_SEQ_UINT8
     TYPE_NE_SEQ,      // TYPE_NE_SLICE_UINT8
-    TYPE_NE_SEQ       // TYPE_NE_SEQ_UINT8_INLINE
+    TYPE_NE_SEQ,      // TYPE_NE_SEQ_INT16
+    TYPE_NE_SEQ,      // TYPE_NE_SLICE_INT16
+    TYPE_NE_SEQ,      // TYPE_NE_SEQ_UINT8_INLINE
+    TYPE_NE_SEQ       // TYPE_NE_SEQ_INT16_INLINE
   };
 
   if (type <= MAX_LOGICAL_TYPE)
@@ -186,7 +194,10 @@ bool is_single_tag_type(OBJ_TYPE type) {
     (1 << TYPE_NE_SLICE) |
     (1 << TYPE_NE_SEQ_UINT8) |
     (1 << TYPE_NE_SLICE_UINT8) |
-    (1 << TYPE_NE_SEQ_UINT8_INLINE);
+    (1 << TYPE_NE_SEQ_INT16) |
+    (1 << TYPE_NE_SLICE_INT16) |
+    (1 << TYPE_NE_SEQ_UINT8_INLINE) |
+    (1 << TYPE_NE_SEQ_INT16_INLINE);
 
   return ((BIT_MAP >> type) & 1) == 1;
 }
@@ -296,9 +307,44 @@ OBJ make_slice_uint8(uint8 *ptr, uint32 length) {
 OBJ make_seq_uint8_inline(uint64 data, uint32 length) {
   assert(length > 0 & length <= 8);
 
+  assert(length == 8 || (data >> (8 * length) == 0));
+  for (int i=length ; i < 8 ; i++)
+    assert(inline_uint8_at(data, i) == 0);
+
   OBJ obj;
   obj.core_data.int_ = data;
   obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_UINT8_INLINE_BASE_MASK;
+  return obj;
+}
+
+OBJ make_seq_int16(SEQ_OBJ *ptr, uint32 length) {
+  assert(ptr != NULL & length > 0);
+
+  OBJ obj;
+  obj.core_data.ptr = ptr->buffer.int16_;
+  obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_INT16_BASE_MASK;
+  return obj;
+}
+
+OBJ make_slice_int16(int16 *ptr, uint32 length) {
+  assert(ptr != NULL & length > 0);
+
+  OBJ obj;
+  obj.core_data.ptr = ptr;
+  obj.extra_data = MAKE_LENGTH(length) | NE_SLICE_INT16_BASE_MASK;
+  return obj;
+}
+
+OBJ make_seq_int16_inline(uint64 data, uint32 length) {
+  assert(length > 0 & length <= 4);
+
+  assert(length == 4 || (data >> (16 * length) == 0));
+  for (int i=length ; i < 4 ; i++)
+    assert(inline_int16_at(data, i) == 0);
+
+  OBJ obj;
+  obj.core_data.int_ = data;
+  obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_INT16_INLINE_BASE_MASK;
   return obj;
 }
 
@@ -533,6 +579,12 @@ uint8 *get_seq_elts_ptr_uint8(OBJ obj) {
   return (uint8 *) obj.core_data.ptr;
 }
 
+int16 *get_seq_elts_ptr_int16(OBJ obj) {
+  assert(is_ne_seq(obj));
+  assert(get_physical_type(obj) == TYPE_NE_SLICE_INT16 | get_physical_type(obj) == TYPE_NE_SEQ_INT16);
+  return (int16 *) obj.core_data.ptr;
+}
+
 OBJ *get_set_elts_ptr(OBJ obj) {
   assert(is_ne_set(obj));
   return (OBJ *) obj.core_data.ptr;
@@ -541,7 +593,11 @@ OBJ *get_set_elts_ptr(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 SEQ_OBJ* get_seq_ptr(OBJ obj) {
-  assert(get_physical_type(obj) == TYPE_NE_SEQ | get_physical_type(obj) == TYPE_NE_SEQ_UINT8);
+  assert(
+    get_physical_type(obj) == TYPE_NE_SEQ |
+    get_physical_type(obj) == TYPE_NE_SEQ_UINT8 |
+    get_physical_type(obj) == TYPE_NE_SEQ_INT16
+  );
   return (SEQ_OBJ *) (((char *) obj.core_data.ptr) - SEQ_BUFFER_FIELD_OFFSET);
 }
 
@@ -615,14 +671,8 @@ bool is_float(OBJ obj) {
 
 bool is_seq(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return (
-    ex_type == TYPE_EMPTY_SEQ           |
-    ex_type == TYPE_NE_SEQ              |
-    ex_type == TYPE_NE_SLICE            |
-    ex_type == TYPE_NE_SEQ_UINT8        |
-    ex_type == TYPE_NE_SLICE_UINT8      |
-    ex_type == TYPE_NE_SEQ_UINT8_INLINE
- );
+  return ex_type == TYPE_EMPTY_SEQ | ex_type == TYPE_NE_SEQ | ex_type == TYPE_NE_SLICE |
+         (ex_type >= MIN_OPT_SEQ_TYPE & ex_type <= MAX_OPT_SEQ_TYPE);
 }
 
 bool is_empty_seq(OBJ obj) {
@@ -631,13 +681,8 @@ bool is_empty_seq(OBJ obj) {
 
 bool is_ne_seq(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return (
-    ex_type == TYPE_NE_SEQ              |
-    ex_type == TYPE_NE_SLICE            |
-    ex_type == TYPE_NE_SEQ_UINT8        |
-    ex_type == TYPE_NE_SLICE_UINT8      |
-    ex_type == TYPE_NE_SEQ_UINT8_INLINE
-  );
+  return ex_type == TYPE_NE_SEQ | ex_type == TYPE_NE_SLICE |
+         (ex_type >= MIN_OPT_SEQ_TYPE & ex_type <= MAX_OPT_SEQ_TYPE);
 }
 
 bool is_empty_rel(OBJ obj) {
@@ -719,8 +764,8 @@ bool is_always_inline(OBJ obj) {
 
 bool is_inline_obj(OBJ obj) {
   OBJ_TYPE type = get_physical_type(obj);
-  assert(type <= MAX_ALWAYS_INLINE_OBJ_TYPE | type >= TYPE_NE_SEQ_UINT8_INLINE | obj.core_data.ptr != NULL);
-  return type <= MAX_ALWAYS_INLINE_OBJ_TYPE | type >= TYPE_NE_SEQ_UINT8_INLINE;
+  assert(type <= MAX_ALWAYS_INLINE_OBJ_TYPE | type >= MIN_INLINE_PHYSICAL_OBJ_TYPE | obj.core_data.ptr != NULL);
+  return type <= MAX_ALWAYS_INLINE_OBJ_TYPE | type >= MIN_INLINE_PHYSICAL_OBJ_TYPE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -808,6 +853,16 @@ OBJ repoint_uint8_seq_to_slice(OBJ obj, uint8 *elts) {
   assert(get_tags_count(obj) == 0 | get_tags_count(obj) == 1);
 
   OBJ new_obj = make_slice_uint8(elts, read_size_field(obj));
+  if (get_tags_count(obj) != 0)
+    new_obj = make_tag_obj(get_tag_id(obj), new_obj);
+  return new_obj;
+}
+
+OBJ repoint_int16_seq_to_slice(OBJ obj, int16 *elts) {
+  assert(get_physical_type(obj) == TYPE_NE_SEQ_INT16);
+  assert(get_tags_count(obj) == 0 | get_tags_count(obj) == 1);
+
+  OBJ new_obj = make_slice_int16(elts, read_size_field(obj));
   if (get_tags_count(obj) != 0)
     new_obj = make_tag_obj(get_tag_id(obj), new_obj);
   return new_obj;

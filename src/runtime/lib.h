@@ -34,16 +34,23 @@ enum OBJ_TYPE {
   TYPE_NE_LOG_MAP           = 14,   // -> BIN_REL_OBJ-
   TYPE_OPT_REC              = 15,   // -> OBJ_*
   TYPE_OPT_TAG_REC          = 16,   // -> OBJ_*
+  // Only integer sequences from here on
   TYPE_NE_SEQ_UINT8         = 17,   // -> uint8
   TYPE_NE_SLICE_UINT8       = 18,   // -> uint8
-  TYPE_NE_SEQ_UINT8_INLINE  = 19
+  TYPE_NE_SEQ_INT16         = 19,   // -> int16
+  TYPE_NE_SLICE_INT16       = 20,   // -> int16
+  // Inline types
+  TYPE_NE_SEQ_UINT8_INLINE  = 21,
+  TYPE_NE_SEQ_INT16_INLINE  = 22
 };
 
 
 const OBJ_TYPE MAX_ALWAYS_INLINE_OBJ_TYPE   = TYPE_EMPTY_REL;
 const OBJ_TYPE MIN_INLINE_PHYSICAL_OBJ_TYPE = TYPE_NE_SEQ_UINT8_INLINE;
 const OBJ_TYPE MAX_LOGICAL_TYPE             = TYPE_TAG_OBJ;
-const OBJ_TYPE MAX_PHYSICAL_TYPE            = TYPE_NE_SEQ_UINT8_INLINE;
+const OBJ_TYPE MAX_PHYSICAL_TYPE            = TYPE_NE_SEQ_INT16_INLINE;
+const OBJ_TYPE MIN_OPT_SEQ_TYPE             = TYPE_NE_SEQ_UINT8;
+const OBJ_TYPE MAX_OPT_SEQ_TYPE             = TYPE_NE_SEQ_INT16_INLINE;
 
 
 struct OBJ {
@@ -64,6 +71,7 @@ struct SEQ_OBJ {
   union {
     OBJ   obj[1];
     uint8 uint8_[1];
+    int16 int16_[1];
   } buffer;
 };
 
@@ -85,12 +93,13 @@ struct TAG_OBJ { //## FIND OTHER NAME
 
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef enum {ELT_TYPE_OBJ, ELT_TYPE_UINT8} ELT_TYPE;
+typedef enum {ELT_TYPE_OBJ, ELT_TYPE_UINT8, ELT_TYPE_INT16} ELT_TYPE;
 
 struct SEQ_ITER {
   union {
     OBJ   *obj;
     uint8 *uint8_;
+    int16 *int16_;
   } buffer;
   uint32    idx;
   uint32    len;
@@ -178,6 +187,7 @@ SET_OBJ      *new_set(uint32 size);
 SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets used and capacity
 SEQ_OBJ      *new_obj_seq(uint32 length, uint32 capacity);    // Ditto
 SEQ_OBJ      *new_uint8_seq(uint32 length, uint32 capacity);  // Ditto
+SEQ_OBJ      *new_int16_seq(uint32 length, uint32 capacity);  // Ditto
 BIN_REL_OBJ  *new_map(uint32 size);                           // Clears rev_idxs
 BIN_REL_OBJ  *new_bin_rel(uint32 size);
 TERN_REL_OBJ *new_tern_rel(uint32 size);
@@ -249,6 +259,9 @@ OBJ make_slice(OBJ *ptr, uint32 length);
 OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length);
 OBJ make_slice_uint8(uint8 *ptr, uint32 length);
 OBJ make_seq_uint8_inline(uint64 data, uint32 length);
+OBJ make_seq_int16(SEQ_OBJ *ptr, uint32 length);
+OBJ make_slice_int16(int16 *ptr, uint32 length);
+OBJ make_seq_int16_inline(uint64 data, uint32 length);
 OBJ make_set(SET_OBJ*, uint32 size);
 OBJ make_bin_rel(BIN_REL_OBJ*, uint32 size);
 OBJ make_tern_rel(TERN_REL_OBJ*, uint32 size);
@@ -265,6 +278,7 @@ OBJ* get_set_elts_ptr(OBJ);
 // Purely physical representation functions
 
 uint8 *get_seq_elts_ptr_uint8(OBJ obj);
+int16 *get_seq_elts_ptr_int16(OBJ obj);
 
 OBJ_TYPE get_physical_type(OBJ);
 
@@ -296,6 +310,7 @@ int comp_floats(double, double);
 OBJ repoint_to_copy(OBJ, void*);
 OBJ repoint_slice_to_seq(OBJ, SEQ_OBJ*);
 OBJ repoint_uint8_seq_to_slice(OBJ, uint8*);
+OBJ repoint_int16_seq_to_slice(OBJ, int16*);
 
 //////////////////////////////// basic-ops.cpp /////////////////////////////////
 
@@ -445,7 +460,7 @@ OBJ /*owned_*/str_to_obj(const char* c_str);
 char* obj_to_str(OBJ str_obj);
 void obj_to_str(OBJ str_obj, char *buffer, uint32 size);
 
-char* obj_to_byte_array(OBJ byte_seq_obj, uint32 &size);
+uint8* obj_to_byte_array(OBJ byte_seq_obj, uint32 &size);
 
 uint64 char_buffer_size(OBJ str_obj);
 
@@ -568,6 +583,7 @@ int64 int_array_at(uint16*, int32, int32);
 int64 int_array_at(int8*,   int32, int32);
 int64 int_array_at(uint8*,  int32, int32);
 
+OBJ    get_obj_at(OBJ, int64);
 double get_float_at(OBJ, int64);
 int64  get_int_at(OBJ, int64);
 
@@ -592,28 +608,114 @@ void switch_to_static_allocator();
 void switch_to_twin_stacks_allocator();
 
 
-inline uint8 inline_uint8_at(uint64 packed_array, uint32 idx) {
-  return (packed_array >> (8 * idx)) & 0xFF;
+
+
+inline uint8 inline_uint8_at(uint64 packed_elts, uint32 idx) {
+  return (packed_elts >> (8 * idx)) & 0xFF;
 }
 
-inline uint64 inline_uint8_array_set_at(uint64 packed_array, uint32 idx, uint8 value) {
-  uint64 updated_packed_array = (packed_array & ~(0xFFULL << (8 * idx))) | (((uint64) value) << (8 * idx));
-  assert(inline_uint8_at(updated_packed_array, idx) == value);
+inline int16 inline_int16_at(uint64 packed_elts, uint32 idx) {
+  return (int16) ((packed_elts >> (16 * idx)) & 0xFFFF);
+}
+
+inline uint64 inline_uint8_init_at(uint64 packed_elts, uint32 idx, uint8 value) {
+  assert((packed_elts >> (8 * idx)) == 0);
+  uint64 updated_packed_elts = packed_elts | (((uint64) value) << (8 * idx));
+  assert(idx == 7 || (updated_packed_elts >> (8 * (idx + 1))) == 0);
+  assert(inline_uint8_at(updated_packed_elts, idx) == value);
   for (int i=0 ; i < idx ; i++)
-    assert(inline_uint8_at(updated_packed_array, i) == inline_uint8_at(packed_array, i));
-  return updated_packed_array;
+    assert(inline_uint8_at(updated_packed_elts, i) == inline_uint8_at(packed_elts, i));
+  for (int i = idx + 1 ; i < 8 ; i++)
+    assert(inline_uint8_at(updated_packed_elts, i) == 0);
+  return updated_packed_elts;
 }
 
-inline void copy_uint8_array(uint8 *array, uint64 packed_array) {
-  for (int i=0 ; i < 8 ; i++)
-    array[i] = inline_uint8_at(packed_array, i);
+inline uint64 inline_int16_init_at(uint64 packed_elts, uint32 idx, int16 value) {
+  assert((packed_elts >> (16 * idx)) == 0);
+  uint64 updated_packed_elts = packed_elts | ((((uint64) value) & 0xFFFF) << (16 * idx));
+  assert(idx == 3 || (updated_packed_elts >> (16 * (idx + 1))) == 0);
+  assert(inline_int16_at(updated_packed_elts, idx) == value);
+  for (int i=0 ; i < idx ; i++)
+    assert(inline_int16_at(updated_packed_elts, i) == inline_int16_at(packed_elts, i));
+  for (int i = idx + 1 ; i < 4 ; i++)
+    assert(inline_int16_at(updated_packed_elts, i) == 0);
+  return updated_packed_elts;
 }
 
-inline uint64 pack_uint8_array(uint8 *array, uint32 size) {
-  uint64 packed_array = 0;
+inline uint64 inline_uint8_pack(uint8 *array, uint32 size) {
+  assert(size <= 8);
+
+  uint64 packed_elts = 0;
   for (int i=0 ; i < size ; i++)
-    packed_array |= ((uint64) array[i]) << (8 * i);
+    packed_elts |= ((uint64) array[i]) << (8 * i);
   for (int i=0 ; i < size ; i++)
-    assert(inline_uint8_at(packed_array, i) == array[i]);
-  return packed_array;
+    assert(inline_uint8_at(packed_elts, i) == array[i]);
+  for (int i=size ; i < 8 ; i++)
+    assert(inline_uint8_at(packed_elts, i) == 0);
+  return packed_elts;
+}
+
+inline uint64 inline_int16_pack(int16 *array, uint32 size) {
+  assert(size <= 4);
+
+  uint64 packed_elts = 0;
+  for (int i=0 ; i < size ; i++)
+    packed_elts |= (((uint64) array[i]) & 0xFFFF) << (16 * i);
+  for (int i=0 ; i < size ; i++)
+    assert(inline_int16_at(packed_elts, i) == array[i]);
+  for (int i=size ; i < 4 ; i++)
+    assert(inline_int16_at(packed_elts, i) == 0);
+  return packed_elts;
+}
+
+inline uint64 inline_uint8_slice(uint64 packed_elts, uint32 idx_first, uint32 count) {
+  assert(idx_first < 8 & count <= 8 & idx_first + count <= 8);
+
+  uint64 slice = (packed_elts >> (8 * idx_first)) & ((1ULL << (8 * count)) - 1);
+  for (int i=0 ; i < count ; i++)
+    assert(inline_uint8_at(slice, i) == inline_uint8_at(packed_elts, i + idx_first));
+  for (int i=count ; i < 8 ; i++)
+    assert(inline_uint8_at(slice, i) == 0);
+  return slice;
+}
+
+inline uint64 inline_int16_slice(uint64 packed_elts, uint32 idx_first, uint32 count) {
+  assert(idx_first < 4 & count <= 4 & idx_first + count <= 4);
+
+  uint64 slice = (packed_elts >> (16 * idx_first)) & ((1ULL << (16 * count)) - 1);
+  for (int i=0 ; i < count ; i++)
+    assert(inline_int16_at(slice, i) == inline_int16_at(packed_elts, i + idx_first));
+  for (int i=count ; i < 4 ; i++)
+    assert(inline_int16_at(slice, i) == 0);
+  return slice;
+}
+
+inline uint64 inline_uint8_concat(uint64 left, uint32 left_len, uint64 right, uint32 right_len) {
+  assert(left_len <= 8 & right_len <= 8 & left_len + right_len <= 8);
+
+  uint64 elts = left | (right << (8 * left_len));
+
+  for (int i=0 ; i < left_len ; i++)
+    assert(inline_uint8_at(elts, i) == inline_uint8_at(left, i));
+  for (int i=0 ; i < right_len ; i++)
+    assert(inline_uint8_at(elts, i + left_len) == inline_uint8_at(right, i));
+  for (int i = left_len + right_len ; i < 8 ; i++)
+    assert(inline_uint8_at(elts, i) == 0);
+
+  return elts;
+}
+
+inline uint64 inline_int16_concat(uint64 left, uint32 left_len, uint64 right, uint32 right_len) {
+  assert(left_len <= 4 & right_len <= 4 & left_len + right_len <= 4);
+
+  uint64 elts = left | (right << (16 * left_len));
+
+  for (int i=0 ; i < left_len ; i++)
+    assert(inline_int16_at(elts, i) == inline_int16_at(left, i));
+  for (int i=0 ; i < right_len ; i++)
+    assert(inline_int16_at(elts, i + left_len) == inline_int16_at(right, i));
+  for (int i = left_len + right_len ; i < 4 ; i++)
+    assert(inline_int16_at(elts, i) == 0);
+
+  return elts;
 }
