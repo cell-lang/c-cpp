@@ -60,6 +60,7 @@ int fast_cmp_objs(OBJ obj1, OBJ obj2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 OBJ get_obj_at_hack(OBJ seq, int64 idx) {
   OBJ_TYPE type = get_physical_type(seq);
@@ -93,17 +94,253 @@ OBJ get_obj_at_hack(OBJ seq, int64 idx) {
   }
 }
 
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags_slow(OBJ seq1, OBJ seq2) {
+  assert(read_size_field(seq1) == read_size_field(seq2));
+
+  uint32 len = read_size_field(seq1);
+  for (int i=0 ; i < len ; i++) {
+    int cr = fast_cmp_objs(get_obj_at_hack(seq1, i), get_obj_at_hack(seq2, i));
+    if (cr != 0)
+      return cr;
+  }
+  return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags_ne_seq_or_slice_uint8(OBJ seq1, uint32 len, OBJ seq2, OBJ_TYPE phys_type_2) {
+  uint8 *elts1_u8 = (uint8 *) seq1.core_data.ptr;
+
+  switch (phys_type_2) {
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_u8[i];
+        int elt2 = elts2_u8[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_u8[i];
+        int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16: {
+      int16 *elts2_i16 = (int16 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_u8[i];
+        int elt2 = elts2_i16[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_u8[i];
+        int elt2 = inline_int16_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    default:
+      return fast_cmp_seqs_ignoring_inline_tags_slow(seq1, seq2);
+  }
+}
+
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags_ne_seq_uint8_inline(OBJ seq1, uint32 len, OBJ seq2, OBJ_TYPE phys_type_2) {
+  switch (phys_type_2) {
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_uint8_at(seq1.core_data.int_, i);
+        int elt2 = elts2_u8[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_uint8_at(seq1.core_data.int_, i);
+        int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16: {
+      int16 *elts2_i16 = (int16 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = elts2_i16[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = inline_int16_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    default:
+      return fast_cmp_seqs_ignoring_inline_tags_slow(seq1, seq2);
+  }
+}
+
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags_ne_seq_or_slice_int16(OBJ seq1, uint32 len, OBJ seq2, OBJ_TYPE phys_type_2) {
+  int16 *elts1_i16 = (int16 *) seq1.core_data.ptr;
+
+  switch (phys_type_2) {
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_i16[i];
+        int elt2 = elts2_u8[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_i16[i];
+        int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16: {
+      int16 *elts2_i16 = (int16 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_i16[i];
+        int elt2 = elts2_i16[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = elts1_i16[i];
+        int elt2 = inline_int16_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    default:
+      return fast_cmp_seqs_ignoring_inline_tags_slow(seq1, seq2);
+  }
+}
+
+__attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags_ne_seq_int16_inline(OBJ seq1, uint32 len, OBJ seq2, OBJ_TYPE phys_type_2) {
+  switch (phys_type_2) {
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8: {
+      uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = elts2_u8[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_UINT8_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = inline_uint8_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16: {
+      int16 *elts2_i16 = (int16 *) seq2.core_data.ptr;
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = elts2_i16[i];
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    case TYPE_NE_SEQ_INT16_INLINE: {
+      for (int i=0 ; i < len ; i++) {
+        int elt1 = inline_int16_at(seq1.core_data.int_, i);
+        int elt2 = inline_int16_at(seq2.core_data.int_, i);
+        if (elt1 != elt2)
+          return elt2 - elt1;
+      }
+      return 0;
+    }
+
+    default:
+      return fast_cmp_seqs_ignoring_inline_tags_slow(seq1, seq2);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 __attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags(OBJ seq1, OBJ_TYPE phys_type_1, OBJ seq2, OBJ_TYPE phys_type_2) {
-  // assert(
-  //   phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE |
-  //   phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8 |
-  //   phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE
-  // );
-  // assert(
-  //   phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE |
-  //   phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8 |
-  //   phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE
-  // );
+  assert(
+    phys_type_1 == TYPE_NE_SEQ |
+    phys_type_1 == TYPE_NE_SLICE |
+    phys_type_1 == TYPE_NE_SEQ_UINT8 |
+    phys_type_1 == TYPE_NE_SLICE_UINT8 |
+    phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE |
+    phys_type_1 == TYPE_NE_SEQ_INT16 |
+    phys_type_1 == TYPE_NE_SLICE_INT16 |
+    phys_type_1 == TYPE_NE_SEQ_INT16_INLINE
+  );
+  assert(
+    phys_type_2 == TYPE_NE_SEQ |
+    phys_type_2 == TYPE_NE_SLICE |
+    phys_type_2 == TYPE_NE_SEQ_UINT8 |
+    phys_type_2 == TYPE_NE_SLICE_UINT8 |
+    phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE |
+    phys_type_2 == TYPE_NE_SEQ_INT16 |
+    phys_type_2 == TYPE_NE_SLICE_INT16 |
+    phys_type_2 == TYPE_NE_SEQ_INT16_INLINE
+  );
 
   int64 len1 = read_size_field(seq1);
   int64 len2 = read_size_field(seq2);
@@ -111,126 +348,39 @@ __attribute__ ((noinline)) int fast_cmp_seqs_ignoring_inline_tags(OBJ seq1, OBJ_
   if (len1 != len2)
     return len2 - len1;
 
-  for (int i=0 ; i < len1 ; i++) {
-    int cr = fast_cmp_objs(get_obj_at_hack(seq1, i), get_obj_at_hack(seq2, i));
-    if (cr != 0)
-      return cr;
+  if ((phys_type_1 == TYPE_NE_SEQ | phys_type_1 == TYPE_NE_SLICE) & (phys_type_2 == TYPE_NE_SEQ | phys_type_2 == TYPE_NE_SLICE)) {
+    OBJ *elts1 = (OBJ *) seq1.core_data.ptr;
+    OBJ *elts2 = (OBJ *) seq2.core_data.ptr;
+    for (int i=0 ; i < len1 ; i++) {
+      int cr = fast_cmp_objs(elts1[i], elts2[i]);
+      if (cr != 0)
+        return cr;
+    }
+    return 0;
   }
 
-  return 0;
+  switch (phys_type_1) {
+    case TYPE_NE_SEQ:
+    case TYPE_NE_SLICE:
+      return fast_cmp_seqs_ignoring_inline_tags_slow(seq1, seq2);
 
-  // if (phys_type_1 == TYPE_NE_SEQ_UINT8 | phys_type_1 == TYPE_NE_SLICE_UINT8) {
-  //   uint8 *elts1_u8 = (uint8 *) seq1.core_data.ptr;
-  //   if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-  //     uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       int elt1 = elts1_u8[i];
-  //       int elt2 = elts2_u8[i];
-  //       if (elt1 != elt2)
-  //         return elt2 - elt1;
-  //     }
-  //     return 0;
-  //   }
-  //   else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       int elt1 = elts1_u8[i];
-  //       int elt2 = inline_uint8_at(seq2.core_data.int_, i);
-  //       if (elt1 != elt2)
-  //         return elt2 - elt1;
-  //     }
-  //     return 0;
-  //   }
-  //   else {
-  //     elts2 = (OBJ *) seq2.core_data.ptr;
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       OBJ elt2 = elts2[i];
-  //       OBJ_TYPE elt_2_type = get_logical_type(elt2);
-  //       if (elt_2_type != TYPE_INTEGER)
-  //         return elt_2_type - TYPE_INTEGER;
-  //       uint8 elt1 = elts1_u8[i];
-  //       int64 elt2_i64 = get_int(elt2);
-  //       if (elt1 != elt2_i64)
-  //         return elt2_i64 - elt1; //## BUG
-  //     }
-  //     return 0;
-  //   }
-  // }
-  // else if (phys_type_1 == TYPE_NE_SEQ_UINT8_INLINE) {
-  //   if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-  //     uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       int elt1 = inline_uint8_at(seq1.core_data.int_, i);
-  //       int elt2 = elts2_u8[i];
-  //       if (elt1 != elt2)
-  //         return elt2 - elt1;
-  //     }
-  //     return 0;
-  //   }
-  //   else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       int elt1 = inline_uint8_at(seq1.core_data.int_, i);
-  //       int elt2 = inline_uint8_at(seq2.core_data.int_, i);
-  //       if (elt1 != elt2)
-  //         return elt2 - elt1;
-  //     }
-  //     return 0;
-  //   }
-  //   else {
-  //     elts2 = (OBJ *) seq2.core_data.ptr;
-  //     for (int i=0 ; i < len1 ; i++) {
-  //       OBJ elt2 = elts2[i];
-  //       OBJ_TYPE elt_2_type = get_logical_type(elt2);
-  //       if (elt_2_type != TYPE_INTEGER)
-  //         return elt_2_type - TYPE_INTEGER;
-  //       uint8 elt1 = inline_uint8_at(seq1.core_data.int_, i);
-  //       int64 elt2_i64 = get_int(elt2);
-  //       if (elt1 != elt2_i64)
-  //         return elt2_i64 - elt1; //## BUG
-  //     }
-  //     return 0;
-  //   }
-  // }
-  // else if (phys_type_2 == TYPE_NE_SEQ_UINT8 | phys_type_2 == TYPE_NE_SLICE_UINT8) {
-  //   elts1 = (OBJ *) seq1.core_data.ptr;
-  //   uint8 *elts2_u8 = (uint8 *) seq2.core_data.ptr;
-  //   for (int i=0 ; i < len1 ; i++) {
-  //     OBJ elt1 = elts1[i];
-  //     OBJ_TYPE elt_1_type = get_logical_type(elt1);
-  //     if (elt_1_type != TYPE_INTEGER)
-  //       return TYPE_INTEGER - elt_1_type;
-  //     int64 elt1_i64 = get_int(elt1);
-  //     uint8 elt2 = elts2_u8[i];
-  //     if (elt1_i64 != elt2)
-  //       return elt2 - elt1_i64; //## BUG
-  //   }
-  //   return 0;
-  // }
-  // else if (phys_type_2 == TYPE_NE_SEQ_UINT8_INLINE) {
-  //   elts1 = (OBJ *) seq1.core_data.ptr;
-  //   for (int i=0 ; i < len1 ; i++) {
-  //     OBJ elt1 = elts1[i];
-  //     OBJ_TYPE elt_1_type = get_logical_type(elt1);
-  //     if (elt_1_type != TYPE_INTEGER)
-  //       return TYPE_INTEGER - elt_1_type;
-  //     int64 elt1_i64 = get_int(elt1);
-  //     uint8 elt2 = inline_uint8_at(seq2.core_data.int_, i);
-  //     if (elt1_i64 != elt2)
-  //       return elt2 - elt1_i64; //## BUG
-  //   }
-  //   return 0;
-  // }
+    case TYPE_NE_SEQ_UINT8:
+    case TYPE_NE_SLICE_UINT8:
+      return fast_cmp_seqs_ignoring_inline_tags_ne_seq_or_slice_uint8(seq1, len1, seq2, phys_type_2);
 
-  // count = len1;
-  // elts1 = (OBJ *) seq1.core_data.ptr;
-  // elts2 = (OBJ *) seq2.core_data.ptr;
+    case TYPE_NE_SEQ_UINT8_INLINE:
+      return fast_cmp_seqs_ignoring_inline_tags_ne_seq_uint8_inline(seq1, len1, seq2, phys_type_2);
 
-  // for (int i=0 ; i < len1 ; i++) {
-  //   int cr = fast_cmp_objs(elts1[i], elts2[i]);
-  //   if (cr != 0)
-  //     return cr;
-  // }
+    case TYPE_NE_SEQ_INT16:
+    case TYPE_NE_SLICE_INT16:
+      return fast_cmp_seqs_ignoring_inline_tags_ne_seq_or_slice_int16(seq1, len1, seq2, phys_type_2);
 
-  // return 0;
+    case TYPE_NE_SEQ_INT16_INLINE:
+      return fast_cmp_seqs_ignoring_inline_tags_ne_seq_int16_inline(seq1, len1, seq2, phys_type_2);
+
+    default:
+      internal_fail();
+  }
 }
 
 /* __attribute__ ((noinline)) */ int fast_cmp_objs_ignoring_inline_tags(OBJ obj1, OBJ_TYPE phys_type_1, OBJ obj2, OBJ_TYPE phys_type_2) {

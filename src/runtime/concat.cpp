@@ -152,28 +152,6 @@ __attribute__ ((noinline)) OBJ concat_slow(OBJ left, OBJ right) {
   return make_seq(seq_ptr, lenl + lenr);
 }
 
-__attribute__ ((noinline)) OBJ concat_slow_uint8(OBJ left, OBJ right) {
-  SEQ_OBJ *seq_ptr;
-
-  uint32 lenl = get_seq_length(left);
-  uint32 lenr = get_seq_length(right);
-  uint32 len = lenl + lenr;
-
-  if (get_physical_type(left) == TYPE_NE_SEQ_UINT8) {
-    seq_ptr = adjust_uint8_seq(get_seq_ptr(left), lenl, lenr);
-  }
-  else {
-    seq_ptr = new_uint8_seq(len, next_capacity(8, len));
-    for (int i=0 ; i < lenl ; i++)
-      seq_ptr->buffer.uint8_[i] = (uint8) get_int_at(left, i);
-  }
-
-  for (int i=0 ; i < lenr ; i++)
-    seq_ptr->buffer.uint8_[i + lenl] = (uint8) get_int_at(right, i);
-
-  return make_seq_uint8(seq_ptr, lenl + lenr);
-}
-
 __attribute__ ((noinline)) OBJ concat_slow_int16(OBJ left, OBJ right) {
   SEQ_OBJ *seq_ptr;
 
@@ -251,8 +229,14 @@ inline OBJ concat_ne_slice_uint8(OBJ left, uint32 lenl, OBJ right, uint32 lenr) 
   if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8)
     return concat_uint8(eltsl, lenl, get_seq_elts_ptr_uint8(right), lenr);
 
-  if (typer == TYPE_NE_SEQ_UINT8_INLINE)
-    return concat_slow_uint8(left, right);
+  if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint32 len = lenl + lenr;
+    SEQ_OBJ *seq_ptr = new_uint8_seq(len, next_capacity(16, len));
+    memcpy(seq_ptr->buffer.uint8_, get_seq_elts_ptr_uint8(left), lenl * sizeof(uint8));
+    for (int i=0 ; i < lenr ; i++)
+      seq_ptr->buffer.uint8_[i + lenl] = inline_uint8_at(right.core_data.int_, i);
+    return make_seq_uint8(seq_ptr, len);
+  }
 
   if (typer == TYPE_NE_SEQ_INT16 | typer == TYPE_NE_SLICE_INT16 | typer == TYPE_NE_SEQ_INT16_INLINE)
     return concat_slow_int16(left, right);
@@ -263,13 +247,30 @@ inline OBJ concat_ne_slice_uint8(OBJ left, uint32 lenl, OBJ right, uint32 lenr) 
 inline OBJ concat_ne_seq_uint8_inline(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
   OBJ_TYPE typer = get_physical_type(right);
 
-  if (typer == TYPE_NE_SEQ_UINT8_INLINE & lenl + lenr <= 8) {
-    uint64 elts = inline_uint8_concat(left.core_data.int_, lenl, right.core_data.int_, lenr);
-    return make_seq_uint8_inline(elts, lenl + lenr);
+  if (typer == TYPE_NE_SEQ_UINT8_INLINE) {
+    uint32 len = lenl + lenr;
+    if (len <= 8) {
+      uint64 elts = inline_uint8_concat(left.core_data.int_, lenl, right.core_data.int_, lenr);
+      return make_seq_uint8_inline(elts, len);
+    }
+    else {
+      SEQ_OBJ *seq_ptr = new_uint8_seq(len, next_capacity(16, len));
+      for (int i=0 ; i < lenl ; i++)
+        seq_ptr->buffer.uint8_[i] = inline_uint8_at(left.core_data.int_, i);
+      for (int i=0 ; i < lenr ; i++)
+        seq_ptr->buffer.uint8_[i + lenl] = inline_uint8_at(right.core_data.int_, i);
+      return make_seq_uint8(seq_ptr, len);
+    }
   }
 
-  if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8 | typer == TYPE_NE_SEQ_UINT8_INLINE)
-    return concat_slow_uint8(left, right);
+  if (typer == TYPE_NE_SEQ_UINT8 | typer == TYPE_NE_SLICE_UINT8) {
+    uint32 len = lenl + lenr;
+    SEQ_OBJ *seq_ptr = new_uint8_seq(len, next_capacity(16, len));
+    for (int i=0 ; i < lenl ; i++)
+      seq_ptr->buffer.uint8_[i] = inline_uint8_at(left.core_data.int_, i);
+    memcpy(seq_ptr->buffer.uint8_ + lenl, get_seq_elts_ptr_uint8(right), lenr * sizeof(uint8));
+    return make_seq_uint8(seq_ptr, len);
+  }
 
   if (typer == TYPE_NE_SEQ_INT16 | typer == TYPE_NE_SLICE_INT16 | typer == TYPE_NE_SEQ_INT16_INLINE)
     return concat_slow_int16(left, right);
