@@ -236,14 +236,63 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   switch (type) {
     case TYPE_NE_SEQ:
     case TYPE_NE_SLICE: {
-      OBJ *ptr = get_seq_elts_ptr(seq);
-      return make_slice(ptr + idx_first, len);
+      OBJ *elts = get_seq_elts_ptr(seq) + idx_first;
+
+      int64 min = 0;
+      int64 max = 0;
+
+      for (int i=0 ; i < len ; i++) {
+        OBJ elt = elts[i];
+        if (!is_int(elt))
+          return make_slice(elts, len);
+
+        int64 value = get_int(elt);
+        if (value < min)
+          min = value;
+        else if (value > max)
+          max = value;
+      }
+
+      if (min == 0 & max < 256) {
+        if (len <= 8) {
+          int64 data = 0;
+          for (uint32 i=0 ; i < len ; i++)
+            data = inline_uint8_init_at(data, i, (uint8) get_int(elts[i]));
+          return make_seq_uint8_inline(data, len);
+        }
+        else {
+          SEQ_OBJ *seq_ptr = new_uint8_seq(len);
+          for (uint32 i=0 ; i < len ; i++)
+            seq_ptr->buffer.uint8_[i] = (uint8) get_int(elts[i]);
+          return make_seq_uint8(seq_ptr, len);
+        }
+      }
+
+      if (min >= -32768 & max < 32768) {
+        if (len <= 4) {
+          uint64 data = 0;
+          for (uint32 i=0 ; i < len ; i++)
+            data = inline_int16_init_at(data, i, (int16) get_int(elts[i]));
+          return make_seq_int16_inline(data, len);
+        }
+        else {
+          SEQ_OBJ *seq_ptr = new_int16_seq(len);
+          for (uint32 i=0 ; i < len ; i++)
+            seq_ptr->buffer.int16_[i] = (int16) get_int(elts[i]);
+          return make_seq_int16(seq_ptr, len);
+        }
+      }
+
+      return make_slice(elts, len);
     }
 
     case TYPE_NE_SEQ_UINT8:
     case TYPE_NE_SLICE_UINT8: {
-      uint8 *elts = get_seq_elts_ptr_uint8(seq);
-      return make_slice_uint8(elts + idx_first, len);
+      uint8 *elts = get_seq_elts_ptr_uint8(seq) + idx_first;
+      if (len <= 8)
+        return make_seq_uint8_inline(inline_uint8_pack(elts, len), len);
+      else
+        return make_slice_uint8(elts, len);
     }
 
     case TYPE_NE_SEQ_UINT8_INLINE:
@@ -251,12 +300,37 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
 
     case TYPE_NE_SEQ_INT16:
     case TYPE_NE_SLICE_INT16: {
-      int16 *elts = get_seq_elts_ptr_int16(seq);
-      return make_slice_int16(elts + idx_first, len);
+      int16 *elts = get_seq_elts_ptr_int16(seq) + idx_first;
+      if (len <= 8) {
+        uint64 data = 0;
+        for (int i=0 ; i < len ; i++) {
+          int16 elt = elts[i];
+          if (elt < 0 | elt > 255)
+            goto no_uint8;
+          data = inline_uint8_init_at(data, i, (uint8) elt);
+        }
+        return make_seq_uint8_inline(data, len);
+      }
+
+no_uint8:
+      if (len <= 4)
+        return make_seq_int16_inline(inline_int16_pack(elts, len), len);
+      else
+        return make_slice_int16(elts, len);
     }
 
-    case TYPE_NE_SEQ_INT16_INLINE:
-      return make_seq_int16_inline(inline_int16_slice(seq.core_data.int_, idx_first, len), len);
+    case TYPE_NE_SEQ_INT16_INLINE: {
+      uint64 data = inline_int16_slice(seq.core_data.int_, idx_first, len);
+      for (int i=0 ; i < len ; i++) {
+        int16 elt = inline_int16_at(data, i);
+        if (elt < 0 | elt > 255)
+          return make_seq_int16_inline(data, len);
+      }
+      uint64 data8 = 0;
+      for (int i=0 ; i < len ; i++)
+        data8 = inline_uint8_init_at(data8, i, inline_int16_at(data, i));
+      return make_seq_uint8_inline(data8, len);
+    }
 
     default:
       internal_fail();
@@ -481,6 +555,47 @@ OBJ build_seq_int32(int32* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
+  int32 min = 0;
+  int32 max = 127;
+
+  for (uint32 i=0 ; i < size ; i++) {
+    int32 elt = array[i];
+    if (elt < min)
+      min = elt;
+    if (elt > max)
+      max = elt;
+  }
+
+  if (min == 0 & max < 256) {
+    if (size <= 8) {
+      uint64 elts = 0;
+      for (uint32 i=0 ; i < size ; i++)
+        elts = inline_uint8_init_at(elts, i, (uint8) array[i]);
+      return make_seq_uint8_inline(elts, size);
+    }
+    else {
+      uint8 *uint8_array = (uint8 *) array;
+      for (uint32 i=0 ; i < size ; i++)
+        uint8_array[i] = array[i];
+      return make_slice_uint8(uint8_array, size);
+    }
+  }
+
+  if (min >= -32768 & max < 32768) {
+    if (size <= 4) {
+      uint64 elts = 0;
+      for (uint32 i=0 ; i < size ; i++)
+        elts = inline_int16_init_at(elts, i, array[i]);
+      return make_seq_int16_inline(elts, size);
+    }
+    else {
+      int16 *int16_array = (int16 *) array;
+      for (uint32 i=0 ; i < size ; i++)
+        int16_array[i] = array[i];
+      return make_slice_int16(int16_array, size);
+    }
+  }
+
   SEQ_OBJ *seq = new_obj_seq(size);
   for (uint32 i=0 ; i < size ; i++)
     seq->buffer.obj[i] = make_int(array[i]);
@@ -491,10 +606,25 @@ OBJ build_seq_int16(int16* array, int32 size) {
   if (size == 0)
     return make_empty_seq();
 
+  if (size <= 8) {
+    for (int i=0 ; i < size ; i++) {
+      int16 elt = array[i];
+      if (elt < 0 | elt > 255)
+        goto no_uint8;
+    }
+
+    uint64 data = 0;
+    for (int i=0 ; i < size ; i++)
+      data = inline_uint8_init_at(data, i, (uint8) array[i]);
+    return make_seq_uint8_inline(data, size);
+  }
+
+no_uint8:
+
   if (size <= 4)
     return make_seq_int16_inline(inline_int16_pack(array, size), size);
-
-  return make_slice_int16(array, size);
+  else
+    return make_slice_int16(array, size);
 }
 
 OBJ build_seq_int8(int8* array, int32 size) {

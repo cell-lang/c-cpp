@@ -287,7 +287,7 @@ OBJ make_slice(OBJ *ptr, uint32 length) {
 }
 
 OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length) {
-  assert(ptr != NULL & length > 0);
+  assert(ptr != NULL & length > 8);
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer.uint8_;
@@ -296,7 +296,7 @@ OBJ make_seq_uint8(SEQ_OBJ *ptr, uint32 length) {
 }
 
 OBJ make_slice_uint8(uint8 *ptr, uint32 length) {
-  assert(ptr != NULL & length > 0);
+  assert(ptr != NULL & length > 8);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -318,7 +318,7 @@ OBJ make_seq_uint8_inline(uint64 data, uint32 length) {
 }
 
 OBJ make_seq_int16(SEQ_OBJ *ptr, uint32 length) {
-  assert(ptr != NULL & length > 0);
+  assert(ptr != NULL & length > 4);
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer.int16_;
@@ -327,7 +327,7 @@ OBJ make_seq_int16(SEQ_OBJ *ptr, uint32 length) {
 }
 
 OBJ make_slice_int16(int16 *ptr, uint32 length) {
-  assert(ptr != NULL & length > 0);
+  assert(ptr != NULL & length > 4);
 
   OBJ obj;
   obj.core_data.ptr = ptr;

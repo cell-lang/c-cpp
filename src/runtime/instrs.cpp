@@ -214,23 +214,39 @@ OBJ internal_sort(OBJ set) {
     }
 
     if (min == 0 & max < 256) {
-      uint32 capacity = ((((uint64) size) + 7) / 8) * 8;
-      assert(capacity >= size & capacity < size + 8);
-      SEQ_OBJ *seq_ptr = new_uint8_seq(size, capacity);
-      uint8 *elts = seq_ptr->buffer.uint8_;
-      for (int i=0 ; i < size ; i++)
-        elts[i] = get_int(src[i]);
-      return make_seq_uint8(seq_ptr, size);
+      if (size <= 8) {
+        uint64 data = 0;
+        for (int i=0 ; i < size ; i++)
+          data = inline_uint8_init_at(data, i, (uint8) get_int(src[i]));
+        return make_seq_uint8_inline(data, size);
+      }
+      else {
+        uint32 capacity = ((((uint64) size) + 7) / 8) * 8;
+        assert(capacity >= size & capacity < size + 8);
+        SEQ_OBJ *seq_ptr = new_uint8_seq(size, capacity);
+        uint8 *elts = seq_ptr->buffer.uint8_;
+        for (int i=0 ; i < size ; i++)
+          elts[i] = get_int(src[i]);
+        return make_seq_uint8(seq_ptr, size);
+      }
     }
 
     if (min >= -32768 & max < 32768) {
-      uint32 capacity = ((((uint64) size) + 3) / 4) * 4;
-      assert(capacity >= size & capacity < size + 4);
-      SEQ_OBJ *seq_ptr = new_int16_seq(size, capacity);
-      int16 *elts = seq_ptr->buffer.int16_;
-      for (int i=0 ; i < size ; i++)
-        elts[i] = get_int(src[i]);
-      return make_seq_int16(seq_ptr, size);
+      if (size <= 4) {
+        uint64 data = 0;
+        for (int i=0 ; i < size ; i++)
+          data = inline_int16_init_at(data, i, (int16) get_int(src[i]));
+        return make_seq_int16_inline(data, size);
+      }
+      else {
+        uint32 capacity = ((((uint64) size) + 3) / 4) * 4;
+        assert(capacity >= size & capacity < size + 4);
+        SEQ_OBJ *seq_ptr = new_int16_seq(size, capacity);
+        int16 *elts = seq_ptr->buffer.int16_;
+        for (int i=0 ; i < size ; i++)
+          elts[i] = get_int(src[i]);
+        return make_seq_int16(seq_ptr, size);
+      }
     }
   }
 
@@ -266,9 +282,12 @@ OBJ print_value(OBJ obj) {
   //## NOTE: len IS NOT NECESSARILY EQUAL TO size - 1
   for (int i=0 ; i < len ; i++)
     assert(raw_str[i] > 0 & raw_str[i] <= 127);
-  return make_tag_obj(symb_id_string, make_slice_uint8((uint8 *) raw_str, len));
-  // OBJ str_obj = str_to_obj(raw_str);
-  // return str_obj;
+  OBJ raw_str_obj;
+  if (len <= 8)
+    raw_str_obj = make_seq_uint8_inline(inline_uint8_pack((uint8 *) raw_str, len), len);
+  else
+    raw_str_obj = make_slice_uint8((uint8 *) raw_str, len);
+  return make_tag_obj(symb_id_string, raw_str_obj);
 }
 
 void get_set_iter(SET_ITER &it, OBJ set) {

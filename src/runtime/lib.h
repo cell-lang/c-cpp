@@ -186,7 +186,9 @@ uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount);
 SET_OBJ      *new_set(uint32 size);
 SEQ_OBJ      *new_obj_seq(uint32 length);                     // Sets used and capacity
 SEQ_OBJ      *new_obj_seq(uint32 length, uint32 capacity);    // Ditto
+SEQ_OBJ      *new_uint8_seq(uint32 length);                   // Ditto
 SEQ_OBJ      *new_uint8_seq(uint32 length, uint32 capacity);  // Ditto
+SEQ_OBJ      *new_int16_seq(uint32 length);                   // Ditto
 SEQ_OBJ      *new_int16_seq(uint32 length, uint32 capacity);  // Ditto
 BIN_REL_OBJ  *new_map(uint32 size);                           // Clears rev_idxs
 BIN_REL_OBJ  *new_bin_rel(uint32 size);

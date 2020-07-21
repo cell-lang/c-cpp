@@ -2,7 +2,7 @@
 #include "extern.h"
 
 
-int64 from_utf8(const char *input, OBJ *output) {
+int64 from_utf8(const char *input, int32 *output) {
   uint32 idx = 0;
   for (uint32 count=0 ; ; count++) {
     unsigned char ch = input[idx++];
@@ -37,7 +37,7 @@ int64 from_utf8(const char *input, OBJ *output) {
     }
 
     if (output != NULL)
-      output[count] = make_int(val);
+      output[count] = val;
   }
 }
 
@@ -59,13 +59,13 @@ OBJ /*owned_*/str_to_obj(const char *c_str) {
     }
 
     if (is_ascii) {
-      raw_str_obj = make_slice_uint8((uint8 *) c_str, idx);
+      raw_str_obj = build_seq_uint8((uint8 *) c_str, idx);
     }
     else {
       int64 size = from_utf8(c_str, NULL);
-      SEQ_OBJ *raw_str = new_obj_seq(size);
-      from_utf8(c_str, raw_str->buffer.obj);
-      raw_str_obj = make_seq(raw_str, size);
+      int32 *buffer = new_int32_array(size);
+      from_utf8(c_str, buffer);
+      raw_str_obj = build_seq_int32(buffer, size);
     }
   }
 
