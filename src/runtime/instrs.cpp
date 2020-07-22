@@ -199,7 +199,7 @@ OBJ internal_sort(OBJ set) {
   if (is_empty_rel(set))
     return make_empty_seq();
 
-  uint32 size = get_rel_size(set);
+  uint32 size = read_size_field(set);
   OBJ *src = get_set_elts_ptr(set);
 
   if (is_int(src[0]) & is_int(src[size-1])) {
@@ -294,66 +294,11 @@ void get_set_iter(SET_ITER &it, OBJ set) {
   it.idx = 0;
   if (!is_empty_rel(set)) {
     it.buffer = get_set_elts_ptr(set);
-    it.size = get_rel_size(set);
+    it.size = read_size_field(set);
   }
   else {
     it.buffer = 0;  //## NOT STRICTLY NECESSARY
     it.size = 0;
-  }
-}
-
-void get_seq_iter(SEQ_ITER &it, OBJ seq) {
-  it.idx = 0;
-
-  if (!is_empty_seq(seq)) {
-    int len = get_seq_length(seq);
-    it.len = len;
-
-    switch (get_physical_type(seq)) {
-      case TYPE_NE_SEQ_UINT8:
-      case TYPE_NE_SLICE_UINT8: {
-        it.buffer.uint8_ = get_seq_elts_ptr_uint8(seq);
-        it.type = ELT_TYPE_UINT8;
-        break;
-      }
-
-      case TYPE_NE_SEQ_UINT8_INLINE: {
-        uint8 *tmp_buff = new_uint8_array(8);
-        for (int i=0 ; i < len ; i++)
-          tmp_buff[i] = inline_uint8_at(seq.core_data.int_, i);
-        it.buffer.uint8_ = tmp_buff;
-        it.type = ELT_TYPE_UINT8;
-        break;
-      }
-
-      case TYPE_NE_SEQ_INT16:
-      case TYPE_NE_SLICE_INT16: {
-        it.buffer.int16_ = get_seq_elts_ptr_int16(seq);
-        it.type = ELT_TYPE_INT16;
-        break;
-      }
-
-      case TYPE_NE_SEQ_INT16_INLINE: {
-        int16 *tmp_buff = new_int16_array(4);
-        for (int i=0 ; i < len ; i++)
-          tmp_buff[i] = inline_int16_at(seq.core_data.int_, i);
-        it.buffer.int16_ = tmp_buff;
-        it.type = ELT_TYPE_INT16;
-        break;
-      }
-
-      case TYPE_NE_SEQ:
-      case TYPE_NE_SLICE: {
-        it.buffer.obj = get_seq_elts_ptr(seq);
-        it.type = ELT_TYPE_OBJ;
-        break;
-      }
-    }
-  }
-  else {
-    // it.buffer = 0; //## NOT STRICTLY NECESSARY
-    // it.type = -1; // Invalid value
-    it.len = 0;
   }
 }
 

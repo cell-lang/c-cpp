@@ -2,14 +2,33 @@
 #include "extern.h"
 
 
+
+bool index_has_been_build(BIN_REL_OBJ *rel, uint32 size) {
+  if (size == 1)
+    return true;
+
+  uint32 *rev_idxs = get_right_to_left_indexes(rel, size);
+
+  // The first two elements having the same value (an impossible situation for
+  // a valid index) is used to signal that the index has not been build yet
+  return rev_idxs[0] != rev_idxs[1];
+}
+
 void build_map_right_to_left_sorted_idx_array(OBJ map) {
-  assert(get_physical_type(map) == TYPE_NE_MAP);
+  assert(get_obj_type(map) == TYPE_NE_MAP);
+
+  uint32 size = read_size_field(map);
+  if (size > 1)
+    return;
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(map);
-  uint32 size = get_rel_size(map);
   uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);
-  if (rev_idxs[0] != INVALID_INDEX)
+
+  // The first two elements having the same value (an impossible situation for
+  // a valid index) is used to signal that the index has not been build yet
+  if (rev_idxs[0] != rev_idxs[1])
     return;
+
   stable_index_sort(rev_idxs, size, get_right_col_array_ptr(ptr, size));
 
 #ifndef NDEBUG
@@ -104,7 +123,7 @@ OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
   }
 #endif
 
-  return left_col_is_unique ? make_log_map(rel, count) : make_bin_rel(rel, count);
+  return left_col_is_unique ? make_map(rel, count) : make_bin_rel(rel, count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +202,7 @@ void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel) {
   }
   else if (!is_empty_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     it.iter.bin_rel.left_col = get_left_col_array_ptr(ptr);
     it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr, size);
     it.iter.bin_rel.rev_idxs = NULL;
@@ -222,7 +241,7 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
   }
   else if (is_ne_bin_rel(rel)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     OBJ *left_col = get_left_col_array_ptr(ptr);
 
     uint32 count;
@@ -283,11 +302,11 @@ void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
     }
   }
   else if (is_ne_bin_rel(rel)) {
-    if (get_physical_type(rel) == TYPE_NE_MAP)
+    if (get_obj_type(rel) == TYPE_NE_MAP)
       build_map_right_to_left_sorted_idx_array(rel);
 
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     OBJ *right_col = get_right_col_array_ptr(ptr, size);
     uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);
 

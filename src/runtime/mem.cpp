@@ -1,10 +1,8 @@
 #include "lib.h"
 
 
-uint64 set_obj_mem_size(uint64 size) {
-  assert(size > 0);
-  return sizeof(SET_OBJ) + (size - 1) * sizeof(OBJ);
-}
+//## BUG: ALL THE *_obj_mem_size RETURN A 64-BIT INTEGER, BUT
+//## I THINK THEY'RE DOING THEIR CALCULATION IN 32-BIT ARITHMETIC
 
 uint64 seq_obj_mem_size(uint64 capacity) {
   assert(capacity > 0);
@@ -16,9 +14,29 @@ uint64 uint8_seq_obj_mem_size(uint64 capacity) {
   return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(uint8);
 }
 
+uint64 int8_seq_obj_mem_size(uint64 capacity) {
+  assert(capacity > 0);
+  return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(int8);
+}
+
 uint64 int16_seq_obj_mem_size(uint64 capacity) {
   assert(capacity > 0);
   return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(int16);
+}
+
+uint64 int32_seq_obj_mem_size(uint64 capacity) {
+  assert(capacity > 0);
+  return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(int32);
+}
+
+uint64 int64_seq_obj_mem_size(uint64 capacity) {
+  assert(capacity > 0);
+  return sizeof(SEQ_OBJ) - sizeof(OBJ) + capacity * sizeof(int64);
+}
+
+uint64 set_obj_mem_size(uint64 size) {
+  assert(size > 0);
+  return sizeof(SET_OBJ) + (size - 1) * sizeof(OBJ);
 }
 
 uint64 bin_rel_obj_mem_size(uint64 size) {
@@ -26,7 +44,7 @@ uint64 bin_rel_obj_mem_size(uint64 size) {
   return sizeof(BIN_REL_OBJ) + (2 * size - 1) * sizeof(OBJ) + size * sizeof(uint32);
 }
 
-uint32 tern_rel_obj_mem_size(uint64 size) {
+uint64 tern_rel_obj_mem_size(uint64 size) {
   assert(size > 0);
   return sizeof(TERN_REL_OBJ) + (3 * size - 1) * sizeof(OBJ) + 2 * size * sizeof(uint32);
 }
@@ -36,8 +54,8 @@ uint64 map_obj_mem_size(uint64 size) {
   return bin_rel_obj_mem_size(size);
 }
 
-uint64 tag_obj_mem_size() {
-  return sizeof(TAG_OBJ);
+uint64 boxed_obj_mem_size() {
+  return sizeof(BOXED_OBJ);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +111,24 @@ SEQ_OBJ *new_obj_seq(uint32 length, uint32 capacity) {
   return seq;
 }
 
+SEQ_OBJ *new_float_seq(uint32 length) {
+  assert(length > 0);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(length));
+  seq->capacity = length;
+  seq->used = length;
+  return seq;
+}
+
+SEQ_OBJ *new_float_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
+  seq->used = length;
+  return seq;
+}
+
 SEQ_OBJ *new_uint8_seq(uint32 length) {
   return new_uint8_seq(length, (length + 7) & ~7);
 }
@@ -103,6 +139,20 @@ SEQ_OBJ *new_uint8_seq(uint32 length, uint32 capacity) {
   assert(capacity % 8 == 0);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(uint8_seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
+  seq->used = length;
+  return seq;
+}
+
+SEQ_OBJ *new_int8_seq(uint32 length) {
+  return new_int8_seq(length, (length + 3) & ~3);
+}
+
+SEQ_OBJ *new_int8_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+  assert(capacity % 4 == 0);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int8_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
   seq->used = length;
   return seq;
@@ -122,6 +172,35 @@ SEQ_OBJ *new_int16_seq(uint32 length, uint32 capacity) {
   return seq;
 }
 
+SEQ_OBJ *new_int32_seq(uint32 length) {
+  return new_int32_seq(length, (length + 3) & ~3);
+}
+
+SEQ_OBJ *new_int32_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+  assert(capacity % 4 == 0);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int32_seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
+  seq->used = length;
+  return seq;
+}
+
+SEQ_OBJ *new_int64_seq(uint32 length) {
+  return new_int64_seq(length, (length + 3) & ~3);
+}
+
+SEQ_OBJ *new_int64_seq(uint32 length, uint32 capacity) {
+  assert(length > 0 & capacity >= length);
+  assert(capacity % 4 == 0);
+
+  SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int64_seq_obj_mem_size(capacity));
+  seq->capacity = capacity;
+  seq->used = length;
+  return seq;
+}
+
+
 SET_OBJ *new_set(uint32 size) {
   return (SET_OBJ *) new_obj(set_obj_mem_size(size));
 }
@@ -131,7 +210,13 @@ BIN_REL_OBJ *new_map(uint32 size) {
 
   BIN_REL_OBJ *map = (BIN_REL_OBJ *) new_obj(map_obj_mem_size(size));
   uint32 *rev_idxs = get_right_to_left_indexes(map, size);
-  rev_idxs[0] = INVALID_INDEX;
+
+  // By setting the first two elements of the right-to-left index
+  // to the same value, we mark the index an not yet built
+  rev_idxs[0] = 0;
+  if (size > 1)
+    rev_idxs[1] = 0;
+
   return map;
 }
 
@@ -145,8 +230,8 @@ TERN_REL_OBJ *new_tern_rel(uint32 size) {
   return (TERN_REL_OBJ *) new_obj(tern_rel_obj_mem_size(size));
 }
 
-TAG_OBJ *new_tag_obj() {
-  TAG_OBJ *tag_obj = (TAG_OBJ *) new_obj(tag_obj_mem_size());
+BOXED_OBJ *new_boxed_obj() {
+  BOXED_OBJ *tag_obj = (BOXED_OBJ *) new_obj(boxed_obj_mem_size());
   return tag_obj;
 }
 
@@ -186,7 +271,7 @@ OBJ *new_obj_array(uint32 size) {
   return (OBJ *) new_raw_mem(size * sizeof(OBJ));
 }
 
-OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
+OBJ *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
   OBJ *new_array = new_obj_array(new_size);
   memcpy(new_array, buffer, size * sizeof(OBJ));
   return new_array;
@@ -197,7 +282,7 @@ bool *new_bool_array(uint32 size) {
   return (bool *) new_raw_mem(size * sizeof(bool));
 }
 
-double *new_double_array(uint32 size) {
+double *new_float_array(uint32 size) {
   total_count_new_double_array += size * sizeof(double);
   return (double *) new_raw_mem(size * sizeof(double));
 }

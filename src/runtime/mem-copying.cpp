@@ -1,243 +1,139 @@
 #include "lib.h"
 #include "extern.h"
 
-uint32 read_size_field(OBJ seq);
 
-
-uint64 set_obj_mem_size(uint64 size);
-uint64 seq_obj_mem_size(uint64 capacity);
-uint64 bin_rel_obj_mem_size(uint64 size);
-uint32 tern_rel_obj_mem_size(uint64 size);
-uint64 map_obj_mem_size(uint64 size);
-uint64 tag_obj_mem_size();
-
-
-uint32 copy_memory_size(OBJ obj, bool (*already_in_place)(void*, void*), void *self) {
-  if (is_inline_obj(obj))
-    return 0;
-
-  if (already_in_place(self, get_ref_obj_ptr(obj)))
-    return 0;
-
-  switch (get_physical_type(obj)) {
-    case TYPE_NE_SEQ: {
-      SEQ_OBJ *ptr = get_seq_ptr(obj);
-    }
-
-    case TYPE_NE_SET: {
-      // SET_OBJ *ptr = get_set_ptr(obj);
-
-    }
-
-    case TYPE_NE_BIN_REL: {
-      BIN_REL_OBJ *ptr = get_bin_rel_ptr(obj);
-
-    }
-
-    case TYPE_NE_TERN_REL: {
-      TERN_REL_OBJ *ptr = get_tern_rel_ptr(obj);
-
-    }
-
-    case TYPE_TAG_OBJ: {
-      TAG_OBJ *ptr = get_tag_obj_ptr(obj);
-
-    }
-
-    case TYPE_NE_SLICE: {
-      // SEQ_OBJ *ptr = get_seq_ptr(obj);
-      uint32 length = get_seq_length(obj);
-      // uint32 offset = get_seq_offset(obj);
-
-    }
-
-    case TYPE_NE_MAP: {
-      BIN_REL_OBJ *ptr = get_bin_rel_ptr(obj);
-
-    }
-
-    case TYPE_NE_LOG_MAP: {
-      BIN_REL_OBJ *ptr = get_bin_rel_ptr(obj);
-
-    }
-
-    case TYPE_OPT_REC: {
-      void *ptr = get_opt_repr_ptr(obj);
-      uint16 repr_id = get_opt_repr_id(obj);
-    }
-
-    case TYPE_OPT_TAG_REC: {
-      void *ptr = get_opt_repr_ptr(obj);
-      uint16 repr_id = get_opt_repr_id(obj);
-
-    }
-  }
+void copy_objs(OBJ *dest, OBJ *src, uint32 count) {
+  for (int i=0 ; i < count ; i++)
+    dest[i] = copy_obj(src[i]);
 }
 
-////////////////////////////////////////////////////////////////////////////////
+OBJ copy_ne_int_seq(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
 
-SEQ_OBJ *make_or_get_seq_obj_copy(OBJ *array, uint32 size) {
-  assert(size > 0);
+  uint32 len = read_size_field_unchecked(seq);
+  INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
 
-  SEQ_OBJ *seq_copy = new_obj_seq(size);
-  OBJ *buffer = seq_copy->buffer.obj;
-  for (int i=0 ; i < size ; i++)
-    buffer[i] = copy_obj(array[i]);
-  return seq_copy;
-}
+  uint32 mem_size = len * (8 << bits_tag);
+  void *copy_elts = new_obj((mem_size + 7) & ~7);
+  memcpy(copy_elts, seq.core_data.ptr, mem_size);
+  return repoint_to_sliced_copy(seq, copy_elts);
 
-// SEQ_OBJ *make_or_get_seq_obj_copy(SEQ_OBJ *seq) {
-//   if (seq->capacity > 0) {
-//     // The object has not been copied yet. Making a new object large enough
-//     // to accomodate all the elements of the original sequence. We are using
-//     // <size> and not <capacity> for the new sequence because it's best to
-//     // leave the decision of how much extra memory to allocate to the memory
-//     // allocator, which is aware of the context.
-//     //## IF THIS IS THE ONLY REFERENCE TO THE SEQUENCE, AND IF <length> IS
-//     //## LOWER THAN SIZE, WE COULD COPY ONLY THE FIRST LENGTH ELEMENTS...
-//     uint32 size = seq->size;
-//     SEQ_OBJ *seq_copy = new_obj_seq(size);
-//     // Now we copy all the elements of the sequence
-//     OBJ *buff = seq->buffer;
-//     OBJ *buff_copy = seq_copy->buffer;
-//     for (int i=0 ; i < size ; i++)
-//       buff_copy[i] = copy_obj(buff[i]);
-//     // We mark the old sequence as "copied", and we store a pointer to the copy
-//     // into it. The fields of the original object are never going to be used again,
-//     // even by the memory manager, so we can safely overwrite them.
-//     // seq->capacity = 0;
-//     // * (SEQ_OBJ **) buff = seq_copy;
-//     // Returning the new object
-//     return seq_copy;
-//   }
-//   else {
-//     // The object has already been copied. We just return a pointer to the copy
-//     SEQ_OBJ *seq_copy = * (SEQ_OBJ **) seq->buffer;
-//     return seq_copy;
-//   }
-// }
-
-SET_OBJ *make_or_get_set_obj_copy(OBJ *elts, uint32 size) {
-  // if (size > 0) {
-    // The object has not been copied yet, so we do it now.
-    SET_OBJ *set_copy = new_set(size);
-    // Now we copy all the elements of the sequence
-    OBJ *elts_copy = set_copy->buffer;
-    for (int i=0 ; i < size ; i++)
-      elts_copy[i] = copy_obj(elts[i]);
-    // We mark the old sequence as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // set->size = 0;
-    // * (SET_OBJ **) buff = set_copy;
-    // Returning the new object
-    return set_copy;
+  // if (bits_tag < INT_BITS_32_TAG) {
+  //   if (bits_tag == INT_BITS_8_TAG) {
+  //     // Works also for unsigned bytes
+  //     int8 *copy_elts = new_int8_array(len);
+  //     memcpy(copy_elts, seq.core_data.ptr, size * sizeof(int8));
+  //     return repoint_to_sliced_copy(seq, copy_elts);
+  //   }
+  //   else {
+  //     assert(bits_tag == INT_BITS_16_TAG);
+  //     int16 *copy_elts = new_int16_array(len);
+  //     memcpy(copy_elts, seq.core_data.ptr, size * sizeof(int16));
+  //     return repoint_to_sliced_copy(seq, copy_elts);
+  //   }
   // }
   // else {
-  //   // The object has already been copied. We just return a pointer to the copy
-  //   SET_OBJ *set_copy = * (SET_OBJ **) set->buffer;
-  //   return set_copy;
+  //   if (bits_tag == INT_BITS_32_TAG) {
+  //     int32 *copy_elts = new_int32_array(len);
+  //     memcpy(copy_elts, seq.core_data.ptr, size * sizeof(int32));
+  //     return repoint_to_sliced_copy(seq, copy_elts);
+  //   }
+  //   else {
+  //     assert(bits_tag == INT_BITS_64_TAG);
+  //     int64 *copy_elts = new_int64_array(len);
+  //     memcpy(copy_elts, seq.core_data.ptr, size * sizeof(int64));
+  //     return repoint_to_sliced_copy(seq, copy_elts);
+  //   }
   // }
 }
 
-BIN_REL_OBJ *make_or_get_bin_rel_obj_copy(BIN_REL_OBJ *rel, uint32 size) {
-  if (size > 0) {
-    // The object has not been copied yet, so we do it now.
-    BIN_REL_OBJ *rel_copy = new_bin_rel(size);
-    // Now we copy all the elements of the collection
-    OBJ *buff = rel->buffer;
-    OBJ *buff_copy = rel_copy->buffer;
-    for (int i=0 ; i < 2 * size ; i++)
-      buff_copy[i] = copy_obj(buff[i]);
-    // Now we copy the extra data at the end
-    uint32 *rev_idxs = get_right_to_left_indexes(rel, size);
-    uint32 *rev_idxs_copy = get_right_to_left_indexes(rel_copy, size);
-    memcpy(rev_idxs_copy, rev_idxs, size * sizeof(uint32));
-    // We mark the old object as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // rel->size = 0;
-    // * (BIN_REL_OBJ **) buff = rel_copy;
-    // Returning the new object
-    return rel_copy;
+OBJ copy_ne_float_seq(OBJ obj) {
+  double *elts = (double *) obj.core_data.ptr;
+  uint32 size = read_size_field_unchecked(obj);
+
+  double *copy_elts = new_float_array(size);
+  memcpy(copy_elts, elts, size * sizeof(double));
+  return repoint_to_sliced_copy(obj, copy_elts);
+}
+
+OBJ copy_ne_bool_seq(OBJ obj) {
+  internal_fail();
+}
+
+OBJ copy_ne_seq(OBJ obj) {
+  OBJ *elts = (OBJ *) obj.core_data.ptr;
+  uint32 size = read_size_field_unchecked(obj);
+
+  OBJ *copy_elts = new_obj_array(size);
+  copy_objs(copy_elts, elts, size);
+  return repoint_to_sliced_copy(obj, elts);
+}
+
+OBJ copy_ne_set(OBJ obj) {
+  SET_OBJ *ptr = (SET_OBJ *) obj.core_data.ptr;
+  uint32 size = read_size_field_unchecked(obj);
+
+  SET_OBJ *copy_ptr = new_set(size);
+  copy_objs(copy_ptr->buffer, ptr->buffer, size);
+  return repoint_to_copy(obj, copy_ptr);
+}
+
+OBJ copy_ne_map(OBJ obj) {
+  if (is_opt_rec(obj)) {
+    void *ptr = get_opt_repr_ptr(obj);
+    uint16 repr_id = get_opt_repr_id(obj);
+    void *copy_ptr = opt_repr_copy(ptr, repr_id);
+    return repoint_to_copy(obj, ptr);
   }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    BIN_REL_OBJ *rel_copy = * (BIN_REL_OBJ **) rel->buffer;
-    return rel_copy;
+  else if (is_array_map(obj)) {
+    BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
+    uint32 size = read_size_field_unchecked(obj);
+
+    BIN_REL_OBJ *copy_ptr = new_map(size);
+    copy_objs(copy_ptr->buffer, ptr->buffer, size);
+    if (index_has_been_build(ptr, size)) {
+      uint32 *r2l_index = get_right_to_left_indexes(copy_ptr, size);
+      uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
+      memcpy(copy_r2l_index, r2l_index, size * sizeof(uint32));
+    }
+    return repoint_to_copy(obj, copy_ptr);
+  }
+  else if (is_bin_tree_map(obj)) {
+    internal_fail();
   }
 }
 
-TERN_REL_OBJ *make_or_get_tern_rel_obj_copy(TERN_REL_OBJ *rel, uint32 size) {
-  if (size > 0) {
-    // The object has not been copied yet, so we do it now.
-    TERN_REL_OBJ *rel_copy = new_tern_rel(size);
-    // Now we copy all the elements of the collection
-    OBJ *buff = rel->buffer;
-    OBJ *buff_copy = rel_copy->buffer;
-    for (int i=0 ; i < 3 * size ; i++)
-      buff_copy[i] = copy_obj(buff[i]);
-    // Now we copy the extra data at the end
-    uint32 *idxs_start = get_rotated_index(rel, size, 1);
-    uint32 *copy_idxs_start = get_rotated_index(rel_copy, size, 1);
-    memcpy(copy_idxs_start, idxs_start, 2 * size * sizeof(uint32));
-    // We mark the old object as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // rel->size = 0;
-    // * (TERN_REL_OBJ **) buff = rel_copy;
-    // Returning the new object
-    return rel_copy;
-  }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    TERN_REL_OBJ *rel_copy = * (TERN_REL_OBJ **) rel->buffer;
-    return rel_copy;
-  }
+OBJ copy_ne_bin_rel(OBJ obj) {
+  BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
+  uint32 size = read_size_field_unchecked(obj);
+
+  BIN_REL_OBJ *copy_ptr = new_bin_rel(size);
+  copy_objs(copy_ptr->buffer, ptr->buffer, 2 * size);
+  memcpy(get_right_to_left_indexes(copy_ptr, size), get_right_to_left_indexes(ptr, size), size * sizeof(uint32));
+  return repoint_to_copy(obj, copy_ptr);
 }
 
-BIN_REL_OBJ *make_or_get_map_obj_copy(BIN_REL_OBJ *map, uint32 size) {
-  if (size > 0) {
-    // The object has not been copied yet, so we do it now.
-    BIN_REL_OBJ *map_copy = new_map(size);
-    // Now we copy all the elements of the sequence
-    OBJ *buff = map->buffer;
-    OBJ *buff_copy = map_copy->buffer;
-    for (int i=0 ; i < 2 * size ; i++)
-      buff_copy[i] = copy_obj(buff[i]);
-    // We mark the old sequence as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // map->size = 0;
-    // * (BIN_REL_OBJ **) buff = map_copy;
-    // Returning the new object
-    return map_copy;
-  }
-  else {
-    // The object has already been copied. We just return a pointer to the copy
-    BIN_REL_OBJ *map_copy = * (BIN_REL_OBJ **) map->buffer;
-    return map_copy;
-  }
+OBJ copy_ne_tern_rel(OBJ obj) {
+  TERN_REL_OBJ *ptr = (TERN_REL_OBJ *) obj.core_data.ptr;
+  uint32 size = read_size_field_unchecked(obj);
+
+  TERN_REL_OBJ *copy_ptr = new_tern_rel(size);
+  copy_objs(copy_ptr->buffer, ptr->buffer, 3 * size);
+  memcpy(get_rotated_index(copy_ptr, size, 1), get_rotated_index(ptr, size, 1), 2 * size * sizeof(uint32));
+  return repoint_to_copy(obj, copy_ptr);
 }
 
-TAG_OBJ *make_or_get_tag_obj_copy(TAG_OBJ *tag_obj) {
-  // if (tag_obj->unused_field == 0) {
-    // The object has not been copied yet, so we do it now
-    TAG_OBJ *tag_obj_copy = new_tag_obj();
-    tag_obj_copy->obj = copy_obj(tag_obj->obj);
-    // We mark the old object as "copied", and we store a pointer to the copy
-    // into it. The fields of the original object are never going to be used again,
-    // even by the memory manager, so we can safely overwrite them.
-    // tag_obj->unused_field = 0xFFFF;
-    // * (TAG_OBJ **) &tag_obj->obj = tag_obj_copy;
-    // Returning the new object
-    return tag_obj_copy;
-  // }
-  // else {
-  //   // The object has already been copied. We just return a pointer to the copy
-  //   TAG_OBJ *tag_obj_copy = * (TAG_OBJ **) &tag_obj->obj;
-  //   return tag_obj_copy;
-  // }
+OBJ copy_ad_hoc_tag_rec(OBJ obj) {
+  void *ptr = get_opt_repr_ptr(obj);
+  uint16 repr_id = get_opt_repr_id(obj);
+  void *copy = opt_repr_copy(ptr, repr_id);
+  return repoint_to_copy(obj, copy);
+}
+
+OBJ copy_boxed_obj(OBJ obj) {
+  BOXED_OBJ *copy_ptr = new_boxed_obj();
+  copy_ptr->obj = copy_obj(get_boxed_obj_ptr(obj)->obj);
+  return repoint_to_copy(obj, copy_ptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -246,92 +142,36 @@ OBJ copy_obj(OBJ obj) {
   if (is_inline_obj(obj) || !needs_copying(obj.core_data.ptr))
     return obj;
 
-  switch (get_physical_type(obj)) {
-    case TYPE_NE_SEQ: {
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_ptr(obj), get_seq_length(obj));
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
-      return repoint_to_copy(obj, seq_copy->buffer.obj);
-    }
+  switch (get_obj_type(obj)) {
+    case TYPE_NE_INT_SEQ:
+      return copy_ne_int_seq(obj);
 
-    case TYPE_NE_SET: {
-      SET_OBJ *ptr = (SET_OBJ *) get_ref_obj_ptr(obj);
-      SET_OBJ *set_copy = make_or_get_set_obj_copy(ptr->buffer, read_size_field(obj));
-      return repoint_to_copy(obj, set_copy);
-    }
+    case TYPE_NE_FLOAT_SEQ:
+      return copy_ne_float_seq(obj);
 
-    case TYPE_NE_BIN_REL: {
-      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
-      return repoint_to_copy(obj, rel_copy);
-    }
+    case TYPE_NE_BOOL_SEQ:
+      return copy_ne_bool_seq(obj);
 
-    case TYPE_NE_TERN_REL: {
-      TERN_REL_OBJ *rel_copy = make_or_get_tern_rel_obj_copy(get_tern_rel_ptr(obj), read_size_field(obj));
-      return repoint_to_copy(obj, rel_copy);
-    }
+    case TYPE_NE_SEQ:
+      return copy_ne_seq(obj);
 
-    case TYPE_TAG_OBJ: {
-      TAG_OBJ *tag_obj_copy = make_or_get_tag_obj_copy(get_tag_obj_ptr(obj));
-      return repoint_to_copy(obj, tag_obj_copy);
-    }
+    case TYPE_NE_SET:
+      return copy_ne_set(obj);
 
-    case TYPE_NE_SLICE: {
-      // SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy(get_seq_elts_ptr(obj), read_size_field(obj));
-      SEQ_OBJ *seq_copy = make_or_get_seq_obj_copy((OBJ *) obj.core_data.ptr, read_size_field(obj));
-      return repoint_slice_to_seq(obj, seq_copy);
-    }
+    case TYPE_NE_MAP:
+      return copy_ne_map(obj);
 
-    case TYPE_NE_MAP: {
-      BIN_REL_OBJ *map_copy = make_or_get_map_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
-      return repoint_to_copy(obj, map_copy);
-    }
+    case TYPE_NE_BIN_REL:
+      return copy_ne_bin_rel(obj);
 
-    case TYPE_NE_LOG_MAP: {
-      BIN_REL_OBJ *rel_copy = make_or_get_bin_rel_obj_copy(get_bin_rel_ptr(obj), read_size_field(obj));
-      return repoint_to_copy(obj, rel_copy);
-    }
+    case TYPE_NE_TERN_REL:
+      return copy_ne_tern_rel(obj);
 
-    case TYPE_OPT_REC: {
-      void *ptr = get_opt_repr_ptr(obj);
-      uint16 repr_id = get_opt_repr_id(obj);
-      void *copy = opt_repr_copy(ptr, repr_id);
-      return get_inner_obj(make_opt_tag_rec(copy, repr_id)); //## BAD: INEFFICIENT
-    }
+    case TYPE_AD_HOC_TAG_REC:
+      return copy_ad_hoc_tag_rec(obj);
 
-    case TYPE_OPT_TAG_REC: {
-      void *ptr = get_opt_repr_ptr(obj);
-      uint16 repr_id = get_opt_repr_id(obj);
-      void *copy = opt_repr_copy(ptr, repr_id);
-      return repoint_to_copy(obj, copy);
-    }
-
-    case TYPE_NE_SEQ_UINT8: {
-      int len = read_size_field(obj);
-      uint8 *elts_copy = new_uint8_array(len);
-      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(uint8));
-      return repoint_uint8_seq_to_slice(obj, elts_copy);
-    }
-
-    case TYPE_NE_SLICE_UINT8: {
-      int len = read_size_field(obj);
-      uint8 *elts_copy = new_uint8_array(len);
-      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(uint8));
-      return repoint_to_copy(obj, elts_copy);
-    }
-
-    case TYPE_NE_SEQ_INT16: {
-      int len = read_size_field(obj);
-      int16 *elts_copy = new_int16_array(len);
-      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(int16));
-      return repoint_int16_seq_to_slice(obj, elts_copy);
-    }
-
-    case TYPE_NE_SLICE_INT16: {
-      int len = read_size_field(obj);
-      int16 *elts_copy = new_int16_array(len);
-      memcpy(elts_copy, obj.core_data.ptr, len * sizeof(int16));
-      return repoint_to_copy(obj, elts_copy);
-    }
+    case TYPE_BOXED_OBJ:
+      return copy_boxed_obj(obj);
 
     default:
       internal_fail();

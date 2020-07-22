@@ -75,7 +75,7 @@ OBJ /*owned_*/str_to_obj(const char *c_str) {
 ////////////////////////////////////////////////////////////////////////////////
 
 int64 to_utf8(OBJ chars, char *output) {
-  uint32 len = get_seq_length(chars);
+  uint32 len = read_size_field(chars);
   int offset = 0;
   for (uint32 i=0 ; i < len ; i++) {
     int64 cp = get_int_at(chars, i);
@@ -138,16 +138,15 @@ uint8 *obj_to_byte_array(OBJ byte_seq_obj, uint32 &size) {
     return NULL;
   }
 
-  size = get_seq_length(byte_seq_obj);
+  size = read_size_field(byte_seq_obj);
 
-  OBJ_TYPE type = get_physical_type(byte_seq_obj);
-
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8)
-    return get_seq_elts_ptr_uint8(byte_seq_obj);
+  if (get_obj_type(byte_seq_obj) == TYPE_NE_INT_SEQ)
+    if (get_int_bits_tag(byte_seq_obj) == INT_BITS_TAG_8 & !is_signed(byte_seq_obj))
+      return get_seq_elts_ptr_uint8(byte_seq_obj);
 
   uint8 *buffer = new_uint8_array(size);
   for (int i=0 ; i < size ; i++)
-    buffer[i] = (uint8) get_int_at(byte_seq_obj, i);
+    buffer[i] = (uint8) get_int_at_unchecked(byte_seq_obj, i);
   return buffer;
 }
 

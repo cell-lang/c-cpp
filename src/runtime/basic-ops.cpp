@@ -3,14 +3,19 @@
 
 
 bool inline_eq(OBJ obj1, OBJ obj2) {
-  // assert(is_always_inline(obj2) & !is_float(obj2));
-  assert(is_always_inline(obj2));
+  assert(is_inline_obj(obj2));
   return are_shallow_eq(obj1, obj2);
 }
 
-// bool are_eq(OBJ obj1, OBJ obj2) {
-//   return comp_objs(obj1, obj2) == 0;
-// }
+bool are_eq(OBJ obj1, OBJ obj2) {
+  if (are_shallow_eq(obj1, obj2))
+    return true;
+
+  if (is_inline_obj(obj1) | is_inline_obj(obj2))
+    return false;
+
+  return intl_cmp(obj1, obj2) == 0;
+}
 
 bool is_out_of_range(SET_ITER &it) {
   return it.idx >= it.size;
@@ -31,7 +36,7 @@ bool is_out_of_range(TERN_REL_ITER &it) {
 bool contains(OBJ set, OBJ elem) {
   if (is_empty_rel(set))
     return false;
-  uint32 size = get_rel_size(set);
+  uint32 size = read_size_field(set);
   OBJ *elts = get_set_elts_ptr(set);
   bool found;
   find_obj(elts, size, elem, found);
@@ -61,7 +66,7 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
   }
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-  uint32 size = get_rel_size(rel);
+  uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
   OBJ *right_col = get_right_col_array_ptr(ptr, size);
 
@@ -94,7 +99,7 @@ bool contains_br_1(OBJ rel, OBJ arg1) {
   }
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-  uint32 size = get_rel_size(rel);
+  uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
 
   if (is_ne_map(rel)) {
@@ -140,7 +145,7 @@ bool contains_tr(OBJ rel, OBJ arg1, OBJ arg2, OBJ arg3) {
     return false;
 
   TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-  uint32 size = get_rel_size(rel);
+  uint32 size = read_size_field(rel);
   OBJ *col1 = get_col_array_ptr(ptr, size, 0);
 
   uint32 count;
@@ -210,7 +215,7 @@ bool has_field(OBJ rec_or_tag_rec, uint16 field_id) {
 
   if (!is_empty_rel(rec)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rec);
-    uint32 size = get_rel_size(rec);
+    uint32 size = read_size_field(rec);
     OBJ *keys = ptr->buffer;
     for (uint32 i=0 ; i < size ; i++)
       if (is_symb(keys[i], field_id))
@@ -228,10 +233,7 @@ uint32 get_size(OBJ coll) {
   if (is_opt_rec(coll))
     return opt_repr_get_fields_count(get_opt_repr_ptr(coll), get_opt_repr_id(coll));
 
-  if (is_seq(coll))
-    return get_seq_length(coll);
-
-  return get_rel_size(coll);
+  return read_size_field(coll);
 }
 
 int64 float_bits(OBJ obj) {
@@ -259,10 +261,7 @@ OBJ at(OBJ seq, int64 idx) {
 
 OBJ get_curr_obj(SEQ_ITER &it) {
   assert(!is_out_of_range(it));
-  if (it.type == ELT_TYPE_OBJ)
-    return it.buffer.obj[it.idx];
-  else
-    return make_int(it.buffer.uint8_[it.idx]);
+  return get_obj_at(it.seq, it.idx);
 }
 
 OBJ get_curr_obj(SET_ITER &it) {
@@ -316,7 +315,7 @@ OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it) {
 }
 
 OBJ rand_set_elem(OBJ set) {
-  uint32 size = get_rel_size(set);
+  uint32 size = read_size_field(set);
   OBJ *elts = get_set_elts_ptr(set);
   uint32 idx = rand() % size;
   return elts[idx];
@@ -336,12 +335,14 @@ OBJ lookup(OBJ rel, OBJ key) {
     soft_fail("Map is empty. Lookup failed");
   }
   else {
+    assert(is_array_map(rel));
+
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     OBJ *keys = ptr->buffer;
     OBJ *values = keys + size;
-    OBJ_TYPE rel_type = get_physical_type(rel);
-    if (rel_type == TYPE_NE_MAP | rel_type == TYPE_NE_LOG_MAP) {
+    OBJ_TYPE rel_type = get_obj_type(rel);
+    if (rel_type == TYPE_NE_MAP) {
       bool found;
       uint32 idx = find_obj(keys, size, key, found);
       if (found)
@@ -380,7 +381,7 @@ OBJ lookup_field(OBJ rec_or_tag_rec, uint16 field_id) {
 
   if (!is_empty_rel(rec)) {
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rec);
-    uint32 size = get_rel_size(rec);
+    uint32 size = read_size_field(rec);
     OBJ *keys = ptr->buffer;
     OBJ *values = keys + size;
     for (uint32 i=0 ; i < size ; i++)

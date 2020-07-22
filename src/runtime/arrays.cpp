@@ -50,7 +50,7 @@ bool *array_append(bool *array, int32 size, int32 &capacity, bool elt) {
 double *array_append(double *array, int32 size, int32 &capacity, double elt) {
   if (size == capacity) {
     capacity = next_array_size(capacity, size);
-    double *new_array = new_double_array(capacity);
+    double *new_array = new_float_array(capacity);
     memcpy(new_array, array, size * sizeof(double));
     array = new_array;
   }

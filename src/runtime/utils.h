@@ -18,3 +18,41 @@
 #define halt (void)(_assert_(0, "Halt reached", __FILE__, __LINE__))
 
 bool _assert_(int exp, const char *exp_text, const char *file, int line);
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline bool no_sum32_overflow(uint64 x, uint64 y) {
+  return x + y <= 0XFFFFFFFF;
+}
+
+inline bool is_int8(int64 value) {
+  return value >= -128 & value < 128;
+}
+
+inline bool is_uint8(int64 value) {
+  return value >= 0 & value < 256;
+}
+
+inline bool is_int16(int64 value) {
+  return value >= -32768 & value < 32768;
+}
+
+inline bool is_int32(int64 value) {
+  return value >= -2147483648 & value < 2147483648;
+}
+
+inline bool is_int8_range(int64 min, int64 max) {
+  return min >= -128 & max < 128;
+}
+
+inline bool is_uint8_range(int64 min, int64 max) {
+  return min >= 0 & max < 256;
+}
+
+inline bool is_int16_range(int64 min, int64 max) {
+  return min >= -32768 & max < 32768;
+}
+
+inline bool is_int32_range(int64 min, int64 max) {
+  return min >= -2147483648 & max < 2147483648;
+}

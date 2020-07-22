@@ -111,7 +111,7 @@ void get_tern_rel_iter(TERN_REL_ITER &it, OBJ rel) {
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     it.col1 = get_col_array_ptr(ptr, size, 0);
     it.col2 = get_col_array_ptr(ptr, size, 1);
     it.col3 = get_col_array_ptr(ptr, size, 2);
@@ -129,7 +129,7 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int col_idx, OBJ arg) {
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     OBJ *col = get_col_array_ptr(ptr, size, col_idx);
 
     uint32 *index;
@@ -163,7 +163,7 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int major_col_idx, OBJ maj
 
   if (is_ne_tern_rel(rel)) {
     TERN_REL_OBJ *ptr = get_tern_rel_ptr(rel);
-    uint32 size = get_rel_size(rel);
+    uint32 size = read_size_field(rel);
     OBJ *major_col = get_col_array_ptr(ptr, size, major_col_idx);
     OBJ *minor_col = get_col_array_ptr(ptr, size, (major_col_idx + 1) % 3);
 

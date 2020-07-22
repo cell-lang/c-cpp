@@ -28,7 +28,6 @@ OBJ FileRead_P(OBJ filename, ENV &) {
   // return make_tag_obj(symb_id_just, seq_obj);
 }
 
-
 OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
   char *fname = obj_to_str(filename);
   uint32 size;
@@ -44,15 +43,6 @@ OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
   return make_bool(res);
 }
 
-
-OBJ Print_P(OBJ str_obj, ENV &env) {
-  char *str = obj_to_str(str_obj);
-  fputs(str, stdout);
-  fflush(stdout);
-  return make_blank_obj();
-}
-
-
 OBJ GetChar_P(ENV &env) {
   int ch = getchar();
   if (ch == EOF)
@@ -60,7 +50,12 @@ OBJ GetChar_P(ENV &env) {
   return make_tag_obj(symb_id_just, make_int(ch));
 }
 
+void Print_P(OBJ str_obj, ENV &env) {
+  char *str = obj_to_str(str_obj);
+  fputs(str, stdout);
+  fflush(stdout);
+}
 
-OBJ Exit_P(OBJ exit_code, struct ENV_ &env) {
+void Exit_P(OBJ exit_code, struct ENV_ &env) {
   exit(get_int(exit_code));
 }

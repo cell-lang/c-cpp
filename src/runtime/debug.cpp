@@ -75,7 +75,7 @@ void print_indented_param(FILE *fp, OBJ param, bool is_last) {
   const uint32 BUFF_SIZE = 512;
   char buffer[BUFF_SIZE];
 
-  if (!is_blank_obj(param))
+  if (!is_blank(param))
     printed_obj_or_filename(param, false, buffer, BUFF_SIZE);
   else
     strcpy(buffer, "<closure>");

@@ -9,23 +9,22 @@ bool is_str(uint16 tag_id, OBJ obj) {
   if (is_empty_seq(obj))
     return true;
 
-  if (!is_ne_seq(obj))
-    return false;
+  OBJ_TYPE type = get_obj_type(obj);
 
-  OBJ_TYPE type = get_physical_type(obj);
-
-  if (type == TYPE_NE_SEQ_UINT8 | type == TYPE_NE_SLICE_UINT8 | type == TYPE_NE_SEQ_UINT8_INLINE)
+  if (type == TYPE_NE_SEQ_UINT8_INLINE | type == TYPE_NE_SEQ_INT16_INLINE)
     return true;
 
-  uint32 len = get_seq_length(obj);
+  if (type != TYPE_NE_INT_SEQ)
+    return false;
+
+  INT_BITS_TAG bits_tag = get_int_bits_tag(obj);
+  if (get_int_bits_tag(obj) == INT_BITS_TAG_8 & !is_signed(obj))
+    return true;
+
+  uint32 len = read_size_field(obj);
 
   for (uint32 i=0 ; i < len ; i++) {
-    OBJ elt = get_obj_at(obj, i);
-
-    if (!is_int(elt))
-      return false;
-
-    int64 value = get_int(elt);
+    int64 value = get_int_at_unchecked(obj, i);
     if (value < 0 | value >= 65536)
       return false;
   }
@@ -41,7 +40,7 @@ bool is_record(OBJ obj) {
     return true;
 
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-  uint32 size = get_rel_size(obj);
+  uint32 size = read_size_field(obj);
   OBJ *keys = get_left_col_array_ptr(map);
 
   for (uint32 i=0 ; i < size ; i++)
@@ -60,7 +59,7 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
   if (is_empty_seq(char_seq))
     return;
 
-  uint32 len = get_seq_length(char_seq);
+  uint32 len = read_size_field(char_seq);
 
   for (uint32 i=0 ; i < len ; i++) {
     int64 ch = get_int_at(char_seq, i);
@@ -116,7 +115,7 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
     emit(data, "(", TEXT);
 
   if (!is_empty_seq(obj)) {
-    uint32 len = get_seq_length(obj);
+    uint32 len = read_size_field(obj);
     for (uint32 i=0 ; i < len ; i++) {
       if (i > 0)
         emit(data, ", ", TEXT);
@@ -131,7 +130,7 @@ void print_seq(OBJ obj, bool print_parentheses, void (*emit)(void *, const void 
 void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
   if (!is_empty_rel(obj)) {
-    uint32 size = get_rel_size(obj);
+    uint32 size = read_size_field(obj);
     OBJ *elems = get_set_elts_ptr(obj);
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)
@@ -146,7 +145,7 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
   emit(data, "[", TEXT);
 
   BIN_REL_OBJ *rel = get_bin_rel_ptr(obj);
-  uint32 size = get_rel_size(obj);
+  uint32 size = read_size_field(obj);
   OBJ *left_col = get_left_col_array_ptr(rel);
   OBJ *right_col = get_right_col_array_ptr(rel, size);
 
@@ -168,7 +167,7 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
 
 void print_ne_map(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-  uint32 size = get_rel_size(obj);
+  uint32 size = read_size_field(obj);
   OBJ *keys = get_left_col_array_ptr(map);
   OBJ *values = get_right_col_array_ptr(map, size);
 
@@ -217,7 +216,7 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
   }
   else {
     BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
-    uint32 size = get_rel_size(obj);
+    uint32 size = read_size_field(obj);
     OBJ *keys = get_left_col_array_ptr(map);
     OBJ *values = get_right_col_array_ptr(map, size);
 
@@ -240,7 +239,7 @@ void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION),
   emit(data, "[", TEXT);
 
   TERN_REL_OBJ *rel = get_tern_rel_ptr(obj);
-  uint32 size = get_rel_size(obj);
+  uint32 size = read_size_field(obj);
   OBJ *col1 = get_col_array_ptr(rel, size, 0);
   OBJ *col2 = get_col_array_ptr(rel, size, 1);
   OBJ *col3 = get_col_array_ptr(rel, size, 2);
@@ -277,7 +276,7 @@ void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), voi
 
     if (is_record(inner_obj))
       print_record(inner_obj, false, emit, data);
-    else if (is_ne_seq(inner_obj) && get_seq_length(inner_obj) > 1)
+    else if (is_ne_seq(inner_obj) && read_size_field(inner_obj) > 1)
       print_seq(inner_obj, false, emit, data);
     else
       print_obj(inner_obj, emit, data);
@@ -289,11 +288,8 @@ void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), voi
 void print_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, NULL, SUB_START);
 
-  if (is_blank_obj(obj))
+  if (is_blank(obj))
     emit(data, "BLANK", TEXT);
-
-  else if (is_null_obj(obj))
-    emit(data, "NULL", TEXT);
 
   else if (is_int(obj))
     print_int(obj, emit, data);
