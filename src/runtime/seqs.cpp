@@ -251,7 +251,7 @@ void copy_int8_range_unchecked(OBJ seq, uint32 start, uint32 len, int8 *buffer) 
 
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   assert(get_int_bits_tag(seq) == INT_BITS_TAG_8);
-  assert(!is_signed(seq));
+  assert(is_signed(seq));
 
   memcpy(buffer, (int8 *) seq.core_data.ptr + start, len * sizeof(int8));
 }
@@ -263,7 +263,7 @@ void copy_uint8_range_unchecked(OBJ seq, uint32 start, uint32 len, uint8 *buffer
 
   if (get_obj_type(seq) == TYPE_NE_INT_SEQ) {
     assert(get_int_bits_tag(seq) == INT_BITS_TAG_8);
-    assert(is_signed(seq));
+    assert(!is_signed(seq));
 
     memcpy(buffer, (uint8 *) seq.core_data.ptr + start, len * sizeof(uint8));
   }

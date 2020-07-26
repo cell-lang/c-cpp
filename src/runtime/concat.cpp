@@ -1,8 +1,9 @@
 #include "lib.h"
 
 
-static uint32 next_capacity(uint32 curr_size, uint32 min_size) {
-  uint32 new_size = curr_size != 0 ? 2 * curr_size : 32;
+static uint32 next_capacity(uint32 start_size, uint32 min_size) {
+  assert(start_size > 0);
+  uint32 new_size = start_size;
   while (new_size < min_size)
     new_size *= 2;
   return new_size;
@@ -382,7 +383,7 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq_new(OBJ left, uint32 lenl, OBJ 
 }
 
 __attribute__ ((noinline)) OBJ concat_ne_int_seq(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
-  assert(get_obj_type(left) == TYPE_NE_SEQ);
+  assert(get_obj_type(left) == TYPE_NE_INT_SEQ);
 
   uint32 len = lenl + lenr;
 
@@ -641,7 +642,7 @@ inline OBJ append_ne_seq_float(OBJ seq, uint32 len, OBJ obj) {
         return make_slice_float(new_elts, 3);
       }
 
-      SEQ_OBJ *seq_ptr = new_float_seq(len + 1, next_capacity(len + 1, 8));
+      SEQ_OBJ *seq_ptr = new_float_seq(len + 1, next_capacity(8, len + 1));
       memcpy(seq_ptr->buffer.float_, elts, len * sizeof(double));
       seq_ptr->buffer.float_[len] = value;
       return make_seq_float(seq_ptr, len + 1);
@@ -662,7 +663,7 @@ inline OBJ append_ne_seq_uint8(OBJ seq, uint32 len, OBJ obj) {
         return make_seq_uint8(seq_ptr, len + 1);
       }
 
-      SEQ_OBJ *seq_ptr = new_uint8_seq(len + 1, next_capacity(len + 1, 16));
+      SEQ_OBJ *seq_ptr = new_uint8_seq(len + 1, next_capacity(16, len + 1));
       memcpy(seq_ptr->buffer.uint8_, get_seq_elts_ptr_uint8(seq), len * sizeof(uint8));
       seq_ptr->buffer.uint8_[len] = (uint8) value;
       return make_seq_uint8(seq_ptr, len + 1);
@@ -691,7 +692,7 @@ inline OBJ append_ne_seq_int8(OBJ seq, uint32 len, OBJ obj) {
         return make_seq_int8(seq_ptr, len + 1);
       }
 
-      SEQ_OBJ *seq_ptr = new_int8_seq(len + 1, next_capacity(len + 1, 16));
+      SEQ_OBJ *seq_ptr = new_int8_seq(len + 1, next_capacity(16, len + 1));
       memcpy(seq_ptr->buffer.int8_, get_seq_elts_ptr_int8(seq), len * sizeof(int8));
       seq_ptr->buffer.int8_[len] = (int8) value;
       return make_seq_int8(seq_ptr, len + 1);

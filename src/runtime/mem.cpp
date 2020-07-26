@@ -104,6 +104,7 @@ SEQ_OBJ *new_obj_seq(uint32 length) {
 
 SEQ_OBJ *new_obj_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -122,6 +123,7 @@ SEQ_OBJ *new_float_seq(uint32 length) {
 
 SEQ_OBJ *new_float_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -137,6 +139,7 @@ SEQ_OBJ *new_uint8_seq(uint32 length, uint32 capacity) {
   assert(length > 0);
   assert(capacity >= length);
   assert(capacity % 8 == 0);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(uint8_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -150,7 +153,8 @@ SEQ_OBJ *new_int8_seq(uint32 length) {
 
 SEQ_OBJ *new_int8_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
-  assert(capacity % 4 == 0);
+  assert(capacity % 8 == 0);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int8_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -165,6 +169,7 @@ SEQ_OBJ *new_int16_seq(uint32 length) {
 SEQ_OBJ *new_int16_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
   assert(capacity % 4 == 0);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int16_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -178,7 +183,8 @@ SEQ_OBJ *new_int32_seq(uint32 length) {
 
 SEQ_OBJ *new_int32_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
-  assert(capacity % 4 == 0);
+  assert(capacity % 2 == 0);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int32_seq_obj_mem_size(capacity));
   seq->capacity = capacity;
@@ -192,7 +198,7 @@ SEQ_OBJ *new_int64_seq(uint32 length) {
 
 SEQ_OBJ *new_int64_seq(uint32 length, uint32 capacity) {
   assert(length > 0 & capacity >= length);
-  assert(capacity % 4 == 0);
+  assert(length < 32 | 2 * length >= capacity);
 
   SEQ_OBJ *seq = (SEQ_OBJ *) new_obj(int64_seq_obj_mem_size(capacity));
   seq->capacity = capacity;

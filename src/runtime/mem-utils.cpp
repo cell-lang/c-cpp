@@ -51,8 +51,8 @@ const int ARRAY_SLICE_TAG         = 1;  // Array slice
 
 const uint64 SEQ_TYPE_MASK        = MASK(SEQ_TYPE_SHIFT, SEQ_TYPE_WIDTH);
 
-const uint64 ARRAY_OBJ_MASK       = MAKE(ARRAY_OBJ_MASK,   SEQ_TYPE_SHIFT);
-const uint64 ARRAY_SLICE_MASK     = MAKE(ARRAY_SLICE_MASK, SEQ_TYPE_SHIFT);
+const uint64 ARRAY_OBJ_MASK       = MAKE(ARRAY_OBJ_TAG,   SEQ_TYPE_SHIFT);
+const uint64 ARRAY_SLICE_MASK     = MAKE(ARRAY_SLICE_TAG, SEQ_TYPE_SHIFT);
 
 // Only for sequences of integers
 const int SIGNED_BIT_SHIFT        = SEQ_TYPE_SHIFT + SEQ_TYPE_WIDTH;
