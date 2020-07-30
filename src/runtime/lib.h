@@ -303,7 +303,7 @@ bool is_signed(OBJ);
 
 bool is_array_obj(OBJ);
 
-int intl_cmp(OBJ, OBJ);
+int64 intrl_cmp(OBJ, OBJ);
 
 uint32 read_size_field_unchecked(OBJ);
 
@@ -481,7 +481,7 @@ uint32 find_objs_range(OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg
 uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg, OBJ minor_arg, uint32 &count);
 
 int comp_objs(OBJ obj1, OBJ obj2);
-int cmp_objs(OBJ obj1, OBJ obj2);
+int64 cmp_objs(OBJ obj1, OBJ obj2);
 
 /////////////////////////////// inter-utils.cpp ////////////////////////////////
 

@@ -90,7 +90,7 @@ OBJ copy_ne_map(OBJ obj) {
     uint32 size = read_size_field_unchecked(obj);
 
     BIN_REL_OBJ *copy_ptr = new_map(size);
-    copy_objs(copy_ptr->buffer, ptr->buffer, size);
+    copy_objs(copy_ptr->buffer, ptr->buffer, 2 * size);
     if (index_has_been_build(ptr, size)) {
       uint32 *r2l_index = get_right_to_left_indexes(copy_ptr, size);
       uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);

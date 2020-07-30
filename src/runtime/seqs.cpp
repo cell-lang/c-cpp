@@ -62,13 +62,16 @@ int64 get_int_at(OBJ seq, int64 idx) {
   if (type == TYPE_NE_SEQ_INT16_INLINE)
     return inline_int16_at(seq.core_data.int_, idx);
 
-  assert(type == TYPE_NE_SEQ_INT32_INLINE);
-  return inline_int32_at(seq.core_data.int_, idx);
+  if (type == TYPE_NE_SEQ_INT32_INLINE)
+    return inline_int32_at(seq.core_data.int_, idx);
+
+  assert(type == TYPE_NE_SEQ);
+  return get_int(get_seq_elts_ptr(seq)[idx]);
 }
 
 int64 get_int_at_unchecked(OBJ seq, uint32 idx) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
-  assert(idx < read_size_field(seq));
+  assert(idx < read_size_field_unchecked(seq));
 
   uint32 width_tag = get_int_bits_tag(seq);
 
@@ -141,7 +144,7 @@ void copy_int64_range_unchecked(OBJ seq, uint32 start, uint32 len, int64 *buffer
       }
       else {
         assert(width_tag == INT_BITS_TAG_64);
-        memcpy(buffer, (int64 *) seq.core_data.ptr + start, len);
+        memcpy(buffer, (int64 *) seq.core_data.ptr + start, len * sizeof(int64));
       }
     }
   }
@@ -188,7 +191,7 @@ void copy_int32_range_unchecked(OBJ seq, uint32 start, uint32 len, int32 *buffer
     }
     else {
       assert(width_tag == INT_BITS_TAG_32);
-      memcpy(buffer, (int32 *) seq.core_data.ptr + start, len);
+      memcpy(buffer, (int32 *) seq.core_data.ptr + start, len * sizeof(int32));
     }
   }
   else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
@@ -230,7 +233,7 @@ void copy_int16_range_unchecked(OBJ seq, uint32 start, uint32 len, int16 *buffer
     }
     else {
       assert(width_tag == INT_BITS_TAG_16);
-      memcpy(buffer, (int16 *) seq.core_data.ptr + start, len);
+      memcpy(buffer, (int16 *) seq.core_data.ptr + start, len * sizeof(int16));
     }
   }
   else if (type == TYPE_NE_SEQ_UINT8_INLINE) {
@@ -439,10 +442,10 @@ inline OBJ get_inline_int32_seq_slice(OBJ seq, uint32 idx_first, uint32 len) {
 
   int32 only_elt = inline_int32_at(seq.core_data.int_, idx_first);
 
-  if (only_elt >= 0 & only_elt < 256)
+  if (is_uint8(only_elt))
     return make_seq_uint8_inline(inline_uint8_init_at(0, 0, only_elt), 1);
 
-  if (only_elt >= -32768 & only_elt < 32768)
+  if (is_int16(only_elt))
     return make_seq_int16_inline(inline_int16_init_at(0, 0, only_elt), 1);
 
   return make_seq_int32_inline(inline_int32_init_at(0, 0, only_elt), 1);
@@ -464,21 +467,21 @@ inline OBJ get_int_seq_slice(OBJ seq, uint32 idx_first, uint32 len) {
         max = elt;
     }
 
-    if (min == 0 & max < 256) {
+    if (is_uint8_range(min, max)) {
       int64 data = 0;
       for (uint32 i=0 ; i < len ; i++)
         data = inline_uint8_init_at(data, i, (uint8) elts[i]);
       return make_seq_uint8_inline(data, len);
     }
 
-    if (len <= 4 & min >= -32768 & max < 32768) {
+    if (len <= 4 & is_int16_range(min, max)) {
       uint64 data = 0;
       for (uint32 i=0 ; i < len ; i++)
         data = inline_int16_init_at(data, i, (int16) elts[i]);
       return make_seq_int16_inline(data, len);
     }
 
-    if (len <= 2 & min >= -2147483648 & max < 2147483648) {
+    if (len <= 2 & is_int32_range(min, max)) {
       uint64 data = inline_int32_init_at(0, 0, (int32) elts[0]);
       if (len == 2)
         data = inline_int32_init_at(data, 1, (int32) elts[1]);
@@ -624,7 +627,7 @@ OBJ build_seq(OBJ *elts, uint32 length) {
         max = value;
     }
 
-    if (min == 0 & max < 256) {
+    if (is_uint8_range(min, max)) {
       if (length <= 8) {
         uint64 packed_elts = 0;
         for (uint32 i=0 ; i < length ; i++)
@@ -639,7 +642,7 @@ OBJ build_seq(OBJ *elts, uint32 length) {
       }
     }
 
-    if (min >= -32768 & max < 32768) {
+    if (is_int16_range(min, max)) {
       if (length <= 4) {
         uint64 packed_elts = 0;
         for (uint32 i=0 ; i < length ; i++)
@@ -654,7 +657,7 @@ OBJ build_seq(OBJ *elts, uint32 length) {
       }
     }
 
-    if (min >= -2147483648 & max < 2147483648) {
+    if (is_int32_range(min, max)) {
       if (length <= 2) {
         uint64 data = inline_int32_init_at(0, 0, (int32) get_int(first_elt));
         if (length == 2)
@@ -724,21 +727,21 @@ OBJ build_seq_int64(int64 *array, int32 size) {
         max = elt;
     }
 
-    if (min == 0 & max < 256) {
+    if (is_uint8_range(min, max)) {
       int64 elts = 0;
       for (uint32 i=0 ; i < size ; i++)
         elts = inline_uint8_init_at(elts, i, (uint8) array[i]);
       return make_seq_uint8_inline(elts, size);
     }
 
-    if (size <= 4 & min >= -32768 & max < 32768) {
+    if (size <= 4 & is_int16_range(min, max)) {
       uint64 elts = 0;
       for (uint32 i=0 ; i < size ; i++)
         elts = inline_int16_init_at(elts, i, array[i]);
       return make_seq_int16_inline(elts, size);
     }
 
-    if (size <= 2 & min >= -2147483648 & max < 2147483648) {
+    if (size <= 2 & is_int32_range(min, max)) {
       uint64 data = inline_int32_init_at(0, 0, (int32) array[0]);
       if (size == 2)
         data = inline_int32_init_at(data, 1, (int32) array[1]);
@@ -765,14 +768,14 @@ OBJ build_seq_int32(int32 *array, int32 size) {
         max = elt;
     }
 
-    if (min == 0 & max < 256) {
+    if (is_uint8_range(min, max)) {
       int64 elts = 0;
       for (uint32 i=0 ; i < size ; i++)
         elts = inline_uint8_init_at(elts, i, (uint8) array[i]);
       return make_seq_uint8_inline(elts, size);
     }
 
-    if (size <= 4 & min >= -32768 & max < 32768) {
+    if (size <= 4 & is_int16_range(min, max)) {
       uint64 elts = 0;
       for (uint32 i=0 ; i < size ; i++)
         elts = inline_int16_init_at(elts, i, array[i]);
@@ -798,7 +801,7 @@ OBJ build_seq_int16(int16 *array, int32 size) {
     uint8 elts[8];
     for (int i=0 ; i < size ; i++) {
       int16 elt = array[i];
-      if (elt >= 0 & elt < 256)
+      if (is_uint8(elt))
         elts[i] = (uint8) elt;
       else
         goto no_uint8;

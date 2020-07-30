@@ -18,21 +18,23 @@ inline int sign(int value) {
 // obj1 > obj2  ->  < 0
 
 __attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
-  int intl_cmp(OBJ, OBJ);
-  return intl_cmp(obj1, obj2);
+  int64 cr = intrl_cmp(obj1, obj2);
+  return cr > 0 ? 1 : (cr < 0 ? -1 : 0);
 }
 
 
 // Used by comparison of ad-hoc records or tagged records
-__attribute__ ((noinline)) int cmp_objs(OBJ obj1, OBJ obj2) {
-  int intl_cmp(OBJ, OBJ);
-  return intl_cmp(obj1, obj2);
+__attribute__ ((noinline)) int64 cmp_objs(OBJ obj1, OBJ obj2) {
+  // return intrl_cmp(obj1, obj2);
+  //## TEMPORARY, UNTIL WE RECOMPILE THE COMPILER
+  int64 cr = intrl_cmp(obj1, obj2);
+  return cr > 0 ? 1 : (cr < 0 ? -1 : 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) int intl_cmp_ne_float_seq(OBJ obj1, OBJ obj2) {
+__attribute__ ((noinline)) int64 intrl_cmp_ne_float_seq(OBJ obj1, OBJ obj2) {
   assert(read_size_field_unchecked(obj1) == read_size_field_unchecked(obj2));
 
   int len = read_size_field_unchecked(obj1);
@@ -48,7 +50,7 @@ __attribute__ ((noinline)) int intl_cmp_ne_float_seq(OBJ obj1, OBJ obj2) {
   return 0;
 }
 
-__attribute__ ((noinline)) int intl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
+__attribute__ ((noinline)) int64 intrl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
   while (is_tag_obj(obj1)) {
     assert(is_tag_obj(obj2));
     obj1 = get_inner_obj(obj1);
@@ -72,7 +74,7 @@ __attribute__ ((noinline)) int intl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
     OBJ left_arg_1 = get_curr_left_arg(key_it1);
     OBJ left_arg_2 = get_curr_left_arg(key_it2);
 
-    int res = intl_cmp(left_arg_1, left_arg_2);
+    int64 res = intrl_cmp(left_arg_1, left_arg_2);
     if (res != 0)
       return res;
 
@@ -88,7 +90,7 @@ __attribute__ ((noinline)) int intl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
     OBJ right_arg_1 = get_curr_right_arg(value_it1);
     OBJ right_arg_2 = get_curr_right_arg(value_it2);
 
-    int res = intl_cmp(right_arg_1, right_arg_2);
+    int64 res = intrl_cmp(right_arg_1, right_arg_2);
     if (res != 0)
       return res;
 

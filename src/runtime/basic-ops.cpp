@@ -14,7 +14,7 @@ bool are_eq(OBJ obj1, OBJ obj2) {
   if (is_inline_obj(obj1) | is_inline_obj(obj2))
     return false;
 
-  return intl_cmp(obj1, obj2) == 0;
+  return intrl_cmp(obj1, obj2) == 0;
 }
 
 bool is_out_of_range(SET_ITER &it) {

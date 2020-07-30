@@ -411,6 +411,8 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq(OBJ left, uint32 lenl, OBJ righ
             }
           }
         }
+
+        break;
       }
 
       case INT_BITS_TAG_16: {
@@ -419,6 +421,8 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq(OBJ left, uint32 lenl, OBJ righ
           copy_int16_range_unchecked(right, 0, lenr, ptrl->buffer.int16_ + lenl);
           return make_seq_int16(ptrl, len);
         }
+
+        break;
       }
 
       case INT_BITS_TAG_32: {
@@ -427,6 +431,8 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq(OBJ left, uint32 lenl, OBJ righ
           copy_int32_range_unchecked(right, 0, lenr, ptrl->buffer.int32_ + lenl);
           return make_seq_int32(ptrl, len);
         }
+
+        break;
       }
 
       case INT_BITS_TAG_64: {
@@ -435,6 +441,8 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq(OBJ left, uint32 lenl, OBJ righ
           copy_int64_range_unchecked(right, 0, lenr, ptrl->buffer.int64_ + lenl);
           return make_seq_int64(ptrl, len);
         }
+
+        break;
       }
 
       default:
