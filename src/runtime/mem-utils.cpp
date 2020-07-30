@@ -447,6 +447,11 @@ OBJ make_slice_float(double *ptr, uint32 length) {
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
 
+#ifndef NDEBUG
+  for (int i=0 ; i < length ; i++)
+    assert(get_obj_type(ptr->buffer.obj[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
+
   OBJ obj;
   obj.core_data.ptr = ptr->buffer.obj;
   obj.extra_data = MAKE_LENGTH(length) | NE_SEQ_BASE_MASK | ARRAY_OBJ_MASK;
@@ -455,6 +460,11 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
 
 OBJ make_slice(OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
+
+#ifndef NDEBUG
+  for (int i=0 ; i < length ; i++)
+    assert(get_obj_type(ptr[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -467,6 +477,11 @@ OBJ make_slice(OBJ *ptr, uint32 length) {
 OBJ make_set(SET_OBJ *ptr, uint32 size) {
   assert(ptr != NULL & size > 0);
 
+#ifndef NDEBUG
+  for (int i=0 ; i < size ; i++)
+    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
+
   OBJ obj;
   obj.core_data.ptr = ptr;
   obj.extra_data = MAKE_LENGTH(size) | NE_SET_BASE_MASK;
@@ -478,8 +493,10 @@ OBJ make_set(SET_OBJ *ptr, uint32 size) {
 OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
+#ifndef NDEBUG
   for (int i=0 ; i < 2 * size ; i++)
     assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -492,6 +509,11 @@ OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
 OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
+#ifndef NDEBUG
+  for (int i=0 ; i < 2 * size ; i++)
+    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
+
   OBJ obj;
   obj.core_data.ptr = ptr;
   obj.extra_data = MAKE_LENGTH(size) | NE_BIN_REL_BASE_MASK;
@@ -502,6 +524,11 @@ OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
 
 OBJ make_tern_rel(TERN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
+
+#ifndef NDEBUG
+  for (int i=0 ; i < 3 * size ; i++)
+    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+#endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;

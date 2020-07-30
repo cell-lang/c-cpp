@@ -66,7 +66,7 @@ OBJ copy_ne_seq(OBJ obj) {
 
   OBJ *copy_elts = new_obj_array(size);
   copy_objs(copy_elts, elts, size);
-  return repoint_to_sliced_copy(obj, elts);
+  return repoint_to_sliced_copy(obj, copy_elts);
 }
 
 OBJ copy_ne_set(OBJ obj) {
@@ -83,7 +83,7 @@ OBJ copy_ne_map(OBJ obj) {
     void *ptr = get_opt_repr_ptr(obj);
     uint16 repr_id = get_opt_repr_id(obj);
     void *copy_ptr = opt_repr_copy(ptr, repr_id);
-    return repoint_to_copy(obj, ptr);
+    return repoint_to_copy(obj, copy_ptr);
   }
   else if (is_array_map(obj)) {
     BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
