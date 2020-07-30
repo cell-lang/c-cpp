@@ -555,7 +555,7 @@ __attribute__ ((noinline)) OBJ append_slow(OBJ seq, OBJ obj) {
 
   SEQ_OBJ *seq_ptr = new_obj_seq(len + 1, next_capacity(4, len + 1));
 
-  for (int i=0 ; i < len ; i++)
+  for (uint32 i=0 ; i < len ; i++)
     seq_ptr->buffer.obj[i] = get_obj_at(seq, i);
   seq_ptr->buffer.obj[len] = obj;
 
@@ -567,7 +567,7 @@ __attribute__ ((noinline)) OBJ append_slow_int16(OBJ seq, int16 value) {
 
   SEQ_OBJ *seq_ptr = new_int16_seq(len + 1, next_capacity(8, len + 1));
 
-  for (int i=0 ; i < len ; i++)
+  for (uint32 i=0 ; i < len ; i++)
     seq_ptr->buffer.int16_[i] = (int16) get_int_at(seq, i);
   seq_ptr->buffer.int16_[len] = value;
 
@@ -575,11 +575,26 @@ __attribute__ ((noinline)) OBJ append_slow_int16(OBJ seq, int16 value) {
 }
 
 __attribute__ ((noinline)) OBJ append_slow_int32(OBJ seq, int32 value) {
+  uint32 len = read_size_field(seq);
 
+  SEQ_OBJ *seq_ptr = new_int32_seq(len + 1, next_capacity(8, len + 1));
+
+  for (uint32 i=0 ; i < len ; i++)
+    seq_ptr->buffer.int32_[i] = (int32) get_int_at(seq, i);
+  seq_ptr->buffer.int32_[len] = value;
+
+  return make_seq_int32(seq_ptr, len + 1);
 }
 
 __attribute__ ((noinline)) OBJ append_slow_int64(OBJ seq, int64 value) {
+  uint32 len = read_size_field(seq);
 
+  SEQ_OBJ *seq_ptr = new_int64_seq(len + 1, next_capacity(4, len + 1));
+  for (uint32 i=0 ; i < len ; i++)
+    seq_ptr->buffer.int64_[i] = get_int_at(seq, i);
+  seq_ptr->buffer.int64_[len] = value;
+
+  return make_seq_int64(seq_ptr, len + 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -944,26 +944,26 @@ __attribute__ ((noinline)) int64 intrl_cmp(OBJ obj1, OBJ obj2) {
       // return intrl_cmp_NE_BOOL_SEQ();
 
     case TYPE_NE_SEQ:
-      return intrl_cmp_obj_arrays(get_seq_elts_ptr(obj1), get_seq_elts_ptr(obj2), read_size_field_unchecked(obj1));
+      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
 
     case TYPE_NE_SET:
-      return intrl_cmp_obj_arrays(get_set_elts_ptr(obj1), get_set_elts_ptr(obj2), read_size_field_unchecked(obj1));
+      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
 
     case TYPE_NE_MAP:
       int64 intrl_cmp_ne_maps(OBJ obj1, OBJ obj2);
       return intrl_cmp_ne_maps(obj1, obj2);
 
     case TYPE_NE_BIN_REL:
-      return intrl_cmp_obj_arrays(get_bin_rel_ptr(obj1)->buffer, get_bin_rel_ptr(obj2)->buffer, 2 * read_size_field_unchecked(obj1));
+      return intrl_cmp_obj_arrays(((BIN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((BIN_REL_OBJ *) obj2.core_data.ptr)->buffer, 2 * read_size_field_unchecked(obj1));
 
     case TYPE_NE_TERN_REL:
-      return intrl_cmp_obj_arrays(get_tern_rel_ptr(obj1)->buffer, get_tern_rel_ptr(obj2)->buffer, 2 * read_size_field_unchecked(obj1));
+      return intrl_cmp_obj_arrays(((TERN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((TERN_REL_OBJ *) obj2.core_data.ptr)->buffer, 3 * read_size_field_unchecked(obj1));
 
     case TYPE_AD_HOC_TAG_REC:
       return opt_repr_cmp(obj1.core_data.ptr, obj2.core_data.ptr, get_opt_repr_id(obj1));
 
     case TYPE_BOXED_OBJ:
-      return intrl_cmp(get_boxed_obj_ptr(obj1)->obj, get_boxed_obj_ptr(obj2)->obj);
+      return intrl_cmp(((BOXED_OBJ *) obj1.core_data.ptr)->obj, ((BOXED_OBJ *) obj2.core_data.ptr)->obj);
 
     default:
       internal_fail();
