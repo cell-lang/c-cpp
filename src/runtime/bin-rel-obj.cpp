@@ -18,7 +18,7 @@ void build_map_right_to_left_sorted_idx_array(OBJ map) {
   assert(get_obj_type(map) == TYPE_NE_MAP);
 
   uint32 size = read_size_field(map);
-  if (size > 1)
+  if (size == 1)
     return;
 
   BIN_REL_OBJ *ptr = get_bin_rel_ptr(map);

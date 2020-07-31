@@ -16,32 +16,32 @@ uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) {
         return -1;
       }
 
-      OBJ last_obj = sorted_array[len - 1];
-      if (!is_inline_obj(last_obj))
-        goto std_alg;
+      // OBJ last_obj = sorted_array[len - 1];
+      // if (!is_inline_obj(last_obj))
+      //   goto std_alg;
 
-      int64 low_idx = 0;
-      int64 high_idx = len - 1;
+      // int64 low_idx = 0;
+      // int64 high_idx = len - 1;
 
-      while (low_idx <= high_idx) {
-        int64 middle_idx = (low_idx + high_idx) / 2;
-        OBJ middle_obj = sorted_array[middle_idx];
+      // while (low_idx <= high_idx) {
+      //   int64 middle_idx = (low_idx + high_idx) / 2;
+      //   OBJ middle_obj = sorted_array[middle_idx];
 
-        int cr = shallow_cmp(obj, middle_obj);
+      //   int64 cr = shallow_cmp(obj, middle_obj);
 
-        if (cr == 0) {
-          found = true;
-          return middle_idx;
-        }
+      //   if (cr == 0) {
+      //     found = true;
+      //     return middle_idx;
+      //   }
 
-        if (cr > 0)
-          high_idx = middle_idx - 1;
-        else
-          low_idx = middle_idx + 1;
-      }
+      //   if (cr > 0)
+      //     high_idx = middle_idx - 1;
+      //   else
+      //     low_idx = middle_idx + 1;
+      // }
 
-      found = false;
-      return -1;
+      // found = false;
+      // return -1;
     }
   }
 

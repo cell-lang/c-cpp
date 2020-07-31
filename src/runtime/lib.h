@@ -337,7 +337,7 @@ OBJ_TYPE get_ref_obj_type(OBJ);
 void* get_ref_obj_ptr(OBJ);
 
 bool are_shallow_eq(OBJ, OBJ);
-int shallow_cmp(OBJ, OBJ);
+int64 shallow_cmp(OBJ, OBJ);
 
 int comp_floats(double, double);
 
@@ -699,9 +699,9 @@ inline uint64 inline_int32_init_at(uint64 packed_elts, uint32 idx, int32 value) 
     assert(inline_int32_at(updated_packed_elts, 0) == inline_int32_at(packed_elts, 0));
   assert(inline_int32_at(updated_packed_elts, idx) == value);
   for (int i=0 ; i < idx ; i++)
-    assert(inline_int16_at(updated_packed_elts, i) == inline_int16_at(packed_elts, i));
+    assert(inline_int32_at(updated_packed_elts, i) == inline_int32_at(packed_elts, i));
   for (int i = idx + 1 ; i < 2 ; i++)
-    assert(inline_int16_at(updated_packed_elts, i) == 0);
+    assert(inline_int32_at(updated_packed_elts, i) == 0);
   return updated_packed_elts;
 }
 

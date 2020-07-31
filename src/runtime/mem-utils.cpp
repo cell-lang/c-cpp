@@ -1003,14 +1003,14 @@ bool are_shallow_eq(OBJ obj1, OBJ obj2) {
   return obj1.core_data.int_ == obj2.core_data.int_ && obj1.extra_data == obj2.extra_data;
 }
 
-int shallow_cmp(OBJ obj1, OBJ obj2) {
+int64 shallow_cmp(OBJ obj1, OBJ obj2) {
   assert(is_inline_obj(obj1) & is_inline_obj(obj2));
 
   uint64 extra_data_1 = obj1.extra_data;
   uint64 extra_data_2 = obj2.extra_data;
 
   if (extra_data_1 != extra_data_2)
-    return extra_data_2 - extra_data_1;
+    return (extra_data_2 << REPR_INFO_WIDTH) - (extra_data_1 << REPR_INFO_WIDTH);
   else
     return obj2.core_data.int_ - obj1.core_data.int_;
 }
