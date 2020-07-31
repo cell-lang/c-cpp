@@ -395,9 +395,7 @@ OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
-OBJ append_to_seq(OBJ seq, OBJ obj);
 // OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value);
-OBJ join_seqs(OBJ left, OBJ right);
 OBJ rev_seq(OBJ seq);
 OBJ internal_sort(OBJ set);
 OBJ parse_value(OBJ str);
@@ -538,6 +536,9 @@ uint32 compute_hash_code(OBJ obj);
 ////////////////////////////////// concat.cpp //////////////////////////////////
 
 bool no_sum32_overflow(uint64 x, uint64 y);
+
+OBJ concat(OBJ left, OBJ right);
+OBJ append(OBJ seq, OBJ obj);
 
 OBJ in_place_concat_uint8(SEQ_OBJ *seq_ptr, uint32 length, uint8 *new_elts, uint32 count);
 OBJ in_place_concat_obj(SEQ_OBJ *seq_ptr, uint32 length, OBJ *new_elts, uint32 count);

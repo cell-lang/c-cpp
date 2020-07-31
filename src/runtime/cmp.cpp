@@ -29,8 +29,47 @@ __attribute__ ((noinline)) int cmp_objs(OBJ obj1, OBJ obj2) {
   return intrl_cmp(obj1, obj2);
 }
 
+//## REMOVE
+int comp_floats(double x, double y) {
+  uint64 n = *((uint64 *) &x);
+  uint64 m = *((uint64 *) &y);
+
+  if (n < m)
+    return 1;
+
+  if (n > m)
+    return -1;
+
+  return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+__attribute__ ((noinline)) int intrl_cmp_obj_arrays(OBJ *elts1, OBJ *elts2, uint32 count) {
+  for (int i=0 ; i < count ; i++) {
+    int cr = intrl_cmp(elts1[i], elts2[i]);
+    if (cr != 0)
+      return cr;
+  }
+  return 0;
+}
+
+__attribute__ ((noinline)) int intrl_cmp_ne_int_seqs(OBJ obj1, OBJ obj2) {
+  assert(read_size_field_unchecked(obj1) == read_size_field_unchecked(obj2));
+
+  uint32 len = read_size_field_unchecked(obj1);
+
+  for (uint32 i=0 ; i < len ; i++) {
+    int64 elt1 = get_int_at_unchecked(obj1, i);
+    int64 elt2 = get_int_at_unchecked(obj2, i);
+
+    if (elt1 != elt2)
+      return elt1 < elt2 ? 1 : -1;
+  }
+
+  return 0;
+}
 
 __attribute__ ((noinline)) int intrl_cmp_ne_float_seq(OBJ obj1, OBJ obj2) {
   assert(read_size_field_unchecked(obj1) == read_size_field_unchecked(obj2));
@@ -98,6 +137,48 @@ __attribute__ ((noinline)) int intrl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
   }
 
   return 0;
+}
+
+__attribute__ ((noinline)) int intrl_cmp_non_inline(OBJ_TYPE type, OBJ obj1, OBJ obj2) {
+
+  switch (type) {
+    case TYPE_NE_INT_SEQ:
+      return intrl_cmp_ne_int_seqs(obj1, obj2);
+
+    case TYPE_NE_FLOAT_SEQ:
+      return intrl_cmp_ne_float_seq(obj1, obj2);
+
+    case TYPE_NE_BOOL_SEQ:
+      internal_fail();
+      // return intrl_cmp_NE_BOOL_SEQ();
+
+    case TYPE_NE_SEQ:
+      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
+
+    case TYPE_NE_SET:
+      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
+
+    case TYPE_NE_MAP:
+      return intrl_cmp_ne_maps(obj1, obj2);
+
+    case TYPE_NE_BIN_REL:
+      return intrl_cmp_obj_arrays(((BIN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((BIN_REL_OBJ *) obj2.core_data.ptr)->buffer, 2 * read_size_field_unchecked(obj1));
+
+    case TYPE_NE_TERN_REL:
+      return intrl_cmp_obj_arrays(((TERN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((TERN_REL_OBJ *) obj2.core_data.ptr)->buffer, 3 * read_size_field_unchecked(obj1));
+
+    case TYPE_AD_HOC_TAG_REC: {
+      int rc = opt_repr_cmp(obj1.core_data.ptr, obj2.core_data.ptr, get_opt_repr_id(obj1));
+      assert(rc >= -1 & rc <= 1);
+      return rc;
+    }
+
+    case TYPE_BOXED_OBJ:
+      return intrl_cmp(((BOXED_OBJ *) obj1.core_data.ptr)->obj, ((BOXED_OBJ *) obj2.core_data.ptr)->obj);
+
+    default:
+      internal_fail();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

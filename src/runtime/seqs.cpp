@@ -550,16 +550,6 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   }
 }
 
-OBJ append_to_seq(OBJ seq, OBJ obj) {
-  OBJ append(OBJ seq, OBJ obj);
-  return append(seq, obj);
-}
-
-OBJ join_seqs(OBJ left, OBJ right) {
-  OBJ concat(OBJ left, OBJ right);
-  return concat(left, right);
-}
-
 // OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) {
 //   uint32 len = read_size_field(seq);
 //   int64 int_idx = get_int(idx);

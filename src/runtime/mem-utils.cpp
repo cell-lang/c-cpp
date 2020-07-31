@@ -447,10 +447,10 @@ OBJ make_slice_float(double *ptr, uint32 length) {
 OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < length ; i++)
-    assert(get_obj_type(ptr->buffer.obj[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < length ; i++)
+//     assert(get_obj_type(ptr->buffer.obj[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr->buffer.obj;
@@ -461,10 +461,10 @@ OBJ make_seq(SEQ_OBJ *ptr, uint32 length) {
 OBJ make_slice(OBJ *ptr, uint32 length) {
   assert(ptr != NULL & length > 0);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < length ; i++)
-    assert(get_obj_type(ptr[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < length ; i++)
+//     assert(get_obj_type(ptr[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -477,10 +477,10 @@ OBJ make_slice(OBJ *ptr, uint32 length) {
 OBJ make_set(SET_OBJ *ptr, uint32 size) {
   assert(ptr != NULL & size > 0);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < size ; i++)
-    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < size ; i++)
+//     assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -493,10 +493,10 @@ OBJ make_set(SET_OBJ *ptr, uint32 size) {
 OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < 2 * size ; i++)
-    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < 2 * size ; i++)
+//     assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -509,10 +509,10 @@ OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
 OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < 2 * size ; i++)
-    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < 2 * size ; i++)
+//     assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -525,10 +525,10 @@ OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
 OBJ make_tern_rel(TERN_REL_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
-#ifndef NDEBUG
-  for (int i=0 ; i < 3 * size ; i++)
-    assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
-#endif
+// #ifndef NDEBUG
+//   for (int i=0 ; i < 3 * size ; i++)
+//     assert(get_obj_type(ptr->buffer[i]) != TYPE_NOT_A_VALUE_OBJ);
+// #endif
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -917,31 +917,6 @@ void *get_ref_obj_ptr(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) int intrl_cmp_obj_arrays(OBJ *elts1, OBJ *elts2, uint32 count) {
-  for (int i=0 ; i < count ; i++) {
-    int cr = intrl_cmp(elts1[i], elts2[i]);
-    if (cr != 0)
-      return cr;
-  }
-  return 0;
-}
-
-__attribute__ ((noinline)) int intrl_cmp_ne_int_seqs(OBJ obj1, OBJ obj2) {
-  assert(read_size_field_unchecked(obj1) == read_size_field_unchecked(obj2));
-
-  uint32 len = read_size_field_unchecked(obj1);
-
-  for (uint32 i=0 ; i < len ; i++) {
-    int64 elt1 = get_int_at_unchecked(obj1, i);
-    int64 elt2 = get_int_at_unchecked(obj2, i);
-
-    if (elt1 != elt2)
-      return elt1 < elt2 ? 1 : -1;
-  }
-
-  return 0;
-}
-
 __attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
   uint64 extra_data_1 = obj1.extra_data;
   uint64 extra_data_2 = obj2.extra_data;
@@ -958,46 +933,8 @@ __attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
   if (type <= MAX_INLINE_OBJ_TYPE)
     return obj1.core_data.int_ < obj2.core_data.int_ ? 1 : (obj1.core_data.int_ == obj2.core_data.int_ ? 0 : -1);
 
-  switch (type) {
-    case TYPE_NE_INT_SEQ:
-      return intrl_cmp_ne_int_seqs(obj1, obj2);
-
-    case TYPE_NE_FLOAT_SEQ:
-      int intrl_cmp_ne_float_seq(OBJ, OBJ);
-      return intrl_cmp_ne_float_seq(obj1, obj2);
-
-    case TYPE_NE_BOOL_SEQ:
-      internal_fail();
-      // return intrl_cmp_NE_BOOL_SEQ();
-
-    case TYPE_NE_SEQ:
-      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
-
-    case TYPE_NE_SET:
-      return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
-
-    case TYPE_NE_MAP:
-      int intrl_cmp_ne_maps(OBJ obj1, OBJ obj2);
-      return intrl_cmp_ne_maps(obj1, obj2);
-
-    case TYPE_NE_BIN_REL:
-      return intrl_cmp_obj_arrays(((BIN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((BIN_REL_OBJ *) obj2.core_data.ptr)->buffer, 2 * read_size_field_unchecked(obj1));
-
-    case TYPE_NE_TERN_REL:
-      return intrl_cmp_obj_arrays(((TERN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((TERN_REL_OBJ *) obj2.core_data.ptr)->buffer, 3 * read_size_field_unchecked(obj1));
-
-    case TYPE_AD_HOC_TAG_REC: {
-      int rc = opt_repr_cmp(obj1.core_data.ptr, obj2.core_data.ptr, get_opt_repr_id(obj1));
-      assert(rc >= -1 & rc <= 1);
-      return rc;
-    }
-
-    case TYPE_BOXED_OBJ:
-      return intrl_cmp(((BOXED_OBJ *) obj1.core_data.ptr)->obj, ((BOXED_OBJ *) obj2.core_data.ptr)->obj);
-
-    default:
-      internal_fail();
-  }
+  int intrl_cmp_non_inline(OBJ_TYPE type, OBJ obj1, OBJ obj2);
+  return intrl_cmp_non_inline(type, obj1, obj2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1028,20 +965,6 @@ int shallow_cmp(OBJ obj1, OBJ obj2) {
   int res = shallow_cmp_(obj1, obj2);
   assert(res == intrl_cmp(obj1, obj2));
   return res;
-}
-
-//## REMOVE
-int comp_floats(double x, double y) {
-  uint64 n = *((uint64 *) &x);
-  uint64 m = *((uint64 *) &y);
-
-  if (n < m)
-    return 1;
-
-  if (n > m)
-    return -1;
-
-  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
