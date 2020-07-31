@@ -303,7 +303,7 @@ bool is_signed(OBJ);
 
 bool is_array_obj(OBJ);
 
-int64 intrl_cmp(OBJ, OBJ);
+int intrl_cmp(OBJ, OBJ);
 
 uint32 read_size_field_unchecked(OBJ);
 
@@ -337,7 +337,7 @@ OBJ_TYPE get_ref_obj_type(OBJ);
 void* get_ref_obj_ptr(OBJ);
 
 bool are_shallow_eq(OBJ, OBJ);
-int64 shallow_cmp(OBJ, OBJ);
+int shallow_cmp(OBJ, OBJ);
 
 int comp_floats(double, double);
 
@@ -481,7 +481,7 @@ uint32 find_objs_range(OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg
 uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len, OBJ major_arg, OBJ minor_arg, uint32 &count);
 
 int comp_objs(OBJ obj1, OBJ obj2);
-int64 cmp_objs(OBJ obj1, OBJ obj2);
+int cmp_objs(OBJ obj1, OBJ obj2);
 
 /////////////////////////////// inter-utils.cpp ////////////////////////////////
 

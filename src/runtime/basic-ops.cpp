@@ -335,7 +335,7 @@ OBJ lookup(OBJ rel, OBJ key) {
     soft_fail("Map is empty. Lookup failed");
   }
   else {
-    assert(is_array_map(rel));
+    assert(is_array_map(rel)); //## CAN'T IT JUST BE A BINARY RELATION?
 
     BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
     uint32 size = read_size_field(rel);

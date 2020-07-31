@@ -472,10 +472,10 @@ static uint32 custom_inline_sort_unique_setup_step(OBJ *ys, OBJ *zs, uint32 *siz
     OBJ elt1 = ys[iy++];
     OBJ elt2 = ys[iy++];
 
-    int64 cr01 = shallow_cmp(elt0, elt1);
+    int cr01 = shallow_cmp(elt0, elt1);
 
     if (cr01 == 0) {
-      int64 cr12 = shallow_cmp(elt1, elt2);
+      int cr12 = shallow_cmp(elt1, elt2);
 
       if (cr12 == 0) {
         // elt0 == elt1 == elt2
@@ -503,7 +503,7 @@ static uint32 custom_inline_sort_unique_setup_step(OBJ *ys, OBJ *zs, uint32 *siz
       }
 
       // elt0 < elt1
-      int64 cr12 = shallow_cmp(elt1, elt2);
+      int cr12 = shallow_cmp(elt1, elt2);
 
       if (cr12 > 0) {
         // elt0 < elt1 < elt2
@@ -513,7 +513,7 @@ static uint32 custom_inline_sort_unique_setup_step(OBJ *ys, OBJ *zs, uint32 *siz
         block_size = 3;
       }
       else if (cr12 < 0) {
-        int64 cr02 = shallow_cmp(elt0, elt2);
+        int cr02 = shallow_cmp(elt0, elt2);
 
         if (cr02 > 0) {
           // elt0 < elt2 < elt1
@@ -559,7 +559,7 @@ static uint32 custom_inline_sort_unique_setup_step(OBJ *ys, OBJ *zs, uint32 *siz
     OBJ elt0 = ys[iy++];
     OBJ elt1 = ys[iy++];
 
-    int64 cr = shallow_cmp(elt0, elt1);
+    int cr = shallow_cmp(elt0, elt1);
 
     if (cr == 0) {
       zs[iz++] = elt0;
@@ -626,7 +626,7 @@ OBJ *custom_inline_sort_unique(OBJ *zs, OBJ *ys, uint32 *sizes, uint32 size, uin
         assert(y1.core_data.int_ == ys[i1].core_data.int_ & y1.extra_data == ys[i1].extra_data);
         assert(y2.core_data.int_ == ys[i2].core_data.int_ & y2.extra_data == ys[i2].extra_data);
 
-        int64 rc = shallow_cmp(y1, y2);
+        int rc = shallow_cmp(y1, y2);
 
         if (rc > 0) { // y1 < y2
           zs[iz++] = y1;
@@ -706,7 +706,7 @@ OBJ *custom_inline_sort_unique(OBJ *zs, OBJ *ys, uint32 *sizes, uint32 size, uin
 }
 
 
-uint32 sort_unique(OBJ *objs, uint32 size) {
+uint32 sort_unique_(OBJ *objs, uint32 size) {
   OBJ obj = objs[0];
   if (is_inline_obj(obj)) {
     bool already_sorted = true;
@@ -787,6 +787,28 @@ not_all_inline_not_sorted:
 
     return unique;
   }
+}
+
+uint32 sort_unique(OBJ *objs, uint32 size) {
+  uint32 final_size = sort_unique_(objs, size);
+
+  // for (int i=0 ; i < final_size ; i++)
+  //   for (int j=i+1 ; j < final_size ; j++)
+  //     if (comp_objs(objs[i], objs[j]) != 1) {
+  //       printf("\nSorting error, size = %d, final_size = %d\n", size, final_size);
+  //       if (size == 3 & final_size == 3) {
+  //         for (int k=0 ; k < 3 ; k++)
+  //           print(objs[k]);
+  //         printf("\n");
+  //         for (int k=0 ; k < 3 ; k++)
+  //           for (int l=k+1 ; l < 3 ; l++)
+  //             printf("comp_objs(%d, %d) -> %d\n", k, l, comp_objs(objs[k], objs[l]));
+  //         exit(1);
+  //       }
+  //       return final_size;
+  //     }
+
+  return final_size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

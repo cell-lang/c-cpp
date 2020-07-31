@@ -917,16 +917,16 @@ void *get_ref_obj_ptr(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) int64 intrl_cmp_obj_arrays(OBJ *elts1, OBJ *elts2, uint32 count) {
+__attribute__ ((noinline)) int intrl_cmp_obj_arrays(OBJ *elts1, OBJ *elts2, uint32 count) {
   for (int i=0 ; i < count ; i++) {
-    int64 cr = intrl_cmp(elts1[i], elts2[i]);
+    int cr = intrl_cmp(elts1[i], elts2[i]);
     if (cr != 0)
       return cr;
   }
   return 0;
 }
 
-__attribute__ ((noinline)) int64 intrl_cmp_ne_int_seqs(OBJ obj1, OBJ obj2) {
+__attribute__ ((noinline)) int intrl_cmp_ne_int_seqs(OBJ obj1, OBJ obj2) {
   assert(read_size_field_unchecked(obj1) == read_size_field_unchecked(obj2));
 
   uint32 len = read_size_field_unchecked(obj1);
@@ -936,13 +936,13 @@ __attribute__ ((noinline)) int64 intrl_cmp_ne_int_seqs(OBJ obj1, OBJ obj2) {
     int64 elt2 = get_int_at_unchecked(obj2, i);
 
     if (elt1 != elt2)
-      return elt2 - elt1;
+      return elt1 < elt2 ? 1 : -1;
   }
 
   return 0;
 }
 
-__attribute__ ((noinline)) int64 intrl_cmp(OBJ obj1, OBJ obj2) {
+__attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
   uint64 extra_data_1 = obj1.extra_data;
   uint64 extra_data_2 = obj2.extra_data;
 
@@ -950,20 +950,20 @@ __attribute__ ((noinline)) int64 intrl_cmp(OBJ obj1, OBJ obj2) {
   uint64 log_extra_data_2 = extra_data_2 << REPR_INFO_WIDTH;
 
   if (log_extra_data_1 != log_extra_data_2)
-    return log_extra_data_2 - log_extra_data_1;
+    return log_extra_data_1 < log_extra_data_2 ? 1 : -1;
 
   OBJ_TYPE type = (OBJ_TYPE) ((log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT)) & 0x1F);
   assert(type == get_obj_type(obj1) & type == get_obj_type(obj2));
 
   if (type <= MAX_INLINE_OBJ_TYPE)
-    return obj2.core_data.int_ - obj1.core_data.int_;
+    return obj1.core_data.int_ < obj2.core_data.int_ ? 1 : (obj1.core_data.int_ == obj2.core_data.int_ ? 0 : -1);
 
   switch (type) {
     case TYPE_NE_INT_SEQ:
       return intrl_cmp_ne_int_seqs(obj1, obj2);
 
     case TYPE_NE_FLOAT_SEQ:
-      int64 intrl_cmp_ne_float_seq(OBJ, OBJ);
+      int intrl_cmp_ne_float_seq(OBJ, OBJ);
       return intrl_cmp_ne_float_seq(obj1, obj2);
 
     case TYPE_NE_BOOL_SEQ:
@@ -977,7 +977,7 @@ __attribute__ ((noinline)) int64 intrl_cmp(OBJ obj1, OBJ obj2) {
       return intrl_cmp_obj_arrays((OBJ *) obj1.core_data.ptr, (OBJ *) obj2.core_data.ptr, read_size_field_unchecked(obj1));
 
     case TYPE_NE_MAP:
-      int64 intrl_cmp_ne_maps(OBJ obj1, OBJ obj2);
+      int intrl_cmp_ne_maps(OBJ obj1, OBJ obj2);
       return intrl_cmp_ne_maps(obj1, obj2);
 
     case TYPE_NE_BIN_REL:
@@ -986,8 +986,11 @@ __attribute__ ((noinline)) int64 intrl_cmp(OBJ obj1, OBJ obj2) {
     case TYPE_NE_TERN_REL:
       return intrl_cmp_obj_arrays(((TERN_REL_OBJ *) obj1.core_data.ptr)->buffer, ((TERN_REL_OBJ *) obj2.core_data.ptr)->buffer, 3 * read_size_field_unchecked(obj1));
 
-    case TYPE_AD_HOC_TAG_REC:
-      return opt_repr_cmp(obj1.core_data.ptr, obj2.core_data.ptr, get_opt_repr_id(obj1));
+    case TYPE_AD_HOC_TAG_REC: {
+      int rc = opt_repr_cmp(obj1.core_data.ptr, obj2.core_data.ptr, get_opt_repr_id(obj1));
+      assert(rc >= -1 & rc <= 1);
+      return rc;
+    }
 
     case TYPE_BOXED_OBJ:
       return intrl_cmp(((BOXED_OBJ *) obj1.core_data.ptr)->obj, ((BOXED_OBJ *) obj2.core_data.ptr)->obj);
@@ -1003,16 +1006,28 @@ bool are_shallow_eq(OBJ obj1, OBJ obj2) {
   return obj1.core_data.int_ == obj2.core_data.int_ && obj1.extra_data == obj2.extra_data;
 }
 
-int64 shallow_cmp(OBJ obj1, OBJ obj2) {
+int shallow_cmp_(OBJ obj1, OBJ obj2) {
   assert(is_inline_obj(obj1) & is_inline_obj(obj2));
 
   uint64 extra_data_1 = obj1.extra_data;
   uint64 extra_data_2 = obj2.extra_data;
 
   if (extra_data_1 != extra_data_2)
-    return (extra_data_2 << REPR_INFO_WIDTH) - (extra_data_1 << REPR_INFO_WIDTH);
-  else
-    return obj2.core_data.int_ - obj1.core_data.int_;
+    return (extra_data_1 << REPR_INFO_WIDTH) < (extra_data_2 << REPR_INFO_WIDTH) ? 1 : -1;
+
+  uint64 core_data_1 = obj1.core_data.int_;
+  uint64 core_data_2 = obj2.core_data.int_;
+
+  if (core_data_1 != core_data_2)
+    return core_data_1 < core_data_2 ? 1 : -1;
+
+  return 0;
+}
+
+int shallow_cmp(OBJ obj1, OBJ obj2) {
+  int res = shallow_cmp_(obj1, obj2);
+  assert(res == intrl_cmp(obj1, obj2));
+  return res;
 }
 
 //## REMOVE

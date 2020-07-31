@@ -57,7 +57,7 @@ implicit prg_data : PrgData, context : <core> {
       "",
       80 * "/",
       "",
-      "int64 opt_repr_cmp(void *ptr1, void *ptr2, uint16 repr_id) {",
+      "int opt_repr_cmp(void *ptr1, void *ptr2, uint16 repr_id) {",
       "  switch (repr_id) {"
     );
 
@@ -317,7 +317,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
 
   String* cmp_def(String struct_name) {
     code = (
-      "int64 " & struct_name & "_cmp(" & struct_name & " *ptr1, " & struct_name & " *ptr2) {"
+      "int " & struct_name & "_cmp(" & struct_name & " *ptr1, " & struct_name & " *ptr2) {"
     );
 
     if opt_labels != [] {
@@ -334,7 +334,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
         "  int opt_count_1 = " & append(opt_fields_bits_1, " + ") & ";",
         "  int opt_count_2 = " & append(opt_fields_bits_2, " + ") & ";",
         "  if (opt_count_1 != opt_count_2)",
-        "    return opt_count_2 - opt_count_1;"
+        "    return opt_count_1 < opt_count_2 ? 1 : -1;"
       );
     }
 
@@ -354,7 +354,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
                       "    return comp_floats(ptr1->" & var_name & ", ptr2->" & var_name & ");"
                     ),
         symbol    |
-        object    = ( "  int64 cr" & _print_(i) & " = cmp_objs(ptr1->" & var_name & ", ptr2->" & var_name & ");",
+        object    = ( "  int cr" & _print_(i) & " = cmp_objs(ptr1->" & var_name & ", ptr2->" & var_name & ");",
                       "  if (cr" & _print_(i) & " != 0)",
                       "    return cr" & _print_(i) & ";"
                     ),

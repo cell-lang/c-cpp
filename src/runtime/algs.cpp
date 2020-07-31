@@ -27,7 +27,7 @@ uint32 find_obj(OBJ *sorted_array, uint32 len, OBJ obj, bool &found) {
       //   int64 middle_idx = (low_idx + high_idx) / 2;
       //   OBJ middle_obj = sorted_array[middle_idx];
 
-      //   int64 cr = shallow_cmp(obj, middle_obj);
+      //   int cr = shallow_cmp(obj, middle_obj);
 
       //   if (cr == 0) {
       //     found = true;

@@ -11,4 +11,4 @@ uint16 *opt_repr_get_fields(uint16 repr_id, uint32 &count);
 OBJ     opt_repr(OBJ tag, OBJ value);
 
 void   *opt_repr_copy(void *ptr, uint16 repr_id);
-int64   opt_repr_cmp(void *ptr1, void *ptr2, uint16 repr_id);
+int     opt_repr_cmp(void *ptr1, void *ptr2, uint16 repr_id);
