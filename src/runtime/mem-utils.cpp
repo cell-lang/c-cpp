@@ -933,8 +933,11 @@ __attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
   if (type <= MAX_INLINE_OBJ_TYPE)
     return obj1.core_data.int_ < obj2.core_data.int_ ? 1 : (obj1.core_data.int_ == obj2.core_data.int_ ? 0 : -1);
 
-  int intrl_cmp_non_inline(OBJ_TYPE type, OBJ obj1, OBJ obj2);
-  return intrl_cmp_non_inline(type, obj1, obj2);
+  extern int (*intrl_cmp_disp_table[])(OBJ, OBJ);
+  return intrl_cmp_disp_table[type - MAX_INLINE_OBJ_TYPE - 1](obj1, obj2);
+
+  // int intrl_cmp_non_inline(OBJ_TYPE type, OBJ obj1, OBJ obj2);
+  // return intrl_cmp_non_inline(type, obj1, obj2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
