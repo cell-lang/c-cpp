@@ -13,22 +13,6 @@ inline int sign(int value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// obj1 < obj2  ->  1
-// obj1 = obj2  ->  0
-// obj1 > obj2  -> -1
-
-__attribute__ ((noinline)) int comp_objs(OBJ obj1, OBJ obj2) {
-  int cr = intrl_cmp(obj1, obj2);
-  assert(cr >= -1 & cr <= 1);
-  return cr;
-}
-
-
-// Used by comparison of ad-hoc records or tagged records
-__attribute__ ((noinline)) int cmp_objs(OBJ obj1, OBJ obj2) {
-  return intrl_cmp(obj1, obj2);
-}
-
 //## REMOVE
 int comp_floats(double x, double y) {
   uint64 n = *((uint64 *) &x);

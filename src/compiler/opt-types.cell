@@ -354,7 +354,7 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
                       "    return comp_floats(ptr1->" & var_name & ", ptr2->" & var_name & ");"
                     ),
         symbol    |
-        object    = ( "  int cr" & _print_(i) & " = cmp_objs(ptr1->" & var_name & ", ptr2->" & var_name & ");",
+        object    = ( "  int cr" & _print_(i) & " = intrl_cmp_ad_hoc_type_fields(ptr1->" & var_name & ", ptr2->" & var_name & ");",
                       "  if (cr" & _print_(i) & " != 0)",
                       "    return cr" & _print_(i) & ";"
                     ),
