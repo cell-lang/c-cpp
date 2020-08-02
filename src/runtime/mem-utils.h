@@ -778,10 +778,6 @@ inline int intrl_cmp_ad_hoc_type_fields(OBJ obj1, OBJ obj2) {
   return intrl_cmp(obj1, obj2);
 }
 
-inline int cmp_objs(OBJ obj1, OBJ obj2) {
-  return intrl_cmp(obj1, obj2);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool are_shallow_eq(OBJ obj1, OBJ obj2) {

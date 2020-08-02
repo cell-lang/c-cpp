@@ -14,7 +14,7 @@ implicit context : NativeContext {
 
 
   String native_expr(ObjNatOp expr) =
-    at()                = "at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
+    at()                = "get_obj_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
     array_at()          = "array_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")",
     lookup()            = "lookup(" & native_expr(expr.rel) & ", " & native_expr(expr.key) & ")",
     lookup_field()      = native_lookup_field_expr(expr.record, expr.field, expr.repr),
@@ -101,7 +101,7 @@ implicit context : NativeContext {
 
       is_out_of_range(v?)   = "is_out_of_range(" & native_var_ref_name(v) & ")",
 
-      is_blank(v?)          = "is_blank_obj(" & native_var_ref_name(v) & ")",
+      is_blank(v?)          = "is_blank(" & native_var_ref_name(v) & ")",
       is_null(v?)           = "is_null_obj(" & native_var_ref_name(v) & ")",
 
       has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_id_name(expr.field) & ")",

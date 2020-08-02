@@ -204,7 +204,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
     code = ();
     for fn_id <- isort(lookup(prg_data.cached_semi_consts_by_impl_arg, arg, [])) {
       cache_var_name = memo_var_name(fn_id);
-      code = (code | "env." & cache_var_name & " = make_null_obj();"); ## make_blank_obj()?
+      code = (code | "env." & cache_var_name & " = make_blank_obj();");
     }
     return code;
   }

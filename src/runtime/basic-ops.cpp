@@ -253,12 +253,6 @@ int64 unique_nat() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//## REMOVE WHEN DONE
-OBJ at(OBJ seq, int64 idx) {
-  OBJ get_obj_at(OBJ seq, int64 idx);
-  return get_obj_at(seq, idx);
-}
-
 OBJ get_curr_obj(SEQ_ITER &it) {
   assert(!is_out_of_range(it));
   return get_obj_at(it.seq, it.idx);

@@ -658,16 +658,3 @@ void switch_to_twin_stacks_allocator();
 #include "instrs.h"
 #include "extern.h"
 #include "mem-utils.h"
-
-
-inline OBJ make_null_obj() {
-  return make_blank_obj();
-}
-
-inline bool is_blank_obj(OBJ obj) {
-  return is_blank(obj);
-}
-
-inline bool is_null_obj(OBJ obj) {
-  return is_blank(obj);
-}

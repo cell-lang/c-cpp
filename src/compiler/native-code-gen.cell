@@ -491,7 +491,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
           "",
           "",
           visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
-          "  if (is_null_obj(" & cache_var_name & "))",
+          "  if (is_blank(" & cache_var_name & "))",
           "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
           "  return " & cache_var_name & ";",
           "}"
