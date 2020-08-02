@@ -166,6 +166,17 @@ OBJ build_map(STREAM &key_stream, STREAM &value_stream) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+OBJ build_record(uint16 *labels, OBJ *values, int32 count) {
+  OBJ buffer[1024];
+  if (count > 1024)
+    impl_fail("Record with more than 1024 fields");
+  for (int i=0 ; i < count ; i++)
+    buffer[i] = make_symb(labels[i]);
+  return build_map(buffer, values, count);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 void get_bin_rel_null_iter(BIN_REL_ITER &it) {

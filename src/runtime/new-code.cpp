@@ -1,15 +1,6 @@
 #include "lib.h"
 
 
-OBJ make_tag_int(uint16 tag, int64 value) {
-  return make_tag_obj(tag, make_int(value));
-}
-
-int64 get_inner_long(OBJ obj) {
-  return get_int(get_inner_obj(obj));
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 int32 cast_int32(int64 val64) {
   int32 val32 = (int32) val64;
@@ -66,15 +57,4 @@ bool is_ne_float_seq(OBJ obj) {
       return false;
 
   return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-OBJ build_record(uint16 *labels, OBJ *values, int32 count) {
-  OBJ buffer[1024];
-  if (count > 1024)
-    impl_fail("Record with more than 1024 fields");
-  for (int i=0 ; i < count ; i++)
-    buffer[i] = make_symb(labels[i]);
-  return build_map(buffer, values, count);
 }

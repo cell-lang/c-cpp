@@ -448,6 +448,24 @@ inline OBJ make_tern_rel(TERN_REL_OBJ *ptr, uint32 size) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+inline OBJ make_tag_int(uint16 tag_id, int64 value) {
+  OBJ obj;
+  obj.core_data.int_ = value;
+  obj.extra_data = INTEGER_MASK | MAKE_TAG(tag_id) | MAKE_TAGS_COUNT(1);
+  assert(get_tag_id(obj) == tag_id);
+  assert(get_int(get_inner_obj(obj)) == value);
+  assert(get_inner_long(obj) == value);
+  return obj;
+}
+
+inline int64 get_inner_long(OBJ obj) {
+  assert(get_obj_type(obj) == TYPE_INTEGER);
+  assert(get_tags_count(obj) == 1);
+  return obj.core_data.int_;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 inline OBJ make_opt_tag_rec(void *ptr, uint16 repr_id) {
   OBJ obj;
   obj.core_data.ptr = ptr;
