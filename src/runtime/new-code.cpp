@@ -19,20 +19,6 @@ OBJ set_key_value(OBJ map, OBJ key, OBJ value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double float_pow(double base, double exp) {
-  return pow(base, exp);
-}
-
-double float_sqrt(double x) {
-  return sqrt(x);
-}
-
-int64 float_round(double x) {
-  return (int64) x;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool is_ne_int_seq(OBJ obj) {
   if (!is_ne_seq(obj))
     return false;

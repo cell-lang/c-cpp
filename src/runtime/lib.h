@@ -658,3 +658,4 @@ void switch_to_twin_stacks_allocator();
 #include "instrs.h"
 #include "extern.h"
 #include "mem-utils.h"
+#include "basic-ops.h"

@@ -1,11 +1,6 @@
 #include "lib.h"
 
 
-bool inline_eq(OBJ obj1, OBJ obj2) {
-  assert(is_inline_obj(obj2));
-  return are_shallow_eq(obj1, obj2);
-}
-
 bool are_eq(OBJ obj1, OBJ obj2) {
   if (are_shallow_eq(obj1, obj2))
     return true;
@@ -14,22 +9,6 @@ bool are_eq(OBJ obj1, OBJ obj2) {
     return false;
 
   return intrl_cmp(obj1, obj2) == 0;
-}
-
-bool is_out_of_range(SET_ITER &it) {
-  return it.idx >= it.size;
-}
-
-bool is_out_of_range(SEQ_ITER &it) {
-  return it.idx >= it.len;
-}
-
-bool is_out_of_range(BIN_REL_ITER &it) {
-  return it.idx >= it.end;
-}
-
-bool is_out_of_range(TERN_REL_ITER &it) {
-  return it.idx >= it.end;
 }
 
 bool contains(OBJ set, OBJ elem) {
@@ -225,42 +204,6 @@ bool has_field(OBJ rec_or_tag_rec, uint16 field_id) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-uint32 get_size(OBJ coll) {
-  assert(is_seq(coll) | is_set(coll) | is_bin_rel(coll) | is_tern_rel(coll));
-
-  if (is_opt_rec(coll))
-    return opt_repr_get_fields_count(get_opt_repr_ptr(coll), get_opt_repr_id(coll));
-
-  return read_size_field(coll);
-}
-
-int64 float_bits(OBJ obj) {
-  double x = get_float(obj);
-  return *((int64 *) &x);
-}
-
-int64 rand_nat(int64 max) {
-  assert(max > 0);
-  return rand() % max; //## BUG: THE FUNCTION rand() ONLY GENERATES A LIMITED RANGE OF INTEGERS
-}
-
-int64 unique_nat() {
-  static int64 next_val = 0;
-  return next_val++;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-OBJ get_curr_obj(SEQ_ITER &it) {
-  assert(!is_out_of_range(it));
-  return get_obj_at(it.seq, it.idx);
-}
-
-OBJ get_curr_obj(SET_ITER &it) {
-  assert(!is_out_of_range(it));
-  return it.buffer[it.idx];
-}
 
 OBJ get_curr_left_arg(BIN_REL_ITER &it) {
   assert(!is_out_of_range(it));
