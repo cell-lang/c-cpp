@@ -655,9 +655,9 @@ void switch_to_twin_stacks_allocator();
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "inline-seqs.h"
+#include "instrs.h"
 #include "extern.h"
 #include "mem-utils.h"
-
 
 
 inline OBJ make_null_obj() {

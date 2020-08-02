@@ -8,25 +8,31 @@ void init(STREAM &s) {
   s.count = 0;
 }
 
-void append(STREAM &s, OBJ obj) { // obj must be already reference-counted
-  assert(s.count <= s.capacity);
-
+void increase_stream_capacity(STREAM &s) {
   uint32 count = s.count;
   uint32 capacity = s.capacity;
   OBJ *buffer = s.buffer;
+  uint32 new_capacity = capacity == 0 ? 32 : 2 * capacity;
+  OBJ *new_buffer = new_obj_array(new_capacity);
+  for (uint32 i=0 ; i < count ; i++)
+    new_buffer[i] = buffer[i];
+  s.buffer = new_buffer;
+  s.capacity = new_capacity;
 
-  if (count == capacity) {
-    uint32 new_capacity = capacity == 0 ? 32 : 2 * capacity;
-    OBJ *new_buffer = new_obj_array(new_capacity);
-    for (uint32 i=0 ; i < count ; i++)
-      new_buffer[i] = buffer[i];
-    s.buffer = new_buffer;
-    s.capacity = new_capacity;
-  }
-
-  s.buffer[count] = obj;
-  s.count++;
 }
+
+// void append(STREAM &s, OBJ obj) {
+//   assert(s.count <= s.capacity);
+
+//   uint32 count = s.count;
+//   OBJ *buffer = s.buffer;
+
+//   if (count == s.capacity)
+//     increase_stream_capacity(s);
+
+//   s.buffer[count] = obj;
+//   s.count++;
+// }
 
 inline OBJ make_raw_set(OBJ *elts, uint32 size) {
   return make_set((SET_OBJ *) elts, size);
