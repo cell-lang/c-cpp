@@ -1,6 +1,4 @@
 #include "lib.h"
-#include "extern.h"
-
 
 
 bool index_has_been_build(BIN_REL_OBJ *rel, uint32 size) {

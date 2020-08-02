@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 // The array mustn't contain duplicates

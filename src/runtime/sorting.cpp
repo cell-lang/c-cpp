@@ -1,7 +1,6 @@
 #include "lib.h"
 
 
-
 uint32 *stable_sort_obj_index(uint32 *ys, uint32 *zs, uint32 size, OBJ *objs) {
   int sort_len = 1;
   while (sort_len < size) {

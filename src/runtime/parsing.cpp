@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 enum TOKEN_TYPE {

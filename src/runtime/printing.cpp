@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 bool is_str(uint16 tag_id, OBJ obj) {

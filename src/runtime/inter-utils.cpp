@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 int64 from_utf8(const char *input, int32 *output) {

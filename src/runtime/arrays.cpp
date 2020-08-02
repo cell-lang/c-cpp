@@ -1,7 +1,6 @@
 #include "lib.h"
 
 
-
 static uint32 next_array_size(uint32 curr_size, uint32 min_size) {
   uint32 new_size = curr_size != 0 ? 2 * curr_size : 32;
   while (new_size < min_size)

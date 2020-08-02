@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 bool inline_eq(OBJ obj1, OBJ obj2) {

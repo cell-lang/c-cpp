@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 void copy_objs(OBJ *dest, OBJ *src, uint32 count) {

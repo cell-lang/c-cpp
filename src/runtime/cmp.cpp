@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 inline int sign(int value) {

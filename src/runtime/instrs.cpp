@@ -1,5 +1,4 @@
 #include "lib.h"
-#include "extern.h"
 
 
 void init(STREAM &s) {

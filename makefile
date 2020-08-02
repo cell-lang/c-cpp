@@ -35,6 +35,14 @@ update-cellcp:
 	@rm -f cellcp
 	g++ -pg -O -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcp
 
+update-cellc-inline:
+	@rm -f cellc
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp -o cellc
+
+update-cellcr-inline:
+	@rm -f cellcr
+	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp -o cellcr
+
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
 	cellc-cs project/codegen.txt tmp/codegen.net/
