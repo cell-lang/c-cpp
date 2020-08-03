@@ -1,18 +1,19 @@
 #include "lib.h"
 
 
-OBJ get_obj_at(OBJ seq, int64 idx) {
-  assert(is_seq(seq));
+// OBJ get_obj_at(OBJ seq, int64 idx) {
+//   assert(is_seq(seq));
 
-  if (((uint64) idx) >= read_size_field(seq))
-    soft_fail("Invalid sequence index");
+//   if (((uint64) idx) >= read_size_field(seq))
+//     soft_fail("Invalid sequence index");
 
-  OBJ_TYPE type = get_obj_type(seq);
+//   OBJ_TYPE type = get_obj_type(seq);
 
-  if (type == TYPE_NE_SEQ)
-    return get_seq_elts_ptr(seq)[idx];
+//   if (type == TYPE_NE_SEQ)
+//     return get_seq_elts_ptr(seq)[idx];
 
-  switch (type) {
+OBJ get_as_obj_at(OBJ seq, uint32 idx) {
+  switch (get_obj_type(seq)) {
     case TYPE_NE_SEQ_UINT8_INLINE:
       return make_int(inline_uint8_at(seq.core_data.int_, idx));
 

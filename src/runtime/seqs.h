@@ -1,3 +1,21 @@
+inline OBJ get_obj_at(OBJ seq, int64 idx) {
+  OBJ get_as_obj_at(OBJ seq, uint32 idx);
+
+  assert(is_seq(seq));
+
+  if (((uint64) idx) >= read_size_field(seq))
+    soft_fail("Invalid sequence index");
+
+  OBJ_TYPE type = get_obj_type(seq);
+
+  if (type == TYPE_NE_SEQ)
+    return get_seq_elts_ptr(seq)[idx];
+  else
+    return get_as_obj_at(seq, idx);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 inline uint8 inline_uint8_at(uint64 packed_elts, uint32 idx) {
   return (packed_elts >> (8 * idx)) & 0xFF;
 }
