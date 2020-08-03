@@ -9,12 +9,12 @@ const uint32 SEQ_BUFFER_FIELD_OFFSET = offsetof(SEQ_OBJ, buffer);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const int TYPE_SHIFT              = 52;
-const int TAGS_COUNT_SHIFT        = 57;
+const int TAGS_COUNT_SHIFT        = 52;
+const int TYPE_SHIFT              = 54;
 const int REPR_INFO_SHIFT         = 59;
 
-const int TYPE_WIDTH              = 5;
 const int TAGS_COUNT_WIDTH        = 2;
+const int TYPE_WIDTH              = 5;
 const int REPR_INFO_WIDTH         = 5;
 
 const int SYMB_IDX_SHIFT          = 0;
@@ -28,8 +28,8 @@ const int LENGTH_WIDTH            = 32;
 const int AD_HOC_REPR_ID_WIDTH    = 16;
 const int TAG_WIDTH               = 16;
 
-const uint64 TYPE_MASK            = MASK(TYPE_SHIFT, TYPE_WIDTH);
 const uint64 TAGS_COUNT_MASK      = MASK(TAGS_COUNT_SHIFT, TAGS_COUNT_WIDTH);
+const uint64 TYPE_MASK            = MASK(TYPE_SHIFT, TYPE_WIDTH);
 
 const uint64 SYMB_IDX_MASK        = MASK(SYMB_IDX_SHIFT, SYMB_IDX_WIDTH);
 const uint64 LENGTH_MASK          = MASK(LENGTH_SHIFT, LENGTH_WIDTH);
@@ -112,6 +112,18 @@ const uint64 NE_TERN_REL_BASE_MASK          = MAKE_TYPE(TYPE_NE_TERN_REL);
 const uint64 AD_HOC_TAG_REC_BASE_MASK       = MAKE_TYPE(TYPE_AD_HOC_TAG_REC);
 const uint64 BOXED_OBJ_BASE_MASK            = MAKE_TYPE(TYPE_BOXED_OBJ);
 
+const uint64 EX_TYPE_SYMBOL               = TYPE_SYMBOL              << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_EMPTY_REL            = TYPE_EMPTY_REL           << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_EMPTY_SEQ            = TYPE_EMPTY_SEQ           << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_NE_SET               = TYPE_NE_SET              << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_NE_MAP               = TYPE_NE_MAP              << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_NE_BIN_REL           = TYPE_NE_BIN_REL          << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_NE_TERN_REL          = TYPE_NE_TERN_REL         << TAGS_COUNT_WIDTH;
+const uint64 EX_TYPE_AD_HOC_TAG_REC       = TYPE_AD_HOC_TAG_REC      << TAGS_COUNT_WIDTH;
+
+const uint64 EX_NE_SEQ_TYPE_RANGE_START  = NE_SEQ_TYPE_RANGE_START   << TAGS_COUNT_WIDTH;
+const uint64 EX_NE_SEQ_TYPE_RANGE_END    = NE_SEQ_TYPE_RANGE_END     << TAGS_COUNT_WIDTH;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -124,7 +136,7 @@ inline uint32 get_tags_count(OBJ obj) {
 }
 
 inline uint32 get_ex_type(OBJ obj) {
-  return GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH + TAGS_COUNT_WIDTH);
+  return GET(obj.extra_data, TAGS_COUNT_SHIFT, TYPE_WIDTH + TAGS_COUNT_WIDTH);
 }
 
 inline uint32 get_phys_repr_info(OBJ obj) {
@@ -648,8 +660,8 @@ inline bool is_blank(OBJ obj) {
 }
 
 inline bool is_symb(OBJ obj) {
-  assert((get_ex_type(obj) == TYPE_SYMBOL) == (get_tags_count(obj) == 0 & get_obj_type(obj) == TYPE_SYMBOL));
-  return get_ex_type(obj) == TYPE_SYMBOL;
+  assert((get_ex_type(obj) == EX_TYPE_SYMBOL) == (get_tags_count(obj) == 0 & get_obj_type(obj) == TYPE_SYMBOL));
+  return get_ex_type(obj) == EX_TYPE_SYMBOL;
 }
 
 inline bool is_bool(OBJ obj) {
@@ -667,7 +679,7 @@ inline bool is_float(OBJ obj) {
 
 inline bool is_seq(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type >= TYPE_EMPTY_SEQ & ex_type <= NE_SEQ_TYPE_RANGE_END;
+  return ex_type >= EX_TYPE_EMPTY_SEQ & ex_type <= EX_NE_SEQ_TYPE_RANGE_END;
 }
 
 inline bool is_empty_seq(OBJ obj) {
@@ -676,7 +688,7 @@ inline bool is_empty_seq(OBJ obj) {
 
 inline bool is_ne_seq(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type >= NE_SEQ_TYPE_RANGE_START & ex_type <= NE_SEQ_TYPE_RANGE_END;
+  return ex_type >= EX_NE_SEQ_TYPE_RANGE_START & ex_type <= EX_NE_SEQ_TYPE_RANGE_END;
 }
 
 inline bool is_empty_rel(OBJ obj) {
@@ -684,43 +696,43 @@ inline bool is_empty_rel(OBJ obj) {
 }
 
 inline bool is_ne_set(OBJ obj) {
-  assert((get_ex_type(obj) == TYPE_NE_SET) == ((get_obj_type(obj) == TYPE_NE_SET) & get_tags_count(obj) == 0));
-  return get_ex_type(obj) == TYPE_NE_SET;
+  assert((get_ex_type(obj) == EX_TYPE_NE_SET) == ((get_obj_type(obj) == TYPE_NE_SET) & get_tags_count(obj) == 0));
+  return get_ex_type(obj) == EX_TYPE_NE_SET;
 }
 
 inline bool is_set(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_NE_SET | ex_type == TYPE_EMPTY_REL;
+  return ex_type == EX_TYPE_NE_SET | ex_type == EX_TYPE_EMPTY_REL;
 }
 
 inline bool is_ne_bin_rel(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_NE_MAP | ex_type == TYPE_NE_BIN_REL;
+  return ex_type == EX_TYPE_NE_MAP | ex_type == EX_TYPE_NE_BIN_REL;
 }
 
 inline bool is_ne_map(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_NE_MAP;
+  return ex_type == EX_TYPE_NE_MAP;
 }
 
 inline bool is_bin_rel(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_EMPTY_REL | ex_type == TYPE_NE_MAP | ex_type == TYPE_NE_BIN_REL;
+  return ex_type == EX_TYPE_EMPTY_REL | ex_type == EX_TYPE_NE_MAP | ex_type == EX_TYPE_NE_BIN_REL;
 }
 
 inline bool is_ne_tern_rel(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_NE_TERN_REL;
+  return ex_type == EX_TYPE_NE_TERN_REL;
 }
 
 inline bool is_tern_rel(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_EMPTY_REL | ex_type == TYPE_NE_TERN_REL;
+  return ex_type == EX_TYPE_EMPTY_REL | ex_type == EX_TYPE_NE_TERN_REL;
 }
 
 inline bool is_tag_obj(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return ex_type == TYPE_AD_HOC_TAG_REC | ex_type > MAX_OBJ_TYPE;
+  return get_obj_type(obj) == TYPE_AD_HOC_TAG_REC | get_tags_count(obj) != 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -736,13 +748,13 @@ inline bool is_int(OBJ obj, int64 n) {
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool is_opt_rec(OBJ obj) {
-  return get_ex_type(obj) == TYPE_NE_MAP && get_map_type(obj) == AD_HOC_RECORD_TAG;
+  return get_ex_type(obj) == EX_TYPE_NE_MAP && get_map_type(obj) == AD_HOC_RECORD_TAG;
 }
 
 inline bool is_opt_rec_or_tag_rec(OBJ obj) {
   uint32 ex_type = get_ex_type(obj);
-  return (get_ex_type(obj) == TYPE_NE_MAP && get_map_type(obj) == AD_HOC_RECORD_TAG) |
-         ex_type == TYPE_AD_HOC_TAG_REC;
+  return (ex_type == EX_TYPE_NE_MAP && get_map_type(obj) == AD_HOC_RECORD_TAG) |
+         ex_type == EX_TYPE_AD_HOC_TAG_REC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -769,7 +781,7 @@ inline void *get_ref_obj_ptr(OBJ obj) {
 // obj1 = obj2  ->  0
 // obj1 > obj2  -> -1
 
-inline int comp_objs(OBJ obj1, OBJ obj2) {
+inline int comp_objs_(OBJ obj1, OBJ obj2) {
   uint64 extra_data_1 = obj1.extra_data;
   uint64 extra_data_2 = obj2.extra_data;
 
@@ -779,17 +791,27 @@ inline int comp_objs(OBJ obj1, OBJ obj2) {
   if (log_extra_data_1 != log_extra_data_2)
     return log_extra_data_1 < log_extra_data_2 ? 1 : -1;
 
-  OBJ_TYPE type = (OBJ_TYPE) ((log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT)) & 0x1F);
+  OBJ_TYPE type = (OBJ_TYPE) (log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT));
   assert(type == get_obj_type(obj1) & type == get_obj_type(obj2));
 
-  if (type <= MAX_INLINE_OBJ_TYPE)
-    return obj1.core_data.int_ < obj2.core_data.int_ ? 1 : (obj1.core_data.int_ == obj2.core_data.int_ ? 0 : -1);
+  if (type <= MAX_INLINE_OBJ_TYPE) {
+    int64 core_data_1 = obj1.core_data.int_;
+    int64 core_data_2 = obj2.core_data.int_;
+    return core_data_1 < core_data_2 ? 1 : (core_data_1 == core_data_2 ? 0 : -1);
+  }
 
   extern int (*intrl_cmp_disp_table[])(OBJ, OBJ);
   return intrl_cmp_disp_table[type - MAX_INLINE_OBJ_TYPE - 1](obj1, obj2);
 
   // int intrl_cmp_non_inline(OBJ_TYPE type, OBJ obj1, OBJ obj2);
   // return intrl_cmp_non_inline(type, obj1, obj2);
+}
+
+inline int comp_objs(OBJ obj1, OBJ obj2) {
+  int cr = comp_objs_(obj1, obj2);
+  assert(!(is_inline_obj(obj1) & !is_inline_obj(obj2)) || cr == 1);
+  assert(!(!is_inline_obj(obj1) & is_inline_obj(obj2)) || cr == -1);
+  return cr;
 }
 
 inline int intrl_cmp_ad_hoc_type_fields(OBJ obj1, OBJ obj2) {
@@ -811,8 +833,8 @@ inline int shallow_cmp_(OBJ obj1, OBJ obj2) {
   if (extra_data_1 != extra_data_2)
     return (extra_data_1 << REPR_INFO_WIDTH) < (extra_data_2 << REPR_INFO_WIDTH) ? 1 : -1;
 
-  uint64 core_data_1 = obj1.core_data.int_;
-  uint64 core_data_2 = obj2.core_data.int_;
+  int64 core_data_1 = obj1.core_data.int_;
+  int64 core_data_2 = obj2.core_data.int_;
 
   if (core_data_1 != core_data_2)
     return core_data_1 < core_data_2 ? 1 : -1;

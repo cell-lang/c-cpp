@@ -84,11 +84,14 @@ __attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
   if (log_extra_data_1 != log_extra_data_2)
     return log_extra_data_1 < log_extra_data_2 ? 1 : -1;
 
-  OBJ_TYPE type = (OBJ_TYPE) ((log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT)) & 0x1F);
+  OBJ_TYPE type = (OBJ_TYPE) (log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT));
   assert(type == get_obj_type(obj1) & type == get_obj_type(obj2));
 
-  if (type <= MAX_INLINE_OBJ_TYPE)
-    return obj1.core_data.int_ < obj2.core_data.int_ ? 1 : (obj1.core_data.int_ == obj2.core_data.int_ ? 0 : -1);
+  if (type <= MAX_INLINE_OBJ_TYPE) {
+    int64 core_data_1 = obj1.core_data.int_;
+    int64 core_data_2 = obj2.core_data.int_;
+    return core_data_1 < core_data_2 ? 1 : (core_data_1 == core_data_2 ? 0 : -1);
+  }
 
   extern int (*intrl_cmp_disp_table[])(OBJ, OBJ);
   return intrl_cmp_disp_table[type - MAX_INLINE_OBJ_TYPE - 1](obj1, obj2);
@@ -114,7 +117,7 @@ void append_bits(uint64 word, int leftmost, int count, char *str) {
 }
 
 void print_ref(OBJ obj) {
-  static int frags[] = {5, 2, 5, 4, 16, 16, 16};
+  static int frags[] = {5, 5, 2, 4, 16, 16, 16};
   static const char *type_names[] = {
     "TYPE_NOT_A_VALUE_OBJ",
     "TYPE_SYMBOL",
