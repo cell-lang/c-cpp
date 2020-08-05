@@ -1,16 +1,6 @@
 #include "lib.h"
 
 
-bool are_eq(OBJ obj1, OBJ obj2) {
-  if (are_shallow_eq(obj1, obj2))
-    return true;
-
-  if (is_inline_obj(obj1) | is_inline_obj(obj2))
-    return false;
-
-  return intrl_cmp(obj1, obj2) == 0;
-}
-
 bool contains(OBJ set, OBJ elem) {
   if (is_empty_rel(set))
     return false;

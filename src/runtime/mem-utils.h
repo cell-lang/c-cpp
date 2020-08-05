@@ -815,6 +815,35 @@ inline int intrl_cmp_ad_hoc_type_fields(OBJ obj1, OBJ obj2) {
   return intrl_cmp(obj1, obj2);
 }
 
+inline bool are_eq_(OBJ obj1, OBJ obj2) {
+  uint64 extra_data_1 = obj1.extra_data;
+  uint64 extra_data_2 = obj2.extra_data;
+
+  uint64 log_extra_data_1 = extra_data_1 << REPR_INFO_WIDTH;
+  uint64 log_extra_data_2 = extra_data_2 << REPR_INFO_WIDTH;
+
+  if (log_extra_data_1 != log_extra_data_2)
+    return false;
+
+  if (obj1.core_data.int_ == obj2.core_data.int_)
+    return true;
+
+  OBJ_TYPE type = (OBJ_TYPE) (log_extra_data_1 >> (REPR_INFO_WIDTH + TYPE_SHIFT));
+  assert(type == get_obj_type(obj1) & type == get_obj_type(obj2));
+
+  if (type <= MAX_INLINE_OBJ_TYPE)
+    return false;
+
+  extern int (*intrl_cmp_disp_table[])(OBJ, OBJ);
+  return intrl_cmp_disp_table[type - MAX_INLINE_OBJ_TYPE - 1](obj1, obj2) == 0;
+}
+
+inline bool are_eq(OBJ obj1, OBJ obj2) {
+  bool res = are_eq_(obj1, obj2);
+  assert(res == (intrl_cmp(obj1, obj2) == 0));
+  return res;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool are_shallow_eq(OBJ obj1, OBJ obj2) {
