@@ -121,9 +121,6 @@ const uint64 EX_TYPE_NE_BIN_REL           = TYPE_NE_BIN_REL          << TAGS_COU
 const uint64 EX_TYPE_NE_TERN_REL          = TYPE_NE_TERN_REL         << TAGS_COUNT_WIDTH;
 const uint64 EX_TYPE_AD_HOC_TAG_REC       = TYPE_AD_HOC_TAG_REC      << TAGS_COUNT_WIDTH;
 
-const uint64 EX_NE_SEQ_TYPE_RANGE_START  = NE_SEQ_TYPE_RANGE_START   << TAGS_COUNT_WIDTH;
-const uint64 EX_NE_SEQ_TYPE_RANGE_END    = NE_SEQ_TYPE_RANGE_END     << TAGS_COUNT_WIDTH;
-
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -678,8 +675,8 @@ inline bool is_float(OBJ obj) {
 }
 
 inline bool is_seq(OBJ obj) {
-  uint32 ex_type = get_ex_type(obj);
-  return ex_type >= EX_TYPE_EMPTY_SEQ & ex_type <= EX_NE_SEQ_TYPE_RANGE_END;
+  uint32 type = get_obj_type(obj);
+  return type >= TYPE_EMPTY_SEQ & type <= NE_SEQ_TYPE_RANGE_END & get_tags_count(obj) == 0;
 }
 
 inline bool is_empty_seq(OBJ obj) {
@@ -687,8 +684,8 @@ inline bool is_empty_seq(OBJ obj) {
 }
 
 inline bool is_ne_seq(OBJ obj) {
-  uint32 ex_type = get_ex_type(obj);
-  return ex_type >= EX_NE_SEQ_TYPE_RANGE_START & ex_type <= EX_NE_SEQ_TYPE_RANGE_END;
+  uint32 type = get_obj_type(obj);
+  return type >= NE_SEQ_TYPE_RANGE_START & type <= NE_SEQ_TYPE_RANGE_END & get_tags_count(obj) == 0;
 }
 
 inline bool is_empty_rel(OBJ obj) {

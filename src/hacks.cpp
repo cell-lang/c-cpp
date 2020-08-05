@@ -121,7 +121,7 @@ OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV &env) {
   if (!is_inline_obj(obj_V)) {
     void *ptr = obj_V.core_data.ptr;
     VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
-    assert(entry == NULL || are_eq(entry->obj, data_V));
+    // assert(entry == NULL || are_eq(entry->obj, data_V)); //## NOT ALWAYS TRUE
     if (entry == NULL) {
       void_ptr_obj_hashtable_insert(&attachments, ptr, data_V);
       VOID_PTR_OBJ_HASHTABLE_ENTRY *curr_entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);

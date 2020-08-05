@@ -169,7 +169,6 @@ void *alloc_static_block(uint32 byte_size);
 void *release_static_block(void *ptr, uint32 byte_size);
 
 void* new_obj(uint32 byte_size);
-void* new_raw_mem(uint32 byte_size);
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
 

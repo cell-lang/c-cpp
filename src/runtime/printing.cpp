@@ -616,6 +616,13 @@ uint32 printed_obj(OBJ obj, char *buffer, uint32 max_size) {
   return len + 1;
 }
 
+void write_to_mem(void *ptr, const char *text, uint32 len) {
+  char **write_ptr_var = (char **) ptr;
+  char *write_ptr = *write_ptr_var;
+  memcpy(write_ptr, text, len * sizeof(char));
+  *write_ptr_var = write_ptr + len;
+}
+
 char *printed_obj(OBJ obj, char *alloc_buffer(void *, uint32), void *data) {
   PRINT_BUFFER pb;
 
@@ -625,8 +632,12 @@ char *printed_obj(OBJ obj, char *alloc_buffer(void *, uint32), void *data) {
   uint32 len = 0;
   emit_known(&pb, calc_length, &len);
 
-  char *buffer = alloc_buffer(data, len+1);
-  memcpy(buffer, pb.buffer, len + 1);
+  char *buffer = alloc_buffer(data, len + 1);
+  // memcpy(buffer, pb.buffer, len + 1);
+
+  buffer[len] = '\0';
+  char *ptr = buffer;
+  emit_known(&pb, write_to_mem, &ptr);
 
   cleanup(&pb);
   return buffer;

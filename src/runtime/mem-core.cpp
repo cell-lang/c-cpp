@@ -34,18 +34,12 @@ void *new_obj(uint32 byte_size) {
   }
 }
 
-void *new_raw_mem(uint32 byte_size) {
-  total_temp += 8 * ((byte_size + 7) / 8);
-  return alloc_mem_block(byte_size);
-}
-
 bool needs_copying(void *ptr) {
   if (static_allocation)
     return true;
   else
     return is_in_released_mem(ptr);
 }
-
 
 void switch_to_static_allocator() {
   static_allocation = true;

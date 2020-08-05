@@ -248,6 +248,7 @@ bool is_in_released_mem(void *ptr) {
 
 void *alloc_mem_block(uint32 size) {
   size = 8 * ((size + 7) / 8);
+  assert(size % 8 == 0);
 
   MEM_STACK *stack = active_stack();
   MEM_REGION *region = &(stack->regions[stack->index]);

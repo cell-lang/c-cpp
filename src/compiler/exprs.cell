@@ -207,6 +207,8 @@ implicit context : NativeContext {
     get_tag(e?),        object(s?)        = parenthesize("get_tag_id(" & native_expr(e) & ") == " & symb_id_name(s), parenthesized),
     object(s?),         get_tag(e?)       = parenthesize("get_tag_id(" & native_expr(e) & ") == " & symb_id_name(s), parenthesized),
 
+    object(s1?),        object(s2?)       = if s1 == s2 then "true" else "false",
+
     object(s?),         _                 = "is_symb(" & native_expr(expr2) & ", " & symb_id_name(s) & ")",
     _,                  object(s?)        = "is_symb(" & native_expr(expr1) & ", " & symb_id_name(s) & ")",
 
