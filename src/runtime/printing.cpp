@@ -24,7 +24,7 @@ bool is_str(uint16 tag_id, OBJ obj) {
 
   for (uint32 i=0 ; i < len ; i++) {
     int64 value = get_int_at_unchecked(obj, i);
-    if (value < 0 | value >= 65536)
+    if (!is_uint16(value))
       return false;
   }
 
@@ -62,7 +62,7 @@ void print_bare_str(OBJ str, void (*emit)(void *, const void *, EMIT_ACTION), vo
 
   for (uint32 i=0 ; i < len ; i++) {
     int64 ch = get_int_at(char_seq, i);
-    assert(ch >= 0 & ch < 65536);
+    assert(is_uint16(ch));
 
     if (ch >= ' ' & ch <= '~') {
       buffer[0] = '\\';
@@ -641,4 +641,26 @@ char *printed_obj(OBJ obj, char *alloc_buffer(void *, uint32), void *data) {
 
   cleanup(&pb);
   return buffer;
+}
+
+char *print_value_alloc(void *ptr, uint32 size) {
+  uint32 *size_ptr = (uint32 *) ptr;
+  assert(*size_ptr == 0);
+  *size_ptr = size;
+  return new_byte_array(size);
+}
+
+OBJ print_value(OBJ obj) {
+  uint32 size = 0;
+  char *raw_str = printed_obj(obj, print_value_alloc, &size);
+  uint32 len = strlen(raw_str);
+  //## NOTE: len IS NOT NECESSARILY EQUAL TO size - 1
+  for (int i=0 ; i < len ; i++)
+    assert(raw_str[i] > 0 & raw_str[i] <= 127);
+  OBJ raw_str_obj;
+  if (len <= 8)
+    raw_str_obj = make_seq_uint8_inline(inline_uint8_pack((uint8 *) raw_str, len), len);
+  else
+    raw_str_obj = make_slice_uint8((uint8 *) raw_str, len);
+  return make_tag_obj(symb_id_string, raw_str_obj);
 }

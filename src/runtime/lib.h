@@ -1,14 +1,3 @@
-typedef signed   char       int8;
-typedef signed   short      int16;
-typedef signed   int        int32;
-typedef signed   long long  int64;
-
-typedef unsigned char       uint8;
-typedef unsigned short      uint16;
-typedef unsigned int        uint32;
-typedef unsigned long long  uint64;
-
-
 #include "utils.h"
 
 
@@ -37,19 +26,16 @@ enum OBJ_TYPE {
   TYPE_BOXED_OBJ            = 18
 };
 
-const OBJ_TYPE MAX_INLINE_OBJ_TYPE      = TYPE_NE_SEQ_INT32_INLINE;
-const OBJ_TYPE MAX_OBJ_TYPE             = TYPE_BOXED_OBJ;
-
-const OBJ_TYPE NE_SEQ_TYPE_RANGE_START  = TYPE_NE_SEQ_UINT8_INLINE;
-const OBJ_TYPE NE_SEQ_TYPE_RANGE_END    = TYPE_NE_SEQ;
-
-
 enum INT_BITS_TAG {
   INT_BITS_TAG_8  = 0,
   INT_BITS_TAG_16 = 1,
   INT_BITS_TAG_32 = 2,
   INT_BITS_TAG_64 = 3
 };
+
+const OBJ_TYPE MAX_INLINE_OBJ_TYPE      = TYPE_NE_SEQ_INT32_INLINE;
+const OBJ_TYPE NE_SEQ_TYPE_RANGE_START  = TYPE_NE_SEQ_UINT8_INLINE;
+const OBJ_TYPE NE_SEQ_TYPE_RANGE_END    = TYPE_NE_SEQ;
 
 ////////////////////////////////////////////////////////////////////////////////
 

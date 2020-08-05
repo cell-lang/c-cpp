@@ -273,28 +273,6 @@ OBJ parse_value(OBJ str_obj) {
     return make_tag_obj(symb_id_failure, make_int(error_offset));
 }
 
-char *print_value_alloc(void *ptr, uint32 size) {
-  uint32 *size_ptr = (uint32 *) ptr;
-  assert(*size_ptr == 0);
-  *size_ptr = size;
-  return new_byte_array(size);
-}
-
-OBJ print_value(OBJ obj) {
-  uint32 size = 0;
-  char *raw_str = printed_obj(obj, print_value_alloc, &size);
-  uint32 len = strlen(raw_str);
-  //## NOTE: len IS NOT NECESSARILY EQUAL TO size - 1
-  for (int i=0 ; i < len ; i++)
-    assert(raw_str[i] > 0 & raw_str[i] <= 127);
-  OBJ raw_str_obj;
-  if (len <= 8)
-    raw_str_obj = make_seq_uint8_inline(inline_uint8_pack((uint8 *) raw_str, len), len);
-  else
-    raw_str_obj = make_slice_uint8((uint8 *) raw_str, len);
-  return make_tag_obj(symb_id_string, raw_str_obj);
-}
-
 void get_set_iter(SET_ITER &it, OBJ set) {
   it.idx = 0;
   if (!is_empty_rel(set)) {

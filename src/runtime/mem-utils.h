@@ -764,7 +764,7 @@ inline bool is_inline_obj(OBJ obj) {
 
 inline void *get_ref_obj_ptr(OBJ obj) {
   OBJ_TYPE type = get_obj_type(obj);
-  assert(type > MAX_INLINE_OBJ_TYPE & type <= MAX_OBJ_TYPE);
+  assert(type > MAX_INLINE_OBJ_TYPE & type <= TYPE_BOXED_OBJ);
 
   if (type == TYPE_NE_SEQ)
     return ((char *) obj.core_data.ptr) - SEQ_BUFFER_FIELD_OFFSET;

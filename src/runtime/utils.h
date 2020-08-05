@@ -6,18 +6,17 @@
 #include <math.h>
 #include <stdio.h>
 
-////////////////////////////////////////////////////////////////////////////////
 
-#ifndef NDEBUG
-  //#define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__) ? 0 : (*((char *)0)) = 0)
-  #define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__))
-#else
-  #define assert(_E_)
-#endif
 
-#define halt (void)(_assert_(0, "Halt reached", __FILE__, __LINE__))
+typedef signed   char       int8;
+typedef signed   short      int16;
+typedef signed   int        int32;
+typedef signed   long long  int64;
 
-bool _assert_(int exp, const char *exp_text, const char *file, int line);
+typedef unsigned char       uint8;
+typedef unsigned short      uint16;
+typedef unsigned int        uint32;
+typedef unsigned long long  uint64;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +34,10 @@ inline bool is_uint8(int64 value) {
 
 inline bool is_int16(int64 value) {
   return value >= -32768 & value < 32768;
+}
+
+inline bool is_uint16(int64 value) {
+  return value >= 0 & value < 65536;
 }
 
 inline bool is_int32(int64 value) {
@@ -56,3 +59,16 @@ inline bool is_int16_range(int64 min, int64 max) {
 inline bool is_int32_range(int64 min, int64 max) {
   return min >= -2147483648 & max < 2147483648;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+#ifndef NDEBUG
+  //#define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__) ? 0 : (*((char *)0)) = 0)
+  #define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__))
+#else
+  #define assert(_E_)
+#endif
+
+#define halt (void)(_assert_(0, "Halt reached", __FILE__, __LINE__))
+
+bool _assert_(int exp, const char *exp_text, const char *file, int line);
