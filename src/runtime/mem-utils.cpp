@@ -93,6 +93,19 @@ __attribute__ ((noinline)) int intrl_cmp(OBJ obj1, OBJ obj2) {
     return core_data_1 < core_data_2 ? 1 : (core_data_1 == core_data_2 ? 0 : -1);
   }
 
+  //## THIS SEEMS TO MAKE PERFORMANCE SLIGHTLY WORSE. TRY AGAIN IN THE FUTURE
+
+  // int64 core_data_1 = obj1.core_data.int_;
+  // int64 core_data_2 = obj2.core_data.int_;
+
+  // assert((core_data_1 != core_data_2) | (extra_data_1 == extra_data_2));
+
+  // if (core_data_1 == core_data_2)
+  //   return 0;
+
+  // if (type <= MAX_INLINE_OBJ_TYPE)
+  //   return core_data_1 < core_data_2 ? 1 : -1;
+
   extern int (*intrl_cmp_disp_table[])(OBJ, OBJ);
   return intrl_cmp_disp_table[type - MAX_INLINE_OBJ_TYPE - 1](obj1, obj2);
 
