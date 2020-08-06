@@ -422,7 +422,7 @@ implicit context : NativeContext {
     int16     = "new_int16_array",
     int32     = "new_int32_array",
     int       = "new_int64_array",
-    float     = "new_double_array",
+    float     = "new_float_array",
     symbol    |
     object    = "new_obj_array",
     array()   = undefined;

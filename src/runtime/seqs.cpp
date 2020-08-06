@@ -281,8 +281,215 @@ void copy_uint8_range_unchecked(OBJ seq, uint32 start, uint32 len, uint8 *buffer
 
 ////////////////////////////////////////////////////////////////////////////////
 
+OBJ *get_seq_next_frag_obj(OBJ seq, uint32 offset, OBJ *buffer, uint32 capacity, uint32 *count_var) {
+  assert(buffer != NULL);
+
+  if (is_empty_seq(seq)) {
+    *count_var = 0;
+    return NULL;
+  }
+
+  OBJ_TYPE type = get_obj_type(seq);
+  uint32 len = read_size_field(seq);
+
+  if (type == TYPE_NE_SEQ) {
+    assert(offset == 0);
+    *count_var = len;
+    return get_seq_elts_ptr(seq);
+  }
+
+  switch (type) {
+    case TYPE_NE_SEQ_UINT8_INLINE:
+      assert(offset == 0 & capacity >= len);
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = make_int(inline_uint8_at(seq.core_data.int_, i));
+      *count_var = len;
+      return buffer;
+
+    case TYPE_NE_SEQ_INT16_INLINE:
+      assert(offset == 0 & capacity >= len);
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = make_int(inline_int16_at(seq.core_data.int_, i));
+      *count_var = len;
+      return buffer;
+
+    case TYPE_NE_SEQ_INT32_INLINE:
+      assert(offset == 0 & capacity >= len);
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = make_int(inline_int32_at(seq.core_data.int_, i));
+      *count_var = len;
+      return buffer;
+
+    case TYPE_NE_INT_SEQ: {
+      uint32 left = len - offset;
+      uint32 count = left < capacity ? left : capacity;
+      INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
+      if (bits_tag <= INT_BITS_TAG_16) {
+        if (bits_tag == INT_BITS_TAG_8) {
+          if (is_signed(seq)) {
+            int8 *elts = get_seq_elts_ptr_int8(seq) + offset;
+            for (int i=0 ; i < count ; i++)
+              buffer[i] = make_int(elts[i]);
+          }
+          else {
+            uint8 *elts = get_seq_elts_ptr_uint8(seq) + offset;
+            for (int i=0 ; i < count ; i++)
+              buffer[i] = make_int(elts[i]);
+          }
+        }
+        else {
+          assert(bits_tag == INT_BITS_TAG_16);
+          int16 *elts = get_seq_elts_ptr_int16(seq) + offset;
+          for (int i=0 ; i < count ; i++)
+            buffer[i] = make_int(elts[i]);
+        }
+      }
+      else {
+        if (bits_tag == INT_BITS_TAG_32) {
+          int32 *elts = get_seq_elts_ptr_int32(seq) + offset;
+          for (int i=0 ; i < count ; i++)
+            buffer[i] = make_int(elts[i]);
+
+        }
+        else {
+          assert(bits_tag == INT_BITS_TAG_64);
+          int32 *elts = get_seq_elts_ptr_int32(seq) + offset;
+          for (int i=0 ; i < count ; i++)
+            buffer[i] = make_int(elts[i]);
+        }
+      }
+      *count_var = count;
+      return buffer;
+    }
+
+    case TYPE_NE_FLOAT_SEQ: {
+      uint32 left = len - offset;
+      uint32 count = left < capacity ? left : capacity;
+      double *elts = get_seq_elts_ptr_float(seq) + offset;
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = make_float(elts[i]);
+      *count_var = count;
+      return buffer;
+    }
+
+    case TYPE_NE_BOOL_SEQ:
+      internal_fail();
+
+    default:
+      internal_fail();
+  }
+}
+
+int64 *get_seq_next_frag_int64(OBJ seq, uint32 offset, int64 *buffer, uint32 capacity, uint32 *count_var) {
+  assert(buffer != NULL);
+
+  if (is_empty_seq(seq)) {
+    *count_var = 0;
+    return NULL;
+  }
+
+  OBJ_TYPE type = get_obj_type(seq);
+  uint32 len = read_size_field(seq);
+
+  if (type == TYPE_NE_INT_SEQ) {
+    INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
+
+    if (bits_tag == INT_BITS_TAG_64) {
+      assert(offset == 0 & capacity >= len);
+      *count_var = len;
+      return get_seq_elts_ptr_int64(seq);
+    }
+
+    uint32 left = len - offset;
+    uint32 count = left < capacity ? left : capacity;
+
+    *count_var = count;
+
+    if (bits_tag == INT_BITS_TAG_8) {
+      if (is_signed(seq)) {
+        int8 *elts = get_seq_elts_ptr_int8(seq) + offset;
+        for (int i=0 ; i < count ; i++)
+          buffer[i] = elts[i];
+      }
+      else {
+        uint8 *elts = get_seq_elts_ptr_uint8(seq) + offset;
+        for (int i=0 ; i < count ; i++)
+          buffer[i] = elts[i];
+      }
+    }
+    else if (bits_tag == INT_BITS_TAG_16) {
+      int16 *elts = get_seq_elts_ptr_int16(seq) + offset;
+      for (int i=0 ; i < count ; i++)
+        buffer[i] = elts[i];
+    }
+    else {
+      assert(bits_tag == INT_BITS_TAG_32);
+      int32 *elts = get_seq_elts_ptr_int32(seq) + offset;
+      for (int i=0 ; i < count ; i++)
+        buffer[i] = elts[i];
+    }
+  }
+  else {
+    assert(offset == 0 & capacity >= len);
+
+    *count_var = len;
+
+    if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = inline_uint8_at(seq.core_data.int_, i);
+    }
+    else if (type == TYPE_NE_SEQ_INT16_INLINE) {
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = inline_int16_at(seq.core_data.int_, i);
+    }
+    else {
+      assert(type == TYPE_NE_SEQ_INT32_INLINE);
+      for (int i=0 ; i < len ; i++)
+        buffer[i] = inline_int32_at(seq.core_data.int_, i);
+    }
+  }
+
+  return buffer;
+}
+
+double *get_seq_next_frag_double(OBJ seq, uint32 offset, double *buffer, uint32 capacity, uint32 *count_var) {
+  assert(offset == 0);
+
+  if (is_empty_seq(seq))
+    return NULL;
+
+  *count_var = read_size_field(seq);
+  return get_seq_elts_ptr_float(seq);
+}
+
+bool *get_seq_next_frag_bool(OBJ seq, uint32 offset, bool *buffer, uint32 capacity, uint32 *count_var) {
+  if (is_empty_seq(seq))
+    return NULL;
+
+  uint32 len = read_size_field(seq);
+  uint32 left = len - offset;
+  uint32 count = left < capacity ? left : capacity;
+
+  *count_var = count;
+
+  OBJ *elts = get_seq_elts_ptr(seq) + offset;
+  for (int i=0 ; i < count ; i++)
+    buffer[i] = get_bool(elts[i]);
+
+  return buffer;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
-  assert(read_size_field(seq) == size);
+  // assert(buffer != 0);
+  // assert(read_size_field(seq) == size);
+
+  // uint32 unused_count_var;
+  // OBJ *elts = get_seq_next_frag_obj(seq, 0, buffer, size, &unused_count_var);
+  // assert(unused_count_var == size);
+  // return elts;
 
   if (is_empty_seq(seq))
     return NULL;
@@ -332,6 +539,14 @@ OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
 }
 
 int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
+  // assert(buffer != 0);
+  // assert(read_size_field(seq) == size);
+
+  // uint32 unused_count_var;
+  // int64 *elts = get_seq_next_frag_int64(seq, 0, buffer, size, &unused_count_var);
+  // assert(unused_count_var == size);
+  // return elts;
+
   if (is_empty_seq(seq))
     return NULL;
 
@@ -394,6 +609,14 @@ int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
 }
 
 double* get_double_array(OBJ seq, double *buffer, int32 size) {
+  // assert(buffer != 0);
+  // assert(read_size_field(seq) == size);
+
+  // uint32 unused_count_var;
+  // double *elts = get_seq_next_frag_double(seq, 0, buffer, size, &unused_count_var);
+  // assert(unused_count_var == size);
+  // return elts;
+
   if (is_empty_seq(seq))
     return NULL;
 
@@ -401,6 +624,14 @@ double* get_double_array(OBJ seq, double *buffer, int32 size) {
 }
 
 bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
+  // assert(buffer != 0);
+  // assert(read_size_field(seq) == size);
+
+  // uint32 unused_count_var;
+  // bool *elts = get_seq_next_frag_bool(seq, 0, buffer, size, &unused_count_var);
+  // assert(unused_count_var == size);
+  // return elts;
+
   if (is_empty_seq(seq))
     return NULL;
 

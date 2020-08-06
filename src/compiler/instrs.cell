@@ -176,27 +176,29 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
 
     src_repr = low_level_repr(instr.it_var);
 
+    unique_id = printed(new_unique_id(:unused));
+    buffer_var_name = "buffer_" & unique_id;
+    done_var_name = "done_" & unique_id;
+    size_var_name = "size_" & unique_id;
+
     method_name = match (src_repr)
-      bool    = "get_bool_array",
-      int     = "get_long_array",
-      float   = "get_double_array",
-      _       = "get_obj_array";
+      bool    = "get_seq_next_frag_bool",
+      int     = "get_seq_next_frag_int64",
+      float   = "get_seq_next_frag_double",
+      _       = "get_seq_next_frag_obj";
 
-    buffer_arg = if instr.tmp_buffer? and src_repr == instr.tmp_buffer.repr
-      then native_var_ref_name(instr.tmp_buffer)
-      else "NULL";
-
-    elt_native_type = native_type(src_repr);
-    possible_cast = if instr.it_var :: OptTagRecVar then "(" & elt_native_type & ") " else "";
-
-    header = (
-      ## WHAT IF elt_native_type IS SOMETHING LIKE Obj_MyType?
-      src_array_name & " = " & method_name & "(" & seq_name & ", " & buffer_arg & ", " & count_var_name & ");",
-      "for (" & idx_var_name & " = 0 ; " & idx_var_name & " < " & count_var_name & " ; " & idx_var_name & "++) {",
-      "  " & it_var_name & " = " & possible_cast & src_array_name & "[" & idx_var_name & "];"
+    return (
+      "for (uint32 " & done_var_name & " = 0 ; " & done_var_name & " < " & count_var_name & " ; ) {",
+      "  uint32 " & size_var_name & ";",
+      "  " & native_type(src_repr) & " " & buffer_var_name & "[64];",
+      "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & done_var_name & ", " & buffer_var_name & ", 64, &" & size_var_name & ");",
+      "  for (" & idx_var_name & " = 0 ; " & idx_var_name & " < " & size_var_name & " ; " & idx_var_name & "++) {",
+      "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & "];"
+    ) & indent_lines(native_code(instr.body, block_id), 2) & (
+      "  }",
+      "  " & done_var_name & " += " & size_var_name & ";",
+      "}"
     );
-
-    return header & indent_lines(native_code(instr.body, block_id)) & ("}");
   }
 
 
