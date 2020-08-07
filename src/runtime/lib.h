@@ -540,12 +540,6 @@ OBJ concat_obj_uint8(OBJ *elts1, uint32 len1, uint8 *elts2, uint32 len2);
 
 int64  get_inner_long(OBJ);
 
-//## GET RID OF THESE
-OBJ*    get_obj_array(OBJ seq, OBJ* buffer, int32 size);
-int64*  get_long_array(OBJ seq, int64 *buffer, int32 size);
-double* get_double_array(OBJ seq, double *buffer, int32 size);
-bool*   get_bool_array(OBJ seq, bool *buffer, int32 size);
-
 bool   *get_seq_next_frag_bool(OBJ seq, uint32 offset, bool *buffer, uint32 capacity, uint32 *count_var);
 int64  *get_seq_next_frag_int64(OBJ seq, uint32 offset, int64 *buffer, uint32 capacity, uint32 *count_var);
 double *get_seq_next_frag_double(OBJ seq, uint32 offset, double *buffer, uint32 capacity, uint32 *count_var);

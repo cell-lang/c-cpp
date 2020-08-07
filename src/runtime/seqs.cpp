@@ -484,171 +484,139 @@ bool *get_seq_next_frag_bool(OBJ seq, uint32 offset, bool *buffer, uint32 capaci
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
-  // assert(buffer != 0);
-  // assert(read_size_field(seq) == size);
+// OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
+//   if (is_empty_seq(seq))
+//     return NULL;
 
-  // uint32 unused_count_var;
-  // OBJ *elts = get_seq_next_frag_obj(seq, 0, buffer, size, &unused_count_var);
-  // assert(unused_count_var == size);
-  // return elts;
+//   OBJ_TYPE type = get_obj_type(seq);
 
-  if (is_empty_seq(seq))
-    return NULL;
+//   if (type == TYPE_NE_SEQ)
+//     return get_seq_elts_ptr(seq);
 
-  OBJ_TYPE type = get_obj_type(seq);
+//   uint32 len = read_size_field(seq);
 
-  if (type == TYPE_NE_SEQ)
-    return get_seq_elts_ptr(seq);
+//   if (buffer == NULL)
+//     buffer = new_obj_array(len);
 
-  uint32 len = read_size_field(seq);
+//   switch (type) {
+//     case TYPE_NE_SEQ_UINT8_INLINE:
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = make_int(inline_uint8_at(seq.core_data.int_, i));
+//       return buffer;
 
-  if (buffer == NULL)
-    buffer = new_obj_array(len);
+//     case TYPE_NE_SEQ_INT16_INLINE:
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = make_int(inline_int16_at(seq.core_data.int_, i));
+//       return buffer;
 
-  switch (type) {
-    case TYPE_NE_SEQ_UINT8_INLINE:
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = make_int(inline_uint8_at(seq.core_data.int_, i));
-      return buffer;
+//     case TYPE_NE_SEQ_INT32_INLINE:
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = make_int(inline_int32_at(seq.core_data.int_, i));
+//       return buffer;
 
-    case TYPE_NE_SEQ_INT16_INLINE:
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = make_int(inline_int16_at(seq.core_data.int_, i));
-      return buffer;
+//     case TYPE_NE_INT_SEQ:
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = make_int(get_int_at_unchecked(seq, i));
+//       return buffer;
 
-    case TYPE_NE_SEQ_INT32_INLINE:
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = make_int(inline_int32_at(seq.core_data.int_, i));
-      return buffer;
+//     case TYPE_NE_FLOAT_SEQ:
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = make_float(get_seq_elts_ptr_float(seq)[i]);
+//       return buffer;
 
-    case TYPE_NE_INT_SEQ:
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = make_int(get_int_at_unchecked(seq, i));
-      return buffer;
+//     case TYPE_NE_BOOL_SEQ:
+//       internal_fail();
 
-    case TYPE_NE_FLOAT_SEQ:
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = make_float(get_seq_elts_ptr_float(seq)[i]);
-      return buffer;
+//     default:
+//       internal_fail();
+//   }
+// }
 
-    case TYPE_NE_BOOL_SEQ:
-      internal_fail();
+// int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
+//   if (is_empty_seq(seq))
+//     return NULL;
 
-    default:
-      internal_fail();
-  }
-}
+//   OBJ_TYPE type = get_obj_type(seq);
+//   uint32 len = read_size_field(seq);
 
-int64* get_long_array(OBJ seq, int64 *buffer, int32 size) {
-  // assert(buffer != 0);
-  // assert(read_size_field(seq) == size);
+//   if (type == TYPE_NE_INT_SEQ) {
+//     INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
 
-  // uint32 unused_count_var;
-  // int64 *elts = get_seq_next_frag_int64(seq, 0, buffer, size, &unused_count_var);
-  // assert(unused_count_var == size);
-  // return elts;
+//     if (bits_tag == INT_BITS_TAG_64)
+//       return get_seq_elts_ptr_int64(seq);
 
-  if (is_empty_seq(seq))
-    return NULL;
+//     if (buffer == NULL | size < len)
+//       buffer = new_int64_array(len);
 
-  OBJ_TYPE type = get_obj_type(seq);
-  uint32 len = read_size_field(seq);
+//     if (bits_tag == INT_BITS_TAG_8) {
+//       if (is_signed(seq)) {
+//         int8 *elts = get_seq_elts_ptr_int8(seq);
+//         for (int i=0 ; i < len ; i++)
+//           buffer[i] = elts[i];
+//       }
+//       else {
+//         uint8 *elts = get_seq_elts_ptr_uint8(seq);
+//         for (int i=0 ; i < len ; i++)
+//           buffer[i] = elts[i];
+//       }
+//     }
+//     else if (bits_tag == INT_BITS_TAG_16) {
+//       int16 *elts = get_seq_elts_ptr_int16(seq);
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = elts[i];
+//     }
+//     else {
+//       assert(bits_tag == INT_BITS_TAG_32);
+//       int32 *elts = get_seq_elts_ptr_int32(seq);
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = elts[i];
+//     }
+//   }
+//   else {
+//     if (buffer == NULL | size < len)
+//       buffer = new_int64_array(len);
 
-  if (type == TYPE_NE_INT_SEQ) {
-    INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
+//     if (type == TYPE_NE_SEQ_UINT8_INLINE) {
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = inline_uint8_at(seq.core_data.int_, i);
+//     }
+//     else if (type == TYPE_NE_SEQ_INT16_INLINE) {
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = inline_int16_at(seq.core_data.int_, i);
+//     }
+//     else {
+//       assert(type == TYPE_NE_SEQ_INT32_INLINE);
+//       for (int i=0 ; i < len ; i++)
+//         buffer[i] = inline_int32_at(seq.core_data.int_, i);
+//     }
+//   }
 
-    if (bits_tag == INT_BITS_TAG_64)
-      return get_seq_elts_ptr_int64(seq);
+//   return buffer;
+// }
 
-    if (buffer == NULL | size < len)
-      buffer = new_int64_array(len);
+// double* get_double_array(OBJ seq, double *buffer, int32 size) {
+//   if (is_empty_seq(seq))
+//     return NULL;
 
-    if (bits_tag == INT_BITS_TAG_8) {
-      if (is_signed(seq)) {
-        int8 *elts = get_seq_elts_ptr_int8(seq);
-        for (int i=0 ; i < len ; i++)
-          buffer[i] = elts[i];
-      }
-      else {
-        uint8 *elts = get_seq_elts_ptr_uint8(seq);
-        for (int i=0 ; i < len ; i++)
-          buffer[i] = elts[i];
-      }
-    }
-    else if (bits_tag == INT_BITS_TAG_16) {
-      int16 *elts = get_seq_elts_ptr_int16(seq);
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = elts[i];
-    }
-    else {
-      assert(bits_tag == INT_BITS_TAG_32);
-      int32 *elts = get_seq_elts_ptr_int32(seq);
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = elts[i];
-    }
-  }
-  else {
-    if (buffer == NULL | size < len)
-      buffer = new_int64_array(len);
+//   return get_seq_elts_ptr_float(seq);
+// }
 
-    if (type == TYPE_NE_SEQ_UINT8_INLINE) {
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = inline_uint8_at(seq.core_data.int_, i);
-    }
-    else if (type == TYPE_NE_SEQ_INT16_INLINE) {
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = inline_int16_at(seq.core_data.int_, i);
-    }
-    else {
-      assert(type == TYPE_NE_SEQ_INT32_INLINE);
-      for (int i=0 ; i < len ; i++)
-        buffer[i] = inline_int32_at(seq.core_data.int_, i);
-    }
-  }
+// bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
+//   if (is_empty_seq(seq))
+//     return NULL;
 
-  return buffer;
-}
+//   int len = read_size_field(seq);
 
-double* get_double_array(OBJ seq, double *buffer, int32 size) {
-  // assert(buffer != 0);
-  // assert(read_size_field(seq) == size);
+//   if (buffer == NULL | size < len)
+//     buffer = new_bool_array(len);
 
-  // uint32 unused_count_var;
-  // double *elts = get_seq_next_frag_double(seq, 0, buffer, size, &unused_count_var);
-  // assert(unused_count_var == size);
-  // return elts;
+//   OBJ *seq_buffer = get_seq_elts_ptr(seq);
 
-  if (is_empty_seq(seq))
-    return NULL;
+//   for (int i=0 ; i < len ; i++)
+//     buffer[i] = get_bool(seq_buffer[i]);
 
-  return get_seq_elts_ptr_float(seq);
-}
-
-bool* get_bool_array(OBJ seq, bool *buffer, int32 size) {
-  // assert(buffer != 0);
-  // assert(read_size_field(seq) == size);
-
-  // uint32 unused_count_var;
-  // bool *elts = get_seq_next_frag_bool(seq, 0, buffer, size, &unused_count_var);
-  // assert(unused_count_var == size);
-  // return elts;
-
-  if (is_empty_seq(seq))
-    return NULL;
-
-  int len = read_size_field(seq);
-
-  if (buffer == NULL | size < len)
-    buffer = new_bool_array(len);
-
-  OBJ *seq_buffer = get_seq_elts_ptr(seq);
-
-  for (int i=0 ; i < len ; i++)
-    buffer[i] = get_bool(seq_buffer[i]);
-
-  return buffer;
-}
+//   return buffer;
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 
