@@ -358,7 +358,7 @@ OBJ *get_seq_next_frag_obj(OBJ seq, uint32 offset, OBJ *buffer, uint32 capacity,
         }
       }
       *end_var = offset + count;
-      return buffer;
+      return buffer - offset;
     }
 
     case TYPE_NE_FLOAT_SEQ: {
@@ -368,7 +368,7 @@ OBJ *get_seq_next_frag_obj(OBJ seq, uint32 offset, OBJ *buffer, uint32 capacity,
       for (int i=0 ; i < len ; i++)
         buffer[i] = make_float(elts[i]);
       *end_var = offset + count;
-      return buffer;
+      return buffer - offset;
     }
 
     case TYPE_NE_BOOL_SEQ:
@@ -448,7 +448,7 @@ int64 *get_seq_next_frag_int64(OBJ seq, uint32 offset, int64 *buffer, uint32 cap
     }
   }
 
-  return buffer;
+  return buffer - offset;
 }
 
 double *get_seq_next_frag_double(OBJ seq, uint32 offset, double *buffer, uint32 capacity, uint32 *end_var) {
@@ -479,7 +479,7 @@ bool *get_seq_next_frag_bool(OBJ seq, uint32 offset, bool *buffer, uint32 capaci
   for (int i=0 ; i < count ; i++)
     buffer[i] = get_bool(elts[i]);
 
-  return buffer;
+  return buffer - offset;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

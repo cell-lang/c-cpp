@@ -185,6 +185,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       float   = "get_seq_next_frag_double",
       _       = "get_seq_next_frag_obj";
 
+    ## TRY TO TUNE THESE TO SEE IF MEMORY CONSUMPTION CAN BE REDUCED
+    buff_size = match (src_repr)
+      bool    = 1024,
+      int     = 1024,
+      float   = 1024,
+      _       = 1024;
+
+    buff_size_str = printed(buff_size);
+
     end_var_name = "end_" & unique_id;
     offset_var_name = "offset_" & unique_id;
 
@@ -196,11 +205,10 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       idx_var_name & " = 0;",
       "do {",
       "  uint32 " & end_var_name & ";",
-      "  " & native_type(src_repr) & " " & buffer_var_name & "[64];",
-      "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & idx_var_name & ", " & buffer_var_name & ", 64, &" & end_var_name & ");",
-      "  uint32 " & offset_var_name & " = " & idx_var_name & ";",
+      "  " & native_type(src_repr) & " " & buffer_var_name & "[" & buff_size_str & "];",
+      "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & idx_var_name & ", " & buffer_var_name & ", " & buff_size_str & ", &" & end_var_name & ");",
       "  while (" & idx_var_name & " < " & end_var_name & ") {",
-      "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & " - " & offset_var_name & "];"
+      "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & "];"
     ) & indent_lines(body_code, 2) & (
       "    " & idx_var_name & "++;",
       "  }",
