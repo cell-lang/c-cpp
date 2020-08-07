@@ -1,4 +1,4 @@
-implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
+implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
   String* native_code(Instr* instrs, Maybe[Nat] block_id) =
     join((native_code(instr, block_id) : instr <- instrs));
 
@@ -37,7 +37,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
     no_op                 = (),
     repeat(body?)         = native_repeat_code(body, block_id),
     foreach()             = native_foreach_code(instr, block_id),
-    break_loop            = ("break;"),
+    break_loop            = (if break_target == nothing then "break;" else "goto " & value(break_target) & ";"),
     execute_block(body?)  = { new_block_id = new_unique_id(:unused);
                               body_code = native_code(body, just(new_block_id));
                               block_exit_point = block_label(new_block_id) & ":;";
@@ -157,11 +157,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
     head = body(0);
     if head :: <branch(cond: BoolExpr, when_true: (<break_loop>), when_false: ())> {
       cond_str = native_expr(neg(head.cond));
-      body_text = indent_lines(native_code(tail(body), block_id)) & ("}");
+      body_text = indent_lines(native_code(tail(body), block_id, break_target = nothing)) & ("}");
       return ("while (" & cond_str & ") {",) & body_text;
     }
     else {
-      body_text = indent_lines(native_code(body, block_id)) & ("}");
+      body_text = indent_lines(native_code(body, block_id, break_target = nothing)) & ("}");
       return ("for ( ; ; ) {") & body_text;
     }
   }
@@ -178,8 +178,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
 
     unique_id = printed(new_unique_id(:unused));
     buffer_var_name = "buffer_" & unique_id;
-    done_var_name = "done_" & unique_id;
-    size_var_name = "size_" & unique_id;
 
     method_name = match (src_repr)
       bool    = "get_seq_next_frag_bool",
@@ -187,17 +185,28 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool {
       float   = "get_seq_next_frag_double",
       _       = "get_seq_next_frag_obj";
 
+    end_var_name = "end_" & unique_id;
+    offset_var_name = "offset_" & unique_id;
+
+    label = "label_" & unique_id;
+    may_break = instr.body != () and may_break(instr.body);
+    body_code = native_code(instr.body, block_id, break_target = if may_break then just(label) else nothing);
+
     return (
-      "for (uint32 " & done_var_name & " = 0 ; " & done_var_name & " < " & count_var_name & " ; ) {",
-      "  uint32 " & size_var_name & ";",
+      idx_var_name & " = 0;",
+      "do {",
+      "  uint32 " & end_var_name & ";",
       "  " & native_type(src_repr) & " " & buffer_var_name & "[64];",
-      "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & done_var_name & ", " & buffer_var_name & ", 64, &" & size_var_name & ");",
-      "  for (" & idx_var_name & " = 0 ; " & idx_var_name & " < " & size_var_name & " ; " & idx_var_name & "++) {",
-      "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & "];"
-    ) & indent_lines(native_code(instr.body, block_id), 2) & (
+      "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & idx_var_name & ", " & buffer_var_name & ", 64, &" & end_var_name & ");",
+      "  uint32 " & offset_var_name & " = " & idx_var_name & ";",
+      "  while (" & idx_var_name & " < " & end_var_name & ") {",
+      "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & " - " & offset_var_name & "];"
+    ) & indent_lines(body_code, 2) & (
+      "    " & idx_var_name & "++;",
       "  }",
-      "  " & done_var_name & " += " & size_var_name & ";",
-      "}"
+      "} while (" & idx_var_name & " < " & count_var_name & ");",
+      "assert(" & idx_var_name & " == " & count_var_name & ");",
+      label & ":;" if may_break
     );
   }
 

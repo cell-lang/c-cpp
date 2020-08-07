@@ -298,7 +298,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
   String* native_code(LambdaExpr lambda, Nat id, Bool decl_only) {
     body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
     vars_decls = gen_vars_decls(body, []);
-    comp_body = native_code(body, nothing);
+    comp_body = native_code(body, nothing, break_target = nothing);
     full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
 
     std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
@@ -421,7 +421,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     aux_db_vars_decls = (native_updater_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
 
     if body == (terminate(false)) {
-      only_instr = only_unsafe(native_code(body(0), nothing));
+      only_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
       comp_body = (only_instr & " // " & fn_name & "/" & _print_(arity(pd)));
     }
     else {
@@ -434,7 +434,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 
       if is_mem_boundary and maybe_split_body != nothing {
         no_ret_body, ret_value_expr = value(maybe_split_body);
-        comp_no_ret_body = native_code(no_ret_body, nothing);
+        comp_no_ret_body = native_code(no_ret_body, nothing, break_target = nothing);
 
         req_copying = requires_copying(ret_value_expr);
         ret_value = if req_copying then "copied_value" else native_expr(ret_value_expr);
@@ -451,7 +451,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
         );
       }
       else
-        comp_body = native_code(body, nothing);
+        comp_body = native_code(body, nothing, break_target = nothing);
     }
 
     has_var_decls = var_decls != () or auto_var_decls != () or db_vars_decls != ();
