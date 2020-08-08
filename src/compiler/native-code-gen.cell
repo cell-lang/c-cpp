@@ -2,6 +2,7 @@ type PrgData =  prg_data(
                   opt_reprs:                      [Symbol -> OptRecRepr+],
                   ord_lambda_exprs:               LambdaExpr*,
                   int_seqs_types_and_lengths:     (String, Nat)*,
+                  int_seqs:                       Int+*,
                   cached_semi_consts_by_impl_arg: [ImplArg -> [+FnId]],
                   symbols_sets_info:              [[+Symbol] -> (Symbol+, Nat)]
                );
@@ -28,6 +29,7 @@ type PrgData =  prg_data(
     opt_reprs:                      prg.opt_reprs,
     ord_lambda_exprs:               isort(lambda_exprs(prg)),
     int_seqs_types_and_lengths:     int_seqs_types_and_lengths(prg),
+    int_seqs:                       prg.int_seqs,
     cached_semi_consts_by_impl_arg: cached_semi_consts_by_impl_arg(prg),
     symbols_sets_info:              symbols_sets_info(prg)
   );
@@ -250,8 +252,14 @@ String native_int_type(Int min_val, Int max_val) {
 
 
 String* gen_int_seq_code(Int+ int_seq, Nat seq_id) {
+  len = |int_seq|;
   min_elem = min(int_seq);
   max_elem = max(int_seq);
+
+  is_inline = (min_elem >= 0 and max_elem < 256 and len <= 8) or
+              (min_elem >= -32768 and max_elem < 32768 and len <= 4) or
+              (min_elem >= -2147483648 and max_elem < 2147483648 and len <= 2);
+  return () if is_inline;
 
   type_name = native_int_type(min_elem, max_elem);
 

@@ -394,13 +394,36 @@ void move_forward(TERN_REL_ITER &it);
 void fail();
 void runtime_check(OBJ cond);
 
-OBJ build_const_seq_uint8(const uint8* array, uint32 size);
-// OBJ build_const_seq_uint16(const uint16* array, uint32 size);
-// OBJ build_const_seq_uint32(const uint32* array, uint32 size);
-OBJ build_const_seq_int8(const int8* array, uint32 size);
-OBJ build_const_seq_int16(const int16* array, uint32 size);
-OBJ build_const_seq_int32(const int32* array, uint32 size);
-OBJ build_const_seq_int64(const int64* array, uint32 size);
+OBJ build_const_seq_uint8(const uint8 *array, uint32 size);
+// OBJ build_const_seq_uint16(const uint16 *array, uint32 size);
+// OBJ build_const_seq_uint32(const uint32 *array, uint32 size);
+OBJ build_const_seq_int8(const int8 *array, uint32 size);
+OBJ build_const_seq_int16(const int16 *array, uint32 size);
+OBJ build_const_seq_int32(const int32 *array, uint32 size);
+OBJ build_const_seq_int64(const int64 *array, uint32 size);
+
+OBJ build_inline_const_seq_uint8(uint64 coded_seq, uint32 size);
+OBJ build_inline_const_seq_int16(uint64 coded_seq, uint32 size);
+OBJ build_inline_const_seq_int32(uint64 coded_seq, uint32 size);
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint8 inline_uint8_at(uint64 packed_elts, uint32 idx);
+int16 inline_int16_at(uint64 packed_elts, uint32 idx);
+int32 inline_int32_at(uint64 packed_elts, uint32 idx);
+
+uint64 inline_uint8_init_at(uint64 packed_elts, uint32 idx, uint8 value);
+uint64 inline_int16_init_at(uint64 packed_elts, uint32 idx, int16 value);
+uint64 inline_int32_init_at(uint64 packed_elts, uint32 idx, int32 value);
+
+uint64 inline_uint8_pack(uint8 *array, uint32 size);
+uint64 inline_int16_pack(int16 *array, uint32 size);
+
+uint64 inline_uint8_slice(uint64 packed_elts, uint32 idx_first, uint32 count);
+uint64 inline_int16_slice(uint64 packed_elts, uint32 idx_first, uint32 count);
+
+uint64 inline_uint8_concat(uint64 left, uint32 left_len, uint64 right, uint32 right_len);
+uint64 inline_int16_concat(uint64 left, uint32 left_len, uint64 right, uint32 right_len);
 
 //////////////////////////////// bin-rel-obj.cpp ///////////////////////////////
 
@@ -639,8 +662,8 @@ void switch_to_twin_stacks_allocator();
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "seqs.h"
-#include "instrs.h"
 #include "extern.h"
 #include "mem-utils.h"
 #include "basic-ops.h"
+#include "seqs.h"
+#include "instrs.h"

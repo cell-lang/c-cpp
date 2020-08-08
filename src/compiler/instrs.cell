@@ -319,9 +319,48 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String native_build_const_int_seq_code(Nat seq_id, ObjVar var) {
-    type, len = item(prg_data.int_seqs_types_and_lengths, seq_id);
+    type, len = prg_data.int_seqs_types_and_lengths(seq_id);
+
     seq_name = const_int_seq_name(seq_id);
-    return native_var_ref_name(var) & " = build_const_seq_" & type & "(" & seq_name & ", " & _print_(len) & ");";
+    len_str = _print_(len);
+
+    if type == "uint8" and len <= 8 {
+      coded_seq = append((hex_string(d, 2) : d <- reverse(prg_data.int_seqs(seq_id))));
+      return native_var_ref_name(var) & " = build_inline_const_seq_uint8(0x" & coded_seq & ", " & len_str & ");";
+    }
+
+    if (type == "int8" or type == "int16") and len <= 4 {
+      coded_seq = append((hex_string(mod(d + 65536, 65536), 4) : d <- reverse(prg_data.int_seqs(seq_id))));
+      return native_var_ref_name(var) & " = build_inline_const_seq_int16(0x" & coded_seq & ", " & len_str & ");";
+    }
+
+    if type == "int32" and len <= 2 {
+      coded_seq = append((hex_string(mod(d + 4294967296, 4294967296), 8) : d <- reverse(prg_data.int_seqs(seq_id))));
+      return native_var_ref_name(var) & " = build_inline_const_seq_int32(0x" & coded_seq & ", " & len_str & ");";
+    }
+
+    return native_var_ref_name(var) & " = build_const_seq_" & type & "(" & seq_name & ", " & len_str & ");";
+
+
+    String hex_string(Int d, Nat len) {
+      chs : Nat*;
+
+      assert d >= 0;
+
+      chs = (0 : _ < len);
+      rem = d;
+      for i < len {
+        chs(len - i - 1) := hex_digit(mod(rem, 16));
+        rem = rem / 16;
+      }
+      return string(chs);
+    }
+
+
+    Nat hex_digit(Int d) {
+      assert d >= 0 and d < 16;
+      return nat(if d <= 9 then d + `0` else d - 10 + `A`);
+    }
   }
 
   ///////////////////////////////////////////////////////////////////////////////

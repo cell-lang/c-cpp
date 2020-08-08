@@ -146,3 +146,48 @@ inline uint64 inline_int16_concat(uint64 left, uint32 left_len, uint64 right, ui
 
   return elts;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline OBJ build_inline_const_seq_uint8(uint64 coded_seq, uint32 size) {
+  assert(size > 0 & size <= 8);
+  return make_seq_uint8_inline(coded_seq, size);
+}
+
+inline OBJ build_inline_const_seq_int16(uint64 coded_seq, uint32 size) {
+  assert(size > 0 & size <= 4);
+  return make_seq_int16_inline(coded_seq, size);
+}
+
+inline OBJ build_inline_const_seq_int32(uint64 coded_seq, uint32 size) {
+  assert(size > 0 & size <= 2);
+  return make_seq_int32_inline(coded_seq, size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline OBJ build_const_seq_uint8(const uint8 *array, uint32 size) {
+  assert(size > 8);
+  // assert((((uint64) array) & 7) == 0); //## THIS ACTUALLY HAPPENS, AND IT'S NOT AN EXCEPTION
+  return make_slice_uint8((uint8 *) array, size);
+}
+
+inline OBJ build_const_seq_int8(const int8 *array, uint32 size) {
+  assert(size > 4);
+  return make_slice_int8((int8 *) array, size);
+}
+
+inline OBJ build_const_seq_int16(const int16 *array, uint32 size) {
+  assert(size > 4);
+  return make_slice_int16((int16 *) array, size);
+}
+
+inline OBJ build_const_seq_int32(const int32 *array, uint32 size) {
+  assert(size > 2);
+  return make_slice_int32((int32 *) array, size);
+}
+
+inline OBJ build_const_seq_int64(const int64 *array, uint32 size) {
+  assert(size != 0);
+  return make_slice_int64((int64 *) array, size);
+}
