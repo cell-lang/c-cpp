@@ -307,18 +307,34 @@ implicit context : NativeContext {
 
   String native_expr(Int32Var var, Bool parenthesized) = native_var_ref_name(var);
 
-  String native_expr(Int32NatOp expr, Bool parenthesized) =
-    bool_to_bit(e?)       = "(" & native_expr(e, false) & " ? 1 : 0)",
-    get_size(e?)          = "get_size(" & native_expr(e) & ")",
-    get_count()           = native_get_count_expr(expr.table, expr.args, expr.symmetric),
-    table_lookup()        = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
-    cast_int32(e?)        = "cast_int32(" & native_expr(e, false) & ")",
-    add32(e1?, e2?)       = native_nary_op(" + ", (e1, e2), parenthesized),
-    value_to_surr()       = undefined, // native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
-    get_unknown_arg()     = if expr.iter.arity == 1
-                              then native_var_ref_name(expr.iter) & ".Get()"
-                              else native_var_ref_name(expr.iter) & ".Get" & printed(expr.arg+1) & "()",
-    get_col_index()       = native_var_ref_name(expr.iter) & ".GetIdx()";
+  String native_expr(Int32NatOp expr, Bool parenthesized) {
+    return match (expr)
+      bool_to_bit(e?)       = "(" & native_expr(e, false) & " ? 1 : 0)",
+      get_size(e?)          = "get_size(" & native_expr(e) & ")",
+      get_count()           = native_get_count_expr(expr.table, expr.args, expr.symmetric),
+      table_lookup()        = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
+      cast_int32(e?)        = "cast_int32(" & native_expr(e, false) & ")",
+      add32(e1?, e2?)       = native_nary_op(" + ", (e1, e2), parenthesized),
+      value_to_surr()       = undefined, // native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
+      get_unknown_arg()     = native_get_unknown_arg_expr(expr.iter, expr.arg),
+      get_arg_by_assoc_surr() = native_var_ref_name(expr.table) & ".arg" & _print_(expr.arg + 1) & "(" & native_expr(expr.surr, false) & ")",
+      get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")";
+
+      // get_unknown_arg()     = if expr.iter.arity == 1
+      //                           then native_var_ref_name(expr.iter) & ".Get()"
+      //                           else native_var_ref_name(expr.iter) & ".Get" & printed(expr.arg+1) & "()",
+      // get_col_index()       = native_var_ref_name(expr.iter) & ".GetIdx()";
+
+    String native_get_unknown_arg_expr(TableItVar iter, <0..2> arg) =
+      if arity(iter) == 1
+        then native_var_ref_name(iter) & ".get()"
+        else native_var_ref_name(iter) & ".get" & printed(arg+1) & "()";
+
+    String native_get_unknown_arg_expr(<ColumnItVar, SlaveColumnItVar> iter, <0..2> arg) {
+      assert arg == 0;
+      return native_var_ref_name(iter) & ".getIdx()";
+    }
+  }
 
 
   // table_lookup(table: AnyTableVar, args: Maybe[Int32Var]+, symmetric: Bool),

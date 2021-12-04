@@ -587,6 +587,7 @@ int64 float_round(double);
 int32 cast_int32(int64);
 OBJ set_insert(OBJ, OBJ);
 OBJ set_key_value(OBJ, OBJ, OBJ);
+OBJ drop_key(OBJ, OBJ);
 OBJ make_tag_int(uint16, int64);
 
 uint8 as_byte(int64);

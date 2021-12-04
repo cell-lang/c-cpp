@@ -17,6 +17,10 @@ OBJ set_key_value(OBJ map, OBJ key, OBJ value) {
   impl_fail("Not implemented yet");
 }
 
+OBJ drop_key(OBJ map, OBJ key) {
+  impl_fail("Not implemented yet");
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_ne_int_seq(OBJ obj) {
