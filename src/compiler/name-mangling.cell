@@ -129,6 +129,32 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
+  String obj_type_name = "OBJ";
+  String env_type_name = "ENV";
+  String reader_type_name = "READER";
+  String writer_type_name = "WRITER";
+
+  String env_arg_name = "env";
+  String auto_or_db_arg_name = "target";
+  String auto_or_db_updater_arg_name = "updater";
+
+  String native_dependee_name(DBSymbol, Nat index) = "dependee_" & printed(index);
+
+  String write_str_proc_name  = "write_str";
+  String write_symb_proc_name = "write_symb";
+  String write_obj_proc_name  = "write_obj";
+
+  String finish_write_proc_name = "finish_write";
+
+  // String symb_repr_proc_name = "symb_repr";
+
+  String target_arg_decl(DBSymbol db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;
+  String auxiliary_arg_decl(DBSymbol db_type) = native_updater_name(db_type) & " *" & auto_or_db_updater_arg_name;
+
+  String env_arg_decl = env_type_name & " &" & env_arg_name;
+
+  //////////////////////////////////////////////////////////////////////////////
+
   String native_var_name(<ObjVar, PendingInputVar> var, Bool add_prefix) {
     assert match (var)
       qual_signal_var() |
@@ -137,10 +163,10 @@ implicit context : NativeContext {
 
     prefix = if add_prefix
       then match (var)
-        impl_arg()          = "env.",
-        prev_var_value()    = "this.",
-        pending_state_var() = "updater.",
-        _                   = "this."
+        impl_arg()          = env_arg_name & ".",
+        prev_var_value()    = auto_or_db_arg_name & "->",
+        pending_state_var() = auto_or_db_updater_arg_name & "->",
+        _                   = auto_or_db_arg_name & "->"
       else "";
 
     return match (var)
@@ -317,57 +343,10 @@ implicit context : NativeContext {
 
   String updater_var_ref_name(ValueStoreId vs) = "updater." & updater_var_decl_name(vs);
 
-  String foreign_key_checker_decl_name(BlockForeignKey key) {
-    suffix = foreign_key_checker_suffix(key.type);
-    origin = native_var_decl_name(key.origin);
-    target = native_var_decl_name(key.target);
-    return "foreignKeyChecker" & suffix & "_" & origin & "_" & target;
-  }
+  String foreign_key_checker_decl_name(BlockForeignKey key) = undefined;
+  String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;
 
-  String foreign_key_checker_ref_name(BlockForeignKey key) =
-    "updater." & foreign_key_checker_decl_name(key);
-
-  String native_foreign_key_checker_type(BlockForeignKey key, Table, Table) =
-    "ForeignKeyChecker" & foreign_key_checker_suffix(key.type);
-
-  String native_foreign_key_checker_type(BlockForeignKey key, Table origin, Column target) {
-    assert key.type == :unary_binary;
-    fail;
-  }
-
-  String native_foreign_key_checker_type(BlockForeignKey key, Column origin, Table target) {
-    assert key.type == binary_unary(0);
-    suffix = match (origin.repr)
-      object  = "OCU",
-      int     = "ICU",
-      float   = "FCU";
-    return "ForeignKeyChecker" & suffix;
-  }
-
-  String native_foreign_key_checker_type(BlockForeignKey key, Column, Column) = undefined;
-
-  String foreign_key_checker_suffix(ForeignKeyType) =
-    unary_unary             = "UU",
-    unary_binary(i?)        = "UB" & printed(i+1),
-    unary_ternary(i?)       = "UT" & printed(i+1),
-
-    binary_unary(i?)        = "BU" & printed(i+1),
-    binary_ternary          = "BT",
-
-    ternary_unary(i?)       = "TU" & printed(i+1),
-    ternary_binary          = "TB",
-
-    unary_sym_binary        = "USB",
-    unary_sym_ternary_12    = "UST12",
-    unary_sym_ternary_3     = "UST3",
-
-    sym_binary_unary        = "SBU",
-    sym_ternary_unary_12    = "ST12U",
-    sym_ternary_unary_3     = "ST3U",
-
-    sym_binary_sym_ternary  = "SBST",
-    sym_ternary_sym_binary  = "STSB";
-
+  String native_foreign_key_checker_type(BlockForeignKey, AnyTable, AnyTable) = undefined;
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -447,7 +426,7 @@ implicit context : NativeContext {
     str = native_fn_name(id);
     return match (context)
       core    = str,
-      wrapper = "Cell.Generated.Static." & str;
+      wrapper = str; // "Cell.Generated.Static." & str;
 
 
     String native_fn_name(FnId id) =
@@ -531,70 +510,60 @@ Bool is_nullable(OptTagRecRepr) = true;
 
 String native_table_type(Table table) =
   match (arity(table), table.symmetric)
-    1,  false   = "UnaryTable",
-    2,  false   = "BinaryTable",
-    2,  true    = "SymBinaryTable",
-    3,  false   = "TernaryTable",
-    3,  true    = "Sym12TernaryTable";
+    1,  false   = "UNARY_TABLE",
+    2,  false   = "BIN_TABLE",
+    2,  true    = "SYM_BIN_TABLE",
+    3,  false   = "TERN_TABLE",
+    3,  true    = "SYM12_TERN_TABLE";
 
-String native_table_type(Column column) =
+String native_table_type(MasterBinTable) = "MASTER_BIN_TABLE";
+String native_table_type(SlaveTernTable) = "SLAVE_TERN_TABLE";
+
+String native_table_type(<Column, SlaveColumn> column) =
   match (column.repr)
-    object    = "ObjColumn",
-    int       = "IntColumn",
-    float     = "FloatColumn";
+    object    = "OBJ_COL",
+    int       = "INT_COL",
+    float     = "FLOAT_COL";
 
 
-String native_table_base_type(Table table)    = native_table_type(table);
-String native_table_base_type(Column column)  = "ColumnBase";
+String native_table_base_type(<Table, MasterBinTable, SlaveTernTable> table)  = native_table_type(table);
+String native_table_base_type(<Column, SlaveColumn>)                          = "ANY_COL";
 
 
 String table_it_var_type(TableItVar var) =
   match (var.arity, var.symmetric)
-    1,  false   = "UnaryTable.Iter",
-    2,  false   = "BinaryTable.Iter",
-    2,  true    = "SymBinaryTable.Iter",
-    3,  false   = "TernaryTable.Iter",
-    3,  true    = "Sym12TernaryTable.Iter";
+    1,  false   = "UNARY_TABLE_ITER",
+    2,  false   = "BIN_TABLE_ITER",
+    2,  true    = "SYM_BIN_TABLE_ITER",
+    3,  false   = "TERN_TABLE_ITER",
+    3,  true    = "SYM12_TERN_TABLE_ITER";
 
 String column_it_var_type(ColumnItVar var) =
   match (var.repr)
-    object    = "ObjColumn.Iter",
-    int       = "IntColumn.Iter",
-    float     = "FloatColumn.Iter";
+    object    = "OBJ_COL_ITER",
+    int       = "INT_COL_ITER",
+    float     = "FLOAT_COL_ITER";
 
 String slave_column_it_var_type(SlaveColumnItVar var) =
   match (var.repr)
-    object    = "ObjColumn.Iter",
-    int       = "IntColumn.Iter",
-    float     = "FloatColumn.Iter";
+    object    = "OBJ_COL_ITER",
+    int       = "INT_COL_ITER",
+    float     = "FLOAT_COL_ITER";
 
-String pending_updates_var_type(Table table) =
-  match (arity(table), table.symmetric)
-    1,  false   = "UnaryTableUpdater",
-    2,  false   = "BinaryTableUpdater",
-    2,  true    = "SymBinaryTableUpdater",
-    3,  false   = "TernaryTableUpdater",
-    3,  true    = "Sym12TernaryTableUpdater";
-
-String pending_updates_var_type(Column column) =
-  match (column.repr)
-    object    = "ObjColumnUpdater",
-    int       = "IntColumnUpdater",
-    float     = "FloatColumnUpdater";
-
+String pending_updates_var_type(AnyTable) = "INVALID_TYPE_NAME";
 
 String native_name(ValueStoreType) =
   integer               |
-  mono_tagged_integer() = "IntStore",
-  object                = "ObjStore";
+  mono_tagged_integer() = "INT_STORE",
+  object                = "OBJ_STORE";
 
-String native_updater_type(ValueStoreType vs) = native_name(vs) & "Updater";
+String native_updater_type(ValueStoreType vs) = native_name(vs) & "_UPDATER";
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-String native_const(<blank, undefined> state) =
-  {if state == :blank then "BlankObj" else "NullObj"} & ".singleton";
+String native_const(<blank>)     = "make_blank_obj()";
+String native_const(<undefined>) = "make_null_obj()";
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -604,55 +573,62 @@ String native_name(DBSymbol) = db_symbol(a?) = upper_camel_case(a) & "_T";
 
 String native_updater_name(<AutoSymbol, DBSymbol> symb) = native_name(symb) & "x";
 
-String native_name(MethodId meth_id) {
+String qualified_name(AutoSymbol db_type, String local_name)  = auto_symbol(a?) = upper_camel_case(a) & "__" & local_name;
+String qualified_name(DBSymbol db_type, String local_name)    =   db_symbol(a?) = upper_camel_case(a) & "__" & local_name;
+
+String native_name(<AutoSymbol, DBSymbol> auto_or_db_type, MethodId meth_id) {
   id_str = if meth_id.id? then uppercase_encoding(meth_id.id) else "";
-  return _print_(bare_id(meth_id.symbol)) & "_M" & printed(meth_id.arity) & id_str;
+  base_name = _print_(bare_id(meth_id.symbol)) & "_M" & printed(meth_id.arity) & id_str;
+  return qualified_name(auto_or_db_type, base_name);
 }
 
-String native_name(UpdateId id) =
-  main_handler    = "MsgHandler",
-  handler_id(n?)  = "MsgHandler_" & uppercase_encoding(n),
-  update_id()     = { id_str = if id.id? then uppercase_encoding(id.id) else "";
-                      return _print_(bare_id(id.symbol)) & "_U" & printed(id.arity) & id_str;
-                    };
+String native_name(DBSymbol db_type, UpdateId id) {
+  base_name = match (id)
+    main_handler    = "msg_handler",
+    handler_id(n?)  = "msg_handler_" & uppercase_encoding(n),
+    update_id()     = { id_str = if id.id? then uppercase_encoding(id.id) else "";
+                        return _print_(bare_id(id.symbol)) & "_U" & printed(id.arity) & id_str;
+                      };
+  return qualified_name(db_type, base_name);
+}
 
-String native_apply_method_name(<main_handler>) = "MsgHandlerApply";
+String native_apply_method_name(DBSymbol db_type, <main_handler>) = qualified_name(db_type,"msg_handler_apply");
 
-String native_apply_method_name(<handler_id(Nat)> id) = "MsgHandlerApply_" & uppercase_encoding(_untag_(id));
+String native_apply_method_name(DBSymbol db_type, <handler_id(Nat)> id) = qualified_name(db_type, "msg_handler_apply_" & uppercase_encoding(_untag_(id)));
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-## THE PARAMETER SHOULD BE REMOVED...
+String init_method_name           (DBSymbol db_type) = qualified_name(db_type, "init");
+String init_set_state_method_name (DBSymbol db_type) = qualified_name(db_type, "set_init_state");
+String init_load_state_method_name(DBSymbol db_type) = qualified_name(db_type, "load_init_state");
+String cleanup_method_name        (DBSymbol db_type) = qualified_name(db_type, "cleanup");
+String copy_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "copy_state");
+String write_state_proc_name      (DBSymbol db_type) = qualified_name(db_type, "write_state");
+String set_state_proc_name        (DBSymbol db_type) = qualified_name(db_type, "set_state");
+String load_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "load_state");
+String updater_creation_proc_name (DBSymbol db_type) = qualified_name(db_type, "new_updater");
+String updater_reset_proc_name    (DBSymbol db_type) = qualified_name(db_type, "reset_updater");
+String updates_copy_proc_name     (DBSymbol db_type) = qualified_name(db_type, "copy");
+String updates_apply_proc_name    (DBSymbol db_type) = qualified_name(db_type, "apply");
+String updates_finish_proc_name   (DBSymbol db_type) = qualified_name(db_type, "finish");
+String updates_check_proc_name    (DBSymbol db_type) = qualified_name(db_type, "check");
+String full_check_proc_name       (DBSymbol db_type) = qualified_name(db_type, "full_check");
+String update_entry_point_name    (DBSymbol db_type) = qualified_name(db_type, "update_entry_point");
 
-String copy_state_proc_name         (DBSymbol db_type) = "CopyState";
-String write_state_proc_name        (DBSymbol db_type) = "WriteState";
-String set_state_proc_name          (DBSymbol db_type) = "SetState";
-String load_state_proc_name         (DBSymbol db_type) = "LoadState";
-String updater_creation_proc_name   (DBSymbol db_type) = "NewUpdater";
-String updater_reset_proc_name      (DBSymbol db_type) = "ResetUpdater";
-String updates_copy_proc_name       (DBSymbol db_type) = "Copy";
-String updates_apply_proc_name      (DBSymbol db_type) = "Apply";
-String updates_finish_proc_name     (DBSymbol db_type) = "Finish";
-String updates_check_proc_name      (DBSymbol db_type) = "Check";
-String full_check_proc_name         (DBSymbol db_type) = "FullCheck";
-String update_entry_point_name      (DBSymbol db_type) = "UpdateEntryPoint";
-String init_method_name             (DBSymbol db_type) = "Init";
-String cleanup_method_name          (DBSymbol db_type) = "Cleanup";
+String state_is_def_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "state_is_def");
 
-String state_is_def_proc_name(AutoSymbol auto_type) = "StateIsDef";
+String set_state_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "set_state");
 
-String set_state_proc_name(AutoSymbol auto_type) = "SetState";
+String copy_state_proc_name     (AutoSymbol auto_type) = qualified_name(auto_type, "copy_state");
+String pre_init_method_name     (AutoSymbol auto_type) = qualified_name(auto_type, "preinit");
+String apply_method_name        (AutoSymbol auto_type) = qualified_name(auto_type, "apply");
+String cleanup_method_name      (AutoSymbol auto_type) = qualified_name(auto_type, "cleanup");
+String insert_timer_method_name (AutoSymbol auto_type) = qualified_name(auto_type, "insert_timer");
+String clear_timer_method_name  (AutoSymbol auto_type) = qualified_name(auto_type, "clear_timer");
 
-String copy_state_proc_name     (AutoSymbol auto_type) = "CopyState";
-String pre_init_method_name     (AutoSymbol auto_type) = "Preinit";
-String apply_method_name        (AutoSymbol auto_type) = "Apply";
-String cleanup_method_name      (AutoSymbol auto_type) = "Cleanup";
-String insert_timer_method_name (AutoSymbol auto_type) = "InsertTimer";
-String clear_timer_method_name  (AutoSymbol auto_type) = "ClearTimer";
-
-String update_name(DBSymbol db, UpdateId id) = native_name(id);
-String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = native_name(method);
+String update_name(DBSymbol db, UpdateId id) = native_name(db, id);
+String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = native_name(type, method);
 
 String input_set_method_name(AutoSymbol auto, Atom input) = _print_(input) & "_S_set";
 

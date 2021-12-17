@@ -1,0 +1,972 @@
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
+  String* native_static_block_decl(StaticBlock block) {
+    links_decls = (native_name(l) & " linkedAuto" & printed(i) & ";" : l @ i <- block.links);
+    state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
+    value_store_decls = [{
+      type = native_name(t);
+      return type & " " & native_var_decl_name(v) & ";";
+    } : v t <- block.value_stores];
+    table_decls = [native_table_type(t) & " " & native_var_decl_name(v) & ";" : v t <- block.tables];
+
+    memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
+
+    ctor_code = native_ctor_code(block.name, block.links, block.tables, block.init_code);
+    rec_ctors_code = native_rec_ctors_code(block.name, block.links);
+
+    surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
+
+    copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
+    write_state_code = native_write_state_code(block);
+    set_state_code = native_set_state_code(block.name, block.set_state_code);
+    load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
+
+    update_entry_point_code = if block.updates(main_handler, _)
+      then update_entry_point(block.name)
+      else ();
+
+    full_check_code = full_check_method_code(block);
+
+    methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
+    updates_code = []; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    // updates_code = native_updates_code(block);
+
+    block_name = native_name(block.name);
+
+    return join((
+      ("", "", "struct " & block_name & " {"),
+      indent_lines(memb_decls),
+      ("};"),
+      (""), updater_decl(block),
+      indent_lines(( "",
+        "void RelAuto__init(RelAuto_T *, ENV &);",
+        "bool RelAuto__set_state(RelAuto_T *, OBJ);",
+        "bool RelAuto__load_state(RelAuto_T *, READER *);",
+        "bool RelAuto__full_check(RelAuto_T *);",
+        "",
+        ""
+      )),
+      (""), ctor_code,
+      (""), rec_ctors_code,
+      (""), surr_obj_mappers,
+      (""), copy_state_code,
+      (""), write_state_code,
+      (""), set_state_code,
+      (""), load_state_code,
+      (""), update_entry_point_code,
+      (""), full_check_code,
+      join((("") & c : c <- isort(methods_code))),
+      join((("") & c : c <- isort(updates_code)))
+      // ("", ""), updater_creation_code(block),
+      // (""), updater_reset_code(block),
+    ));
+  }
+
+
+  String* native_ctor_code(DBSymbol name, DBSymbol* dependees, [TableVar -> AnyTable] tables, Instr* init_code) {
+    target_name = auto_or_db_arg_name;
+    dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
+
+    links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
+
+    tables_in_init_order = sort_by_key(
+      [(v, t) : v t <- tables],
+      match ($)
+        (_, slave_tern_table()) = 1,
+        _                       = 0
+    );
+
+    tables_init_code = ({
+      value_stores = match (t)
+        table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
+        master_bin_table()  = if t.symmetric then undefined else t.value_stores,
+        slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
+        column()            = (t.value_store),
+        slave_column()      = ();
+      arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
+      arg_list = match (t)
+        slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
+        _                   = arg_list;
+      return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
+    } : v, t <- tables_in_init_order);
+
+    vars_decl = gen_vars_decls(init_code, []);
+    vars_decl = vars_decl & ("") if vars_decl != ();
+    body = vars_decl & links_init_code & tables_init_code & native_code(init_code, nothing, break_target = nothing);
+    dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
+    signature = "void " & init_method_name(name) & "(" & native_name(name) & " *" & target_name & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
+    return (signature) & indent_lines(body) & ("}");
+  }
+
+
+  String* native_rec_ctors_code(DBSymbol block_name, DBSymbol* dependees) {
+    obj_type = obj_type_name;
+    env_type = env_type_name;
+    target_name = auto_or_db_arg_name;
+    target_type_name = native_name(block_name);
+    env_arg = env_arg_name;
+    init_method = init_method_name(block_name);
+    full_check_method = full_check_proc_name(block_name);
+
+    dependees_args = (native_dependee_name(t, i) : t @ i <- dependees);
+
+    formal_target_arg = target_type_name & " *" & target_name;
+    formal_state_arg = obj_type & " state";
+    formal_reader_arg = reader_type_name & " *reader";
+    formal_env_arg = env_type & " &" & env_arg;
+    formal_dependees_args = (native_name(t) & " " & dependees_args(i) : t @ i <- dependees);
+
+    formal_set_state_args = append((formal_target_arg) & formal_dependees_args & (formal_state_arg, formal_env_arg), ", ");
+    formal_load_state_args = append((formal_target_arg) & formal_dependees_args & (formal_reader_arg, formal_env_arg), ", ");
+
+    init_method_call_args = append((target_name) & (dependees_args | env_arg), ", ");
+
+    return (
+      "bool " & init_set_state_method_name(block_name) & "(" & formal_set_state_args & ") {",
+      "  " & init_method & "(" & init_method_call_args & ");",
+      "  if (!" & set_state_proc_name(block_name) & "(" & target_name & ", state)) {",
+      "    return false;",
+      "  }",
+      "  if (!" & full_check_method & "(" & target_name & ")) {",
+      "    return false;",
+      "  }",
+      "  return true;",
+      "}",
+      "",
+      "bool " & init_load_state_method_name(block_name) & "(" & formal_load_state_args & ") {",
+      "  " & init_method & "(" & init_method_call_args & ");",
+      "  if (!" & load_state_proc_name(block_name) & "(" & target_name & ", reader)) {",
+      "    return false;",
+      "  }",
+      "  if (!" & full_check_method & "(" & target_name & ")) {",
+      "    return false;",
+      "  }",
+      "  return true;",
+      "}"
+    );
+  }
+
+
+  String* native_surr_obj_mappers([ValueStoreId -> ValueStoreType] value_stores) {
+    return join(intermix((surr_obj_mapper(id, type) : id, type <- isort(value_stores)), ("")));
+
+
+    String* surr_obj_mapper(ValueStoreId id, ValueStoreType type) {
+      name = native_surr_obj_mapper_name(id);
+      vs_name = native_var_ref_name(id);
+      sign = "private Obj " & name & "(int surr) {";
+      body = "  return " & match (type)
+        object | integer        = vs_name & ".surrToObjValue(surr);",
+        mono_tagged_integer(s?) = "Builder.createTaggedIntObj(" & symb_id_name(s) & ", " & vs_name & ".surrToValue(surr));";
+      return (sign, body, "}");
+    }
+  }
+
+
+  // (String, String*) native_cleanup_code(DBSymbol name, Instr* cleanup_code) {
+  //   cleanup_body = native_code(cleanup_code, nothing);
+  //   cleanup_sgn = "void " & cleanup_method_name(name) & "(" & native_name(name) & " *self)";
+  //   cleanup_decl = cleanup_sgn & ";";
+  //   cleanup_proc = (cleanup_sgn & " {") & indent_lines(cleanup_body) & ("}");
+  //   return (cleanup_decl, cleanup_proc);
+  // }
+
+
+  String* native_copy_state_code(DBSymbol name, Instr* code) {
+    vars_decls = gen_vars_decls(code, []);
+    body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
+    sgn = obj_type_name & " " & copy_state_proc_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ") {";
+    return (sgn) & indent_lines(body) & ("}");
+  }
+
+  String* native_write_state_code(StaticBlock block) {
+    has_rel_vars = block.tables != [];
+
+    code = (
+      "bool " & write_state_proc_name(block.name) & "(" & native_name(block.name) & " *" & auto_or_db_arg_name & ", " & writer_type_name & " *writer) {",
+      "  " & write_str_proc_name & "(writer, \"( \");"
+    );
+
+    first = true;
+
+    state_vars = isort(keys(block.state_vars));
+    for v @ i <- state_vars {
+      code = (code | "  " & write_str_proc_name & "(writer, \"  \");") if not first;
+      code = (code |
+        "  " & write_symb_proc_name & "(writer, " & symb_id_name(bare_id(v)) & ");",
+        "  " & write_str_proc_name & "(writer, \": \");",
+        "  " & write_obj_proc_name & "(writer, " & native_var_ref_name(v) & ");",
+        if i < |state_vars| - 1 or has_rel_vars
+          then "  " & write_str_proc_name & "(writer, \",\\n\");"
+          else "  " & write_str_proc_name & "(writer, \"\\n\");"
+      );
+      first = false;
+    }
+
+    // tables_by_relvar = isort(group_by(keys(block.tables), logical_rel_var(original_rel_var($))));
+    // for rv, tvs @ i <- tables_by_relvar {
+    //   symb = symb_id_name(bare_id(rv));
+    //   ord_table_vars = isort(tvs);
+    //   tables = append((native_var_ref_name(tv) : tv <- ord_table_vars), ", ");
+    //   tables_type = only([native_table_base_type(block.tables(tv)) : tv <- tvs]);
+    //   indent_first_line = _print_(not first);
+    //   write_separator = _print_(i < |tables_by_relvar| - 1);
+    //   perm = rel_vars_perm_map(block.name)(rv);
+    //   symmetric = only([
+    //     match (block.tables(tv))
+    //       column()              |
+    //       slave_column()        = false,
+    //       table() t?            |
+    //       master_bin_table() t? |
+    //       slave_tern_table() t? = t.symmetric
+    //     : tv <- tvs
+    //   ]);
+    //   perm_args = if symmetric
+    //     then ""
+    //     else match (|perm|)
+    //       1   = "",
+    //       2   = if perm == [0 -> 1, 1 -> 0] then ", true" else ", false",
+    //       3   = append((", " & _print_(perm(j)) : j < 3));
+
+    //   are_slave_columns = only([
+    //     match (block.tables(tv))
+    //       slave_column()  = true,
+    //       _               = false
+    //     : tv <- tvs
+    //   ]);
+
+    //   if are_slave_columns {
+    //     masters = (
+    //       match (block.tables(v))
+    //         slave_column() c? = c.master,
+    //         _                 = undefined
+    //       : v <- ord_table_vars
+    //     );
+    //     masters_array = ", new MasterBinaryTable[] {" & append((native_var_ref_name(v) : v <- masters), ", ") & "}";
+    //   }
+    //   else
+    //     masters_array = "";
+
+    //   instr = "  TextWriter.write(writer, " & symb & ", new " & tables_type & "[] {" & tables &
+    //           "}" & masters_array & perm_args & ", 2, " & indent_first_line & ", " & write_separator & ");";
+
+    //   code = (code | instr);
+    //   first = false;
+    // }
+
+    code = (code |
+      "  " & write_str_proc_name & "(writer, \")\\n\");",
+      "  return " & finish_write_proc_name & "(writer);",
+      "}"
+    );
+
+    return code;
+  }
+
+
+  String* native_set_state_code(DBSymbol name, Instr* code) {
+    //updater_init_call = native_method_call("this", updater_init_proc_name(name), ());
+    vars_decls = gen_vars_decls(code, []);
+    //body = vars_decls & ("" if vars_decls != (), updater_init_call) & native_code(code, nothing);
+    body = vars_decls & native_code(code, nothing, break_target = nothing);
+    sgn = "bool " & set_state_proc_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ", " & obj_type_name & " a0) {";
+    return (sgn) & indent_lines(body) & ("}");
+  }
+
+
+  String* native_load_state_code(DBSymbol name, [MembVar -> BoolExpr] memb_vars_check_exprs, [RelVar -> (LocVar+, BoolExpr, Instr+)] rel_vars_load_code) {
+    header = (
+      "bool " & load_state_proc_name(name) & "(" & target_arg_decl(name) & ", " & auxiliary_arg_decl(name) & ", uint32 (*read)(void *, uint8 *, uint32), void *read_state) {",
+      "  " & obj_type_name & " v0, v1, v2;",
+      "  int i0, i1, i2;", ## IMPLEMENT: int IS NOT THE RIGHT TYPE HERE
+      "",
+      "  PARSER parser;",
+      "  init_parser(&parser, read, read_state);",
+      "",
+      "  if (consume_char(&parser, '[')) {",
+      "    return consume_char(&parser, ']');",
+      "  }",
+      "",
+      "  if (!consume_char(&parser, '(')) {",
+      "    return false;",
+      "  }",
+      "",
+      " uint16 field;",
+      "  while (read_label(&parser, &field)) {",
+      "    switch (field) {"
+    );
+
+    footer = (
+      "",
+      "      default:",
+      "        if (!skip_value(&parser)) {",
+      "          return false;",
+      "        }",
+      "    }",
+      "",
+      "    if (!consume_char(&parser, ','))",
+      "      break;",
+      "  }",
+      "",
+      "  return consume_char(&parser, ')');",
+      "}"
+    );
+
+    memb_vars_cases = (
+      indent_lines(native_load_state_case(v, e), 3) : v, e <- isort(memb_vars_check_exprs)
+    );
+
+    rel_vars_cases = ();
+
+    // rel_vars_cases = ({
+    //   vars, guard_expr, instrs = rel_vars_load_code(rv);
+    //   case = match (vars)
+    //     (v?)            = native_load_state_case(rv, v, guard_expr, instrs),
+    //     (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs),
+    //     (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
+    //   return indent_lines(case, 3);
+    // } : rv <- isort(keys(rel_vars_load_code)));
+
+    return header & join(intermix(memb_vars_cases & rel_vars_cases, (""))) & footer;
+
+
+    String* native_load_state_case(MembVar var, BoolExpr guard_expr) {
+      symb_str = symb_id_name(bare_id(var));
+      var_str = native_var_ref_name(var);
+      guard_expr_str = native_expr(guard_expr);
+
+      return (
+        "case " & symb_str & ":",
+        // "  bookmark(&parser);",
+        "  if (!parse_obj(&parser, &" & var_str & ")) {",
+        "    return false;",
+        "  }",
+        "  if (!(" & guard_expr_str & ")) {",
+        "    return false;",
+        "  }",
+        "  break;"
+      );
+    }
+
+
+    // String* native_load_state_case(RelVar rel_var, LocVar var, BoolExpr guard_expr, Instr+ code) {
+    //   symb_str = symb_id_name(bare_id(rel_var));
+    //   var_str = native_var_ref_name(var);
+    //   guard_expr_str = native_expr(guard_expr);
+
+    //   header = (
+    //     "case " & symb_str & ":",
+    //     "  parser.consumeOpenBracket();",
+    //     "  while (!parser.nextIsCloseBracket()) {",
+    //     "    parser.bookmark();",
+    //     "    " & var_str & " = parser.parseObj();",
+    //     "    if (!(" & guard_expr_str & "))",
+    //     "      parser.failAtBookmark();"
+    //   );
+
+    //   footer = (
+    //     "    if (!parser.tryConsumingComma())",
+    //     "      break;",
+    //     "  }",
+    //     "  parser.consumeCloseBracket();",
+    //     "  break;"
+    //   );
+
+    //   return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
+    // }
+
+
+    // String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, BoolExpr guard_expr, Instr+ code) {
+    //   symb_str = symb_id_name(bare_id(rel_var));
+    //   var1_str = native_var_ref_name(var1);
+    //   var2_str = native_var_ref_name(var2);
+    //   guard_expr_str = native_expr(guard_expr);
+
+    //   header = (
+    //     "case " & symb_str & ":",
+    //     "  parser.consumeOpenBracket();",
+    //     "  if (!parser.nextIsCloseBracket()) {",
+    //     "    parser.bookmark();",
+    //     "    " & var1_str & " = parser.parseObj();",
+    //     "    if (parser.tryConsumingArrow()) {",
+    //     "      " & var2_str & " = parser.parseObj();",
+    //     "      for ( ; ; ) {",
+    //     "        if (!(" & guard_expr_str & "))",
+    //     "          parser.failAtBookmark();"
+    //   );
+
+    //   middle = (
+    //     "        if (!parser.tryConsumingComma() || parser.nextIsCloseBracket())",
+    //     "          break;",
+    //     "",
+    //     "        parser.bookmark();",
+    //     "        " & var1_str & " = parser.parseObj();",
+    //     "        parser.consumeArrow();",
+    //     "        " & var2_str & " = parser.parseObj();",
+    //     "      }",
+    //     "    }",
+    //     "    else {",
+    //     "      parser.consumeComma();",
+    //     "      " & var2_str & " = parser.parseObj();",
+    //     "      for ( ; ; ) {",
+    //     "        if (!(" & guard_expr_str & "))",
+    //     "          parser.failAtBookmark();"
+    //   );
+
+    //   footer = (
+    //     "        if (!parser.tryConsumingSemicolon())",
+    //     "          break;",
+    //     "        if (parser.nextIsCloseBracket())",
+    //     "          break;",
+    //     "",
+    //     "        parser.bookmark();",
+    //     "        " & var1_str & " = parser.parseObj();",
+    //     "        parser.consumeComma();",
+    //     "        " & var2_str & " = parser.parseObj();",
+    //     "      }",
+    //     "    }",
+    //     "  }",
+    //     "  parser.consumeCloseBracket();",
+    //     "  break;"
+    //   );
+
+    //   return join(intermix((header, middle, footer), indent_lines(native_code(code, nothing, break_target = nothing), 4)));
+    // }
+
+
+    // String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, LocVar var3, BoolExpr guard_expr, Instr+ code) {
+    //   symb_str = symb_id_name(bare_id(rel_var));
+    //   var1_str = native_var_ref_name(var1);
+    //   var2_str = native_var_ref_name(var2);
+    //   var3_str = native_var_ref_name(var3);
+    //   guard_expr_str = native_expr(guard_expr);
+
+    //   header = (
+    //     "case " & symb_str & ":",
+    //     "  parser.consumeOpenBracket();",
+    //     "  for (int i=0 ; !parser.nextIsCloseBracket() ; i++) {",
+    //     "    parser.bookmark();",
+    //     "    " & var1_str & " = parser.parseObj();",
+    //     "    parser.consumeComma();",
+    //     "    " & var2_str & " = parser.parseObj();",
+    //     "    parser.consumeComma();",
+    //     "    " & var3_str & " = parser.parseObj();",
+    //     "    if (!(" & guard_expr_str & "))",
+    //     "      parser.failAtBookmark();"
+    //   );
+
+    //   footer = (
+    //     "  if (i == 0)",
+    //     "    parser.consumeSemicolon();",
+    //     "  else if (!parser.tryConsumingSemicolon())",
+    //     "    break;",
+    //     "}",
+    //     "parser.consumeCloseBracket();",
+    //     "break;"
+    //   );
+
+    //   return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
+    // }
+  }
+
+
+  String* update_entry_point(DBSymbol block_name) {
+    body = (
+      // // "int depth = get_call_stack_depth();",
+      // "try {",
+      // "  Miscellanea.insideTransaction = true;",
+      // "  int code = " & update_name(block_name, main_handler) & "(msg, updater, env);",
+      // "  Miscellanea.insideTransaction = false;",
+      // "  " & native_apply_method_name(block_name, main_handler) & "(updater, code);",
+      // "  updater.lastException = null;",
+      // "  return true;",
+      // "}",
+      // "catch (Exception e) {",
+      // "  Miscellanea.insideTransaction = false;",
+      // "  " & updater_reset_proc_name(block_name) & "(updater);",
+      // "  updater.lastException = e;",
+      // // "  pop_try_mode_call_info(depth);",
+      // // "  e.printStackTrace(System.err);" if debug_mode,
+      // "  return false;",
+      // "}"
+      "return true;"
+    );
+
+    name = update_entry_point_name(block_name);
+    updater_type = native_updater_name(block_name);
+    formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
+    sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
+    return (sgn) & indent_lines(body) & ("}");
+  }
+
+
+  String* full_check_method_code(StaticBlock block) {
+    keys = [(v, arity(t), k) : v t <- block.tables, needs_keys_check(t), k <- keys(t)];
+    ord_keys = sort_by_key(keys, $(1));
+    keys_check_code = join(({
+      method_name = key_check_method_names((a, k), !);
+      return (
+        "if (!" & native_var_ref_name(v) & "." & method_name & "())",
+        "  return false;"
+      );
+    } : v, a, k <- ord_keys));
+
+    foreign_keys_check_code = native_code(block.foreign_keys_check_code, nothing, break_target = nothing);
+    vars_decls = gen_vars_decls(block.foreign_keys_check_code, []);
+
+    sections = (vars_decls, keys_check_code, foreign_keys_check_code, ("return true;"));
+    sections = (s : s <- sections, s != ());
+    body = join(intermix(sections, ("")));
+
+    sgn = "bool " & full_check_proc_name(block.name) & "(" & target_arg_decl(block.name) & ") {";
+    return (sgn) & indent_lines(body) & ("}");
+
+
+    [(NzNat, [+Nat]) -> String] key_check_method_names = [
+      (2, [0])    -> "col1_is_key",
+      (2, [1])    -> "col2_is_key",
+      (3, [2])    -> "col3_is_key",
+      (3, [0, 1]) -> "cols12_are_key",
+      (3, [0, 2]) -> "cols13_are_key",
+      (3, [1, 2]) -> "cols23_are_key"
+    ];
+
+
+    True  needs_keys_check(<Table, MasterBinTable, SlaveTernTable>) = true;
+    False needs_keys_check(<Column, SlaveColumn>) = false; //## NOT SURE ABOUT THIS ONE
+  }
+
+
+  String* updater_decl(StaticBlock block) {
+  //   linked_updaters_decls = (
+  //     "public " & native_updater_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
+  //     : l @ i <- block.links
+  //   );
+
+  //   dep_msg_vars_decls = (
+  //     "public Obj " & dependee_msg_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
+  //   );
+
+  //   dep_apply_code_vars_decls = (
+  //     "public int " & dependee_apply_code_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
+  //   );
+
+  //   vars_decls = (
+  //     "public Obj " & native_var_decl_name(pending_state_var(bare_id(v))) & ";"
+  //     : v, _ <- isort(block.state_vars)
+  //   );
+
+  //   stores_decls = (
+  //     "public " & native_updater_type(t) & " " & updater_var_decl_name(vs) & ";"
+  //     : vs, t <- isort(block.value_stores)
+  //   );
+
+  //   tables_decls = (
+  //     "public " & pending_updates_var_type(t) & " " & pending_updates_var_decl_name(v) & ";"
+  //     : v, t <- isort(block.tables)
+  //   );
+
+  //   foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
+  //   foreign_key_checkers_decls = (
+  //     native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target)) & " " &
+  //     foreign_key_checker_decl_name(k) & ";"
+  //     : k <- foreign_keys
+  //   );
+
+  //   memb_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls &
+  //                vars_decls & stores_decls & tables_decls & foreign_key_checkers_decls;
+
+  //   return join((
+  //     ("static class " & native_updater_name(block.name) & " extends RelAutoUpdaterBase {"),
+  //     indent_lines(memb_decls),
+  //     ("};")
+  //   ));
+
+    return ("struct " & native_updater_name(block.name) & " {", "};");
+  }
+
+
+  String* updater_creation_code(StaticBlock block) {
+    linked_updaters_init_code = (
+      updater_var_ref_name(linked_db_var(i)) & " = l" & _print_(i) & ";"
+      : i < |block.links|
+    );
+
+    dep_msg_vars_init_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
+    dep_apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
+
+    var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
+    init_vars_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
+
+    value_stores_init_code = (
+      native_new_call(updater_var_ref_name(vs), native_updater_type(t), (vs))
+      : vs, t <- isort(block.value_stores)
+    );
+
+    ord_tables = ((v, block.tables(v)) : v <- sort_by_key(keys(block.tables), arity(block.tables($))));
+    tables_init_code = ({
+      value_stores = match (t)
+        table()            = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
+        master_bin_table() = if t.symmetric then undefined else t.value_stores,
+        slave_tern_table() = if t.symmetric then undefined else t.value_stores,
+        column()           = (t.value_store),
+        slave_column()     = t.value_stores;
+
+      other_args = match (t)
+        slave_column()  = (pending_updates_var_ref_name(t.master)),
+        _               = ();
+
+      return native_new_call(
+        pending_updates_var_ref_name(v),
+        pending_updates_var_type(t),
+        ("\"" & user_repr(original_rel_var(v)) & "\"", v) & other_args & (updater_var_ref_name(vs) : vs <- value_stores)
+      );
+    } : v, t <- ord_tables);
+
+    foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
+    foreign_key_checkers_init_code = ({
+      var = foreign_key_checker_ref_name(k);
+      type = native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target));
+      origin = pending_updates_var_ref_name(k.origin);
+      target = pending_updates_var_ref_name(k.target);
+      return native_new_call(var, type, (origin, target));
+    } : k <- foreign_keys);
+
+    body = linked_updaters_init_code & dep_msg_vars_init_code & dep_apply_code_vars_init_code &
+           init_vars_code & value_stores_init_code & tables_init_code & foreign_key_checkers_init_code;
+
+    class_name = native_updater_name(block.name);
+    args = append((native_updater_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
+    sgn = "public " & class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
+    return (sgn, "  " & class_name & " updater = new " & class_name & "();") &
+           indent_lines(body) &
+           ("  return updater;", "}");
+  }
+
+
+  String* updater_reset_code(StaticBlock block) {
+    var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
+    vars_reset_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
+
+    dep_msg_vars_reset_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
+    dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
+
+    value_stores_reset_code = (
+      native_method_call(updater_var_ref_name(vs), "reset", ()) : vs, _ <- isort(block.value_stores)
+    );
+
+    tables_reset_code = (
+      native_method_call(pending_updates_var_ref_name(v), "reset", ())
+      : v, t <- isort(block.tables)
+    );
+
+    body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
+           value_stores_reset_code & tables_reset_code;
+
+    sgn = "public void " & updater_reset_proc_name(block.name) & "(" & native_updater_name(block.name) & " updater) {";
+    return (sgn) & indent_lines(body) & ("}");
+  }
+
+
+  String* var_apply_code(Atom var_id) {
+    psv_str = native_var_ref_name(pending_state_var(var_id));
+    mv_str = native_var_ref_name(memb_var(var_id));
+    return (
+      "if (!" & psv_str & ".isBlankObj())",
+      "  " & mv_str & " = " & psv_str & ";"
+    );
+  }
+
+
+  String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, OptCompMethod method) {
+    args_str = append((native_var_type(a) & " " & native_var_decl_name(a) & ", " : a <- method.args));
+    sgn = native_type(method.ret_val_repr) & " " & user_def_method_name(block_name, method_id) & "(" & target_arg_decl(block_name) & ", " & args_str & "Env env) {";
+    vars_decls = gen_vars_decls(method.body, set(method.args));
+    body_text = vars_decls & ("" if vars_decls != ()) & native_code(method.body, nothing, break_target = nothing);
+    return (sgn) & indent_lines(body_text) & ("}");
+  }
+
+
+  String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, Maybe[StdVar]* args, Instr* body) {
+    final_args = (if a != nothing then value(a) else fn_arg(i) : a @ i <- args);
+    args_str = append(("Obj " & native_var_decl_name(a) & ", " : a <- final_args));
+    sgn = "public Obj " & user_def_method_name(block_name, method_id) & "(" & args_str & "Env env) {";
+    vars_decls = gen_vars_decls(body, [value(a) : a <- args, a != nothing]);
+    body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
+    return (sgn) & indent_lines(body_text) & ("}");
+  }
+
+
+  [String*] native_updates_code(StaticBlock b) {
+    let block = b
+      code = [native_update_code(b.name, id, u.args_vars, u.body) : id u <- b.updates];
+    return code;
+  }
+}
+
+
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool {
+  String* native_update_code(DBSymbol block_name, UpdateId update_id, <StdVar, FnArg>* args, Instr* body) {
+    args_str = append(("Obj " & native_var_decl_name(a) & ", " : a <- args));
+    ret_type = match (update_id)
+      main_handler  = "int",
+      handler_id()  = "void",
+      update_id()   = "void";
+    sgn = "public " & ret_type & " " & update_name(block_name, update_id) & "(" & args_str & native_updater_name(block_name) & " updater, Env env) {";
+    vars_decls = gen_vars_decls(body, [a : a <- args, a :: StdVar]);
+    body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
+
+    body_text = body_text & match (update_id)
+      handler_id()  = run_and_check_dependees_and_check_code(block_name, update_id),
+      main_handler  = (),
+      update_id()   = ();
+
+    main_method = (sgn) & indent_lines(body_text) & ("}");
+    apply_method = match (update_id)
+      main_handler    = main_handler_apply_method(block_name),
+      handler_id(i?)  = handler_apply_method(block_name, update_id),
+      update_id()     = ();
+
+    return main_method & apply_method;
+
+
+    String* run_and_check_dependees_and_check_code(DBSymbol block_name, UpdateId update_id) {
+      dependees = [a : a <- updated_dependees(update_id, ?)];
+      dependees_code = dependees_run_and_check_code(block_name, dependees);
+
+      insertion_tables = [t : t <- table_vars_with_insertions(update_id, ?)];
+      deletion_tables = [t : t <- table_vars_with_deletions(update_id, ?)];
+      check_code = updates_check_code(block, insertion_tables, deletion_tables);
+
+      return dependees_code & check_code;
+    }
+
+    String* main_handler_apply_method(DBSymbol block_name) {
+      ids = [i : id _ <- block.updates, handler_id(i?) ?= id];
+      return () if ids == [];
+      assert max(ids) == |ids| - 1 and min(ids) == 0;
+
+      sgn = "public void " & native_apply_method_name(block_name, :main_handler) & "(" &
+            native_updater_name(block_name) & " updater, int applyCode) {";
+
+      code = (
+        "",
+        sgn,
+        " switch (applyCode) {"
+      );
+
+      for i < |ids| {
+        code = (code | "") if i > 0;
+        code = (code |
+          "    case " & _print_(i) & ":",
+          "      " & native_apply_method_name(block_name, handler_id(i)) & "(updater);",
+          "      break;"
+        );
+      }
+
+      code = (code |
+        "",
+        "    default:",
+        "      throw Miscellanea.hardFail();",
+        "  }",
+        "}"
+      );
+
+      return code;
+    }
+
+
+    String* handler_apply_method(DBSymbol block_name, <handler_id(Nat)> update_id) {
+      memb_vars = [v : v <- updated_memb_vars(update_id, ?)];
+      value_stores = [v : v <- updated_value_stores(update_id, ?)];
+      dependees = [a : a <- updated_dependees(update_id, ?)];
+      insertion_tables = [t : t <- table_vars_with_insertions(update_id, ?)];
+      deletion_tables = [t : t <- table_vars_with_deletions(update_id, ?)];
+      table_vars = insertion_tables & deletion_tables;
+      tables = [t -> block.tables(t) : t <- table_vars];
+
+      dependees_code = dependees_apply_code(dependees);
+
+      apply_code = updates_apply_code(dependees, memb_vars, value_stores, tables);
+      finish_code = updates_finish_code(deletion_tables, block);
+      reset_code = updates_reset_code(memb_vars, value_stores, table_vars, dependees);
+
+      sgn = "public void " & native_apply_method_name(block_name, update_id) & "(" & native_updater_name(block.name) & " updater) {";
+      body = dependees_code & apply_code & finish_code & reset_code;
+      return ("", sgn) & indent_lines(body) & ("}");
+    }
+  }
+}
+
+
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
+  String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar] vars) {
+    code = ();
+    for v <- isort(vars) {
+      msg_var_name = dependee_msg_var_ref_name(v);
+      args = (msg_var_name, updater_var_ref_name(v), "env");
+      instr = native_method_call(native_var_ref_name(v), native_name(block_name, main_handler), args);
+      code = (code | "if (" & msg_var_name & " != null)", "  " & instr);
+    }
+    return code;
+  }
+
+
+  String* dependees_apply_code([LinkedDBVar] vars) {
+    code = ();
+    for v <- isort(vars) {
+      msg_var_name = dependee_msg_var_ref_name(v);
+      args = (updater_var_ref_name(v), dependee_apply_code_var_ref_name(v));
+      instr = native_method_call(native_var_ref_name(v), "msgHandlerApply", args);
+      code = (code |
+        "if (" & msg_var_name & " != null) {",
+        "  " & instr,
+        "  " & msg_var_name & " = null;",
+        "}"
+      );
+    }
+    return code;
+  }
+
+
+  String* updates_reset_code([MembVar] memb_vars, [ValueStoreId] value_stores, [TableVar] tables, [LinkedDBVar] dependees) {
+    memb_vars_code = (
+      native_var_ref_name(pending_state_var(bare_id(v))) & " = BlankObj.singleton;"
+      : v <- isort(memb_vars)
+    );
+    memb_vars_code = ("") & memb_vars_code if memb_vars != [];
+
+    value_stores_code = (
+      native_method_call(updater_var_ref_name(vs), "reset", ())
+      : vs <- isort(value_stores)
+    );
+    value_stores_code = ("") & value_stores_code if value_stores != [];
+
+    tables_code = (
+      native_method_call(pending_updates_var_ref_name(t), "reset", ())
+      : t <- isort(tables)
+    );
+    tables_code = ("") & tables_code if tables != [];
+
+    return memb_vars_code & value_stores_code & tables_code;
+  }
+
+
+  String* updates_apply_code([LinkedDBVar] dependees, [MembVar] memb_vars, [ValueStoreId] value_stores, [TableVar -> AnyTable] tables) {
+    memb_vars_code = join((var_apply_code(bare_id(v)) : v <- isort(memb_vars)));
+
+    value_stores_code = (
+      native_method_call(updater_var_ref_name(vs), "apply", ())
+      : vs <- isort(value_stores)
+    );
+    value_stores_code = ("") & value_stores_code if value_stores != [];
+
+    ord_tables = sort_by_key(keys(tables), arity(tables($)));
+
+    tables_code = (
+      native_method_call(pending_updates_var_ref_name(t), "apply", ())
+      : t <- ord_tables
+    );
+    tables_code = ("") & tables_code if tables != [];
+
+    return memb_vars_code & value_stores_code & tables_code;
+  }
+
+
+  String* updates_finish_code([TableVar] deletion_tables, StaticBlock block) {
+    value_stores_with_deletions = [s : v <- deletion_tables, s <- value_stores(block.tables(v))];
+    code = (
+      native_method_call(updater_var_ref_name(v), "applyDelayedReleases", ())
+      : v <- isort(value_stores_with_deletions)
+    );
+    return code;
+
+
+    ValueStoreId* value_stores(<Table, MasterBinTable, SlaveTernTable> table) = table.value_stores;
+    ValueStoreId* value_stores(Column column) = (column.value_store);
+    ValueStoreId* value_stores(SlaveColumn column) = ();
+  }
+
+
+  String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
+    keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
+    keys_check_code = (check_stmt(k) : k <- sort_by_key(keys, order));
+    keys_check_code = ("") & keys_check_code if keys != [];
+
+    foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
+                    [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
+
+    foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
+    foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
+
+    return keys_check_code & foreign_keys_check_code;
+
+
+    String check_stmt((TableVar, NzNat, [+Nat]) key) {
+      var, arity, args = key;
+      var_name = pending_updates_var_ref_name(var);
+      method_name = key_check_method_name(arity, args);
+      return native_method_call_expr(var_name, method_name, ()) & ";";
+    }
+
+
+    String check_stmt(BlockForeignKey key) {
+      checker_name = foreign_key_checker_ref_name(key);
+      return native_method_call(checker_name, "check", ());
+    }
+
+
+    String key_check_method_name(NzNat arity, [+Nat] key) =
+      "checkKey_" & key_check_method_suffixes(arity, key, !);
+
+
+    [NzNat, [+Nat], String] key_check_method_suffixes = [
+      2,  [0],    "1";
+      2,  [1],    "2";
+      3,  [2],    "3";
+      3,  [0, 1], "12";
+      3,  [1, 2], "23";
+      3,  [0, 2], "13"
+    ];
+
+
+    Nat order((TableVar, NzNat, [+Nat]) key) {
+      _, arity, args = key;
+      return key_check_orders(arity, args, !);
+    }
+
+
+    [NzNat, [+Nat], Nat] key_check_orders = [
+      2,  [0],      0;
+      3,  [0, 1],   0;
+      2,  [1],      1;
+      3,  [1, 2],   1;
+      3,  [2],      2;
+      3,  [0, 2],   2
+    ];
+
+
+    Nat order(BlockForeignKey key) =
+      match (key.type)
+        unary_unary             = 0,
+        unary_binary(i?)        = i,
+        unary_ternary(i?)       = i,
+
+        binary_unary(i?)        = i,
+        binary_ternary          = 0,
+
+        ternary_unary(i?)       = i,
+        ternary_binary          = 0,
+
+        unary_sym_binary        = 0,
+        sym_binary_unary        = 0,
+
+        unary_sym_ternary_12    = 0,
+        unary_sym_ternary_3     = 2,
+
+        sym_ternary_unary_12    = 0,
+        sym_ternary_unary_3     = 2,
+
+        sym_binary_sym_ternary  = 0,
+        sym_ternary_sym_binary  = 0;
+  }
+}

@@ -134,6 +134,10 @@ struct STREAM {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct PARSER;
+
+////////////////////////////////////////////////////////////////////////////////
+
 const uint64 MAX_SEQ_LEN = 0xFFFFFFFF;
 
 const uint32 INVALID_INDEX = 0xFFFFFFFFU;
@@ -150,6 +154,8 @@ const uint16 symb_id_success  = 8;
 const uint16 symb_id_failure  = 9;
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
+
+void *alloc_eternal_block(uint32 byte_size);
 
 void *alloc_static_block(uint32 byte_size);
 void *release_static_block(void *ptr, uint32 byte_size);
@@ -357,8 +363,6 @@ int64 float_bits(OBJ);
 int64 rand_nat(int64 max);  // Non-deterministic
 int64 unique_nat();         // Non-deterministic
 
-OBJ at(OBJ seq, int64 idx);
-
 OBJ get_curr_obj(SET_ITER &it);
 OBJ get_curr_obj(SEQ_ITER &it);
 OBJ get_curr_left_arg(BIN_REL_ITER &it);
@@ -489,11 +493,21 @@ uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len
 int comp_objs(OBJ obj1, OBJ obj2);
 int cmp_objs(OBJ obj1, OBJ obj2);
 
-/////////////////////////////// inter-utils.cpp ////////////////////////////////
+///////////////////////////////// datetime.cpp /////////////////////////////////
+
+void get_year_month_day(int32 epoc_days, int32 &year, int32 &month, int32 &day);
+bool is_valid_date(int32 year, int32 month, int32 day);
+bool date_time_is_within_range(int32 days_since_epoc, int64 day_time_ns);
+int32 days_since_epoc(int32 year, int32 month, int32 day);
+int64 epoc_time_ns(int32 days_since_epoc, int64 day_time_ns);
+
+//////////////////////////////// symb-table.cpp ////////////////////////////////
 
 const char *symb_to_raw_str(uint16);
+uint16 lookup_enc_symb_id(const uint64 *, uint32);
 uint16 lookup_symb_id(const char *, uint32);
 
+/////////////////////////////// inter-utils.cpp ////////////////////////////////
 
 OBJ /*owned_*/str_to_obj(const char* c_str);
 
@@ -531,7 +545,43 @@ char *printed_obj(OBJ obj, char *alloc(void *, uint32), void *data);
 
 ////////////////////////////////// parsing.cpp /////////////////////////////////
 
+const uint32 PARSER_BUFF_SIZE = 4096;
+
+struct PARSER {
+  uint32 (*read)(void *, uint8 *, uint32);
+  void *read_state;
+
+  // Byte stream state
+  uint8 buffer[PARSER_BUFF_SIZE];
+  uint32 offset;
+  uint32 count;
+  bool eof;
+  bool read_error;
+
+  // Character stream state
+  int32 next_char;
+  uint32 line;
+  uint32 column;
+};
+
+void init_parser(PARSER *, uint32 (*)(void *, uint8 *, uint32), void *);
+bool consume_char(PARSER *, char);
+bool read_label(PARSER *parser, uint16 *value);
+bool parse_obj(PARSER *, OBJ *);
+bool skip_value(PARSER *);
+
 bool parse(const char *text, uint32 size, OBJ *var, uint32 *error_offset);
+
+///////////////////////////////// writing.cpp //////////////////////////////////
+
+typedef struct {
+
+} WRITER;
+
+void write_str(WRITER *, const char *);
+void write_symb(WRITER *, uint16);
+void write_obj(WRITER *, OBJ);
+bool finish_write(WRITER *);
 
 ///////////////////////////// os-interface-xxx.cpp /////////////////////////////
 

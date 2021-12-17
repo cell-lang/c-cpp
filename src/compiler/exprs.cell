@@ -158,8 +158,7 @@ implicit context : NativeContext {
       }
       name = name & suffix;
     }
-    fail;
-    // return native_method_call_expr(table, name, (native_expr(value(a)) : a <- tuple, a != nothing));
+    return native_method_call_expr(table, name, (native_expr(value(a)) : a <- tuple, a != nothing));
   }
 
 

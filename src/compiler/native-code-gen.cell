@@ -36,6 +36,8 @@ type PrgData =  prg_data(
 
   gen_content = (
     ( "#include \"lib.h\"",
+      "#include \"parsing.h\"",
+      "#include \"writing.h\"",
       "#include \"iolib.h\""
     ) if not include_runtime,
     symbol_decls(program_symbols),
@@ -89,6 +91,16 @@ type PrgData =  prg_data(
     def = GenProcCode(d, false, prg_data, debug_mode);
     gen_content = (gen_content | ("", "")) if i > 0;
     gen_content = gen_content & def;
+  }
+
+  // Static blocks (in topological order)
+  static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
+  ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
+  static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
+  ord_static_blocks = (static_blocks_by_name(b, !) : b <- ord_static_block_names);
+  for block <- ord_static_blocks {
+    def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
+    gen_content = (gen_content | ("", "")) & def;
   }
 
   gen_content = (gen_content | runtime_callbacks(|program_symbols|));
@@ -582,4 +594,25 @@ implicit context : NativeContext {
 
   String native_assignment_code(Encodable var, Encodable value) =
     native_code(var) & " = " & native_code(value) & ";";
+
+
+  String native_method_call_expr(Encodable target, String method_name, Encodable* args) =
+    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
+
+  String native_method_call(Encodable target, String method_name, Encodable* args) =
+    native_method_call_expr(target, method_name, args) & ";";
+
+  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
+    native_code(res) & " = " & native_method_call(target, method_name, args);
+
+
+  String native_static_call(String static_name, Encodable* args) =
+    static_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
+
+  String native_static_call(Encodable res, String static_name, Encodable* args) =
+    native_code(res) & " = " & native_static_call(static_name, args);
+
+
+  String native_new_call(Encodable res, String obj_type, Encodable* args) =
+    native_code(res) & " = new " & obj_type & "(" & append((native_code(a) : a <- args), ", ") & ");";
 }

@@ -62,6 +62,42 @@ inline bool is_int32_range(int64 min, int64 max) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool is_digit(int32 ch) {
+  return ch >= '0' & ch <= '9';
+}
+
+static bool is_hex(int32 ch) {
+  return (ch >= '0' & ch <= '9') | (ch >= 'a' & ch <= 'f');
+}
+
+static bool is_lower(int32 ch) {
+  return ch >= 'a' & ch <= 'z';
+}
+
+static bool is_alpha_num(int32 ch) {
+  return is_digit(ch) | is_lower(ch);
+}
+
+static bool is_printable(int32 ch) {
+  return ch >= ' ' & ch <= '~';
+}
+
+static bool is_white_space(int32 ch) {
+  return ch == ' ' | ch == '\t' | ch == '\n' | ch == '\r';
+}
+
+static int32 hex_digit_value(int32 ch) {
+  return ch - (is_digit(ch) ? '0' : 'a' - 10);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static int32 min32(int32 x, int32 y) {
+  return x < y ? x : y;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #ifndef NDEBUG
   //#define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__) ? 0 : (*((char *)0)) = 0)
   #define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__))

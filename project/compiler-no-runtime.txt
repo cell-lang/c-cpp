@@ -158,10 +158,12 @@
 
 src/compiler/exprs.cell
 src/compiler/instrs.cell
+src/compiler/auto-instrs.cell
 src/compiler/inter-lang-utils.cell
 src/compiler/name-mangling.cell
 src/compiler/native-code-gen.cell
 src/compiler/opt-types.cell
+src/compiler/static-blocks.cell
 
 
 // Main file

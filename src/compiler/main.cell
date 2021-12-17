@@ -700,9 +700,6 @@ Nat new_unique_id(<unused>) = _counter_(:unused);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-String* auto_instr_native_code(Instr instr, Maybe[Nat] block_id) = undefined;
-String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) = undefined;
-
 implicit typedefs : [TypeName -> NeType] {
   String* gen_inter_types_decls = ();
 }
@@ -711,7 +708,6 @@ implicit typedefs : [TypeName -> NeType] {
 
 Text decl_types_export_functs(Any, Any) = undefined;
 
-String* native_static_block_decl(StaticBlock block) = ();
 String* native_react_block_decl(ReactBlock block) = ();
 
 (String, Text, String*) react_auto_wrapper(ReactBlock block) = undefined;
