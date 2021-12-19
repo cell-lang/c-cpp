@@ -23,7 +23,9 @@ type PrgData =  prg_data(
   has_static_autos = prg.static_blocks != [];
 
   bool_procs = isort(prg.bool_procs);
-  procs = isort(prg.procs);
+  fn_procs = isort([p : p <- prg.procs, not p.name :: ProcSymbol]);
+  proc_procs = isort([p : p <- prg.procs, p.name :: ProcSymbol]);
+
 
   prg_data = prg_data(
     opt_reprs:                      prg.opt_reprs,
@@ -62,8 +64,15 @@ type PrgData =  prg_data(
   }
 
   // Function declarations
-  gen_content = (gen_content | ("", "")) if procs != ();
-  for d @ i <- procs {
+  gen_content = (gen_content | ("", "")) if fn_procs != ();
+  for d @ i <- fn_procs {
+    decl = GenProcCode(d, true, prg_data, debug_mode);
+    gen_content = gen_content & decl;
+  }
+
+  // Procedure declarations
+  gen_content = (gen_content | ("", "")) if proc_procs != ();
+  for d @ i <- proc_procs {
     decl = GenProcCode(d, true, prg_data, debug_mode);
     gen_content = gen_content & decl;
   }
@@ -84,8 +93,8 @@ type PrgData =  prg_data(
   }
 
   // Functions
-  gen_content = (gen_content | ("", "")) if procs != ();
-  for d @ i <- procs {
+  gen_content = (gen_content | ("", "")) if fn_procs != ();
+  for d @ i <- fn_procs {
     def = GenProcCode(d, false, prg_data, debug_mode);
     gen_content = (gen_content | ("", "")) if i > 0;
     gen_content = gen_content & def;
@@ -99,6 +108,14 @@ type PrgData =  prg_data(
   for block <- ord_static_blocks {
     def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
     gen_content = (gen_content | ("", "")) & def;
+  }
+
+  // Procedures
+  gen_content = (gen_content | ("", "")) if proc_procs != ();
+  for d @ i <- proc_procs {
+    def = GenProcCode(d, false, prg_data, debug_mode);
+    gen_content = (gen_content | ("", "")) if i > 0;
+    gen_content = gen_content & def;
   }
 
   gen_content = (gen_content | runtime_callbacks(|program_symbols|));

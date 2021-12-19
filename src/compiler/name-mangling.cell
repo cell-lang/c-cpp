@@ -136,7 +136,7 @@ implicit context : NativeContext {
 
   String env_arg_name = "env";
   String auto_or_db_arg_name = "target";
-  String auto_or_db_updater_arg_name = "updater";
+  String db_auxiliary_arg_name = "auxiliary";
 
   String native_dependee_name(DBSymbol, Nat index) = "dependee_" & printed(index);
 
@@ -149,7 +149,7 @@ implicit context : NativeContext {
   // String symb_repr_proc_name = "symb_repr";
 
   String target_arg_decl(DBSymbol db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;
-  String auxiliary_arg_decl(DBSymbol db_type) = native_updater_name(db_type) & " *" & auto_or_db_updater_arg_name;
+  String auxiliary_arg_decl(DBSymbol db_type) = native_updater_name(db_type) & " *" & db_auxiliary_arg_name;
 
   String env_arg_decl = env_type_name & " &" & env_arg_name;
 
@@ -165,7 +165,7 @@ implicit context : NativeContext {
       then match (var)
         impl_arg()          = env_arg_name & ".",
         prev_var_value()    = auto_or_db_arg_name & "->",
-        pending_state_var() = auto_or_db_updater_arg_name & "->",
+        pending_state_var() = db_auxiliary_arg_name & "->",
         _                   = auto_or_db_arg_name & "->"
       else "";
 
@@ -615,6 +615,8 @@ String updates_finish_proc_name   (DBSymbol db_type) = qualified_name(db_type, "
 String updates_check_proc_name    (DBSymbol db_type) = qualified_name(db_type, "check");
 String full_check_proc_name       (DBSymbol db_type) = qualified_name(db_type, "full_check");
 String update_entry_point_name    (DBSymbol db_type) = qualified_name(db_type, "update_entry_point");
+String load_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "load_state_entry_point");
+String save_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "save_state_entry_point");
 
 String state_is_def_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "state_is_def");
 

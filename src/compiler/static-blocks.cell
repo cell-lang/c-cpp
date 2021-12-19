@@ -11,14 +11,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
     ctor_code = native_ctor_code(block.name, block.links, block.tables, block.init_code);
-    rec_ctors_code = native_rec_ctors_code(block.name, block.links);
+    // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
 
-    surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
+    // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
 
     copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
     write_state_code = native_write_state_code(block);
     set_state_code = native_set_state_code(block.name, block.set_state_code);
     load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
+
+    load_state_entry_point_code = native_load_state_entry_point_code(block.name);
+    save_state_entry_point_code = native_save_state_entry_point_code(block.name);
 
     update_entry_point_code = if block.updates(main_handler, _)
       then update_entry_point(block.name)
@@ -37,33 +40,87 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       indent_lines(memb_decls),
       ("};"),
       (""), updater_decl(block),
-      indent_lines(( "",
-        "void RelAuto__init(RelAuto_T *, ENV &);",
-        "bool RelAuto__set_state(RelAuto_T *, OBJ);",
-        "bool RelAuto__load_state(RelAuto_T *, READER *);",
-        "bool RelAuto__full_check(RelAuto_T *);",
-        "",
-        ""
-      )),
       (""), ctor_code,
-      (""), rec_ctors_code,
-      (""), surr_obj_mappers,
+      (""), full_check_code,
+      // (""), rec_ctors_code,
+      // (""), surr_obj_mappers,
       (""), copy_state_code,
       (""), write_state_code,
       (""), set_state_code,
       (""), load_state_code,
-      (""), update_entry_point_code,
-      (""), full_check_code,
       join((("") & c : c <- isort(methods_code))),
-      join((("") & c : c <- isort(updates_code)))
+      join((("") & c : c <- isort(updates_code))),
+      (""), load_state_entry_point_code,
+      (""), save_state_entry_point_code,
+      (""), update_entry_point_code
       // ("", ""), updater_creation_code(block),
       // (""), updater_reset_code(block),
     ));
   }
 
 
+  String* native_load_state_entry_point_code(DBSymbol db_type) {
+    fn_name = load_state_entry_point_name(db_type);
+    init_fn_name = init_method_name(db_type);
+    cleanup_fn_name = cleanup_method_name(db_type);
+    load_fn_name = load_state_proc_name(db_type);
+    db_type_name = native_name(db_type);
+    aux_type_name = native_updater_name(db_type);
+
+    return (
+      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
+      "  " & db_type_name & " new_inst;",
+      "  " & aux_type_name &" new_aux_inst;",
+      "",
+      "  //## START A NEW STACK SECTION",
+      "",
+      "  const char *c_fname = obj_to_str(fname);",
+      "  FILE *fp = fopen(c_fname, \"r\");",
+      "  if (fp != NULL) {",
+      "    //## SAVE ERROR INFORMATION INSIDE AUXILIARY DATA STRUCTURE",
+      "    //## DESTROY THE STACK SECTION",
+      "    return make_bool(false);",
+      "  }",
+      "",
+      "  " & init_fn_name & "(&new_inst, &new_aux_inst" & "" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
+      "",
+      "  READ_FILE_STATE read_state;",
+      "  read_state.fp = fp;",
+      "  bool succeeded = " & load_fn_name & "(&new_inst, &new_aux_inst, read_file, &read_state);",
+      "  fclose(fp);",
+      "",
+      "  if (succeeded) {",
+      "    " & cleanup_fn_name & "(target, auxiliary);",
+      "    *target = new_inst;",
+      "    *auxiliary = new_aux_inst;",
+      "  }",
+      "  else {",
+      "    " & cleanup_fn_name & "(&new_inst, &new_aux_inst);",
+      "  }",
+      "",
+      "  //## DESTROY THE STACK SECTION",
+      "",
+      "  return make_bool(succeeded);",
+      "}"
+    );
+  }
+
+  String* native_save_state_entry_point_code(DBSymbol db_type) {
+    fn_name = save_state_entry_point_name(db_type);
+    db_type_name = native_name(db_type);
+    aux_type_name = native_updater_name(db_type);
+
+    return (
+      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary, ENV &env) {",
+      "",
+      "}"
+    );
+  }
+
+
   String* native_ctor_code(DBSymbol name, DBSymbol* dependees, [TableVar -> AnyTable] tables, Instr* init_code) {
     target_name = auto_or_db_arg_name;
+    auxiliary_name = db_auxiliary_arg_name;
     dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
 
     links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
@@ -92,74 +149,78 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     vars_decl = gen_vars_decls(init_code, []);
     vars_decl = vars_decl & ("") if vars_decl != ();
     body = vars_decl & links_init_code & tables_init_code & native_code(init_code, nothing, break_target = nothing);
+
+    target_arg = target_arg_decl(name);
+    aux_arg = auxiliary_arg_decl(name);
     dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
-    signature = "void " & init_method_name(name) & "(" & native_name(name) & " *" & target_name & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
+
+    signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
     return (signature) & indent_lines(body) & ("}");
   }
 
 
-  String* native_rec_ctors_code(DBSymbol block_name, DBSymbol* dependees) {
-    obj_type = obj_type_name;
-    env_type = env_type_name;
-    target_name = auto_or_db_arg_name;
-    target_type_name = native_name(block_name);
-    env_arg = env_arg_name;
-    init_method = init_method_name(block_name);
-    full_check_method = full_check_proc_name(block_name);
+  // String* native_rec_ctors_code(DBSymbol block_name, DBSymbol* dependees) {
+  //   obj_type = obj_type_name;
+  //   env_type = env_type_name;
+  //   target_name = auto_or_db_arg_name;
+  //   target_type_name = native_name(block_name);
+  //   env_arg = env_arg_name;
+  //   init_method = init_method_name(block_name);
+  //   full_check_method = full_check_proc_name(block_name);
 
-    dependees_args = (native_dependee_name(t, i) : t @ i <- dependees);
+  //   dependees_args = (native_dependee_name(t, i) : t @ i <- dependees);
 
-    formal_target_arg = target_type_name & " *" & target_name;
-    formal_state_arg = obj_type & " state";
-    formal_reader_arg = reader_type_name & " *reader";
-    formal_env_arg = env_type & " &" & env_arg;
-    formal_dependees_args = (native_name(t) & " " & dependees_args(i) : t @ i <- dependees);
+  //   formal_target_arg = target_type_name & " *" & target_name;
+  //   formal_state_arg = obj_type & " state";
+  //   formal_reader_arg = reader_type_name & " *reader";
+  //   formal_env_arg = env_type & " &" & env_arg;
+  //   formal_dependees_args = (native_name(t) & " " & dependees_args(i) : t @ i <- dependees);
 
-    formal_set_state_args = append((formal_target_arg) & formal_dependees_args & (formal_state_arg, formal_env_arg), ", ");
-    formal_load_state_args = append((formal_target_arg) & formal_dependees_args & (formal_reader_arg, formal_env_arg), ", ");
+  //   formal_set_state_args = append((formal_target_arg) & formal_dependees_args & (formal_state_arg, formal_env_arg), ", ");
+  //   formal_load_state_args = append((formal_target_arg) & formal_dependees_args & (formal_reader_arg, formal_env_arg), ", ");
 
-    init_method_call_args = append((target_name) & (dependees_args | env_arg), ", ");
+  //   init_method_call_args = append((target_name) & (dependees_args | env_arg), ", ");
 
-    return (
-      "bool " & init_set_state_method_name(block_name) & "(" & formal_set_state_args & ") {",
-      "  " & init_method & "(" & init_method_call_args & ");",
-      "  if (!" & set_state_proc_name(block_name) & "(" & target_name & ", state)) {",
-      "    return false;",
-      "  }",
-      "  if (!" & full_check_method & "(" & target_name & ")) {",
-      "    return false;",
-      "  }",
-      "  return true;",
-      "}",
-      "",
-      "bool " & init_load_state_method_name(block_name) & "(" & formal_load_state_args & ") {",
-      "  " & init_method & "(" & init_method_call_args & ");",
-      "  if (!" & load_state_proc_name(block_name) & "(" & target_name & ", reader)) {",
-      "    return false;",
-      "  }",
-      "  if (!" & full_check_method & "(" & target_name & ")) {",
-      "    return false;",
-      "  }",
-      "  return true;",
-      "}"
-    );
-  }
-
-
-  String* native_surr_obj_mappers([ValueStoreId -> ValueStoreType] value_stores) {
-    return join(intermix((surr_obj_mapper(id, type) : id, type <- isort(value_stores)), ("")));
+  //   return (
+  //     "bool " & init_set_state_method_name(block_name) & "(" & formal_set_state_args & ") {",
+  //     "  " & init_method & "(" & init_method_call_args & ");",
+  //     "  if (!" & set_state_proc_name(block_name) & "(" & target_name & ", state)) {",
+  //     "    return false;",
+  //     "  }",
+  //     "  if (!" & full_check_method & "(" & target_name & ")) {",
+  //     "    return false;",
+  //     "  }",
+  //     "  return true;",
+  //     "}",
+  //     "",
+  //     "bool " & init_load_state_method_name(block_name) & "(" & formal_load_state_args & ") {",
+  //     "  " & init_method & "(" & init_method_call_args & ");",
+  //     "  if (!" & load_state_proc_name(block_name) & "(" & target_name & ", reader)) {",
+  //     "    return false;",
+  //     "  }",
+  //     "  if (!" & full_check_method & "(" & target_name & ")) {",
+  //     "    return false;",
+  //     "  }",
+  //     "  return true;",
+  //     "}"
+  //   );
+  // }
 
 
-    String* surr_obj_mapper(ValueStoreId id, ValueStoreType type) {
-      name = native_surr_obj_mapper_name(id);
-      vs_name = native_var_ref_name(id);
-      sign = "private Obj " & name & "(int surr) {";
-      body = "  return " & match (type)
-        object | integer        = vs_name & ".surrToObjValue(surr);",
-        mono_tagged_integer(s?) = "Builder.createTaggedIntObj(" & symb_id_name(s) & ", " & vs_name & ".surrToValue(surr));";
-      return (sign, body, "}");
-    }
-  }
+  // String* native_surr_obj_mappers([ValueStoreId -> ValueStoreType] value_stores) {
+  //   return join(intermix((surr_obj_mapper(id, type) : id, type <- isort(value_stores)), ("")));
+
+
+  //   String* surr_obj_mapper(ValueStoreId id, ValueStoreType type) {
+  //     name = native_surr_obj_mapper_name(id);
+  //     vs_name = native_var_ref_name(id);
+  //     sign = "private Obj " & name & "(int surr) {";
+  //     body = "  return " & match (type)
+  //       object | integer        = vs_name & ".surrToObjValue(surr);",
+  //       mono_tagged_integer(s?) = "Builder.createTaggedIntObj(" & symb_id_name(s) & ", " & vs_name & ".surrToValue(surr));";
+  //     return (sign, body, "}");
+  //   }
+  // }
 
 
   // (String, String*) native_cleanup_code(DBSymbol name, Instr* cleanup_code) {

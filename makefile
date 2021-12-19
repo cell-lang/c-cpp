@@ -14,6 +14,7 @@ cellc: # cellc.net
 	# ./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+	# g++ -O3 -flto -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
 cellc2:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
@@ -27,7 +28,7 @@ update-cellc:
 
 cellcr:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
-	misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/cellc -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
 

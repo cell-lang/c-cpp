@@ -39,3 +39,4 @@ cellc-3.cpp
 debug/
 src/stats.cpp
 report*.txt
+bin/cellcd

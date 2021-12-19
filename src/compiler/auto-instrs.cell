@@ -182,15 +182,22 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol type) = (
-    native_new_call(db_var, native_name(type), (links | "env")),
-    native_method_call(
-      updater_var_ref_name(db_var),
-      db_var,
-      updater_creation_proc_name(type),
-      (updater_var_ref_name(d) : d <- links)
-    ) if db_var :: LocDBVar
-  );
+  String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol db_type) {
+    fail if not db_var :: LocDBVar;
+
+    args = (db_var, updater_var_ref_name(db_var)) & links & ("env");
+    return (native_call(updater_creation_proc_name(db_type), args));
+
+    // return (
+    //   native_new_call(db_var, native_name(db_type), (links | "env")),
+    //   native_method_call(
+    //     updater_var_ref_name(db_var),
+    //     db_var,
+    //     updater_creation_proc_name(db_type),
+    //     (updater_var_ref_name(d) : d <- links)
+    //   ) if db_var :: LocDBVar
+    // );
+  }
 
 
   String* native_try_block_code(LocVar var, Instr+ body, Maybe[Nat] block_id) = (
