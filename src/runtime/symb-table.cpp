@@ -1,19 +1,5 @@
-#include <iostream>
-
 #include "lib.h"
 
-static void print_string(const void *chars, uint32 len) {
-  char c_str[16384];
-  if (len < 16384 - 1) {
-    memcpy(c_str, chars, len);
-    c_str[len] = '\0';
-    std::cout << c_str << std::endl;
-  }
-  for (int i=0 ; i < len ; i++) {
-    std::cout << (int) ((const char *) chars)[i] << " ";
-  }
-  std::cout << std::endl;
-}
 
 //  0         Empty
 //  1 - 26    Letter
@@ -138,36 +124,11 @@ static int32 encode_symb(const uint8 *str, uint32 len, uint64 *enc_symb) {
 #ifndef NDEBUG
   if (enc_symb != NULL && len < 4096) {
     uint8 rec_str[4096];
-    if (decoded_symb_length(enc_symb, enc_len) != len) {
-      char c_str[16384];
-      memcpy(c_str, str, len);
-      c_str[len] = '\0';
-      std::cout << "str = " << c_str << std::endl;
-      std::cout << "len = " << len << std::endl;
-      for (int i=0 ; i < len ; i++) {
-        int ch = str[i];
-        std::cout << ch << " ";
-      }
-      std::cout << std::endl;
-      std::cout << "enc_len = " << enc_len << std::endl;
-      std::cout << "decoded_symb_length(enc_symb, enc_len) = " << decoded_symb_length(enc_symb, enc_len) << std::endl;
-    }
     assert(decoded_symb_length(enc_symb, enc_len) == len);
     int32 rec_len = decode_symb(enc_symb, enc_len, rec_str);
     assert(rec_len == len);
-    for (int i=0 ; i < len ; i++) {
-      if (rec_str[i] != str[i]) {
-        print_string(str, len);
-        print_string(rec_str, rec_len);
-
-        for (int j=0 ; j < 10 ; j++) {
-          int ch = (enc_symb[0] >> (6 * j)) & 0xFF;
-          std::cout << ch << " ";
-        }
-        std::cout << std::endl;
-      }
+    for (int i=0 ; i < len ; i++)
       assert(rec_str[i] == str[i]);
-    }
   }
 #endif
 
@@ -324,8 +285,6 @@ static void init_symb_hashtable(SYMBOL_TABLE *symbol_table) {
     const char *symb_str = symb_repr(i);
     uint32 len = strlen(symb_str);
 
-std::cout << i << ": " << symb_str << std::endl;
-
     uint32 enc_len = encode_symb((const uint8 *) symb_str, len, NULL);
     uint64 *enc_symb = (uint64 *) alloc_eternal_block(sizeof(uint64) * enc_len);
     encode_symb((const uint8 *) symb_str, len, enc_symb);
@@ -392,9 +351,6 @@ const char *symb_to_raw_str(uint16 symb_id) {
 uint16 lookup_enc_symb_id(const uint64 *enc_symb, uint32 enc_len) {
   char str[16384];
   decode_symb(enc_symb, enc_len, (uint8 *) str);
-  uint16 code = internal_lookup_enc_symb_id(&STATIC__symbol_table, enc_symb, enc_len);
-  std::cout << str << " -> " << code << std::endl;
-
   return internal_lookup_enc_symb_id(&STATIC__symbol_table, enc_symb, enc_len);
 }
 
@@ -404,11 +360,5 @@ uint16 lookup_symb_id(const char *str, uint32 len) {
 
   uint64 enc_symb[4096];
   uint32 enc_len = encode_symb((const uint8 *) str, len, enc_symb);
-
-  char c_str[16384];
-  memcpy(c_str, str, len);
-  c_str[len] = 0;
-  std::cout << c_str << " -> " << internal_lookup_enc_symb_id(&STATIC__symbol_table, enc_symb, enc_len) << std::endl;
-
   return internal_lookup_enc_symb_id(&STATIC__symbol_table, enc_symb, enc_len);
 }

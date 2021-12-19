@@ -566,9 +566,9 @@ static int32 read_enc_symb_words(PARSER *parser, uint64 *enc_word, uint32 size) 
 
   assert(peek_char(parser, &next_char) && is_lower(next_char));
 
-  uint64 part_enc_word = 0;
-
   for (int i=0 ; i < size ; i++) {
+    uint64 part_enc_word = 0;
+
     for (int j=0 ; j < 10 ; j++) {
       if (!peek_char(parser, &next_char)) {
         if (eof(parser)) {

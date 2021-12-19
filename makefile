@@ -9,8 +9,9 @@ cellc.net:
 
 cellc: # cellc.net
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
-	misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
-# 	./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/cellc -t project/compiler-no-runtime.txt tmp/cellc/
+	#misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
+	# ./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
@@ -74,6 +75,10 @@ compiler-test-loop: cellc.net
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-3.cpp
 	cmp tmp/cellc/cellc-2.cpp tmp/cellc/cellc-3.cpp
 	cd tmp/cellc/ && ln -s cellc-3.cpp cellc.cpp
+	# g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-3.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-3
+	# ./cellc-3 project/compiler-no-runtime.txt tmp/cellc/
+	# bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-4.cpp
+	# cmp tmp/cellc/cellc-3.cpp tmp/cellc/cellc-4.cpp
 
 codegen-test-loop: codegen
 	./codegen misc/codegen-opt-code.txt

@@ -36,8 +36,6 @@ type PrgData =  prg_data(
 
   gen_content = (
     ( "#include \"lib.h\"",
-      "#include \"parsing.h\"",
-      "#include \"writing.h\"",
       "#include \"iolib.h\""
     ) if not include_runtime,
     symbol_decls(program_symbols),
