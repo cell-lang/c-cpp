@@ -1253,3 +1253,10 @@ bool parse(const char *text, uint32 size, OBJ *var, uint32 *error_offset) {
 
   return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 read_file(void *read_state, uint8 *buffer, uint32 capacity) {
+  READ_FILE_STATE *state = (READ_FILE_STATE *) read_state;
+  return fread(buffer, 1, capacity, state->fp);
+}

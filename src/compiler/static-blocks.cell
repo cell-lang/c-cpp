@@ -11,8 +11,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
     ctor_code = native_ctor_code(block.name, block.links, block.tables, block.init_code);
-    // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
+    cleanup_code = native_cleanup_function_code(block.name, block.links, block.tables, block.cleanup_code);
 
+    // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
     // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
 
     copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
@@ -41,6 +42,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       ("};"),
       (""), updater_decl(block),
       (""), ctor_code,
+      (""), cleanup_code,
       (""), full_check_code,
       // (""), rec_ctors_code,
       // (""), surr_obj_mappers,
@@ -58,6 +60,19 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ));
   }
 
+
+  String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
+    target_arg = target_arg_decl(auto_id);
+    aux_arg = auxiliary_arg_decl(auto_id);
+
+    vars_decl = gen_vars_decls(cleanup_code, []);
+    vars_decl = vars_decl & ("") if vars_decl != ();
+    body = vars_decl & native_code(cleanup_code, nothing, break_target = nothing);
+
+    signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
+
+    return (signature) & indent_lines(body) & ("}");
+  }
 
   String* native_load_state_entry_point_code(DBSymbol db_type) {
     fn_name = load_state_entry_point_name(db_type);
@@ -243,22 +258,22 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     has_rel_vars = block.tables != [];
 
     code = (
-      "bool " & write_state_proc_name(block.name) & "(" & native_name(block.name) & " *" & auto_or_db_arg_name & ", " & writer_type_name & " *writer) {",
-      "  " & write_str_proc_name & "(writer, \"( \");"
+      "bool " & write_state_proc_name(block.name) & "(" & native_name(block.name) & " *" & auto_or_db_arg_name & ", FILE *fp) {",
+      "  " & write_str_proc_name & "(fp, \"( \");"
     );
 
     first = true;
 
     state_vars = isort(keys(block.state_vars));
     for v @ i <- state_vars {
-      code = (code | "  " & write_str_proc_name & "(writer, \"  \");") if not first;
+      code = (code | "  " & write_str_proc_name & "(fp, \"  \");") if not first;
       code = (code |
-        "  " & write_symb_proc_name & "(writer, " & symb_id_name(bare_id(v)) & ");",
-        "  " & write_str_proc_name & "(writer, \": \");",
-        "  " & write_obj_proc_name & "(writer, " & native_var_ref_name(v) & ");",
+        "  " & write_symb_proc_name & "(fp, " & symb_id_name(bare_id(v)) & ");",
+        "  " & write_str_proc_name & "(fp, \": \");",
+        "  " & write_obj_proc_name & "(fp, " & native_var_ref_name(v) & ");",
         if i < |state_vars| - 1 or has_rel_vars
-          then "  " & write_str_proc_name & "(writer, \",\\n\");"
-          else "  " & write_str_proc_name & "(writer, \"\\n\");"
+          then "  " & write_str_proc_name & "(fp, \",\\n\");"
+          else "  " & write_str_proc_name & "(fp, \"\\n\");"
       );
       first = false;
     }
@@ -315,8 +330,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // }
 
     code = (code |
-      "  " & write_str_proc_name & "(writer, \")\\n\");",
-      "  return " & finish_write_proc_name & "(writer);",
+      "  " & write_str_proc_name & "(fp, \")\\n\");",
+      "  return " & finish_write_proc_name & "(fp);",
       "}"
     );
 
@@ -646,62 +661,62 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updater_creation_code(StaticBlock block) {
-    linked_updaters_init_code = (
-      updater_var_ref_name(linked_db_var(i)) & " = l" & _print_(i) & ";"
-      : i < |block.links|
-    );
+  // String* updater_creation_code(StaticBlock block) {
+  //   linked_updaters_init_code = (
+  //     updater_var_ref_name(linked_db_var(i)) & " = l" & _print_(i) & ";"
+  //     : i < |block.links|
+  //   );
 
-    dep_msg_vars_init_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
-    dep_apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
+  //   dep_msg_vars_init_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
+  //   dep_apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
 
-    var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
-    init_vars_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
+  //   var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
+  //   init_vars_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
 
-    value_stores_init_code = (
-      native_new_call(updater_var_ref_name(vs), native_updater_type(t), (vs))
-      : vs, t <- isort(block.value_stores)
-    );
+  //   value_stores_init_code = (
+  //     native_new_call(updater_var_ref_name(vs), native_updater_type(t), (vs))
+  //     : vs, t <- isort(block.value_stores)
+  //   );
 
-    ord_tables = ((v, block.tables(v)) : v <- sort_by_key(keys(block.tables), arity(block.tables($))));
-    tables_init_code = ({
-      value_stores = match (t)
-        table()            = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
-        master_bin_table() = if t.symmetric then undefined else t.value_stores,
-        slave_tern_table() = if t.symmetric then undefined else t.value_stores,
-        column()           = (t.value_store),
-        slave_column()     = t.value_stores;
+  //   ord_tables = ((v, block.tables(v)) : v <- sort_by_key(keys(block.tables), arity(block.tables($))));
+  //   tables_init_code = ({
+  //     value_stores = match (t)
+  //       table()            = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
+  //       master_bin_table() = if t.symmetric then undefined else t.value_stores,
+  //       slave_tern_table() = if t.symmetric then undefined else t.value_stores,
+  //       column()           = (t.value_store),
+  //       slave_column()     = t.value_stores;
 
-      other_args = match (t)
-        slave_column()  = (pending_updates_var_ref_name(t.master)),
-        _               = ();
+  //     other_args = match (t)
+  //       slave_column()  = (pending_updates_var_ref_name(t.master)),
+  //       _               = ();
 
-      return native_new_call(
-        pending_updates_var_ref_name(v),
-        pending_updates_var_type(t),
-        ("\"" & user_repr(original_rel_var(v)) & "\"", v) & other_args & (updater_var_ref_name(vs) : vs <- value_stores)
-      );
-    } : v, t <- ord_tables);
+  //     return native_new_call(
+  //       pending_updates_var_ref_name(v),
+  //       pending_updates_var_type(t),
+  //       ("\"" & user_repr(original_rel_var(v)) & "\"", v) & other_args & (updater_var_ref_name(vs) : vs <- value_stores)
+  //     );
+  //   } : v, t <- ord_tables);
 
-    foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
-    foreign_key_checkers_init_code = ({
-      var = foreign_key_checker_ref_name(k);
-      type = native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target));
-      origin = pending_updates_var_ref_name(k.origin);
-      target = pending_updates_var_ref_name(k.target);
-      return native_new_call(var, type, (origin, target));
-    } : k <- foreign_keys);
+  //   foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
+  //   foreign_key_checkers_init_code = ({
+  //     var = foreign_key_checker_ref_name(k);
+  //     type = native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target));
+  //     origin = pending_updates_var_ref_name(k.origin);
+  //     target = pending_updates_var_ref_name(k.target);
+  //     return native_new_call(var, type, (origin, target));
+  //   } : k <- foreign_keys);
 
-    body = linked_updaters_init_code & dep_msg_vars_init_code & dep_apply_code_vars_init_code &
-           init_vars_code & value_stores_init_code & tables_init_code & foreign_key_checkers_init_code;
+  //   body = linked_updaters_init_code & dep_msg_vars_init_code & dep_apply_code_vars_init_code &
+  //          init_vars_code & value_stores_init_code & tables_init_code & foreign_key_checkers_init_code;
 
-    class_name = native_updater_name(block.name);
-    args = append((native_updater_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
-    sgn = "public " & class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
-    return (sgn, "  " & class_name & " updater = new " & class_name & "();") &
-           indent_lines(body) &
-           ("  return updater;", "}");
-  }
+  //   class_name = native_updater_name(block.name);
+  //   args = append((native_updater_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
+  //   sgn = "public " & class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
+  //   return (sgn, "  " & class_name & " updater = new " & class_name & "();") &
+  //          indent_lines(body) &
+  //          ("  return updater;", "}");
+  // }
 
 
   String* updater_reset_code(StaticBlock block) {

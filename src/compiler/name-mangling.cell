@@ -131,8 +131,8 @@ implicit context : NativeContext {
 
   String obj_type_name = "OBJ";
   String env_type_name = "ENV";
-  String reader_type_name = "READER";
-  String writer_type_name = "WRITER";
+  // String reader_type_name = "READER";
+  // String writer_type_name = "FILE";
 
   String env_arg_name = "env";
   String auto_or_db_arg_name = "target";
@@ -607,7 +607,7 @@ String copy_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "
 String write_state_proc_name      (DBSymbol db_type) = qualified_name(db_type, "write_state");
 String set_state_proc_name        (DBSymbol db_type) = qualified_name(db_type, "set_state");
 String load_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "load_state");
-String updater_creation_proc_name (DBSymbol db_type) = qualified_name(db_type, "new_updater");
+// String updater_creation_proc_name (DBSymbol db_type) = qualified_name(db_type, "new_updater");
 String updater_reset_proc_name    (DBSymbol db_type) = qualified_name(db_type, "reset_updater");
 String updates_copy_proc_name     (DBSymbol db_type) = qualified_name(db_type, "copy");
 String updates_apply_proc_name    (DBSymbol db_type) = qualified_name(db_type, "apply");

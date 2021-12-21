@@ -572,16 +572,19 @@ bool skip_value(PARSER *);
 
 bool parse(const char *text, uint32 size, OBJ *var, uint32 *error_offset);
 
-///////////////////////////////// writing.cpp //////////////////////////////////
 
 typedef struct {
+  FILE *fp;
+} READ_FILE_STATE;
 
-} WRITER;
+uint32 read_file(void *read_state, uint8 *buffer, uint32 capacity);
 
-void write_str(WRITER *, const char *);
-void write_symb(WRITER *, uint16);
-void write_obj(WRITER *, OBJ);
-bool finish_write(WRITER *);
+///////////////////////////////// writing.cpp //////////////////////////////////
+
+void write_str(FILE *, const char *);
+void write_symb(FILE *, uint16);
+void write_obj(FILE *, OBJ);
+bool finish_write(FILE *);
 
 ///////////////////////////// os-interface-xxx.cpp /////////////////////////////
 

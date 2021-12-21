@@ -185,8 +185,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol db_type) {
     fail if not db_var :: LocDBVar;
 
-    args = (db_var, updater_var_ref_name(db_var)) & links & ("env");
-    return (native_call(updater_creation_proc_name(db_type), args));
+    args = ("&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var)) & links & ("env");
+    return (native_call(init_method_name(db_type), args));
 
     // return (
     //   native_new_call(db_var, native_name(db_type), (links | "env")),
@@ -312,7 +312,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         else native_method_call(value(maybe_res_var), db_var, method_name, args);
       return (line);
     }
-
     else {
       assert db_var :: LinkedDBVar;
       fail if not db_var :: LinkedDBVar;
@@ -333,19 +332,19 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     // then we need to create a new automaton and replacing the old automaton
     // with the new one if the reconstruction process is successful
     class_name = native_name(type);
-    updater_class_name = updater_creation_proc_name(type);
+    // updater_class_name = updater_creation_proc_name(type);
     deps_args_list = append((native_var_ref_name(d) & ", " : d <- dependees));
     deps_updaters_args_list = (updater_var_ref_name(d) : d <- dependees);
     return (
-      "try {",
-      "  " & class_name & " instance = new " & class_name & "(" & deps_args_list & native_expr(state) & ", env);",
-      "  " & native_var_ref_name(db_var) & " = instance;",
-      "  " & native_method_call(updater_var_ref_name(db_var), db_var, updater_class_name, deps_updaters_args_list),
-      "  " & native_var_ref_name(res_var) & " = true;",
-      "}",
-      "catch (Exception e) {",
-      "  " & native_var_ref_name(res_var) & " = false;",
-      "}"
+      // "try {",
+      // "  " & class_name & " instance = new " & class_name & "(" & deps_args_list & native_expr(state) & ", env);",
+      // "  " & native_var_ref_name(db_var) & " = instance;",
+      // "  " & native_method_call(updater_var_ref_name(db_var), db_var, updater_class_name, deps_updaters_args_list),
+      // "  " & native_var_ref_name(res_var) & " = true;",
+      // "}",
+      // "catch (Exception e) {",
+      // "  " & native_var_ref_name(res_var) & " = false;",
+      // "}"
     );
   }
 }
