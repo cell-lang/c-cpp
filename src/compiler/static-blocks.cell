@@ -415,11 +415,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  PARSER parser;",
       "  init_parser(&parser, read, read_state);",
       "",
-      "  if (consume_char(&parser, '[')) {",
-      "    return consume_char(&parser, ']');",
+      "  if (consume_non_ws_char(&parser, '[')) {",
+      "    return consume_non_ws_char(&parser, ']');",
       "  }",
       "",
-      "  if (!consume_char(&parser, '(')) {",
+      "  if (!consume_non_ws_char(&parser, '(')) {",
       "    return false;",
       "  }",
       "",
@@ -436,11 +436,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "        }",
       "    }",
       "",
-      "    if (!consume_char(&parser, ','))",
+      "    if (!consume_non_ws_char(&parser, ','))",
       "      break;",
       "  }",
       "",
-      "  return consume_char(&parser, ')');",
+      "  return consume_non_ws_char(&parser, ')');",
       "}"
     );
 

@@ -565,7 +565,7 @@ struct PARSER {
 };
 
 void init_parser(PARSER *, uint32 (*)(void *, uint8 *, uint32), void *);
-bool consume_char(PARSER *, char);
+bool consume_non_ws_char(PARSER *, char);
 bool read_label(PARSER *parser, uint16 *value);
 bool parse_obj(PARSER *, OBJ *);
 bool skip_value(PARSER *);

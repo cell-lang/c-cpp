@@ -232,7 +232,7 @@ static bool read_char_no_eof(PARSER *parser, int32 *value) {
   return ok;
 }
 
-bool consume_char(PARSER *parser, char exp_char) {
+static bool consume_char(PARSER *parser, char exp_char) {
   int32 next_char;
   if (peek_char(parser, &next_char) && next_char == exp_char) {
     skip_char(parser);
@@ -276,15 +276,9 @@ static void consume_ws(PARSER *parser) {
     skip_char(parser);
 }
 
-static bool consume(PARSER *parser, char ch) {
+bool consume_non_ws_char(PARSER *parser, char ch) {
   consume_ws(parser);
-  int32 maybe_char;
-  if (peek_char(parser, &maybe_char) && maybe_char == ch) {
-    skip_char(parser);
-    return true;
-  }
-  else
-    return false;
+  return consume_char(parser, ch);
 }
 
 // Can be called only after read_char() or peek_char() return false
@@ -341,7 +335,7 @@ static TOKEN_TYPE peek_token_type(PARSER *parser) {
 ////////////////////////////////////////////////////////////////////////////////
 
 static bool read_int64(PARSER *parser, int64 *value) {
-  bool negative = consume(parser, '-');
+  bool negative = consume_non_ws_char(parser, '-');
 
   int64 partial_value = 0;
   for (int i=0 ; ; i++) {
@@ -474,7 +468,7 @@ static int32 read_very_long_double(PARSER *parser, bool negative, double partial
 
 // Returns 0 on error, 1 on reading an integer and 2 on reading a double
 static int32 read_number(PARSER *parser, int64 *int64_value, double *double_value) {
-  bool negative = consume(parser, '-');
+  bool negative = consume_non_ws_char(parser, '-');
 
   int64 partial_value = 0;
   for (int i=0 ; ; i++) {
@@ -863,8 +857,8 @@ static bool read_literal(PARSER *parser, OBJ *value) {
 }
 
 bool read_label(PARSER *parser, uint16 *value) {
-  consume_ws(parser); //## IS THIS OK? read_symbol() DOESN'T CONSUME THE WHITESPACE
-  return read_symbol(parser, value) && consume_char(parser, ':');
+  consume_ws(parser);
+  return read_symbol(parser, value) && consume_non_ws_char(parser, ':'); //## SHOULD IT BE consume_char(..)?
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -891,12 +885,12 @@ static bool finish_parsing_record(PARSER *parser, uint16 first_label_id, OBJ *re
   uint32 capacity = INIT_CAPACITY;
 
   for ( ; ; ) {
-    if (consume_char(parser, ')')) {
+    if (consume_non_ws_char(parser, ')')) {
       *result = build_record(labels, objs, count);
       return true;
     }
 
-    if (!consume_char(parser, ',')) {
+    if (!consume_non_ws_char(parser, ',')) {
       //## SAVE ERROR INFORMATION?
       return false;
     }
@@ -921,21 +915,21 @@ static bool finish_parsing_record(PARSER *parser, uint16 first_label_id, OBJ *re
   }
 }
 
-static bool finish_parsing_sequence(PARSER *parser, uint16 first_item_symb_id, OBJ *result) {
+static bool finish_parsing_sequence(PARSER *parser, OBJ first_elt, OBJ *result) {
   OBJ array[INIT_CAPACITY];
   OBJ *elts = array;
   uint32 count = 1;
   uint32 capacity = INIT_CAPACITY;
 
-  elts[0] = make_symb(first_item_symb_id);
+  elts[0] = first_elt;
 
   for ( ; ; ) {
-    if (consume_char(parser, ')')) {
+    if (consume_non_ws_char(parser, ')')) {
       *result = build_seq(elts, count);
       return true;
     }
 
-    if (!consume_char(parser, ','))
+    if (!consume_non_ws_char(parser, ','))
       return false;
 
     OBJ obj;
@@ -959,7 +953,7 @@ static bool parse_seq_after_open_par(PARSER *parser, OBJ *result) {
 
   for ( ; ; ) {
     consume_ws(parser);
-    if (consume_char(parser, ')')) {
+    if (consume_non_ws_char(parser, ')')) {
       *result = build_seq(elts, size);
       return true;
     }
@@ -1003,22 +997,24 @@ static bool parse_seq_or_record(PARSER *parser, OBJ *result) {
     if (!read_symbol(parser, &symb_id))
       return false;
 
-    consume_ws(parser); //## NOT SURE HERE
-
-    if (consume_char(parser, ':'))
+    if (consume_non_ws_char(parser, ':'))
       return finish_parsing_record(parser, symb_id, result);
 
-    if (consume_char(parser, ','))
-      return finish_parsing_sequence(parser, symb_id, result);
+    if (consume_non_ws_char(parser, ','))
+      return finish_parsing_sequence(parser, make_symb(symb_id), result);
 
-    if (consume_char(parser, ')')) {
+    if (consume_non_ws_char(parser, ')')) {
       OBJ only_elt = make_symb(symb_id);
       *result = build_seq(&only_elt, 1);
       return true;
     }
 
-    if (next_char_is(parser, '('))
-      return parse_tagged_obj(parser, symb_id, result);
+    if (next_char_is(parser, '(')) {
+      OBJ first_elt;
+      if (!parse_tagged_obj(parser, symb_id, &first_elt))
+        return false;
+      return finish_parsing_sequence(parser, first_elt, result);
+    }
 
     //## SAVE ERROR INFORMATION
     return false;
@@ -1028,7 +1024,7 @@ static bool parse_seq_or_record(PARSER *parser, OBJ *result) {
 }
 
 static bool finish_parsing_bin_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ *result) {
-  if (consume_char(parser, ']')) {
+  if (consume_non_ws_char(parser, ']')) {
     *result = build_bin_rel(&arg0, &arg1, 1);
     return true;
   }
@@ -1043,7 +1039,7 @@ static bool finish_parsing_bin_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ *resu
   uint32 capacity = INIT_CAPACITY;
 
   for ( ; ; ) {
-    if (!parse_obj(parser, &arg0) || !consume_char(parser, ',') || !parse_obj(parser, &arg1))
+    if (!parse_obj(parser, &arg0) || !consume_non_ws_char(parser, ',') || !parse_obj(parser, &arg1))
       return false;
 
     if (count == capacity) {
@@ -1055,18 +1051,18 @@ static bool finish_parsing_bin_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ *resu
     col0[count] = arg0;
     col1[count++] = arg1;
 
-    if (consume_char(parser, ']')) {
+    if (consume_non_ws_char(parser, ']')) {
       *result = build_bin_rel(col0, col1, count);
       return true;
     }
 
-    if (!consume_char(parser, ';'))
+    if (!consume_non_ws_char(parser, ';'))
       return false;
   }
 }
 
 static bool finish_parsing_tern_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ arg2, OBJ *result) {
-  if (consume_char(parser, ']')) {
+  if (consume_non_ws_char(parser, ']')) {
     *result = build_tern_rel(&arg0, &arg1, &arg2, 1);
     return true;
   }
@@ -1084,7 +1080,7 @@ static bool finish_parsing_tern_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ arg2
   uint32 capacity = INIT_CAPACITY;
 
   for ( ; ; ) {
-    if (!parse_obj(parser, &arg0) || !consume_char(parser, ',') || !parse_obj(parser, &arg1) || !consume_char(parser, ',') || !parse_obj(parser, &arg2))
+    if (!parse_obj(parser, &arg0) || !consume_non_ws_char(parser, ',') || !parse_obj(parser, &arg1) || !consume_non_ws_char(parser, ',') || !parse_obj(parser, &arg2))
       return false;
 
     if (count == capacity) {
@@ -1098,21 +1094,57 @@ static bool finish_parsing_tern_rel(PARSER *parser, OBJ arg0, OBJ arg1, OBJ arg2
     col1[count] = arg1;
     col2[count++] = arg2;
 
-    if (consume_char(parser, ']')) {
+    if (consume_non_ws_char(parser, ']')) {
       *result = build_tern_rel(col0, col1, col2, count);
       return true;
     }
 
-    if (!consume_char(parser, ';'))
+    if (!consume_non_ws_char(parser, ';'))
       return false;
   }
+}
+
+static bool finish_parsing_map(PARSER *parser, OBJ first_key, OBJ *result) {
+  OBJ first_value;
+  if (!parse_obj(parser, &first_value))
+    return false;
+
+  OBJ keys_array[INIT_CAPACITY];
+  OBJ values_array[INIT_CAPACITY];
+  OBJ *keys = keys_array;
+  OBJ *values = values_array;
+  keys[0] = first_key;
+  values[0] = first_value;
+  uint32 count = 1;
+  uint32 capacity = INIT_CAPACITY;
+
+  while (consume_non_ws_char(parser, ',')) {
+    OBJ key, value;
+    if (!parse_obj(parser, &key) || !consume_non_ws_char(parser, '-') || !consume_char(parser, '>') || !parse_obj(parser, &value))
+      return false;
+
+    if (count == capacity) {
+      keys = resize_obj_array(keys, capacity, 2 * capacity);
+      values = resize_obj_array(values, capacity, 2 * capacity);
+      capacity *= 2;
+    }
+
+    keys[count] = key;
+    values[count++] = value;
+  }
+
+  if (!consume_non_ws_char(parser, ']'))
+    return false;
+
+  *result = build_bin_rel(keys, values, count);
+  return true;
 }
 
 static bool parse_set_or_relation(PARSER *parser, OBJ *result) {
   assert(next_char_is(parser, '['));
 
   skip_char(parser);
-  if (consume_char(parser, ']')) {
+  if (consume_non_ws_char(parser, ']')) {
     *result = make_empty_rel();
     return true;
   }
@@ -1134,12 +1166,12 @@ static bool parse_set_or_relation(PARSER *parser, OBJ *result) {
 
     elts[count++] = obj;
 
-    if (consume_char(parser, ']')) {
+    if (consume_non_ws_char(parser, ']')) {
       *result = build_set(elts, count); //## DOES IT REALLOCATE THE MEMORY? CHECK
       return true;
     }
 
-    if (consume_char(parser, ';')) {
+    if (consume_non_ws_char(parser, ';')) {
       if (count == 2)
         return finish_parsing_bin_rel(parser, elts[0], elts[1], result);
 
@@ -1149,7 +1181,13 @@ static bool parse_set_or_relation(PARSER *parser, OBJ *result) {
       return false;
     }
 
-    if (!consume_char(parser, ','))
+    if (consume_non_ws_char(parser, '-')) {
+      if (count != 1 || !consume_char(parser, '>'))
+        return false;
+      return finish_parsing_map(parser, elts[0], result);
+    }
+
+    if (!consume_non_ws_char(parser, ','))
       return false;
   }
 }
