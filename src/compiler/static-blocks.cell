@@ -124,10 +124,25 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     fn_name = save_state_entry_point_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_updater_name(db_type);
+    write_fn_name = write_state_proc_name(db_type);
 
     return (
-      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary, ENV &env) {",
+      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary) {",
+      "  //## START A NEW STACK SECTION",
       "",
+      "  const char *c_fname = obj_to_str(fname);",
+      "  FILE *fp = fopen(c_fname, \"w\");",
+      "  if (fp == NULL) {",
+      "    //## SAVE ERROR INFORMATION SOMEWHERE",
+      "    //## CLEANUP THE STACK SECTION",
+      "    return make_bool(false);",
+      "  }",
+      "  bool succeeded = " & write_fn_name & "(target, fp);",
+      "  fclose(fp);",
+      "",
+      "  //## CLEANUP THE STACK SESSION",
+      "",
+      "  return make_bool(succeeded);",
       "}"
     );
   }
