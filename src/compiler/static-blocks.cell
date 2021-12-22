@@ -128,7 +128,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "",
       "  const char *c_fname = obj_to_str(fname);",
       "  FILE *fp = fopen(c_fname, \"r\");",
-      "  if (fp != NULL) {",
+      "  if (fp == NULL) {",
       "    //## SAVE ERROR INFORMATION INSIDE AUXILIARY DATA STRUCTURE",
       "    //## DESTROY THE STACK SECTION",
       "    return make_bool(false);",
