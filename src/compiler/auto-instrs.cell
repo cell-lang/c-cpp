@@ -1,6 +1,6 @@
 implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
   String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) =
-    copy_state()              = native_method_call(var, expr.var, copy_state_proc_name(expr.type), ()),
+    copy_state()              = native_call(var, copy_state_proc_name(expr.type), ("&" & native_var_ref_name(expr.var))),
     copy_rel()                = native_copy_rel_code(var, expr.tables, expr.applied_perm),
     copy_persistent_state()   = native_method_call(var, expr.var, copy_state_proc_name(expr.type), ()),
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
@@ -301,9 +301,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_send_msg_code(AnyDBVar db_var, DBSymbol type, AtomicExpr msg, Bool is_root, Maybe[BoolVar] maybe_res_var) {
+  String* native_send_msg_code(AnyDBVar db_var, DBSymbol db_type, AtomicExpr msg, Bool is_root, Maybe[BoolVar] maybe_res_var) {
     if is_root {
-      method_name = update_entry_point_name(type);
+      method_name = update_entry_point_name(db_type);
       fail if not db_var :: LocDBVar;
       updater_name = updater_var_decl_name(db_var);
       args = (msg, updater_name, "env");
@@ -315,7 +315,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     else {
       assert db_var :: LinkedDBVar;
       fail if not db_var :: LinkedDBVar;
-      method_name = update_name(type, main_handler);
+      method_name = update_name(db_type, main_handler);
       aux_db_var_name = updater_var_ref_name(db_var);
       msg_var_name = dependee_msg_var_ref_name(db_var);
       return (
@@ -327,24 +327,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_set_state_code(AtomicExpr state, LocDBVar db_var, LocDBVar* dependees, DBSymbol type, BoolVar res_var) {
-    // If it's a local automaton variable we are trying to set the state of,
-    // then we need to create a new automaton and replacing the old automaton
-    // with the new one if the reconstruction process is successful
-    class_name = native_name(type);
-    // updater_class_name = updater_creation_proc_name(type);
-    deps_args_list = append((native_var_ref_name(d) & ", " : d <- dependees));
-    deps_updaters_args_list = (updater_var_ref_name(d) : d <- dependees);
-    return (
-      // "try {",
-      // "  " & class_name & " instance = new " & class_name & "(" & deps_args_list & native_expr(state) & ", env);",
-      // "  " & native_var_ref_name(db_var) & " = instance;",
-      // "  " & native_method_call(updater_var_ref_name(db_var), db_var, updater_class_name, deps_updaters_args_list),
-      // "  " & native_var_ref_name(res_var) & " = true;",
-      // "}",
-      // "catch (Exception e) {",
-      // "  " & native_var_ref_name(res_var) & " = false;",
-      // "}"
-    );
+  String* native_set_state_code(AtomicExpr state, LocDBVar db_var, LocDBVar* dependees, DBSymbol db_type, BoolVar res_var) {
+    method_name = set_state_proc_name(db_type);
+    // aux_var_name = updater_var_ref_name(db_var);
+    return (native_call(res_var, method_name, ("&" & native_var_ref_name(db_var), state)));
   }
 }

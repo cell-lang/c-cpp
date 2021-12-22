@@ -390,21 +390,21 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String *native_load_state_code(AnyWriteVar var, AnyTypeExpr arg, LocDBVar auto_var, DBSymbol auto_type) {
-    auto_type_name = native_name(auto_type);
-    updater_name = updater_var_ref_name(auto_var);
+  // String *native_load_state_code(AnyWriteVar var, AnyTypeExpr arg, LocDBVar auto_var, DBSymbol auto_type) {
+  //   auto_type_name = native_name(auto_type);
+  //   updater_name = updater_var_ref_name(auto_var);
 
-    return (
-      "{ " & auto_type_name & " instance = N E W " & auto_type_name & "(env);",
-      "  bool succeeded = " & native_call("AutoMisc.Load", (arg, "instance", updater_name)),
-      "  " & native_var_ref_name(var) & " = SymbObj.Get(succeeded);",
-      "  if (succeeded) {",
-      "    " & native_var_ref_name(auto_var) & " = instance;",
-      "    " & updater_name & " = instance.NewUpdater();",
-      "  }",
-      "}"
-    );
-  }
+  //   return (
+  //     "{ " & auto_type_name & " instance = N E W " & auto_type_name & "(env);",
+  //     "  bool succeeded = " & native_call("AutoMisc.Load", (arg, "instance", updater_name)),
+  //     "  " & native_var_ref_name(var) & " = SymbObj.Get(succeeded);",
+  //     "  if (succeeded) {",
+  //     "    " & native_var_ref_name(auto_var) & " = instance;",
+  //     "    " & updater_name & " = instance.NewUpdater();",
+  //     "  }",
+  //     "}"
+  //   );
+  // }
 
 
   String* native_call_proc_code(Maybe[AnyWriteVar] var, ObjFnName name, AnyTypeExpr* args, AnyLambdaExpr* cls_args, (LocDBVar, DBSymbol)* rel_auto_args, LocAutoVar* react_auto_args, Maybe[Nat] block_id) {

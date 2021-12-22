@@ -21,6 +21,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     set_state_code = native_set_state_code(block.name, block.set_state_code);
     load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
 
+    set_state_entry_point_code  = native_set_state_entry_point_code(block.name);
     load_state_entry_point_code = native_load_state_entry_point_code(block.name);
     save_state_entry_point_code = native_save_state_entry_point_code(block.name);
 
@@ -52,6 +53,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       (""), load_state_code,
       join((("") & c : c <- isort(methods_code))),
       join((("") & c : c <- isort(updates_code))),
+      (""), set_state_entry_point_code,
       (""), load_state_entry_point_code,
       (""), save_state_entry_point_code,
       (""), update_entry_point_code
@@ -74,16 +76,51 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (signature) & indent_lines(body) & ("}");
   }
 
+  String *native_set_state_entry_point_code(DBSymbol db_type) {
+    method_name = load_state_entry_point_name(db_type);
+    init_method_name = init_method_name(db_type);
+    cleanup_method_name = cleanup_method_name(db_type);
+    set_state_method_name = set_state_proc_name(db_type);
+    db_type_name = native_name(db_type);
+    aux_type_name = native_updater_name(db_type);
+
+    return (
+      "OBJ " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
+      "  " & db_type_name & " new_inst;",
+      "  " & aux_type_name & " new_aux_inst;",
+      "  ",
+      "  //## START A NEW STACK SECTION",
+      "  ",
+      "  " & init_method_name & "(&new_inst, &new_aux_inst, env);",
+      "  ",
+      "  bool succeeded = " & set_state_method_name & "(&new_inst, new_state);",
+      "  ",
+      "  if (succeeded) {",
+      "    " & cleanup_method_name & "(target, auxiliary);",
+      "    *target = new_inst;",
+      "    *auxiliary = new_aux_inst;",
+      "  }",
+      "  else {",
+      "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
+      "  }",
+      "  ",
+      "  //## DESTROY THE STACK SECTION",
+      "  ",
+      "  return make_bool(succeeded);",
+      "}"
+    );
+  }
+
   String* native_load_state_entry_point_code(DBSymbol db_type) {
-    fn_name = load_state_entry_point_name(db_type);
-    init_fn_name = init_method_name(db_type);
-    cleanup_fn_name = cleanup_method_name(db_type);
+    method_name = load_state_entry_point_name(db_type);
+    init_method_name = init_method_name(db_type);
+    cleanup_method_name = cleanup_method_name(db_type);
     load_fn_name = load_state_proc_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_updater_name(db_type);
 
     return (
-      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
+      "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
       "  " & db_type_name & " new_inst;",
       "  " & aux_type_name &" new_aux_inst;",
       "",
@@ -97,7 +134,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return make_bool(false);",
       "  }",
       "",
-      "  " & init_fn_name & "(&new_inst, &new_aux_inst" & "" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
+      "  " & init_method_name & "(&new_inst, &new_aux_inst" & "" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
       "",
       "  READ_FILE_STATE read_state;",
       "  read_state.fp = fp;",
@@ -105,12 +142,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  fclose(fp);",
       "",
       "  if (succeeded) {",
-      "    " & cleanup_fn_name & "(target, auxiliary);",
+      "    " & cleanup_method_name & "(target, auxiliary);",
       "    *target = new_inst;",
       "    *auxiliary = new_aux_inst;",
       "  }",
       "  else {",
-      "    " & cleanup_fn_name & "(&new_inst, &new_aux_inst);",
+      "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
       "  }",
       "",
       "  //## DESTROY THE STACK SECTION",
@@ -121,13 +158,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
   String* native_save_state_entry_point_code(DBSymbol db_type) {
-    fn_name = save_state_entry_point_name(db_type);
+    method_name = save_state_entry_point_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_updater_name(db_type);
     write_fn_name = write_state_proc_name(db_type);
 
     return (
-      "OBJ " & fn_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary) {",
+      "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary) {",
       "  //## START A NEW STACK SECTION",
       "",
       "  const char *c_fname = obj_to_str(fname);",
@@ -137,12 +174,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    //## CLEANUP THE STACK SECTION",
       "    return make_bool(false);",
       "  }",
-      "  bool succeeded = " & write_fn_name & "(target, fp);",
+      "",
+      "",
+      "  WRITE_FILE_STATE write_state;",
+      "  write_state.fp = fp;",
+      "  write_state.success = true;",
+      "  " & write_fn_name & "(target, &write_state);",
       "  fclose(fp);",
       "",
       "  //## CLEANUP THE STACK SESSION",
       "",
-      "  return make_bool(succeeded);",
+      "  return make_bool(write_state.success);",
       "}"
     );
   }
@@ -273,22 +315,22 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     has_rel_vars = block.tables != [];
 
     code = (
-      "bool " & write_state_proc_name(block.name) & "(" & native_name(block.name) & " *" & auto_or_db_arg_name & ", FILE *fp) {",
-      "  " & write_str_proc_name & "(fp, \"( \");"
+      "void " & write_state_proc_name(block.name) & "(" & native_name(block.name) & " *" & auto_or_db_arg_name & ", WRITE_FILE_STATE *write_state) {",
+      "  " & write_str_proc_name & "(write_state, \"( \");"
     );
 
     first = true;
 
     state_vars = isort(keys(block.state_vars));
     for v @ i <- state_vars {
-      code = (code | "  " & write_str_proc_name & "(fp, \"  \");") if not first;
+      code = (code | "  " & write_str_proc_name & "(write_state, \"  \");") if not first;
       code = (code |
-        "  " & write_symb_proc_name & "(fp, " & symb_id_name(bare_id(v)) & ");",
-        "  " & write_str_proc_name & "(fp, \": \");",
-        "  " & write_obj_proc_name & "(fp, " & native_var_ref_name(v) & ");",
+        "  " & write_symb_proc_name & "(write_state, " & symb_id_name(bare_id(v)) & ");",
+        "  " & write_str_proc_name & "(write_state, \": \");",
+        "  " & write_obj_proc_name & "(write_state, " & native_var_ref_name(v) & ");",
         if i < |state_vars| - 1 or has_rel_vars
-          then "  " & write_str_proc_name & "(fp, \",\\n\");"
-          else "  " & write_str_proc_name & "(fp, \"\\n\");"
+          then "  " & write_str_proc_name & "(write_state, \",\\n\");"
+          else "  " & write_str_proc_name & "(write_state, \"\\n\");"
       );
       first = false;
     }
@@ -345,8 +387,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // }
 
     code = (code |
-      "  " & write_str_proc_name & "(fp, \")\\n\");",
-      "  return " & finish_write_proc_name & "(fp);",
+      "  " & write_str_proc_name & "(write_state, \")\\n\");",
+      "  " & finish_write_proc_name & "(write_state);",
       "}"
     );
 

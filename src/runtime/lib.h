@@ -581,10 +581,15 @@ uint32 read_file(void *read_state, uint8 *buffer, uint32 capacity);
 
 ///////////////////////////////// writing.cpp //////////////////////////////////
 
-void write_str(FILE *, const char *);
-void write_symb(FILE *, uint16);
-void write_obj(FILE *, OBJ);
-bool finish_write(FILE *);
+typedef struct {
+  FILE *fp;
+  bool success;
+} WRITE_FILE_STATE;
+
+void write_str(WRITE_FILE_STATE *, const char *);
+void write_symb(WRITE_FILE_STATE *, uint16);
+void write_obj(WRITE_FILE_STATE *, OBJ);
+bool finish_write(WRITE_FILE_STATE *);
 
 ///////////////////////////// os-interface-xxx.cpp /////////////////////////////
 

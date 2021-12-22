@@ -615,6 +615,7 @@ String updates_finish_proc_name   (DBSymbol db_type) = qualified_name(db_type, "
 String updates_check_proc_name    (DBSymbol db_type) = qualified_name(db_type, "check");
 String full_check_proc_name       (DBSymbol db_type) = qualified_name(db_type, "full_check");
 String update_entry_point_name    (DBSymbol db_type) = qualified_name(db_type, "update_entry_point");
+String set_state_entry_point_name (DBSymbol db_type) = qualified_name(db_type, "set_state_entry_point");
 String load_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "load_state_entry_point");
 String save_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "save_state_entry_point");
 
