@@ -328,8 +328,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_set_state_code(AtomicExpr state, LocDBVar db_var, LocDBVar* dependees, DBSymbol db_type, BoolVar res_var) {
-    method_name = set_state_proc_name(db_type);
-    // aux_var_name = updater_var_ref_name(db_var);
-    return (native_call(res_var, method_name, ("&" & native_var_ref_name(db_var), state)));
+    method_name = set_state_entry_point_name(db_type);
+    args = ("&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var), state, "env");
+    return (native_call(res_var, method_name, args));
   }
 }

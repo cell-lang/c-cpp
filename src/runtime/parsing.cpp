@@ -925,6 +925,10 @@ static bool finish_parsing_sequence(PARSER *parser, OBJ first_elt, OBJ *result) 
 
   for ( ; ; ) {
     if (consume_non_ws_char(parser, ')')) {
+      if (elts == array) {
+        elts = new_obj_array(count);
+        memcpy(elts, array, count * sizeof(OBJ));
+      }
       *result = build_seq(elts, count);
       return true;
     }
@@ -946,14 +950,18 @@ static bool finish_parsing_sequence(PARSER *parser, OBJ first_elt, OBJ *result) 
 }
 
 static bool parse_seq_after_open_par(PARSER *parser, OBJ *result) {
-  OBJ buffer[1024];
-  OBJ *elts = buffer;
-  int32 capacity = 1024;
+  OBJ array[INIT_CAPACITY];
+  OBJ *elts = array;
+  int32 capacity = INIT_CAPACITY;
   int32 size = 0;
 
   for ( ; ; ) {
     consume_ws(parser);
     if (consume_non_ws_char(parser, ')')) {
+      if (elts == array) {
+        elts = new_obj_array(size);
+        memcpy(elts, array, size * sizeof(OBJ));
+      }
       *result = build_seq(elts, size);
       return true;
     }
@@ -1005,7 +1013,9 @@ static bool parse_seq_or_record(PARSER *parser, OBJ *result) {
 
     if (consume_non_ws_char(parser, ')')) {
       OBJ only_elt = make_symb(symb_id);
-      *result = build_seq(&only_elt, 1);
+      OBJ *elts = new_obj_array(1);
+      elts[0] = only_elt;
+      *result = build_seq(elts, 1);
       return true;
     }
 

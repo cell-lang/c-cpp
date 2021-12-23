@@ -77,7 +77,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
   String *native_set_state_entry_point_code(DBSymbol db_type) {
-    method_name = load_state_entry_point_name(db_type);
+    method_name = set_state_entry_point_name(db_type);
     init_method_name = init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
     set_state_method_name = set_state_proc_name(db_type);
@@ -85,7 +85,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     aux_type_name = native_updater_name(db_type);
 
     return (
-      "OBJ " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
+      "bool " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
       "  " & db_type_name & " new_inst;",
       "  " & aux_type_name & " new_aux_inst;",
       "  ",
@@ -106,7 +106,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  ",
       "  //## DESTROY THE STACK SECTION",
       "  ",
-      "  return make_bool(succeeded);",
+      "  return succeeded;",
       "}"
     );
   }
