@@ -52,6 +52,10 @@ inline bool is_uint8_range(int64 min, int64 max) {
   return min >= 0 & max < 256;
 }
 
+inline bool is_int8_or_uint8_range(int64 min, int64 max) {
+  return (min >= 0 && max < 256) || (min >= -128 || max < 128);
+}
+
 inline bool is_int16_range(int64 min, int64 max) {
   return min >= -32768 & max < 32768;
 }

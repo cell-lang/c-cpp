@@ -39,6 +39,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     return join((
       ("", "", "struct " & block_name & " {"),
+      ("  STATE_MEM_POOL mem_pool;")
       indent_lines(memb_decls),
       ("};"),
       (""), updater_decl(block),
@@ -73,7 +74,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
 
-    return (signature) & indent_lines(body) & ("}");
+    return (signature, "  release_mem_pool(&" & target_arg & "->mem_pool);") & indent_lines(body) & ("}");
   }
 
   String *native_set_state_entry_point_code(DBSymbol db_type) {
@@ -227,7 +228,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
 
     signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
-    return (signature) & indent_lines(body) & ("}");
+    return (signature, "  init_mem_pool(&" target_arg & "->mem_pool);") & indent_lines(body) & ("}");
   }
 
 

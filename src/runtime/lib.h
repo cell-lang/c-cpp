@@ -153,6 +153,17 @@ const uint16 symb_id_just     = 7;
 const uint16 symb_id_success  = 8;
 const uint16 symb_id_failure  = 9;
 
+////////////////////////////// auto-mem-alloc.cpp //////////////////////////////
+
+typedef struct {
+  uint8 subpools[9];
+} STATE_MEM_POOL;
+
+void init_mem_pool(STATE_MEM_POOL *);
+void *alloc_state_mem_block(STATE_MEM_POOL *, uint32);
+void release_state_mem_block(STATE_MEM_POOL *, void *, uint32);
+void release_mem_pool(STATE_MEM_POOL *);
+
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
 void *alloc_eternal_block(uint32 byte_size);
@@ -163,6 +174,18 @@ void *release_static_block(void *ptr, uint32 byte_size);
 void* new_obj(uint32 byte_size);
 
 /////////////////////////////////// mem.cpp ////////////////////////////////////
+
+uint64 seq_obj_mem_size(uint64 capacity);
+uint64 uint8_seq_obj_mem_size(uint64 capacity);
+uint64 int8_seq_obj_mem_size(uint64 capacity);
+uint64 int16_seq_obj_mem_size(uint64 capacity);
+uint64 int32_seq_obj_mem_size(uint64 capacity);
+uint64 int64_seq_obj_mem_size(uint64 capacity);
+uint64 set_obj_mem_size(uint64 size);
+uint64 bin_rel_obj_mem_size(uint64 size);
+uint64 tern_rel_obj_mem_size(uint64 size);
+uint64 map_obj_mem_size(uint64 size);
+uint64 boxed_obj_mem_size();
 
 OBJ* get_left_col_array_ptr(BIN_REL_OBJ*);
 OBJ* get_right_col_array_ptr(BIN_REL_OBJ *rel, uint32 size);
