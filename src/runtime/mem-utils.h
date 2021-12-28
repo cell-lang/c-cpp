@@ -569,6 +569,12 @@ inline int8 *get_seq_elts_ptr_int8(OBJ seq) {
   return (int8 *) seq.core_data.ptr;
 }
 
+inline void *get_seq_elts_ptr_int8_or_uint8(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(is_8_bit_wide(seq));
+  return seq.core_data.ptr;
+}
+
 inline int16 *get_seq_elts_ptr_int16(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   assert(is_signed(seq) & is_16_bit_wide(seq));

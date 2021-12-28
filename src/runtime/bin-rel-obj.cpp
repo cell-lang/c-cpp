@@ -1,7 +1,7 @@
 #include "lib.h"
 
 
-bool index_has_been_build(BIN_REL_OBJ *rel, uint32 size) {
+bool index_has_been_built(BIN_REL_OBJ *rel, uint32 size) {
   if (size == 1)
     return true;
 
@@ -23,7 +23,7 @@ void build_map_right_to_left_sorted_idx_array(OBJ map) {
   uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);
 
   // The first two elements having the same value (an impossible situation for
-  // a valid index) is used to signal that the index has not been build yet
+  // a valid index) is used to signal that the index has not been built yet
   if (rev_idxs[0] != rev_idxs[1])
     return;
 

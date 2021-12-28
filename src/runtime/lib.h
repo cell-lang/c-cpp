@@ -330,6 +330,7 @@ double *get_seq_elts_ptr_float(OBJ);
 
 uint8 *get_seq_elts_ptr_uint8(OBJ obj);
 int8  *get_seq_elts_ptr_int8(OBJ obj);
+void  *get_seq_elts_ptr_int8_or_uint8(OBJ seq);
 int16 *get_seq_elts_ptr_int16(OBJ obj);
 int32 *get_seq_elts_ptr_int32(OBJ obj);
 int64 *get_seq_elts_ptr_int64(OBJ obj);
@@ -454,7 +455,8 @@ uint64 inline_int16_concat(uint64 left, uint32 left_len, uint64 right, uint32 ri
 
 //////////////////////////////// bin-rel-obj.cpp ///////////////////////////////
 
-bool index_has_been_build(BIN_REL_OBJ *rel, uint32 size);
+bool index_has_been_built(BIN_REL_OBJ *rel, uint32 size);
+void build_map_right_to_left_sorted_idx_array(OBJ map); //## CHANGE THE TYPE OF map TO BIN_REL_OBJ*
 
 OBJ build_bin_rel(OBJ *col1, OBJ *col2, uint32 size);
 OBJ build_bin_rel(STREAM &strm1, STREAM &strm2);

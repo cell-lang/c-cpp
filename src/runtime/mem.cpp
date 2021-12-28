@@ -41,6 +41,8 @@ uint64 set_obj_mem_size(uint64 size) {
 
 uint64 bin_rel_obj_mem_size(uint64 size) {
   assert(size > 0);
+  //## IF THE MAP HAS ONLY ONE ENTRY, THERE WOULD BE NO NEED FOR THE RIGHT-TO-LEFT INDEX
+  //## IT COULD PROBABLY ALSO BE ELIMINATED FOR VERY SMALL SIZES
   return sizeof(BIN_REL_OBJ) + (2 * size - 1) * sizeof(OBJ) + size * sizeof(uint32);
 }
 
@@ -218,7 +220,7 @@ BIN_REL_OBJ *new_map(uint32 size) {
   uint32 *rev_idxs = get_right_to_left_indexes(map, size);
 
   // By setting the first two elements of the right-to-left index
-  // to the same value, we mark the index an not yet built
+  // to the same value, we mark the index as not yet built
   rev_idxs[0] = 0;
   if (size > 1)
     rev_idxs[1] = 0;
