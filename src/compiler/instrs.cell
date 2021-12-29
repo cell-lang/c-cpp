@@ -228,8 +228,18 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_set_var_code(<WriteObjVar, LocOptTagRecVar> var, ObjExpr value) =
-    (native_assignment_code(var, value));
+  String* native_set_var_code(<WriteObjVar, LocOptTagRecVar> var, ObjExpr value) {
+    if var :: MembVar {
+      var_str = native_var_ref_name(var);
+      pool_ref_str = "&" & auto_or_db_arg_name & "->mem_pool";
+      return (
+        "remove_from_pool(" & pool_ref_str & ", " & var_str & ");",
+        var_str & " = copy_to_pool(" & pool_ref_str & ", " & native_expr(value) & ");"
+      );
+    }
+    else
+      return (native_assignment_code(var, value));
+  }
 
   String* native_set_var_code(ImplArg var, ObjExpr value) =
     (native_assignment_code(var, value)) & gen_cache_clearing_code(var);
@@ -249,7 +259,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   ## BUG BUG BUG: IF THERE IS INSIDE ONE OF THE CASES A BREAK STATEMENT MEANT TO
-  ## TERMIMATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
+  ## TERMINATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
   String* native_symb_switch_code(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, Maybe[Nat] block_id) {
     value_str = match (value)
       get_tag(tag_obj?)   = "get_tag_id(" & native_expr(tag_obj) & ")",

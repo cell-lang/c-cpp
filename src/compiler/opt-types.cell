@@ -53,6 +53,22 @@ implicit prg_data : PrgData, context : <core> {
       "  switch (repr_id) {"
     );
 
+    copy_to_pool_dispatcher = (
+      "",
+      80 * "/",
+      "",
+      "void copy_to_pool(void *ptr, uint16 repr_id, void **dest_var) {",
+      "  switch (repr_id) {"
+    );
+
+    mem_size_dispatcher = (
+      "",
+      80 * "/",
+      "",
+      "uint32 opt_repr_mem_size(void *ptr, uint16 repr_id) {",
+      "  switch (repr_id) {"
+    );
+
     cmp_dispatcher = (
       "",
       80 * "/",
@@ -113,6 +129,21 @@ implicit prg_data : PrgData, context : <core> {
         ""
       );
 
+      copy_to_pool_dispatcher = (
+        copy_to_pool_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      " & struct_name & "_copy_to_pool((" & struct_name & " *) ptr, dest_var);",
+        "      return;",
+        ""
+      );
+
+      mem_size_dispatcher = (
+        mem_size_dispatcher |
+        "    case " & _print_(gid) & ":",
+        "      return " & struct_name & "_mem_size((" & struct_name & " *) ptr);",
+        ""
+      );
+
       cmp_dispatcher = (
         cmp_dispatcher |
         "    case " & _print_(gid) & ":",
@@ -135,6 +166,8 @@ implicit prg_data : PrgData, context : <core> {
                   get_fields_count_dispatcher & footer &
                   get_fields_dispatcher       & footer &
                   copy_dispatcher             & footer &
+                  copy_to_pool_dispatcher     & footer &
+                  mem_size_dispatcher         & footer &
                   cmp_dispatcher              & footer;
 
     get_tag_id = (
@@ -200,6 +233,8 @@ implicit prg_data : PrgData, context : <core> {
         get_fields_count_def(struct_name),
         get_fields_def(struct_name, index),
         copy_def(struct_name),
+        copy_to_pool_def(struct_name),
+        mem_size_def(struct_name),
         cmp_def(struct_name)
       );
     }
@@ -311,6 +346,54 @@ implicit context : <core>, tag : Symbol, ord_labels : Symbol+, opt_labels : [Sym
       }
 
     return (code | "  return copy;", "}");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* copy_to_pool_def(String struct_name) {
+    code = (
+      "void " & struct_name & "_copy_to_pool(" & struct_name & " *self, void **dest_var) {",
+      "  " & struct_name & " *copy = (" & struct_name & " *) grab_mem(dest_var, round_up_8(sizeof(" & struct_name & ")));"
+    );
+
+    for l <- ord_labels {
+      var_name = opt_rec_field_name(l);
+      code = match (reprs(l))
+        bool      |
+        int       |
+        symbol    |
+        float     = (code | "  copy->" & var_name & " = self->" & var_name & ";"),
+        object    = { asgnm_instr = "  copy->" & var_name & " = copy_obj_to(self->" & var_name & ", dest_var);";
+                      if opt_labels(l) {
+                        test_var_name = opt_rec_field_nonempty_test_var(l);
+                        asgnm_instr = "  " & asgnm_instr;
+                        return (code | "  if (self->" & test_var_name & ")", asgnm_instr);
+                      }
+                      else
+                        return (code | asgnm_instr);
+                    },
+        array()   = undefined; ## CHECK THIS ONE
+    }
+
+    for l <- ord_labels
+      if opt_labels(l) {
+        test_var_name = opt_rec_field_nonempty_test_var(l);
+        code = (code | "  copy->" & test_var_name & " = self->" & test_var_name & ";");
+      }
+
+    return (code | "}");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* mem_size_def(String struct_name) {
+    obj_fields = (l : l <- ord_labels, reprs(l) == :object);
+    exprs = ("round_up_8(sizeof(" & struct_name & "))",) & ("obj_mem_size(self->" & opt_rec_field_name(l) & ")" : l <- obj_fields);
+    return (
+      "uint32 " & struct_name & "_mem_size(" & struct_name & " *self) {",
+      "  return " & append(exprs, " + ") & ";",
+      "}"
+    );
   }
 
   //////////////////////////////////////////////////////////////////////////////

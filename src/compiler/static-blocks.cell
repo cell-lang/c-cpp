@@ -39,7 +39,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     return join((
       ("", "", "struct " & block_name & " {"),
-      ("  STATE_MEM_POOL mem_pool;")
+      ("  STATE_MEM_POOL mem_pool;"),
       indent_lines(memb_decls),
       ("};"),
       (""), updater_decl(block),
@@ -65,6 +65,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
+    target_var = auto_or_db_arg_name;
+
     target_arg = target_arg_decl(auto_id);
     aux_arg = auxiliary_arg_decl(auto_id);
 
@@ -74,7 +76,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
 
-    return (signature, "  release_mem_pool(&" & target_arg & "->mem_pool);") & indent_lines(body) & ("}");
+    return (signature, "  release_mem_pool(&" & target_var & "->mem_pool);") & indent_lines(body) & ("}");
   }
 
   String *native_set_state_entry_point_code(DBSymbol db_type) {
@@ -228,7 +230,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
 
     signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
-    return (signature, "  init_mem_pool(&" target_arg & "->mem_pool);") & indent_lines(body) & ("}");
+    return (signature, "  init_mem_pool(&" & target_name & "->mem_pool);") & indent_lines(body) & ("}");
   }
 
 
@@ -467,13 +469,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       symb_str = symb_id_name(bare_id(var));
       var_str = native_var_ref_name(var);
       guard_expr_str = native_expr(guard_expr);
+      pool_ref_str = "&" & auto_or_db_arg_name & "->mem_pool";
 
       return (
         "case " & symb_str & ":",
         // "  bookmark(&parser);",
-        "  if (!parse_obj(&parser, &" & var_str & ")) {",
+        "  if (!parse_obj(&parser, &v0)) {",
         "    return false;",
         "  }",
+        "  remove_from_pool(" & pool_ref_str & ", " & var_str & ");",
+        "  " & var_str & " = copy_to_pool(" & pool_ref_str & ", v0);",
         "  if (!(" & guard_expr_str & ")) {",
         "    return false;",
         "  }",

@@ -162,10 +162,17 @@ typedef struct {
 void init_mem_pool(STATE_MEM_POOL *);
 void release_mem_pool(STATE_MEM_POOL *);
 
-uint32 obj_mem_size(OBJ obj);
-
 OBJ copy_to_pool(STATE_MEM_POOL *, OBJ);
 void remove_from_pool(STATE_MEM_POOL *, OBJ);
+
+uint32 obj_mem_size(OBJ);
+OBJ copy_obj_to(OBJ, void **);
+
+void *grab_mem(void **, uint32);
+
+inline uint32 round_up_8(uint32 mem_size) {
+  return (mem_size + 7) & ~7;
+}
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 

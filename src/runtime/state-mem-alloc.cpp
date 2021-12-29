@@ -271,9 +271,10 @@ static uint32 ne_tern_rel_mem_size(OBJ obj) {
 }
 
 static uint32 ad_hoc_tag_rec_mem_size(OBJ obj) {
-  void *ptr = get_opt_repr_ptr(obj);
-  uint16 repr_id = get_opt_repr_id(obj);
-  return opt_repr_mem_size(ptr, repr_id);
+  // void *ptr = get_opt_repr_ptr(obj);
+  // uint16 repr_id = get_opt_repr_id(obj);
+  // return opt_repr_mem_size(ptr, repr_id);
+  internal_fail();
 }
 
 static uint32 boxed_obj_mem_size(OBJ obj) {
@@ -334,8 +335,6 @@ inline void *grab_mem(void **mem_var, uint32 byte_size) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-static OBJ copy_obj_to(OBJ obj, void **dest_var);
 
 //## THIS COULD BE MADE MORE EFFICIENT BY ALSO PROVIDING ACCESS TO THE MEMORY THE OBJECTS ARE TO BE COPIED TO
 static void copy_objs_to(OBJ *src_array, uint32 size, OBJ *dest_array, void **dest_var) {
@@ -666,7 +665,7 @@ static OBJ copy_boxed_obj_to(OBJ obj, void **dest_var) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static OBJ copy_obj_to(OBJ obj, void **dest_var) {
+OBJ copy_obj_to(OBJ obj, void **dest_var) {
   if (is_inline_obj(obj) || !needs_copying(obj.core_data.ptr))
     return obj;
 
