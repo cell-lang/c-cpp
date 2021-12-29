@@ -29,21 +29,67 @@ static uint32 subpool_index(uint32 size) {
     return 8;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+static void *alloc_new_pages(uint32 count) {
+  assert(count > 0);
+  return malloc(4096 * count);
+}
+
+static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
+  assert(lengthof(mem_pool->subpools) == 9);
+  assert(pool_idx < lengthof(mem_pool->subpools));
+
+  void *ptr = mem_pool->subpools[pool_idx];
+  if (ptr != NULL) {
+    void *next_ptr = *((void **) ptr);
+    mem_pool->subpools[pool_idx] = next_ptr;
+    return ptr;
+  }
+  else if (pool_idx < 8) {
+    void *ptr = acquire_block(mem_pool, pool_idx + 1);
+    uint32 size = 16 << pool_idx;
+    void *next_ptr = ((uint8 *) ptr) + size;
+    void **after_next_ptr = (void **) next_ptr;
+    *after_next_ptr = NULL;
+    mem_pool->subpools[pool_idx] = next_ptr;
+    return ptr;
+  }
+  else {
+    return alloc_new_pages(1);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 void init_mem_pool(STATE_MEM_POOL *mem_pool) {
   memset(mem_pool, 0, sizeof(STATE_MEM_POOL));
 }
 
-void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
-  return malloc(byte_size);
-}
-
-void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
-  free(ptr);
-}
-
 void release_mem_pool(STATE_MEM_POOL *mem_pool) {
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
+  if (byte_size > 4096) {
+    internal_fail();
+  }
+
+  uint32 pool_idx = subpool_index(byte_size);
+  void *ptr = acquire_block(mem_pool, pool_idx);
+  return ptr;
+}
+
+static void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
+  if (byte_size > 4096) {
+    internal_fail();
+  }
+
+  uint32 pool_idx = subpool_index(byte_size);
+  void *next_ptr = mem_pool->subpools[pool_idx];
+  *((void **) ptr) = next_ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,8 +105,6 @@ static uint32 null_round_up(uint32 mem_size) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-static uint32 obj_mem_size(OBJ obj);
 
 static uint32 objs_mem_size(OBJ *objs, uint32 count) {
   uint32 mem_size = 0;
@@ -239,9 +283,9 @@ static uint32 boxed_obj_mem_size(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 obj_mem_size(OBJ obj) {
+uint32 obj_mem_size(OBJ obj) {
   if (is_inline_obj(obj))
-    return sizeof(obj);
+    return 0;
 
   switch (get_obj_type(obj)) {
     case TYPE_NE_INT_SEQ:
@@ -665,13 +709,61 @@ static OBJ copy_obj_to(OBJ obj, void **dest_var) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ copy_obj_to_state_mem(STATE_MEM_POOL *mem_pool, OBJ obj) {
+OBJ copy_to_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
+  assert(!is_inline_obj(obj));
+
   uint32 total_mem_size = obj_mem_size(obj);
   assert(total_mem_size % 8 == 0);
+
+#ifndef NDEBUG
+  if (total_mem_size < 64 * 1024) {
+    uint8 test_mem[128 * 1024];
+
+    uint32 start_idx = 32 * 1024;
+    uint32 end_idx = start_idx + total_mem_size;
+
+
+    for (int i=0 ; i < 128 * 1024 ; i++)
+      test_mem[i] = 0;
+
+    void *test_mem_var = test_mem + start_idx;
+    OBJ test_copy = copy_obj_to(obj, &test_mem_var);
+    assert(test_mem_var == test_mem + end_idx);
+
+    for (int i=0 ; i < 128 * 1024 ; i++)
+      if (!(i >= start_idx & i < end_idx))
+        assert(test_mem[i] == 0);
+
+
+    for (int i=0 ; i < 128 * 1024 ; i++)
+      test_mem[i] = 255;
+
+    test_mem_var = test_mem + start_idx;
+    test_copy = copy_obj_to(obj, &test_mem_var);
+    assert(test_mem_var == test_mem + end_idx);
+
+    for (int i=0 ; i < 128 * 1024 ; i++)
+      if (!(i >= start_idx & i < end_idx))
+        assert(test_mem[i] == 255);
+
+
+    assert(are_eq(obj, test_copy));
+  }
+#endif
+
   void *mem_start = alloc_state_mem_block(mem_pool, total_mem_size);
   void *mem_var = mem_start;
- //## ALLOCATE THE MEMORY HERE
   OBJ copy = copy_obj_to(obj, &mem_var);
   assert(mem_var == ((uint8 *) mem_start) + total_mem_size);
+  assert(obj_mem_size(copy) == total_mem_size);
   return copy;
+}
+
+void remove_from_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
+  assert(!is_inline_obj(obj));
+
+  uint32 total_mem_size = obj_mem_size(obj);
+  assert(total_mem_size % 8 == 0);
+
+  release_state_mem_block(mem_pool, obj.core_data.ptr, total_mem_size);
 }

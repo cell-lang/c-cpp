@@ -102,6 +102,10 @@ static int32 min32(int32 x, int32 y) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#define lengthof(X) (sizeof(X) / sizeof((X)[0]))
+
+////////////////////////////////////////////////////////////////////////////////
+
 #ifndef NDEBUG
   //#define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__) ? 0 : (*((char *)0)) = 0)
   #define assert(_E_) (void)(_assert_((_E_), #_E_, __FILE__, __LINE__))

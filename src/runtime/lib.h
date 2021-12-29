@@ -156,13 +156,16 @@ const uint16 symb_id_failure  = 9;
 ////////////////////////////// auto-mem-alloc.cpp //////////////////////////////
 
 typedef struct {
-  uint8 subpools[9];
+  void *subpools[9];
 } STATE_MEM_POOL;
 
 void init_mem_pool(STATE_MEM_POOL *);
-void *alloc_state_mem_block(STATE_MEM_POOL *, uint32);
-void release_state_mem_block(STATE_MEM_POOL *, void *, uint32);
 void release_mem_pool(STATE_MEM_POOL *);
+
+uint32 obj_mem_size(OBJ obj);
+
+OBJ copy_to_pool(STATE_MEM_POOL *, OBJ);
+void remove_from_pool(STATE_MEM_POOL *, OBJ);
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
