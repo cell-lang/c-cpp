@@ -1,7 +1,7 @@
 Int Main(String* args) {
   argc = |args|;
 
-  version = "0.6 α 1";
+  version = "0.6 alpha 2"; //"0.6 α 2";
 
   if argc < 2 {
     Print(
