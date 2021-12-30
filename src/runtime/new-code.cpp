@@ -20,31 +20,3 @@ OBJ set_key_value(OBJ map, OBJ key, OBJ value) {
 OBJ drop_key(OBJ map, OBJ key) {
   impl_fail("Not implemented yet");
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-bool is_ne_int_seq(OBJ obj) {
-  if (!is_ne_seq(obj))
-    return false;
-
-  int len = get_size(obj);
-  OBJ *elts = get_seq_elts_ptr(obj);
-  for (int i=0 ; i < len ; i++)
-    if (!is_int(elts[i]))
-      return false;
-
-  return true;
-}
-
-bool is_ne_float_seq(OBJ obj) {
-  if (!is_ne_seq(obj))
-    return false;
-
-  int len = get_size(obj);
-  OBJ *elts = get_seq_elts_ptr(obj);
-  for (int i=0 ; i < len ; i++)
-    if (!is_float(elts[i]))
-      return false;
-
-  return true;
-}

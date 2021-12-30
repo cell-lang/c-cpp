@@ -271,10 +271,10 @@ static uint32 ne_tern_rel_mem_size(OBJ obj) {
 }
 
 static uint32 ad_hoc_tag_rec_mem_size(OBJ obj) {
-  // void *ptr = get_opt_repr_ptr(obj);
-  // uint16 repr_id = get_opt_repr_id(obj);
-  // return opt_repr_mem_size(ptr, repr_id);
-  internal_fail();
+  void *ptr = get_opt_repr_ptr(obj);
+  uint16 repr_id = get_opt_repr_id(obj);
+  return opt_repr_mem_size(ptr, repr_id);
+  // internal_fail();
 }
 
 static uint32 boxed_obj_mem_size(OBJ obj) {
@@ -384,14 +384,14 @@ static OBJ copy_ne_int_seq_to(OBJ seq, void **dest_var) {
         uint8 *dest = (uint8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_uint8(dest, len);
+        return repoint_to_uint8_sliced_copy(seq, dest);
       }
       else {
         assert(is_int8_range(min, max));
         int8 *dest = (int8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int8(dest, len);
+        return repoint_to_int8_sliced_copy(seq, dest);
       }
     }
   }
@@ -416,14 +416,14 @@ static OBJ copy_ne_int_seq_to(OBJ seq, void **dest_var) {
         uint8 *dest = (uint8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_uint8(dest, len);
+        return repoint_to_uint8_sliced_copy(seq, dest);
       }
       else if (is_int8_range(min, max)) {
         uint32 mem_size = round_up(len * sizeof(int8));
         int8 *dest = (int8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int8(dest, len);
+        return repoint_to_int8_sliced_copy(seq, dest);
       }
       else {
         assert(is_int16_range(min, max));
@@ -431,7 +431,7 @@ static OBJ copy_ne_int_seq_to(OBJ seq, void **dest_var) {
         int16 *dest = (int16 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int16(dest, len);
+        return repoint_to_int16_sliced_copy(seq, dest);
 
       }
     }
@@ -456,21 +456,21 @@ static OBJ copy_ne_int_seq_to(OBJ seq, void **dest_var) {
         uint8 *dest = (uint8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_uint8(dest, len);
+        return repoint_to_uint8_sliced_copy(seq, dest);
       }
       else if (is_int8_range(min, max)) {
         uint32 mem_size = round_up(len * sizeof(int8));
         int8 *dest = (int8 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int8(dest, len);
+        return repoint_to_int8_sliced_copy(seq, dest);
       }
       else if (is_int16_range(min, max)) {
         uint32 mem_size = round_up(len * sizeof(int16));
         int16 *dest = (int16 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int16(dest, len);
+        return repoint_to_int16_sliced_copy(seq, dest);
       }
       else {
         assert(is_int32_range(min, max));
@@ -478,7 +478,7 @@ static OBJ copy_ne_int_seq_to(OBJ seq, void **dest_var) {
         int32 *dest = (int32 *) grab_mem(dest_var, mem_size);
         for (int i=0 ; i < len ; i++)
           dest[i] = array[i];
-        return make_slice_int32(dest, len);
+        return repoint_to_int32_sliced_copy(seq, dest);
       }
     }
   }
@@ -503,71 +503,19 @@ static OBJ copy_ne_seq_to(OBJ seq, void **dest_var) {
   OBJ *elts = (OBJ *) seq.core_data.ptr;
   uint32 len = read_size_field_unchecked(seq);
 
-  OBJ first_elt = elts[0];
+#ifndef NDEBUG
+  bool non_int_found = false;
+  bool non_float_found = false;
 
-  if (is_int(first_elt)) {
-    int64 min = get_int(first_elt);
-    int64 max = min;
-
-    for (uint32 i=1 ; i < len ; i++) {
-      OBJ elt = elts[i];
-      if (!is_int(elt))
-        goto obj_seq_copy;
-
-      int64 value = get_int(elt);
-      min = value < min ? value : min;
-      max = value > max ? value : max;
-    }
-
-    if (is_uint8_range(min, max)) {
-      uint32 mem_size = round_up(len * sizeof(uint8));
-      uint8 *dest = (uint8 *) grab_mem(dest_var, mem_size);
-      for (int i=0 ; i < len ; i++)
-        dest[i] = get_int(elts[i]);
-      return make_slice_uint8(dest, len);
-    }
-    else if (is_int8_range(min, max)) {
-      uint32 mem_size = round_up(len * sizeof(int8));
-      int8 *dest = (int8 *) grab_mem(dest_var, mem_size);
-      for (int i=0 ; i < len ; i++)
-        dest[i] = get_int(elts[i]);
-      return make_slice_int8(dest, len);
-    }
-    else if (is_int16_range(min, max)) {
-      uint32 mem_size = round_up(len * sizeof(int16));
-      int16 *dest = (int16 *) grab_mem(dest_var, mem_size);
-      for (int i=0 ; i < len ; i++)
-        dest[i] = get_int(elts[i]);
-      return make_slice_int16(dest, len);
-    }
-    else if (is_int32_range(min, max)) {
-      uint32 mem_size = round_up(len * sizeof(int32));
-      int32 *dest = (int32 *) grab_mem(dest_var, mem_size);
-      for (int i=0 ; i < len ; i++)
-        dest[i] = get_int(elts[i]);
-      return make_slice_int32(dest, len);
-    }
-    else {
-      uint32 mem_size = null_round_up(len * sizeof(int64));
-      int64 *dest = (int64 *) grab_mem(dest_var, mem_size);
-      for (int i=0 ; i < len ; i++)
-        dest[i] = get_int(elts[i]);
-      return make_slice_int64(dest, len);
-    }
+  for (int i=0 ; i < len ; i++) {
+    OBJ elt = elts[i];
+    non_int_found |= !is_int(elt);
+    non_float_found |= !is_float(elt);
   }
 
-  if (is_float(first_elt)) {
-    for (int i=1 ; i < len ; i++)
-      if (!is_float(elts[i]))
-        goto obj_seq_copy;
-    uint32 mem_size = null_round_up(len * sizeof(double));
-    double *dest = (double *) grab_mem(dest_var, mem_size);
-    for (int i=0 ; i < len ; i++)
-      dest[i] = get_float(elts[i]);
-    return make_slice_float(dest, len);
-  }
+  assert(non_int_found && non_float_found);
+#endif
 
-obj_seq_copy:
   uint32 mem_size = null_round_up(len * sizeof(OBJ));
   OBJ *dest = (OBJ *) grab_mem(dest_var, mem_size);
   copy_objs_to(elts, len, dest, dest_var);
@@ -648,11 +596,11 @@ static OBJ copy_ne_tern_rel_to(OBJ obj, void **dest_var) {
 }
 
 static OBJ copy_ad_hoc_tag_rec_to(OBJ obj, void **dest_var) {
-  // void *ptr = get_opt_repr_ptr(obj);
-  // uint16 repr_id = get_opt_repr_id(obj);
-  // void *copy = opt_repr_copy(ptr, repr_id);
-  // return repoint_to_copy(obj, copy);
-  internal_fail();
+  void *ptr = get_opt_repr_ptr(obj);
+  uint16 repr_id = get_opt_repr_id(obj);
+  void *copy = opt_repr_copy(ptr, repr_id);
+  return repoint_to_copy(obj, copy);
+  // internal_fail();
 }
 
 static OBJ copy_boxed_obj_to(OBJ obj, void **dest_var) {
@@ -666,7 +614,7 @@ static OBJ copy_boxed_obj_to(OBJ obj, void **dest_var) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ copy_obj_to(OBJ obj, void **dest_var) {
-  if (is_inline_obj(obj) || !needs_copying(obj.core_data.ptr))
+  if (is_inline_obj(obj))
     return obj;
 
   switch (get_obj_type(obj)) {
@@ -709,7 +657,8 @@ OBJ copy_obj_to(OBJ obj, void **dest_var) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ copy_to_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
-  assert(!is_inline_obj(obj));
+  if (is_inline_obj(obj))
+    return obj;
 
   uint32 total_mem_size = obj_mem_size(obj);
   assert(total_mem_size % 8 == 0);
@@ -759,10 +708,10 @@ OBJ copy_to_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
 }
 
 void remove_from_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
-  assert(!is_inline_obj(obj));
+  if (!is_inline_obj(obj)) {
+    uint32 total_mem_size = obj_mem_size(obj);
+    assert(total_mem_size % 8 == 0);
 
-  uint32 total_mem_size = obj_mem_size(obj);
-  assert(total_mem_size % 8 == 0);
-
-  release_state_mem_block(mem_pool, obj.core_data.ptr, total_mem_size);
+    release_state_mem_block(mem_pool, obj.core_data.ptr, total_mem_size);
+  }
 }

@@ -59,12 +59,16 @@ const uint64 SIGNED_BIT_MASK      = MAKE(1, SIGNED_BIT_SHIFT);
 const int INT_WIDTH_SHIFT         = SIGNED_BIT_SHIFT + 1;
 const int INT_WIDTH_WIDTH         = 2;
 
+const uint64 INT_WIDTH_MASK       = MASK(INT_WIDTH_SHIFT, INT_WIDTH_WIDTH);
+
 const uint64 UINT8_ARRAY_MASK     = MAKE(INT_BITS_TAG_8,  INT_WIDTH_SHIFT);
 
 const uint64 INT8_ARRAY_MASK      = MAKE(INT_BITS_TAG_8,  INT_WIDTH_SHIFT) | SIGNED_BIT_MASK;
 const uint64 INT16_ARRAY_MASK     = MAKE(INT_BITS_TAG_16, INT_WIDTH_SHIFT) | SIGNED_BIT_MASK;
 const uint64 INT32_ARRAY_MASK     = MAKE(INT_BITS_TAG_32, INT_WIDTH_SHIFT) | SIGNED_BIT_MASK;
 const uint64 INT64_ARRAY_MASK     = MAKE(INT_BITS_TAG_64, INT_WIDTH_SHIFT) | SIGNED_BIT_MASK;
+
+const uint64 SEQ_INFO_MASK        = TYPE_MASK | SEQ_TYPE_MASK | SIGNED_BIT_MASK | INT_WIDTH_MASK;
 
 /////////////////////// Physical representation of maps ////////////////////////
 
@@ -694,6 +698,15 @@ inline bool is_ne_seq(OBJ obj) {
   return type >= NE_SEQ_TYPE_RANGE_START & type <= NE_SEQ_TYPE_RANGE_END & get_tags_count(obj) == 0;
 }
 
+inline bool is_ne_int_seq(OBJ obj) {
+  uint32 type = get_obj_type(obj);
+  return type >= NE_INT_SEQ_TYPE_RANGE_START & type <= NE_INT_SEQ_TYPE_RANGE_END & get_tags_count(obj) == 0;
+}
+
+inline bool is_ne_float_seq(OBJ obj) {
+  return get_tags_count(obj) == 0 & get_obj_type(obj) == TYPE_NE_FLOAT_SEQ;
+}
+
 inline bool is_empty_rel(OBJ obj) {
   return obj.extra_data == EMPTY_REL_MASK;
 }
@@ -897,7 +910,83 @@ inline OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
 inline OBJ repoint_to_sliced_copy(OBJ obj, void *new_ptr) {
   assert(!is_inline_obj(obj));
 
-  obj.core_data.ptr = new_ptr;
-  obj.extra_data = CLEAR(obj.extra_data, SEQ_TYPE_MASK) | ARRAY_SLICE_MASK;
-  return obj;
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_TYPE_MASK) | ARRAY_SLICE_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_uint8_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_INT_SEQ_BASE_MASK | ARRAY_SLICE_MASK | UINT8_ARRAY_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_int8_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_INT_SEQ_BASE_MASK | ARRAY_SLICE_MASK | INT8_ARRAY_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_int16_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_INT_SEQ_BASE_MASK | ARRAY_SLICE_MASK | INT16_ARRAY_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_int32_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_INT_SEQ_BASE_MASK | ARRAY_SLICE_MASK | INT32_ARRAY_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_int64_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_INT_SEQ_BASE_MASK | ARRAY_SLICE_MASK | INT64_ARRAY_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
+}
+
+inline OBJ repoint_to_float_sliced_copy(OBJ obj, void *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SEQ_INFO_MASK) | NE_FLOAT_SEQ_BASE_MASK | ARRAY_SLICE_MASK;
+
+  assert(are_eq(new_obj, obj));
+
+  return new_obj;
 }
