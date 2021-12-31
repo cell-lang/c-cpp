@@ -121,7 +121,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     cleanup_db()          = (), //(native_method_call(instr.db_var, cleanup_method_name(instr.type), ())),
 
     send_msg()            = native_send_msg_code(instr.db_var, instr.type, instr.msg, instr.is_root, if instr.res_var? then just(instr.res_var) else nothing),
-    try_update()          = (native_method_call("this", update_name(instr.type, instr.update_id), (instr.args | "updater", "env"))),
+    try_update()          = (native_call(update_name(instr.type, instr.update_id), (auto_or_db_arg_name, db_auxiliary_arg_name) &  instr.args & ("env"))),
     set_state()           = native_set_state_code(instr.state, instr.db_var, instr.dependees, instr.type, instr.res_var),
     invoke_auto_method()  = (native_method_call(instr.res_var, if instr.auto_var? then instr.auto_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),
     invoke_db_method()    = (native_method_call(instr.res_var, if instr.db_var? then instr.db_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),

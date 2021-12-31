@@ -32,8 +32,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     full_check_code = full_check_method_code(block);
 
     methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
-    updates_code = []; ## IMPLEMENT IMPLEMENT IMPLEMENT
-    // updates_code = native_updates_code(block);
+    updates_code = native_updates_code(block);
 
     block_name = native_name(block.name);
 
@@ -53,13 +52,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       (""), set_state_code,
       (""), load_state_code,
       join((("") & c : c <- isort(methods_code))),
-      join((("") & c : c <- isort(updates_code))),
+      join((("") & c : c <- updates_code)),
       (""), set_state_entry_point_code,
       (""), load_state_entry_point_code,
       (""), save_state_entry_point_code,
       (""), update_entry_point_code
       // ("", ""), updater_creation_code(block),
-      // (""), updater_reset_code(block),
+      // (""), auxiliary_reset_code(block),
     ));
   }
 
@@ -137,7 +136,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return make_bool(false);",
       "  }",
       "",
-      "  " & init_method_name & "(&new_inst, &new_aux_inst" & "" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
+      "  " & init_method_name & "(&new_inst, &new_aux_inst" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
       "",
       "  READ_FILE_STATE read_state;",
       "  read_state.fp = fp;",
@@ -289,7 +288,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //   String* surr_obj_mapper(ValueStoreId id, ValueStoreType type) {
   //     name = native_surr_obj_mapper_name(id);
   //     vs_name = native_var_ref_name(id);
-  //     sign = "private Obj " & name & "(int surr) {";
+  //     sign = "private OBJ " & name & "(int surr) {";
   //     body = "  return " & match (type)
   //       object | integer        = vs_name & ".surrToObjValue(surr);",
   //       mono_tagged_integer(s?) = "Builder.createTaggedIntObj(" & symb_id_name(s) & ", " & vs_name & ".surrToValue(surr));";
@@ -609,24 +608,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* update_entry_point(DBSymbol block_name) {
+    target_name = auto_or_db_arg_name;
+    aux_name = db_auxiliary_arg_name;
+    main_handler_args = (target_name, aux_name, "msg", "env");
+    apply_method_args = (target_name, aux_name, "code");
     body = (
-      // // "int depth = get_call_stack_depth();",
-      // "try {",
-      // "  Miscellanea.insideTransaction = true;",
-      // "  int code = " & update_name(block_name, main_handler) & "(msg, updater, env);",
-      // "  Miscellanea.insideTransaction = false;",
-      // "  " & native_apply_method_name(block_name, main_handler) & "(updater, code);",
-      // "  updater.lastException = null;",
-      // "  return true;",
-      // "}",
-      // "catch (Exception e) {",
-      // "  Miscellanea.insideTransaction = false;",
-      // "  " & updater_reset_proc_name(block_name) & "(updater);",
-      // "  updater.lastException = e;",
-      // // "  pop_try_mode_call_info(depth);",
-      // // "  e.printStackTrace(System.err);" if debug_mode,
-      // "  return false;",
-      // "}"
+      // "int depth = get_call_stack_depth();",
+      "try {",
+      "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
+      "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
+      "  //## RESET TRANSACTION FLAG",
+      "  " & native_apply_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
+      "  //## CLEAR THE ERROR MESSAGE",
+      "  return true;",
+      "}",
+      "catch (...) {",
+      "  //## RESET TRANSACTION FLAG",
+      "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
+      "  //## CLEAR THE ERROR MESSAGE",
+      "  return false;",
+      "}",
       "return true;"
     );
 
@@ -676,34 +677,37 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* updater_decl(StaticBlock block) {
-  //   linked_updaters_decls = (
-  //     "public " & native_updater_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
-  //     : l @ i <- block.links
-  //   );
+    linked_updaters_decls = (
+      native_updater_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
+      : l @ i <- block.links
+    );
 
-  //   dep_msg_vars_decls = (
-  //     "public Obj " & dependee_msg_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
-  //   );
+    dep_msg_vars_decls = (
+      obj_type_name & " " & dependee_msg_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
+    );
 
-  //   dep_apply_code_vars_decls = (
-  //     "public int " & dependee_apply_code_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
-  //   );
+    dep_apply_code_vars_decls = (
+      "int " & dependee_apply_code_var_decl_name(linked_db_var(i)) & ";" : i < |block.links|
+    );
 
-  //   vars_decls = (
-  //     "public Obj " & native_var_decl_name(pending_state_var(bare_id(v))) & ";"
-  //     : v, _ <- isort(block.state_vars)
-  //   );
+    vars_decls = (
+      obj_type_name & " " & native_var_decl_name(pending_state_var(bare_id(v))) & ";"
+      : v, _ <- isort(block.state_vars)
+    );
 
+    stores_decls = ();
   //   stores_decls = (
-  //     "public " & native_updater_type(t) & " " & updater_var_decl_name(vs) & ";"
+  //     native_updater_type(t) & " " & updater_var_decl_name(vs) & ";"
   //     : vs, t <- isort(block.value_stores)
   //   );
 
+    tables_decls = ();
   //   tables_decls = (
-  //     "public " & pending_updates_var_type(t) & " " & pending_updates_var_decl_name(v) & ";"
+  //     pending_updates_var_type(t) & " " & pending_updates_var_decl_name(v) & ";"
   //     : v, t <- isort(block.tables)
   //   );
 
+    foreign_key_checkers_decls = ();
   //   foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
   //   foreign_key_checkers_decls = (
   //     native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target)) & " " &
@@ -711,16 +715,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //     : k <- foreign_keys
   //   );
 
-  //   memb_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls &
-  //                vars_decls & stores_decls & tables_decls & foreign_key_checkers_decls;
+    membs_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls &
+                 vars_decls & stores_decls & tables_decls & foreign_key_checkers_decls;
 
-  //   return join((
-  //     ("static class " & native_updater_name(block.name) & " extends RelAutoUpdaterBase {"),
-  //     indent_lines(memb_decls),
-  //     ("};")
-  //   ));
-
-    return ("struct " & native_updater_name(block.name) & " {", "};");
+    return ("struct " & native_updater_name(block.name) & " {",) & indent_lines(membs_decls) & ("};");
   }
 
 
@@ -734,7 +732,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //   dep_apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
 
   //   var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
-  //   init_vars_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
+  //   init_vars_code = (native_var_ref_name(pending_state_var(id)) & " = make_blank_obj();" : id <- var_ids);
 
   //   value_stores_init_code = (
   //     native_new_call(updater_var_ref_name(vs), native_updater_type(t), (vs))
@@ -775,16 +773,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   //   class_name = native_updater_name(block.name);
   //   args = append((native_updater_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
-  //   sgn = "public " & class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
+  //   sgn = class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
   //   return (sgn, "  " & class_name & " updater = new " & class_name & "();") &
   //          indent_lines(body) &
   //          ("  return updater;", "}");
   // }
 
 
-  String* updater_reset_code(StaticBlock block) {
+  String* auxiliary_reset_code(StaticBlock block) {
     var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
-    vars_reset_code = (native_var_ref_name(pending_state_var(id)) & " = BlankObj.singleton;" : id <- var_ids);
+    vars_reset_code = (native_var_ref_name(pending_state_var(id)) & " = make_blank_obj();" : id <- var_ids);
 
     dep_msg_vars_reset_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
     dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
@@ -801,7 +799,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
            value_stores_reset_code & tables_reset_code;
 
-    sgn = "public void " & updater_reset_proc_name(block.name) & "(" & native_updater_name(block.name) & " updater) {";
+    sgn = "void " & auxiliary_reset_proc_name(block.name) & "(" & native_updater_name(block.name) & " " & db_auxiliary_arg_name & ") {";
     return (sgn) & indent_lines(body) & ("}");
   }
 
@@ -809,16 +807,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* var_apply_code(Atom var_id) {
     psv_str = native_var_ref_name(pending_state_var(var_id));
     mv_str = native_var_ref_name(memb_var(var_id));
+    pool_ref_str = "&" & auto_or_db_arg_name & "->mem_pool";
     return (
-      "if (!" & psv_str & ".isBlankObj())",
-      "  " & mv_str & " = " & psv_str & ";"
+      "if (!is_blank(" & psv_str & "))",
+      "  " & mv_str & " = copy_to_pool(" & pool_ref_str & ", " & psv_str & ");"
     );
   }
 
 
   String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, OptCompMethod method) {
     args_str = append((native_var_type(a) & " " & native_var_decl_name(a) & ", " : a <- method.args));
-    sgn = native_type(method.ret_val_repr) & " " & user_def_method_name(block_name, method_id) & "(" & target_arg_decl(block_name) & ", " & args_str & "Env env) {";
+    sgn = native_type(method.ret_val_repr) & " " & user_def_method_name(block_name, method_id) & "(" & target_arg_decl(block_name) & ", " & args_str & "ENV &env) {";
     vars_decls = gen_vars_decls(method.body, set(method.args));
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(method.body, nothing, break_target = nothing);
     return (sgn) & indent_lines(body_text) & ("}");
@@ -827,17 +826,23 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, Maybe[StdVar]* args, Instr* body) {
     final_args = (if a != nothing then value(a) else fn_arg(i) : a @ i <- args);
-    args_str = append(("Obj " & native_var_decl_name(a) & ", " : a <- final_args));
-    sgn = "public Obj " & user_def_method_name(block_name, method_id) & "(" & args_str & "Env env) {";
+    args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- final_args));
+    sgn = "OBJ " & user_def_method_name(block_name, method_id) & "(" & args_str & "ENV &env) {";
     vars_decls = gen_vars_decls(body, [value(a) : a <- args, a != nothing]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
     return (sgn) & indent_lines(body_text) & ("}");
   }
 
 
-  [String*] native_updates_code(StaticBlock b) {
+  String** native_updates_code(StaticBlock b) {
+    sorted_updates = sort_by_key([k : k _ <- b.updates],
+      match ($)
+        update_id()   = 0,
+        handler_id()  = 1,
+        main_handler  = 2
+    );
     let block = b
-      code = [native_update_code(b.name, id, u.args_vars, u.body) : id u <- b.updates];
+      code = (native_update_code(b.name, id, b.updates(id).args_vars, b.updates(id).body) : id <- sorted_updates);
     return code;
   }
 }
@@ -845,12 +850,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool {
   String* native_update_code(DBSymbol block_name, UpdateId update_id, <StdVar, FnArg>* args, Instr* body) {
-    args_str = append(("Obj " & native_var_decl_name(a) & ", " : a <- args));
+    args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name)) & (obj_type_name & " " & native_var_decl_name(a) : a <- args) & ("ENV &env");
+    args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- args));
     ret_type = match (update_id)
       main_handler  = "int",
       handler_id()  = "void",
       update_id()   = "void";
-    sgn = "public " & ret_type & " " & update_name(block_name, update_id) & "(" & args_str & native_updater_name(block_name) & " updater, Env env) {";
+    sgn = ret_type & " " & update_name(block_name, update_id) & "(" & append(args_decls, ", ") & ") {";
     vars_decls = gen_vars_decls(body, [a : a <- args, a :: StdVar]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
 
@@ -884,20 +890,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return () if ids == [];
       assert max(ids) == |ids| - 1 and min(ids) == 0;
 
-      sgn = "public void " & native_apply_method_name(block_name, :main_handler) & "(" &
-            native_updater_name(block_name) & " updater, int applyCode) {";
+      args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), "int apply_code");
+      sgn = "void " & native_apply_method_name(block_name, :main_handler) & "(" & append(args, ", ") & ") {";
 
       code = (
         "",
         sgn,
-        " switch (applyCode) {"
+        " switch (apply_code) {"
       );
 
       for i < |ids| {
         code = (code | "") if i > 0;
         code = (code |
           "    case " & _print_(i) & ":",
-          "      " & native_apply_method_name(block_name, handler_id(i)) & "(updater);",
+          "      " & native_apply_method_name(block_name, handler_id(i)) & "(" & auto_or_db_arg_name & ", " & db_auxiliary_arg_name & ");",
           "      break;"
         );
       }
@@ -905,7 +911,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = (code |
         "",
         "    default:",
-        "      throw Miscellanea.hardFail();",
+        "      internal_fail();",
         "  }",
         "}"
       );
@@ -929,7 +935,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       finish_code = updates_finish_code(deletion_tables, block);
       reset_code = updates_reset_code(memb_vars, value_stores, table_vars, dependees);
 
-      sgn = "public void " & native_apply_method_name(block_name, update_id) & "(" & native_updater_name(block.name) & " updater) {";
+      args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name));
+      sgn = "void " & native_apply_method_name(block_name, update_id) & "(" & append(args, ", ") & ") {";
       body = dependees_code & apply_code & finish_code & reset_code;
       return ("", sgn) & indent_lines(body) & ("}");
     }
@@ -969,7 +976,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* updates_reset_code([MembVar] memb_vars, [ValueStoreId] value_stores, [TableVar] tables, [LinkedDBVar] dependees) {
     memb_vars_code = (
-      native_var_ref_name(pending_state_var(bare_id(v))) & " = BlankObj.singleton;"
+      native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();"
       : v <- isort(memb_vars)
     );
     memb_vars_code = ("") & memb_vars_code if memb_vars != [];
