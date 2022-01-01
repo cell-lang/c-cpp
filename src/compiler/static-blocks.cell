@@ -11,7 +11,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
     ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.tables, block.init_code);
-    cleanup_code = native_cleanup_function_code(block.name, block.links, block.tables, block.cleanup_code);
+    cleanup_code = native_cleanup_function_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
 
     // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
     // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
@@ -63,19 +63,23 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
+  String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
     target_var = auto_or_db_arg_name;
-
     target_arg = target_arg_decl(auto_id);
     aux_arg = auxiliary_arg_decl(auto_id);
+    pool_ref_str = "&" & target_var & "->mem_pool";
 
-    vars_decl = gen_vars_decls(cleanup_code, []);
-    vars_decl = vars_decl & ("") if vars_decl != ();
-    body = vars_decl & native_code(cleanup_code, nothing, break_target = nothing);
+    // vars_decl = gen_vars_decls(cleanup_code, []);
+    // vars_decl = vars_decl & ("") if vars_decl != ();
+    // body = vars_decl & native_code(cleanup_code, nothing, break_target = nothing);
+
+    ord_state_vars = isort(keys(state_vars));
+    body = ("  remove_from_pool(" & pool_ref_str & ", " & native_var_ref_name(v) & ");" : v <- ord_state_vars);
+
+    body = (body | "  release_mem_pool(&" & target_var & "->mem_pool);");
 
     signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
-
-    return (signature, "  release_mem_pool(&" & target_var & "->mem_pool);") & indent_lines(body) & ("}");
+    return (signature) & body & ("}");
   }
 
   String *native_set_state_entry_point_code(DBSymbol db_type) {
@@ -203,6 +207,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // Local variables declaration
     body = gen_vars_decls(init_code, []);
 
+    // Memory pool initialization
+    body = (body | "") if body != ();
+    body = (body | "  init_mem_pool(&" & target_name & "->mem_pool);");
+
     // Dependee links initialization
     if dependees != () {
       links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
@@ -249,7 +257,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     // Putting it all together
     signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
-    return (signature, "  init_mem_pool(&" & target_name & "->mem_pool);") & indent_lines(body) & ("}");
+    return (signature) & indent_lines(body) & ("}");
   }
 
 
