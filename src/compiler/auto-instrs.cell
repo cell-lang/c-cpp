@@ -305,11 +305,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     if is_root {
       method_name = update_entry_point_name(db_type);
       fail if not db_var :: LocDBVar;
-      updater_name = updater_var_decl_name(db_var);
-      args = (msg, updater_name, "env");
+      db_var_name = native_var_ref_name(db_var);
+      aux_var_name = aux_var_decl_name(db_var);
+      args = ("&" & db_var_name, "&" & aux_var_name, msg, "env");
       line = if maybe_res_var == nothing
-        then native_method_call(db_var, method_name, args)
-        else native_method_call(value(maybe_res_var), db_var, method_name, args);
+        then native_call(method_name, args)
+        else native_call(value(maybe_res_var), method_name, args);
       return (line);
     }
     else {
@@ -319,8 +320,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       aux_db_var_name = updater_var_ref_name(db_var);
       msg_var_name = dependee_msg_var_ref_name(db_var);
       return (
-        "if (" & msg_var_name & " != null)",
-        "  Miscellanea.softFail();",
+        "if (" & msg_var_name & " != NULL)",
+        "  soft_fail();",
         msg_var_name & " = " & native_expr(msg) & ";"
       );
     }

@@ -10,7 +10,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
-    ctor_code = native_ctor_code(block.name, block.links, block.tables, block.init_code);
+    ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.tables, block.init_code);
     cleanup_code = native_cleanup_function_code(block.name, block.links, block.tables, block.cleanup_code);
 
     // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
@@ -41,7 +41,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       ("  STATE_MEM_POOL mem_pool;"),
       indent_lines(memb_decls),
       ("};"),
-      (""), updater_decl(block),
+      (""), auxiliary_decl(block),
       (""), ctor_code,
       (""), cleanup_code,
       (""), full_check_code,
@@ -192,42 +192,62 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* native_ctor_code(DBSymbol name, DBSymbol* dependees, [TableVar -> AnyTable] tables, Instr* init_code) {
+  String* native_ctor_code(DBSymbol name, DBSymbol* dependees, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* init_code) {
     target_name = auto_or_db_arg_name;
-    auxiliary_name = db_auxiliary_arg_name;
-    dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
-
-    links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
-
-    tables_in_init_order = sort_by_key(
-      [(v, t) : v t <- tables],
-      match ($)
-        (_, slave_tern_table()) = 1,
-        _                       = 0
-    );
-
-    tables_init_code = ({
-      value_stores = match (t)
-        table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
-        master_bin_table()  = if t.symmetric then undefined else t.value_stores,
-        slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
-        column()            = (t.value_store),
-        slave_column()      = ();
-      arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
-      arg_list = match (t)
-        slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
-        _                   = arg_list;
-      return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
-    } : v, t <- tables_in_init_order);
-
-    vars_decl = gen_vars_decls(init_code, []);
-    vars_decl = vars_decl & ("") if vars_decl != ();
-    body = vars_decl & links_init_code & tables_init_code & native_code(init_code, nothing, break_target = nothing);
-
     target_arg = target_arg_decl(name);
     aux_arg = auxiliary_arg_decl(name);
+    dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
     dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
 
+
+    // Local variables declaration
+    body = gen_vars_decls(init_code, []);
+
+    // Dependee links initialization
+    if dependees != () {
+      links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
+      body = body & ("") & links_init_code;
+    }
+
+    // Member variables initialization
+    if init_code != () {
+      body = body & ("") & native_code(init_code, nothing, break_target = nothing);
+    }
+
+    // Tables initialization
+    if tables != [] {
+      tables_in_init_order = sort_by_key(
+        [(v, t) : v t <- tables],
+        match ($)
+          (_, slave_tern_table()) = 1,
+          _                       = 0
+      );
+
+      tables_init_code = ({
+        value_stores = match (t)
+          table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
+          master_bin_table()  = if t.symmetric then undefined else t.value_stores,
+          slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
+          column()            = (t.value_store),
+          slave_column()      = ();
+        arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
+        arg_list = match (t)
+          slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
+          _                   = arg_list;
+        return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
+      } : v, t <- tables_in_init_order);
+
+      body = body & ("") & tables_init_code;
+    }
+
+    // Pending update variables initialization
+    if state_vars != [] {
+      ord_state_vars = isort(keys(state_vars));
+      pending_aux_vars_init_code = (native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();" : v <- ord_state_vars);
+      body = body & ("") & pending_aux_vars_init_code;
+    }
+
+    // Putting it all together
     signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
     return (signature, "  init_mem_pool(&" & target_name & "->mem_pool);") & indent_lines(body) & ("}");
   }
@@ -676,9 +696,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updater_decl(StaticBlock block) {
+  String* auxiliary_decl(StaticBlock block) {
     linked_updaters_decls = (
-      native_auxiliary_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
+      native_auxiliary_name(l) & " " & aux_var_decl_name(linked_db_var(i)) & ";"
       : l @ i <- block.links
     );
 
@@ -697,7 +717,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     stores_decls = ();
   //   stores_decls = (
-  //     native_updater_type(t) & " " & updater_var_decl_name(vs) & ";"
+  //     native_updater_type(t) & " " & aux_var_decl_name(vs) & ";"
   //     : vs, t <- isort(block.value_stores)
   //   );
 

@@ -26,7 +26,6 @@ type PrgData =  prg_data(
   fn_procs = isort([p : p <- prg.procs, not p.name :: ProcSymbol]);
   proc_procs = isort([p : p <- prg.procs, p.name :: ProcSymbol]);
 
-
   prg_data = prg_data(
     opt_reprs:                      prg.opt_reprs,
     ord_lambda_exprs:               isort(lambda_exprs(prg)),
@@ -35,6 +34,12 @@ type PrgData =  prg_data(
     cached_semi_consts_by_impl_arg: cached_semi_consts_by_impl_arg(prg),
     symbols_sets_info:              symbols_sets_info(prg)
   );
+
+  // Sorting static blocks in topological order
+  static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
+  ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
+  static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
+  ord_static_blocks = (static_blocks_by_name(b, !) : b <- ord_static_block_names);
 
   gen_content = (
     ( "#include \"lib.h\"",
@@ -70,6 +75,16 @@ type PrgData =  prg_data(
     gen_content = gen_content & decl;
   }
 
+  // Automaton structures predeclarations
+  if ord_static_blocks != () {
+    gen_content = (gen_content | ("", ""));
+    for b <- ord_static_blocks
+      gen_content = (gen_content | "struct " & native_name(b.name) & ";");
+    gen_content = (gen_content | (""));
+    for b <- ord_static_blocks
+      gen_content = (gen_content | "struct " & native_auxiliary_name(b.name) & ";");
+  }
+
   // Procedure declarations
   gen_content = (gen_content | ("", "")) if proc_procs != ();
   for d @ i <- proc_procs {
@@ -101,10 +116,6 @@ type PrgData =  prg_data(
   }
 
   // Static blocks (in topological order)
-  static_blocks_dep_map = [b.name -> set(b.links) : b <- prg.static_blocks];
-  ord_static_block_names = join((isort(bs) : bs <- topological_sort(static_blocks_dep_map)));
-  static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
-  ord_static_blocks = (static_blocks_by_name(b, !) : b <- ord_static_block_names);
   for block <- ord_static_blocks {
     def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
     gen_content = (gen_content | ("", "")) & def;
@@ -453,7 +464,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     auto_var_decls = (native_name(auto_vars_types[v]) & " " & native_var_decl_name(v) & ";" : v <- auto_vars);
 
     db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
-    aux_db_vars_decls = (native_auxiliary_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
+    aux_db_vars_decls = (native_auxiliary_name(t) & " " & aux_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
 
     if body == (terminate(false)) {
       only_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
@@ -570,11 +581,11 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
       args = (native_var_type(v) & " " & native_var_decl_name(v) : v <- pd.args);
       cls_args = ("const CLS &" & native_var_decl_name(a.var) : a <- pd.cls_args);
       rel_auto_args = join((
-        ( native_name(a.type) & " " & native_var_decl_name(a.var),
-          native_auxiliary_name(a.type) & " " & updater_var_decl_name(a.var)
+        ( native_name(a.type) & " *" & native_var_decl_name(a.var),
+          native_auxiliary_name(a.type) & " *" & aux_var_decl_name(a.var)
         ) : a <- pd.rel_auto_args
       ));
-      react_auto_args = (native_name(a.type) & " " & native_var_decl_name(a.var) : a <- pd.react_auto_args);
+      react_auto_args = (native_name(a.type) & " *" & native_var_decl_name(a.var) : a <- pd.react_auto_args);
       args_list = args & cls_args & rel_auto_args & react_auto_args;
       args_list = (args_list | "ENV &env") if not pd.name :: ConvFnId;
       return args_list;

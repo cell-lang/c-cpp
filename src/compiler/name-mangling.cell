@@ -329,19 +329,19 @@ implicit context : NativeContext {
 
   String dependee_apply_code_var_ref_name(LinkedDBVar var) = "updater." & dependee_apply_code_var_decl_name(var);
 
-  String updater_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
+  String aux_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
 
-  String updater_var_decl_name(LinkedDBVar db_var) =
+  String aux_var_decl_name(LinkedDBVar db_var) =
     linked_db_var(i?)   = "linkedUpdater" & _print_(i);
 
-  String updater_var_ref_name(LocDBVar db_var) = updater_var_decl_name(db_var);
+  String updater_var_ref_name(LocDBVar db_var) = aux_var_decl_name(db_var);
 
-  String updater_var_ref_name(LinkedDBVar db_var) = "updater." & updater_var_decl_name(db_var);
+  String updater_var_ref_name(LinkedDBVar db_var) = "updater." & aux_var_decl_name(db_var);
 
-  String updater_var_decl_name(ValueStoreId vs) =
+  String aux_var_decl_name(ValueStoreId vs) =
     value_store_id(n?)  = "valueStoreUpdater" & printed(n);
 
-  String updater_var_ref_name(ValueStoreId vs) = "updater." & updater_var_decl_name(vs);
+  String updater_var_ref_name(ValueStoreId vs) = "updater." & aux_var_decl_name(vs);
 
   String foreign_key_checker_decl_name(BlockForeignKey key) = undefined;
   String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;
