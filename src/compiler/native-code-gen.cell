@@ -453,7 +453,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     auto_var_decls = (native_name(auto_vars_types[v]) & " " & native_var_decl_name(v) & ";" : v <- auto_vars);
 
     db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
-    aux_db_vars_decls = (native_updater_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
+    aux_db_vars_decls = (native_auxiliary_name(t) & " " & updater_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
 
     if body == (terminate(false)) {
       only_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
@@ -571,7 +571,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
       cls_args = ("const CLS &" & native_var_decl_name(a.var) : a <- pd.cls_args);
       rel_auto_args = join((
         ( native_name(a.type) & " " & native_var_decl_name(a.var),
-          native_updater_name(a.type) & " " & updater_var_decl_name(a.var)
+          native_auxiliary_name(a.type) & " " & updater_var_decl_name(a.var)
         ) : a <- pd.rel_auto_args
       ));
       react_auto_args = (native_name(a.type) & " " & native_var_decl_name(a.var) : a <- pd.react_auto_args);

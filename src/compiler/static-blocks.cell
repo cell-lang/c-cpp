@@ -84,7 +84,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     cleanup_method_name = cleanup_method_name(db_type);
     set_state_method_name = set_state_proc_name(db_type);
     db_type_name = native_name(db_type);
-    aux_type_name = native_updater_name(db_type);
+    aux_type_name = native_auxiliary_name(db_type);
 
     return (
       "bool " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
@@ -119,7 +119,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     cleanup_method_name = cleanup_method_name(db_type);
     load_fn_name = load_state_proc_name(db_type);
     db_type_name = native_name(db_type);
-    aux_type_name = native_updater_name(db_type);
+    aux_type_name = native_auxiliary_name(db_type);
 
     return (
       "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
@@ -162,7 +162,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* native_save_state_entry_point_code(DBSymbol db_type) {
     method_name = save_state_entry_point_name(db_type);
     db_type_name = native_name(db_type);
-    aux_type_name = native_updater_name(db_type);
+    aux_type_name = native_auxiliary_name(db_type);
     write_fn_name = write_state_proc_name(db_type);
 
     return (
@@ -632,7 +632,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
     name = update_entry_point_name(block_name);
-    updater_type = native_updater_name(block_name);
+    updater_type = native_auxiliary_name(block_name);
     formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
     sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
     return (sgn) & indent_lines(body) & ("}");
@@ -678,7 +678,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* updater_decl(StaticBlock block) {
     linked_updaters_decls = (
-      native_updater_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
+      native_auxiliary_name(l) & " " & updater_var_decl_name(linked_db_var(i)) & ";"
       : l @ i <- block.links
     );
 
@@ -718,7 +718,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     membs_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls &
                  vars_decls & stores_decls & tables_decls & foreign_key_checkers_decls;
 
-    return ("struct " & native_updater_name(block.name) & " {",) & indent_lines(membs_decls) & ("};");
+    return ("struct " & native_auxiliary_name(block.name) & " {",) & indent_lines(membs_decls) & ("};");
   }
 
 
@@ -771,8 +771,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //   body = linked_updaters_init_code & dep_msg_vars_init_code & dep_apply_code_vars_init_code &
   //          init_vars_code & value_stores_init_code & tables_init_code & foreign_key_checkers_init_code;
 
-  //   class_name = native_updater_name(block.name);
-  //   args = append((native_updater_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
+  //   class_name = native_auxiliary_name(block.name);
+  //   args = append((native_auxiliary_name(l) & " l" & _print_(i) : l @ i <- block.links), ", ");
   //   sgn = class_name & " " & updater_creation_proc_name(block.name) & "(" & args & ") {";
   //   return (sgn, "  " & class_name & " updater = new " & class_name & "();") &
   //          indent_lines(body) &
@@ -799,7 +799,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
            value_stores_reset_code & tables_reset_code;
 
-    sgn = "void " & auxiliary_reset_proc_name(block.name) & "(" & native_updater_name(block.name) & " " & db_auxiliary_arg_name & ") {";
+    sgn = "void " & auxiliary_reset_proc_name(block.name) & "(" & native_auxiliary_name(block.name) & " " & db_auxiliary_arg_name & ") {";
     return (sgn) & indent_lines(body) & ("}");
   }
 

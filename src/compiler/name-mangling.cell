@@ -149,7 +149,7 @@ implicit context : NativeContext {
   // String symb_repr_proc_name = "symb_repr";
 
   String target_arg_decl(DBSymbol db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;
-  String auxiliary_arg_decl(DBSymbol db_type) = native_updater_name(db_type) & " *" & db_auxiliary_arg_name;
+  String auxiliary_arg_decl(DBSymbol db_type) = native_auxiliary_name(db_type) & " *" & db_auxiliary_arg_name;
 
   String env_arg_decl = env_type_name & " &" & env_arg_name;
 
@@ -571,7 +571,7 @@ String native_name(AutoSymbol) = auto_symbol(a?) = upper_camel_case(a) & "_R";
 
 String native_name(DBSymbol) = db_symbol(a?) = upper_camel_case(a) & "_T";
 
-String native_updater_name(<AutoSymbol, DBSymbol> symb) = native_name(symb) & "x";
+String native_auxiliary_name(<AutoSymbol, DBSymbol> symb) = native_name(symb) & "x";
 
 String qualified_name(AutoSymbol db_type, String local_name)  = auto_symbol(a?) = upper_camel_case(a) & "__" & local_name;
 String qualified_name(DBSymbol db_type, String local_name)    =   db_symbol(a?) = upper_camel_case(a) & "__" & local_name;
