@@ -423,7 +423,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       assert var != nothing and |args| == 1 and |rel_auto_args| == 1 and cls_args == () and react_auto_args == ();
       db_var, db_type = only_unsafe(rel_auto_args);
       native_fn_name = load_state_entry_point_name(db_type);
-      native_args = (only_unsafe(args), "&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var), "env");
+      native_args = (only_unsafe(args), native_var_ref_name(db_var), updater_var_ref_name(db_var), "env");
       return (native_call(value_unsafe(var), native_fn_name, native_args));
     }
 
@@ -432,7 +432,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       assert var != nothing and |args| == 1 and |rel_auto_args| == 1 and cls_args == () and react_auto_args == ();
       db_var, db_type = only_unsafe(rel_auto_args);
       native_fn_name = save_state_entry_point_name(db_type);
-      native_args = (only_unsafe(args), "&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var));
+      native_args = (only_unsafe(args), native_var_ref_name(db_var), updater_var_ref_name(db_var));
       return (native_call(value_unsafe(var), native_fn_name, native_args));
     }
 

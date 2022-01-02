@@ -463,8 +463,17 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     auto_vars = isort(keys(auto_vars_types));
     auto_var_decls = (native_name(auto_vars_types[v]) & " " & native_var_decl_name(v) & ";" : v <- auto_vars);
 
-    db_vars_decls = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
-    aux_db_vars_decls = (native_auxiliary_name(t) & " " & aux_var_decl_name(v) & ";" : v, t <- isort(db_vars_types));
+    db_vars_decls = ();
+    aux_db_vars_decls = ();
+    for v, t <- isort(db_vars_types) {
+      type_name = native_name(t);
+      var_name = native_var_decl_name(v);
+      db_vars_decls = (db_vars_decls | type_name & " " & var_name & "_;", type_name & " *" & var_name & " = &" & var_name & "_;");
+
+      aux_type_name = native_auxiliary_name(t);
+      aux_var_name = aux_var_decl_name(v);
+      aux_db_vars_decls = (aux_db_vars_decls | aux_type_name & " " & aux_var_name & "_;", aux_type_name & " *" & aux_var_name & " = &" & aux_var_name & "_;");
+    }
 
     if body == (terminate(false)) {
       only_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));

@@ -1,6 +1,6 @@
 implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
   String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) =
-    copy_state()              = native_call(var, copy_state_proc_name(expr.type), ("&" & native_var_ref_name(expr.var))),
+    copy_state()              = native_call(var, copy_state_proc_name(expr.type), (native_var_ref_name(expr.var))),
     copy_rel()                = native_copy_rel_code(var, expr.tables, expr.applied_perm),
     copy_persistent_state()   = native_method_call(var, expr.var, copy_state_proc_name(expr.type), ()),
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
@@ -124,9 +124,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     try_update()          = (native_call(update_name(instr.type, instr.update_id), (auto_or_db_arg_name, db_auxiliary_arg_name) &  instr.args & ("env"))),
     set_state()           = native_set_state_code(instr.state, instr.db_var, instr.dependees, instr.type, instr.res_var),
     invoke_auto_method()  = (native_method_call(instr.res_var, if instr.auto_var? then instr.auto_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),
-    invoke_db_method()    = { args = (if instr.db_var? then "&" & native_var_ref_name(instr.db_var) else auto_or_db_arg_name) & instr.args & ("env");
-                              return (native_call(instr.res_var, user_def_method_name(instr.type, instr.method_id), args));
-                            },
+    invoke_db_method()    = native_invoke_db_method_code(instr.res_var, if instr.db_var? then just(instr.db_var) else nothing, instr.type, instr.method_id, instr.args),
 
     init_value_store()    = (), //(native_method_call(instr.store,   "init",    ())),
     cleanup_value_store() = (), //(native_method_call(instr.store,   "cleanup", ())),
@@ -147,6 +145,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.tuple),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.key_surr, instr.value);
 
+
+  String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {
+    db_var_name = if maybe_db_var != nothing
+      then native_var_ref_name(value(maybe_db_var))
+      else auto_or_db_arg_name;
+    native_args = (db_var_name) & args & ("env");
+    return (native_call(res_var, user_def_method_name(type, method_id), native_args));
+  }
 
 
   String* native_column_insert_immediate_code(TableVar table_var, Int32Var key_surr, AnyTypeExpr value) {
@@ -187,7 +193,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol db_type) {
     fail if not db_var :: LocDBVar;
 
-    args = ("&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var)) & links & ("env");
+    args = (native_var_ref_name(db_var), updater_var_ref_name(db_var)) & links & ("env");
     return (native_call(init_method_name(db_type), args));
 
     // return (
@@ -309,7 +315,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       fail if not db_var :: LocDBVar;
       db_var_name = native_var_ref_name(db_var);
       aux_var_name = aux_var_decl_name(db_var);
-      args = ("&" & db_var_name, "&" & aux_var_name, msg, "env");
+      args = (db_var_name, aux_var_name, msg, "env");
       line = if maybe_res_var == nothing
         then native_call(method_name, args)
         else native_call(value(maybe_res_var), method_name, args);
@@ -332,7 +338,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_set_state_code(AtomicExpr state, LocDBVar db_var, LocDBVar* dependees, DBSymbol db_type, BoolVar res_var) {
     method_name = set_state_entry_point_name(db_type);
-    args = ("&" & native_var_ref_name(db_var), "&" & updater_var_ref_name(db_var), state, "env");
+    args = (native_var_ref_name(db_var), updater_var_ref_name(db_var), state, "env");
     return (native_call(res_var, method_name, args));
   }
 }
