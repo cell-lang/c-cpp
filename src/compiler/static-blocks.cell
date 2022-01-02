@@ -95,7 +95,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  " & db_type_name & " new_inst;",
       "  " & aux_type_name & " new_aux_inst;",
       "  ",
-      "  //## START A NEW STACK SECTION",
+      "  switch_mem_stacks();",
       "  ",
       "  " & init_method_name & "(&new_inst, &new_aux_inst, env);",
       "  ",
@@ -110,7 +110,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
       "  }",
       "  ",
-      "  //## DESTROY THE STACK SECTION",
+      "  unswitch_mem_stacks();",
+      "  clear_unused_mem();",
       "  ",
       "  return succeeded;",
       "}"
@@ -130,7 +131,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  " & db_type_name & " new_inst;",
       "  " & aux_type_name &" new_aux_inst;",
       "",
-      "  //## START A NEW STACK SECTION",
+      "  switch_mem_stacks();",
       "",
       "  const char *c_fname = obj_to_str(fname);",
       "  FILE *fp = fopen(c_fname, \"r\");",
@@ -156,7 +157,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
       "  }",
       "",
-      "  //## DESTROY THE STACK SECTION",
+      "  unswitch_mem_stacks();",
+      "  clear_unused_mem();",
       "",
       "  return make_bool(succeeded);",
       "}"
@@ -171,13 +173,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     return (
       "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name & " *auxiliary) {",
-      "  //## START A NEW STACK SECTION",
+      "  switch_mem_stacks();",
       "",
       "  const char *c_fname = obj_to_str(fname);",
       "  FILE *fp = fopen(c_fname, \"w\");",
       "  if (fp == NULL) {",
       "    //## SAVE ERROR INFORMATION SOMEWHERE",
-      "    //## CLEANUP THE STACK SECTION",
+      "    unswitch_mem_stacks();",
+      "    clear_unused_mem();",
       "    return make_bool(false);",
       "  }",
       "",
@@ -188,7 +191,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  " & write_fn_name & "(target, &write_state);",
       "  fclose(fp);",
       "",
-      "  //## CLEANUP THE STACK SESSION",
+      "  unswitch_mem_stacks();",
+      "  clear_unused_mem();",
       "",
       "  return make_bool(write_state.success);",
       "}"
@@ -642,21 +646,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     apply_method_args = (target_name, aux_name, "code");
     body = (
       // "int depth = get_call_stack_depth();",
+      "  switch_mem_stacks();",
+      "",
       "try {",
       "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
       "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
       "  //## RESET TRANSACTION FLAG",
       "  " & native_apply_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
       "  //## CLEAR THE ERROR MESSAGE",
+      "  unswitch_mem_stacks();",
+      "  clear_unused_mem();",
       "  return true;",
       "}",
       "catch (...) {",
       "  //## RESET TRANSACTION FLAG",
       "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
       "  //## CLEAR THE ERROR MESSAGE",
+      "  unswitch_mem_stacks();",
+      "  clear_unused_mem();",
       "  return false;",
-      "}",
-      "return true;"
+      "}"
     );
 
     name = update_entry_point_name(block_name);
