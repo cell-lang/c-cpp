@@ -990,7 +990,7 @@ static bool parse_tagged_obj(PARSER *parser, uint16 tag_id, OBJ *result) {
     return false;
   if (is_seq(obj) && get_size(obj) == 1)
     obj = get_obj_at(obj, 0);
-  *result = opt_repr(make_symb(tag_id), obj);
+  *result = opt_repr_build(make_symb(tag_id), obj);
   return true;
 }
 

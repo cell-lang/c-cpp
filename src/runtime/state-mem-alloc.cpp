@@ -190,8 +190,6 @@ static uint32 ne_seq_mem_size(OBJ seq) {
   uint32 len = read_size_field_unchecked(seq);
   OBJ *elts = get_seq_elts_ptr(seq);
 
-  uint32 max_size = round_up(len * sizeof(seq));
-
   OBJ first_elt = elts[0];
 
   if (is_int(first_elt)) {
@@ -201,7 +199,7 @@ static uint32 ne_seq_mem_size(OBJ seq) {
     for (uint32 i=1 ; i < len ; i++) {
       OBJ elt = elts[i];
       if (!is_int(elt))
-        return max_size;
+        goto obj_seq;
 
       int64 value = get_int(elt);
       min = value < min ? value : min;
@@ -231,11 +229,12 @@ static uint32 ne_seq_mem_size(OBJ seq) {
   if (is_float(first_elt)) {
     for (int i=1 ; i < len ; i++)
       if (!is_float(elts[i]))
-        return max_size;
+        goto obj_seq;
     return round_up(len * sizeof(double));
   }
 
-  return max_size;
+obj_seq:
+  return round_up(len * sizeof(OBJ)) + objs_mem_size(elts, len);
 }
 
 static uint32 ne_set_mem_size(OBJ obj) {
@@ -274,7 +273,6 @@ static uint32 ad_hoc_tag_rec_mem_size(OBJ obj) {
   void *ptr = get_opt_repr_ptr(obj);
   uint16 repr_id = get_opt_repr_id(obj);
   return opt_repr_mem_size(ptr, repr_id);
-  // internal_fail();
 }
 
 static uint32 boxed_obj_mem_size(OBJ obj) {
@@ -598,9 +596,9 @@ static OBJ copy_ne_tern_rel_to(OBJ obj, void **dest_var) {
 static OBJ copy_ad_hoc_tag_rec_to(OBJ obj, void **dest_var) {
   void *ptr = get_opt_repr_ptr(obj);
   uint16 repr_id = get_opt_repr_id(obj);
-  void *copy = opt_repr_copy(ptr, repr_id);
+  void *copy = *dest_var;
+  opt_repr_copy_to_pool(ptr, repr_id, dest_var);
   return repoint_to_copy(obj, copy);
-  // internal_fail();
 }
 
 static OBJ copy_boxed_obj_to(OBJ obj, void **dest_var) {
@@ -665,37 +663,34 @@ OBJ copy_to_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
 
 #ifndef NDEBUG
   if (total_mem_size < 64 * 1024) {
-    uint8 test_mem[128 * 1024];
+    uint8 test_mem_0[128 * 1024];
+    uint8 test_mem_1[128 * 1024];
 
     uint32 start_idx = 32 * 1024;
     uint32 end_idx = start_idx + total_mem_size;
 
+    for (int i=0 ; i < 128 * 1024 ; i++) {
+      test_mem_0[i] = 0;
+      test_mem_1[i] = 0xFF;
+    }
+
+    void *test_mem_var = test_mem_0 + start_idx;
+    OBJ test_copy_0 = copy_obj_to(obj, &test_mem_var);
+    assert(test_mem_var == test_mem_0 + end_idx);
+    assert(are_eq(obj, test_copy_0));
+
+    test_mem_var = test_mem_1 + start_idx;
+    OBJ test_copy_1 = copy_obj_to(obj, &test_mem_var);
+    assert(test_mem_var == test_mem_1 + end_idx);
+    assert(are_eq(obj, test_copy_1));
+
+    assert(are_eq(test_copy_0, test_copy_1));
 
     for (int i=0 ; i < 128 * 1024 ; i++)
-      test_mem[i] = 0;
-
-    void *test_mem_var = test_mem + start_idx;
-    OBJ test_copy = copy_obj_to(obj, &test_mem_var);
-    assert(test_mem_var == test_mem + end_idx);
-
-    for (int i=0 ; i < 128 * 1024 ; i++)
-      if (!(i >= start_idx & i < end_idx))
-        assert(test_mem[i] == 0);
-
-
-    for (int i=0 ; i < 128 * 1024 ; i++)
-      test_mem[i] = 255;
-
-    test_mem_var = test_mem + start_idx;
-    test_copy = copy_obj_to(obj, &test_mem_var);
-    assert(test_mem_var == test_mem + end_idx);
-
-    for (int i=0 ; i < 128 * 1024 ; i++)
-      if (!(i >= start_idx & i < end_idx))
-        assert(test_mem[i] == 255);
-
-
-    assert(are_eq(obj, test_copy));
+      if (i < start_idx || i >= end_idx) {
+        assert(test_mem_0[i] == 0);
+        assert(test_mem_1[i] == 0xFF);
+      }
   }
 #endif
 

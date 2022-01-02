@@ -57,7 +57,7 @@ implicit prg_data : PrgData, context : <core> {
       "",
       80 * "/",
       "",
-      "void copy_to_pool(void *ptr, uint16 repr_id, void **dest_var) {",
+      "void opt_repr_copy_to_pool(void *ptr, uint16 repr_id, void **dest_var) {",
       "  switch (repr_id) {"
     );
 
