@@ -138,7 +138,8 @@ implicit context : NativeContext {
   String auto_or_db_arg_name = "target";
   String db_auxiliary_arg_name = "auxiliary";
 
-  String native_dependee_name(DBSymbol, Nat index) = "dependee_" & printed(index);
+  String native_dependee_name(Nat index) = "dependee_" & printed(index);
+  String native_dependee_name(DBSymbol, Nat index) = native_dependee_name(index); //## REMOVE REMOVE REMOVE
 
   String write_str_proc_name  = "write_str";
   String write_symb_proc_name = "write_symb";
@@ -269,7 +270,7 @@ implicit context : NativeContext {
 
   String native_var_name(AnyDBVar v, Bool add_prefix) =
     loc_db_var(a?)    = _print_(a) & "_T",
-    linked_db_var(n?) = {if add_prefix then "this." else ""} & "linkedAuto" & printed(n),
+    linked_db_var(n?) = {if add_prefix then auto_or_db_arg_name & "->" else ""} & native_dependee_name(n),
     qual_db_var()     = native_var_name(v.outer, add_prefix) & "." & native_var_name(v.inner, false);
 
 
@@ -317,31 +318,31 @@ implicit context : NativeContext {
       split_rel_var(v?, n?) = native_name(v) & "_" & _print_(n);
   }
 
-  String pending_updates_var_ref_name(TableVar table_var) = "updater." & pending_updates_var_decl_name(table_var);
+  String pending_updates_var_ref_name(TableVar table_var) = db_auxiliary_arg_name & "->" & pending_updates_var_decl_name(table_var);
 
   String dependee_msg_var_decl_name(LinkedDBVar) =
-    linked_db_var(i?)   = "linkedAutoMsg" & _print_(i);
+    linked_db_var(i?)   = "dependee_" & _print_(i) & "_msg";
 
-  String dependee_msg_var_ref_name(LinkedDBVar var) = "updater." & dependee_msg_var_decl_name(var);
+  String dependee_msg_var_ref_name(LinkedDBVar var) = db_auxiliary_arg_name & "->" & dependee_msg_var_decl_name(var);
 
   String dependee_apply_code_var_decl_name(LinkedDBVar) =
-    linked_db_var(i?) = "linkedAutoApplyCode" & _print_(i);
+    linked_db_var(i?) = "dependee_" & _print_(i) & "_apply_code";
 
-  String dependee_apply_code_var_ref_name(LinkedDBVar var) = "updater." & dependee_apply_code_var_decl_name(var);
+  String dependee_apply_code_var_ref_name(LinkedDBVar var) = db_auxiliary_arg_name & "->" & dependee_apply_code_var_decl_name(var);
 
   String aux_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
 
   String aux_var_decl_name(LinkedDBVar db_var) =
-    linked_db_var(i?)   = "linkedUpdater" & _print_(i);
+    linked_db_var(i?)   = "dependee_" & _print_(i) & "_auxiliary";
 
   String updater_var_ref_name(LocDBVar db_var) = aux_var_decl_name(db_var);
 
-  String updater_var_ref_name(LinkedDBVar db_var) = "updater." & aux_var_decl_name(db_var);
+  String updater_var_ref_name(LinkedDBVar db_var) = db_auxiliary_arg_name & "->" & aux_var_decl_name(db_var);
 
   String aux_var_decl_name(ValueStoreId vs) =
     value_store_id(n?)  = "valueStoreUpdater" & printed(n);
 
-  String updater_var_ref_name(ValueStoreId vs) = "updater." & aux_var_decl_name(vs);
+  String updater_var_ref_name(ValueStoreId vs) = db_auxiliary_arg_name & "->" & aux_var_decl_name(vs);
 
   String foreign_key_checker_decl_name(BlockForeignKey key) = undefined;
   String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;

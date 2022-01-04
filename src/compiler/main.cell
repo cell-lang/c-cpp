@@ -726,3 +726,9 @@ implicit typedefs : [TypeName -> NeType] {
 
   Symbol* tags_promoted_to_type_names(BasicTypeSymbol type_symb) = ();
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+DBSymbol linked_db_var_type(StaticBlock block, LinkedDBVar var) =
+  match (var)
+    linked_db_var(i?) = block.links(i);

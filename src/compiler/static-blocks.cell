@@ -1,6 +1,6 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
   String* native_static_block_decl(StaticBlock block) {
-    links_decls = (native_name(l) & " linkedAuto" & printed(i) & ";" : l @ i <- block.links);
+    links_decls = (native_name(l) & " *" & native_dependee_name(l, i) & ";" : l @ i <- block.links);
     state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
     value_store_decls = [{
       type = native_name(t);
@@ -21,8 +21,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     set_state_code = native_set_state_code(block.name, block.set_state_code);
     load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
 
-    set_state_entry_point_code  = native_set_state_entry_point_code(block.name);
-    load_state_entry_point_code = native_load_state_entry_point_code(block.name);
+    set_state_entry_point_code  = native_set_state_entry_point_code(block.name, block.links);
+    load_state_entry_point_code = native_load_state_entry_point_code(block.name, block.links);
     save_state_entry_point_code = native_save_state_entry_point_code(block.name);
 
     update_entry_point_code = if block.updates(main_handler, _)
@@ -82,13 +82,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (signature) & body & ("}");
   }
 
-  String *native_set_state_entry_point_code(DBSymbol db_type) {
+  String *native_set_state_entry_point_code(DBSymbol db_type, DBSymbol* dependees) {
     method_name = set_state_entry_point_name(db_type);
     init_method_name = init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
     set_state_method_name = set_state_proc_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_auxiliary_name(db_type);
+
+    dep_names = (native_dependee_name(t, i) : t @ i <- dependees);
+    dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
+    dep_args = (", target->" & dep_names(i) & ", auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
 
     return (
       "bool " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
@@ -97,7 +101,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  ",
       "  switch_mem_stacks();",
       "  ",
-      "  " & init_method_name & "(&new_inst, &new_aux_inst, env);",
+      "  " & init_method_name & "(&new_inst, &new_aux_inst" & append(dep_args) & ", env);",
       "  ",
       "  bool succeeded = " & set_state_method_name & "(&new_inst, new_state);",
       "  ",
@@ -118,13 +122,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
   }
 
-  String* native_load_state_entry_point_code(DBSymbol db_type) {
+  String* native_load_state_entry_point_code(DBSymbol db_type, DBSymbol* dependees) {
     method_name = load_state_entry_point_name(db_type);
     init_method_name = init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
     load_fn_name = load_state_proc_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_auxiliary_name(db_type);
+
+    dep_names = (native_dependee_name(t, i) : t @ i <- dependees);
+    dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
+    dep_args = (", target->" & dep_names(i) & ", auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
 
     return (
       "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
@@ -141,7 +149,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return make_bool(false);",
       "  }",
       "",
-      "  " & init_method_name & "(&new_inst, &new_aux_inst" & ", env);", //## INSERT THE LINKED AUTOMATON INSTANCES HERE
+      "  " & init_method_name & "(&new_inst, &new_aux_inst" & append(dep_args) & ", env);",
       "",
       "  READ_FILE_STATE read_state;",
       "  read_state.fp = fp;",
@@ -202,23 +210,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* native_ctor_code(DBSymbol name, DBSymbol* dependees, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* init_code) {
     target_name = auto_or_db_arg_name;
+    aux_name = db_auxiliary_arg_name;
     target_arg = target_arg_decl(name);
     aux_arg = auxiliary_arg_decl(name);
     dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
-    dependees_args = append((native_name(t) & " " & dependees_names(i) & ", " : t @ i <- dependees));
-
+    dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
+    dependees_args = (", " & native_name(t) & " *" & dependees_names(i) & ", " & native_auxiliary_name(t) & " *" & dep_aux_names(i) : t @ i <- dependees);
 
     // Local variables declaration
     body = gen_vars_decls(init_code, []);
 
     // Memory pool initialization
     body = (body | "") if body != ();
-    body = (body | "  init_mem_pool(&" & target_name & "->mem_pool);");
+    body = (body | "init_mem_pool(&" & target_name & "->mem_pool);");
 
     // Dependee links initialization
     if dependees != () {
-      links_init_code = (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
-      body = body & ("") & links_init_code;
+      body = (body | "");
+      body = body & (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
+      body = (body | "");
+      body = body & (aux_name & "->" & dep_aux_names(i) & " = " & dep_aux_names(i) & ";" : i < |dependees|);
     }
 
     // Member variables initialization
@@ -259,8 +270,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       body = body & ("") & pending_aux_vars_init_code;
     }
 
+    if dependees != () {
+      // Dependees' message variables initialization
+      msg_vars_init_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = make_blank_obj();" : i < |dependees|);
+
+      // Dependees' apply codes initialization
+      apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = -1;" : i < |dependees|);
+
+      body = body & ("") & msg_vars_init_code & ("") & apply_code_vars_init_code;
+    }
+
     // Putting it all together
-    signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & ", " & dependees_args & "ENV &" & env_arg_name & ") {";
+    signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & append(dependees_args) & ", ENV &" & env_arg_name & ") {";
     return (signature) & indent_lines(body) & ("}");
   }
 
@@ -715,7 +736,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* auxiliary_decl(StaticBlock block) {
     linked_updaters_decls = (
-      native_auxiliary_name(l) & " " & aux_var_decl_name(linked_db_var(i)) & ";"
+      native_auxiliary_name(l) & " *" & aux_var_decl_name(linked_db_var(i)) & ";"
       : l @ i <- block.links
     );
 
@@ -898,7 +919,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
 
     body_text = body_text & match (update_id)
-      handler_id()  = run_and_check_dependees_and_check_code(block_name, update_id),
+      handler_id()  = run_and_check_dependees_and_check_code(update_id),
       main_handler  = (),
       update_id()   = ();
 
@@ -911,9 +932,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return main_method & apply_method;
 
 
-    String* run_and_check_dependees_and_check_code(DBSymbol block_name, UpdateId update_id) {
-      dependees = [a : a <- updated_dependees(update_id, ?)];
-      dependees_code = dependees_run_and_check_code(block_name, dependees);
+    String* run_and_check_dependees_and_check_code(UpdateId update_id) {
+      dependees = [a -> linked_db_var_type(block, a) : a <- updated_dependees(update_id, ?)];
+      dependees_code = dependees_run_and_check_code(block.name, dependees);
 
       insertion_tables = [t : t <- table_vars_with_insertions(update_id, ?)];
       deletion_tables = [t : t <- table_vars_with_deletions(update_id, ?)];
@@ -966,7 +987,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       table_vars = insertion_tables & deletion_tables;
       tables = [t -> block.tables(t) : t <- table_vars];
 
-      dependees_code = dependees_apply_code(dependees);
+      dependees_code = dependees_apply_code([a -> linked_db_var_type(block, a) : a <- dependees]);
 
       apply_code = updates_apply_code(dependees, memb_vars, value_stores, tables);
       finish_code = updates_finish_code(deletion_tables, block);
@@ -982,28 +1003,30 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
-  String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar] vars) {
+  String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar -> DBSymbol] vars) {
     code = ();
-    for v <- isort(vars) {
+    for v <- isort(keys(vars)) {
       msg_var_name = dependee_msg_var_ref_name(v);
-      args = (msg_var_name, updater_var_ref_name(v), "env");
-      instr = native_method_call(native_var_ref_name(v), native_name(block_name, main_handler), args);
-      code = (code | "if (" & msg_var_name & " != null)", "  " & instr);
+      args = (v, updater_var_ref_name(v), msg_var_name, "env");
+      instr = native_call(dependee_apply_code_var_ref_name(v), native_name(vars(v), main_handler), args);
+      code = (code | "if (!is_blank(" & msg_var_name & "))", "  " & instr);
     }
     return code;
   }
 
 
-  String* dependees_apply_code([LinkedDBVar] vars) {
+  String* dependees_apply_code([LinkedDBVar -> DBSymbol] vars) {
     code = ();
-    for v <- isort(vars) {
+    for v <- isort(keys(vars)) {
       msg_var_name = dependee_msg_var_ref_name(v);
-      args = (updater_var_ref_name(v), dependee_apply_code_var_ref_name(v));
-      instr = native_method_call(native_var_ref_name(v), "msgHandlerApply", args);
+      apply_code_var_name = dependee_apply_code_var_ref_name(v);
+      args = (v, updater_var_ref_name(v), dependee_apply_code_var_ref_name(v));
+      instr = native_call(native_apply_method_name(vars(v), main_handler), args);
       code = (code |
-        "if (" & msg_var_name & " != null) {",
+        "if (!is_blank(" & msg_var_name & ")) {",
         "  " & instr,
-        "  " & msg_var_name & " = null;",
+        "  " & msg_var_name & " = make_blank_obj();",
+        "  " & apply_code_var_name & " = -1;",
         "}"
       );
     }

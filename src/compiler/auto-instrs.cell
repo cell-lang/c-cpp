@@ -122,7 +122,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     send_msg()            = native_send_msg_code(instr.db_var, instr.type, instr.msg, instr.is_root, if instr.res_var? then just(instr.res_var) else nothing),
     try_update()          = (native_call(update_name(instr.type, instr.update_id), (auto_or_db_arg_name, db_auxiliary_arg_name) &  instr.args & ("env"))),
-    set_state()           = native_set_state_code(instr.state, instr.db_var, instr.dependees, instr.type, instr.res_var),
+    set_state()           = native_set_state_code(instr.state, instr.db_var, instr.type, instr.res_var),
     invoke_auto_method()  = (native_method_call(instr.res_var, if instr.auto_var? then instr.auto_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),
     invoke_db_method()    = native_invoke_db_method_code(instr.res_var, if instr.db_var? then just(instr.db_var) else nothing, instr.type, instr.method_id, instr.args),
 
@@ -193,7 +193,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol db_type) {
     fail if not db_var :: LocDBVar;
 
-    args = (native_var_ref_name(db_var), updater_var_ref_name(db_var)) & links & ("env");
+    args = (native_var_ref_name(db_var), updater_var_ref_name(db_var)) & join(((l, updater_var_ref_name(l)) : l <- links)) & ("env");
     return (native_call(init_method_name(db_type), args));
 
     // return (
@@ -328,15 +328,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       aux_db_var_name = updater_var_ref_name(db_var);
       msg_var_name = dependee_msg_var_ref_name(db_var);
       return (
-        "if (" & msg_var_name & " != NULL)",
-        "  soft_fail();",
+        "if (!is_blank(" & msg_var_name & "))",
+        "  soft_fail(NULL);",
         msg_var_name & " = " & native_expr(msg) & ";"
       );
     }
   }
 
 
-  String* native_set_state_code(AtomicExpr state, LocDBVar db_var, LocDBVar* dependees, DBSymbol db_type, BoolVar res_var) {
+  String* native_set_state_code(AtomicExpr state, LocDBVar db_var, DBSymbol db_type, BoolVar res_var) {
     method_name = set_state_entry_point_name(db_type);
     args = (native_var_ref_name(db_var), updater_var_ref_name(db_var), state, "env");
     return (native_call(res_var, method_name, args));
