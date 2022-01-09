@@ -6,6 +6,9 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <unordered_map>
+
+using std::unordered_map;
 
 
 typedef signed   char       int8;

@@ -138,6 +138,61 @@ struct STREAM {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct OBJ_STORE {                // VALUE     NO VALUE
+  OBJ    *values;                 //           blank
+  uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
+
+  uint8  *refs_counters;
+  unordered_map<uint32, uint32> extra_refs;
+
+  uint32 *hashtable;  // 0xFFFFFFFF when there's no value in that bucket
+  uint32 *buckets;    // Junk when there's no (next?) value
+
+  uint32 capacity;
+  uint32 count;
+  uint32 first_free;
+};
+
+
+const uint32 INLINE_AUX_SIZE = 16;
+
+struct OBJ_STORE_AUX_BATCH_RELEASE_ENTRY {
+  uint32 surr;
+  uint32 count;
+};
+
+struct OBJ_STORE_AUX_INSERT_ENTRY {
+  OBJ obj;
+  uint32 hashcode;
+  uint32 surr;
+};
+
+struct OBJ_STORE_AUX {
+  uint32 deferred_capacity;
+  uint32 deferred_count;
+  uint32 *deferred_release_surrs;
+  uint32 deferred_release_buffer[INLINE_AUX_SIZE];
+
+  uint32 batch_deferred_capacity;
+  uint32 batch_deferred_count;
+  OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *batch_deferred_release_entries;
+  OBJ_STORE_AUX_BATCH_RELEASE_ENTRY batch_deferred_release_buffer[INLINE_AUX_SIZE];
+
+  uint32 capacity;
+  uint32 count;
+
+  OBJ_STORE_AUX_INSERT_ENTRY *entries;
+  OBJ_STORE_AUX_INSERT_ENTRY entries_buffer[INLINE_AUX_SIZE];
+
+  uint32 *hashtable;
+  uint32 *buckets;
+
+  uint32 hash_range;
+  uint32 last_surr;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct PARSER;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -166,6 +221,9 @@ typedef struct {
 void init_mem_pool(STATE_MEM_POOL *);
 void release_mem_pool(STATE_MEM_POOL *);
 
+void *alloc_state_mem_block(STATE_MEM_POOL *, uint32);
+void release_state_mem_block(STATE_MEM_POOL *, void *, uint32);
+
 OBJ copy_to_pool(STATE_MEM_POOL *, OBJ);
 void remove_from_pool(STATE_MEM_POOL *, OBJ);
 
@@ -176,6 +234,11 @@ void *grab_mem(void **, uint32);
 
 inline uint32 round_up_8(uint32 mem_size) {
   return (mem_size + 7) & ~7;
+}
+
+inline uint32 null_round_up_8(uint32 mem_size) {
+  assert(mem_size % 8 == 0);
+  return mem_size;
 }
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
@@ -756,7 +819,47 @@ void clear_unused_mem();
 void switch_to_static_allocator();
 void switch_to_twin_stacks_allocator();
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// hashing.cpp //////////////////////////////////
+
+uint32 calc_hcode(OBJ);
+
+//////////////////////////////// obj-store.cpp /////////////////////////////////
+
+void init_obj_store(OBJ_STORE *store, STATE_MEM_POOL *mem_pool);
+
+uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode);
+uint32 value_to_surr(OBJ_STORE *store, OBJ value);
+OBJ surr_to_value(OBJ_STORE *store, uint32 surr);
+
+uint32 next_free_idx(OBJ_STORE *store, uint32 index);
+
+void add_ref(OBJ_STORE *store, uint32 index);
+void release(OBJ_STORE *store, uint32 index);
+void release(OBJ_STORE *store, uint32 index, uint32 amount);
+
+bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount);
+bool try_releasing(OBJ_STORE *store, uint32 index);
+
+uint32 insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value);
+void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index);
+
+void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
+
+////////////////////////////// obj-store-aux.cpp ///////////////////////////////
+
+void init_obj_store_aux(OBJ_STORE_AUX *store_aux);
+
+void mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
+void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);
+
+void apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
+
+void apply_updates(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
+void reset(OBJ_STORE_AUX *store_aux);
+
+uint32 value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
+uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
