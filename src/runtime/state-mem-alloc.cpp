@@ -72,7 +72,7 @@ void release_mem_pool(STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
+void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
   if (byte_size > 4096) {
     internal_fail();
   }
@@ -82,7 +82,7 @@ static void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
   return ptr;
 }
 
-static void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
+void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
   if (byte_size > 4096) {
     internal_fail();
   }

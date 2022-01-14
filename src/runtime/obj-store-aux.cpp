@@ -195,7 +195,7 @@ void reset(OBJ_STORE_AUX *store_aux) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
-  uint32 hashcode = calc_hcode(value);
+  uint32 hashcode = compute_hashcode(value);
   uint32 surr = value_to_surr(store, value, hashcode);
   if (surr != 0xFFFFFFFF)
     return surr;
@@ -243,7 +243,7 @@ OBJ surr_to_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
-  uint32 hashcode = calc_hcode(value);
+  uint32 hashcode = compute_hashcode(value);
 
   uint32 capacity = store_aux->capacity;
   uint32 count = store_aux->count;

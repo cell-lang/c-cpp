@@ -221,7 +221,7 @@ uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
 }
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ value) {
-  uint32 hashcode = calc_hcode(value);
+  uint32 hashcode = compute_hashcode(value);
   return value_to_surr(store, value, hashcode);
 }
 
@@ -296,7 +296,7 @@ void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashco
   assert(store->first_free == index);
   assert(index < store->capacity);
   assert(is_blank(store->values[index]));
-  assert(hashcode == calc_hcode(value));
+  assert(hashcode == compute_hashcode(value));
 
   store->count++;
   store->first_free = store->hashcode_or_next_free[index];
@@ -314,7 +314,7 @@ uint32 insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value) 
     if (count == capacity)
       resize(store, mem_pool, count + 1);
     surr = store->first_free;
-    insert(store, mem_pool, value, calc_hcode(value), surr);
+    insert(store, mem_pool, value, compute_hashcode(value), surr);
   }
   add_ref(store, surr);
   return surr;
