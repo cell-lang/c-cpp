@@ -1,12 +1,12 @@
 implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
   String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) =
     copy_state()              = native_call(var, copy_state_proc_name(expr.type), (native_var_ref_name(expr.var))),
-    copy_rel()                = native_copy_rel_code(var, expr.tables, expr.applied_perm),
+    copy_rel()                = undefined,
     copy_persistent_state()   = native_method_call(var, expr.var, copy_state_proc_name(expr.type), ()),
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
 
 
-  String native_copy_rel_code(WriteObjVar res_var, [+TableVar -> AnyTable] tables, [+Nat -> Nat] applied_perm) {
+  String* native_copy_rel_code(WriteObjVar res_var, [+TableVar -> AnyTable] tables, [+Nat -> Nat] applied_perm) {
     is_column = only([
       match (t)
         column()  = true,
@@ -60,42 +60,68 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     }
 
     table_vars = keys(tables);
+    ord_table_vars = isort(table_vars);
+
+    init_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
 
     if is_column {
-      class_name = "ColumnBase";
+      // type_name = "__COLUMN__";
+      // method_name = "__column_copy__";
+      fail;
     }
     else if is_slave_column {
-      class_name = "ColumnBase";
+      // type_name = "__COLUMN__";
+      // method_name = "__column_copy__"
+      fail;
     }
     else if is_master_bin_table {
-      class_name = "MasterBinaryTable";
+      // type_name = "MASTER_BIN_TABLE";
+      // method_name = "master_bin_table_copy";
+      fail;
     }
     else if is_slave_tern_table {
-      class_name = "SlaveTernaryTable";
+      // type_name = "SLAVE_TERN_TABLE";
+      // method_name = "slave_tern_table_copy";
+      fail;
+    }
+    else if arity == 1 {
+      code = ("{ STREAM stream;", "  init(stream);");
+      for v @ i <- ord_table_vars {
+        value_store = match (tables(v))
+          table() t?  = only_unsafe(t.value_stores),
+          _           = undefined;
+        args = ("&" & native_var_ref_name(v), "&" & native_var_ref_name(value_store), "&stream");
+        code = (code | "  " & native_call(init_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_set", ("stream")), "}");
+      return code;
+    }
+    else if arity == 2 {
+      // 2 = if symmetric then ("SYM_BIN_TABLE", "sym_bin_table_copy") else ("BIN_TABLE", "bin_table_copy"),
+
+      fail;
     }
     else {
-      class_name = match (arity)
-        1 = "UnaryTable",
-        2 = if symmetric then "SymBinaryTable" else "BinaryTable",
-        3 = if symmetric then "Sym12TernaryTable" else "TernaryTable";
+      assert arity == 3;
+      // 3 = if symmetric then ("SYM_12_TERN_TABLE", "sym_12_tern_table_copy") else ("TERN_TABLE", "tern_table_copy");
+
+      fail;
     }
 
-    ord_table_vars = isort(table_vars);
-    tables_names = (native_var_ref_name(v) : v <- ord_table_vars);
-    tables_array_new = "new " & class_name & "[] {" & append(tables_names, ", ") & "}";
-    if is_slave_column {
-      masters_names = (
-        match (tables(v))
-          slave_column() c? = native_var_ref_name(c.master),
-          _                 = undefined
-        : v <- ord_table_vars
-      );
-      masters_array_new = "new MasterBinaryTable[] {" & append(masters_names, ", ") & "}";
-      tables_args = (tables_array_new, masters_array_new);
-    }
-    else
-      tables_args = (tables_array_new);
-    return native_static_call(res_var, class_name & ".copy", tables_args & perm_args);
+    // tables_array_new = "new " & type_name & "[] {" & append(tables_names, ", ") & "}";
+    // if is_slave_column {
+    //   masters_names = (
+    //     match (tables(v))
+    //       slave_column() c? = native_var_ref_name(c.master),
+    //       _                 = undefined
+    //     : v <- ord_table_vars
+    //   );
+    //   masters_array_new = "new MasterBinaryTable[] {" & append(masters_names, ", ") & "}";
+    //   tables_args = (tables_array_new, masters_array_new);
+    // }
+    // else
+    //   tables_args = (tables_array_new);
+    // return native_static_call(res_var, struct_name & ".copy", tables_args & perm_args);
   }
 
 
@@ -142,7 +168,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.value),
-    immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.tuple),
+    immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.key_surr, instr.value);
 
 
@@ -175,12 +201,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, <AtomicExpr, IntExpr> value) {
-    return (native_method_call(res_var, store, "insertOrAddRef", (value)));
+    args = ("&" & native_var_ref_name(store), "&" & auto_or_db_arg_name & "->mem_pool", value);
+    return (native_call(res_var, "insert_or_add_ref", args));
   }
 
 
-  String* native_immediate_insert_tuple(TableVar table_var, Int32Var+ tuple) {
-    return (native_method_call(table_var, "insert", tuple));
+  String* native_immediate_insert_tuple(TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, Int32Var+ tuple) {
+    method_name = native_table_method_prefix(table) & "_insert";
+    return (native_call(method_name, ("&" & native_var_ref_name(table_var), "&" & auto_or_db_arg_name & "->mem_pool") & tuple));
   }
 
 

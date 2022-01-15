@@ -276,7 +276,7 @@ implicit context : NativeContext {
 
   String native_var_name(AnyTableVar var, Bool add_prefix) {
     return match (var)
-      table_var(v?)             = {if add_prefix then "this." else ""} & native_name(v),
+      table_var(v?)             = {if add_prefix then auto_or_db_arg_name & "->" else ""} & native_name(v),
       qual_table_var()          = native_var_name(var.db_var, add_prefix) & "." & native_var_name(var.table_var, false),
       capt_table_var(v?)        = { assert add_prefix; return "this.capt_auto." & native_var_name(v, false);};
 
@@ -287,7 +287,7 @@ implicit context : NativeContext {
 
 
   String native_var_name(AnyValueStoreId v, Bool add_prefix) =
-    value_store_id(n?)        = {if add_prefix then "this." else ""} & "valueStore" & printed(n),
+    value_store_id(n?)        = {if add_prefix then auto_or_db_arg_name & "->" else ""} & "value_store_" & printed(n),
     nested_value_store_id()   = { assert add_prefix;
                                   db_var_str = native_var_name(v.db_var, true);
                                   return db_var_str & "." & native_var_name(v.store_id, false);
@@ -529,6 +529,24 @@ String native_table_type(<Column, SlaveColumn> column) =
 
 String native_table_base_type(<Table, MasterBinTable, SlaveTernTable> table)  = native_table_type(table);
 String native_table_base_type(<Column, SlaveColumn>)                          = "ANY_COL";
+
+
+String native_table_method_prefix(Table table) =
+  match (arity(table), table.symmetric)
+    1,  false   = "unary_table",
+    2,  false   = "bin_table",
+    2,  true    = "sym_bin_table",
+    3,  false   = "tern_table",
+    3,  true    = "sym_12_tern_table";
+
+String native_table_method_prefix(MasterBinTable) = "master_bin_table";
+String native_table_method_prefix(SlaveTernTable) = "slave_tern_table";
+
+String native_table_method_prefix(<Column, SlaveColumn> column) =
+  match (column.repr)
+    object    = "obj_col",
+    int       = "int_col",
+    float     = "float_col";
 
 
 String table_it_var_type(TableItVar var) =

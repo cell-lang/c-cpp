@@ -58,6 +58,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* set_rc_var_native_code(RefObjExpr value, WriteObjVar var) =
     mk_record() = native_mk_record_code(value.fields, if var :: WriteObjVar then var else undefined),
+    copy_rel()  = native_copy_rel_code(var, value.tables, value.applied_perm),
     _           = (native_code(value, var));
 
 

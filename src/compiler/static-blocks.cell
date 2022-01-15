@@ -247,17 +247,21 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       );
 
       tables_init_code = ({
-        value_stores = match (t)
-          table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
-          master_bin_table()  = if t.symmetric then undefined else t.value_stores,
-          slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
-          column()            = (t.value_store),
-          slave_column()      = ();
-        arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
-        arg_list = match (t)
-          slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
-          _                   = arg_list;
-        return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
+      //   value_stores = match (t)
+      //     table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
+      //     master_bin_table()  = if t.symmetric then undefined else t.value_stores,
+      //     slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
+      //     column()            = (t.value_store),
+      //     slave_column()      = ();
+      //   arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
+      //   arg_list = match (t)
+      //     slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
+      //     _                   = arg_list;
+      //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
+
+        init_method_name = native_table_method_prefix(t) & "_init";
+        args = ("&" & native_var_ref_name(v), "&" & auto_or_db_arg_name & "->mem_pool");
+        return native_call(init_method_name, args);
       } : v, t <- tables_in_init_order);
 
       body = body & ("") & tables_init_code;
