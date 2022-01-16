@@ -136,7 +136,7 @@ void apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux) {
   }
 }
 
-void apply_updates(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
+void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = store_aux->count;
   if (count > 0) {
     uint32 capacity = store->capacity;
@@ -153,7 +153,7 @@ void apply_updates(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *m
   }
 }
 
-void reset(OBJ_STORE_AUX *store_aux) {
+void obj_store_reset(OBJ_STORE_AUX *store_aux) {
   uint32 count = store_aux->count;
   if (count > 0) {
     store_aux->count = 0;
@@ -290,7 +290,7 @@ uint32 insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
+uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value) {
   uint32 surr = value_to_surr(store, store_aux, value);
   if (surr != 0xFFFFFFFF)
     return surr;

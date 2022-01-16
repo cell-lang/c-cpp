@@ -142,6 +142,14 @@ struct UNARY_TABLE {
   unordered_set<uint32> elements;
 };
 
+struct UNARY_TABLE_ITER {
+
+};
+
+struct UNARY_TABLE_AUX {
+
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct OBJ_STORE {                // VALUE     NO VALUE
@@ -834,8 +842,22 @@ bool unary_table_contains(UNARY_TABLE *, uint32);
 
 uint32 unary_table_insert(UNARY_TABLE *, STATE_MEM_POOL *, uint32);
 void unary_table_delete(UNARY_TABLE *, uint32);
+void unary_table_clear(UNARY_TABLE *);
+
+uint32 unary_table_queue_insert(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
+void unary_table_queue_delete(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
+void unary_table_queue_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+void unary_table_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, STATE_MEM_POOL *);
+void unary_table_reset(UNARY_TABLE_AUX *);
 
 OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ_STORE *store, STREAM *stream);
+
+void unary_table_iter_init(UNARY_TABLE *, UNARY_TABLE_ITER *);
+void unary_table_iter_move_forward(UNARY_TABLE_ITER *);
+
+bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
+uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
@@ -868,8 +890,8 @@ void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux,
 
 void apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
 
-void apply_updates(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
-void reset(OBJ_STORE_AUX *store_aux);
+void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
+void obj_store_reset(OBJ_STORE_AUX *store_aux);
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
 uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);

@@ -18,7 +18,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     get_set_iter()        = (native_call("get_set_iter", (instr.var, instr.src))),
     get_bin_rel_iter()    = (native_get_bin_rel_iter_code(instr.var, instr.src, instr.args)),
     get_tern_rel_iter()   = (native_get_tern_rel_iter_code(instr.var, instr.src, instr.args)),
-    move_forward(v?)      = (native_call("move_forward", (v))),
+    move_forward(v?)      = (native_call(append_if_nonempty(it_var_method_prefix(v), "_") & "move_forward", (v))),
     set_var()             = native_set_var_code(instr.var, instr.value),
     set_bvar()            |
     set_ivar()            |
@@ -231,11 +231,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_set_var_code(<WriteObjVar, LocOptTagRecVar> var, ObjExpr value) {
     if var :: MembVar {
-      var_str = native_var_ref_name(var);
-      pool_ref_str = "&" & auto_or_db_arg_name & "->mem_pool";
       return (
-        "remove_from_pool(" & pool_ref_str & ", " & var_str & ");",
-        var_str & " = copy_to_pool(" & pool_ref_str & ", " & native_expr(value) & ");"
+        native_call("remove_from_pool", (:mem_pool, var)),
+        native_call(var, "copy_to_pool", (:mem_pool, value))
       );
     }
     else

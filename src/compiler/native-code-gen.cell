@@ -610,10 +610,11 @@ type NonStringEncodable = blank_obj, ObjExpr, ElemVar, PendingInputVar, VecVar, 
                           IntExpr, Int32Expr, FloatExpr, ItVar, StreamVar, AnyClsVar, AnyTableVar,
                           AnyValueStoreId, AnyAutoVar, AnyDBVar;
 
-type Encodable = NonStringEncodable, String;
+type Encodable = mem_pool, NonStringEncodable, String;
 
 
 implicit context : NativeContext {
+  String native_code(<mem_pool>) = native_var_ref_name(:mem_pool);
   String native_code(NonStringEncodable enc) = native_expr(enc);
   String native_code(String str) = str;
 

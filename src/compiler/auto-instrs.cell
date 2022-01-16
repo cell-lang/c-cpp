@@ -62,7 +62,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     table_vars = keys(tables);
     ord_table_vars = isort(table_vars);
 
-    init_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
+    copy_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
 
     if is_column {
       // type_name = "__COLUMN__";
@@ -90,8 +90,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         value_store = match (tables(v))
           table() t?  = only_unsafe(t.value_stores),
           _           = undefined;
-        args = ("&" & native_var_ref_name(v), "&" & native_var_ref_name(value_store), "&stream");
-        code = (code | "  " & native_call(init_method_name, args));
+        code = (code | "  " & native_call(copy_method_name, (v, value_store, "&stream")));
       }
       code = (code | "  " & native_call(res_var, "build_set", ("stream")), "}");
       return code;
@@ -160,9 +159,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table, instr.args)),
     get_column_iter()     = (native_method_call(instr.it_var, instr.column, "getIter", ())),
 
-    queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.args, instr.symmetric)),
-    lookup_or_queue_insert_value() = (native_method_call(instr.res_var, updater_var_ref_name(instr.store), "lookupOrInsertValue", (instr.value))),
-    queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.tuple)),
+    queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
+    lookup_or_queue_insert_value() = (native_call(instr.res_var, "lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
+    queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.key_surr, instr.value, instr.forced),
     ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
@@ -182,39 +181,37 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_column_insert_immediate_code(TableVar table_var, Int32Var key_surr, AnyTypeExpr value) {
-    return (native_method_call(table_var, "insert", (key_surr, value)));
+    return (native_call("insert", (table_var, key_surr, value)));
   }
 
 
   String* native_column_insert_deferred_code(TableVar table_var, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
     method_name = if forced then "update" else "insert";
-    return (native_method_call(updater, method_name, (key_surr, value)));
+    return (native_call(method_name, (updater, key_surr, value)));
   }
 
 
   String* native_ternary_slave_column_insert_deferred_code(TableVar table_var, (Int32Var, Int32Var) surrs, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
     method_name = if forced then "update" else "insert";
-    return (native_method_call(updater, method_name, (surrs | value)));
+    return (native_call(method_name, (updater) & (surrs | value)));
   }
 
 
-  String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, <AtomicExpr, IntExpr> value) {
-    args = ("&" & native_var_ref_name(store), "&" & auto_or_db_arg_name & "->mem_pool", value);
-    return (native_call(res_var, "insert_or_add_ref", args));
-  }
+  String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, <AtomicExpr, IntExpr> value) =
+    (native_call(res_var, "insert_or_add_ref", (store, :mem_pool, value)));
 
 
   String* native_immediate_insert_tuple(TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, Int32Var+ tuple) {
     method_name = native_table_method_prefix(table) & "_insert";
-    return (native_call(method_name, ("&" & native_var_ref_name(table_var), "&" & auto_or_db_arg_name & "->mem_pool") & tuple));
+    return (native_call(method_name, (table_var, :mem_pool) & tuple));
   }
 
 
-  String native_queue_insert_tuple_code(TableVar table_var, Int32Var+ tuple) {
+  String native_queue_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
-    return native_method_call(updater, "insert", (native_expr(v) : v <- tuple));
+    return native_call(native_table_method_prefix(table) & "_queue_insert", (table_var, updater) & (native_expr(v) : v <- tuple));
   }
 
 
@@ -258,27 +255,27 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   // }
 
 
-  String native_queue_deletes_code(TableVar table_var, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_queue_deletes_code(TableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args, Bool symmetric) {
     set_args = (a != nothing : a <- args);
     fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = fn_names(set_args);
+    fn_name = native_table_method_prefix(table) & "_queue_" & fn_names(set_args);
     target = pending_updates_var_ref_name(table_var);
-    return native_method_call(target, fn_name, (native_expr(value(a)) : a <- args, a != nothing));
+    return native_call(fn_name, (table_var, target) & (native_expr(value(a)) : a <- args, a != nothing));
 
     [Bool+ -> String] fn_names_by_args = [
       (true)                  -> "delete",
       (false)                 -> "clear",
       (true,  true)           -> "delete",
-      (true,  false)          -> "delete1",
-      (false, true)           -> "delete2",
+      (true,  false)          -> "delete_1",
+      (false, true)           -> "delete_2",
       (false, false)          -> "clear",
       (true,  true,  true)    -> "delete",
-      (true,  true,  false)   -> "delete12",
-      (true,  false, true)    -> "delete13",
-      (false, true,  true)    -> "delete23",
-      (true,  false, false)   -> "delete1",
-      (false, true,  false)   -> "delete2",
-      (false, false, true)    -> "delete3",
+      (true,  true,  false)   -> "delete_12",
+      (true,  false, true)    -> "delete_13",
+      (false, true,  true)    -> "delete_23",
+      (true,  false, false)   -> "delete_1",
+      (false, true,  false)   -> "delete_2",
+      (false, false, true)    -> "delete_3",
       (false, false, false)   -> "clear"
     ];
 
@@ -288,12 +285,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       (false, true)           -> "delete",
       (false, false)          -> "clear",
       (true,  true,  true)    -> "delete",
-      (true,  true,  false)   -> "delete12",
+      (true,  true,  false)   -> "delete_12",
       (true,  false, true)    -> "delete_13_23",
       (false, true,  true)    -> "delete_13_23",
       (true,  false, false)   -> "delete_1_2",
       (false, true,  false)   -> "delete_1_2",
-      (false, false, true)    -> "delete3",
+      (false, false, true)    -> "delete_3",
       (false, false, false)   -> "clear"
     ];
   }
@@ -302,37 +299,37 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String native_get_table_iter_code(<TableItVar, SlaveColumnItVar> it_var, AnyTableVar table_var, Maybe[Int32Var]+ args) {
     fn_names = fn_names_by_args(it_var);
     fn_name = fn_names((a != nothing : a <- args));
-    return native_method_call(it_var, table_var, fn_name, (native_expr(value(a)) : a <- args, a != nothing));
+    return native_call(fn_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
 
 
     [Bool+ -> String] fn_names_by_args(TableItVar it_var) = if it_var.symmetric then sym_fn_names_by_args else fn_names_by_args;
     [Bool+ -> String] fn_names_by_args(SlaveColumnItVar)  = fn_names_by_args;
 
     [Bool+ -> String] fn_names_by_args = [
-      (false)                 -> "getIter",
-      (true,  false)          -> "getIter1",
-      (false, true)           -> "getIter2",
-      (false, false)          -> "getIter",
-      (true,  true,  false)   -> "getIter12",
-      (true,  false, true)    -> "getIter13",
-      (false, true,  true)    -> "getIter23",
-      (true,  false, false)   -> "getIter1",
-      (false, true,  false)   -> "getIter2",
-      (false, false, true)    -> "getIter3",
-      (false, false, false)   -> "getIter"
+      (false)                 -> "unary_table_iter_init",
+      (true,  false)          -> "bin_table_iter_init_1",
+      (false, true)           -> "bin_table_iter_init_2",
+      (false, false)          -> "bin_table_iter_init",
+      (true,  true,  false)   -> "tern_table_iter_init_12",
+      (true,  false, true)    -> "tern_table_iter_init_13",
+      (false, true,  true)    -> "tern_table_iter_init_23",
+      (true,  false, false)   -> "tern_table_iter_init_1",
+      (false, true,  false)   -> "tern_table_iter_init_2",
+      (false, false, true)    -> "tern_table_iter_init_3",
+      (false, false, false)   -> "tern_table_iter_init"
     ];
 
     [Bool+ -> String] sym_fn_names_by_args = [
-      (true,  false)          -> "getIter",
-      (false, true)           -> "getIter",
-      (false, false)          -> "getIter",
-      (true,  true,  false)   -> "getIter12",
-      (true,  false, true)    -> "getIter_13_23",
-      (false, true,  true)    -> "getIter_13_23",
-      (true,  false, false)   -> "getIter_1_2",
-      (false, true,  false)   -> "getIter_1_2",
-      (false, false, true)    -> "getIter3",
-      (false, false, false)   -> "getIter"
+      (true,  false)          -> "sym_bin_table_iter_init",
+      (false, true)           -> "sym_bin_table_iter_init",
+      (false, false)          -> "sym_bin_table_iter_init",
+      (true,  true,  false)   -> "sym_12_tern_table_iter_init_12",
+      (true,  false, true)    -> "sym_12_tern_table_iter_init_13_23",
+      (false, true,  true)    -> "sym_12_tern_table_iter_init_13_23",
+      (true,  false, false)   -> "sym_12_tern_table_iter_init_1_2",
+      (false, true,  false)   -> "sym_12_tern_table_iter_init_1_2",
+      (false, false, true)    -> "sym_12_tern_table_iter_init_3",
+      (false, false, false)   -> "sym_12_tern_table_iter_init"
     ];
   }
 

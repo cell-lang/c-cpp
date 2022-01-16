@@ -64,22 +64,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
-    target_var = auto_or_db_arg_name;
     target_arg = target_arg_decl(auto_id);
     aux_arg = auxiliary_arg_decl(auto_id);
-    pool_ref_str = "&" & target_var & "->mem_pool";
 
     // vars_decl = gen_vars_decls(cleanup_code, []);
     // vars_decl = vars_decl & ("") if vars_decl != ();
     // body = vars_decl & native_code(cleanup_code, nothing, break_target = nothing);
 
     ord_state_vars = isort(keys(state_vars));
-    body = ("  remove_from_pool(" & pool_ref_str & ", " & native_var_ref_name(v) & ");" : v <- ord_state_vars);
+    body = (native_call("remove_from_pool", (:mem_pool, v)) : v <- ord_state_vars);
 
-    body = (body | "  release_mem_pool(&" & target_var & "->mem_pool);");
+    body = (body | native_call("release_mem_pool", (:mem_pool)));
 
     signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
-    return (signature) & body & ("}");
+    return (signature) & indent_lines(body) & ("}");
   }
 
   String *native_set_state_entry_point_code(DBSymbol db_type, DBSymbol* dependees) {
@@ -260,8 +258,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
 
         init_method_name = native_table_method_prefix(t) & "_init";
-        args = ("&" & native_var_ref_name(v), "&" & auto_or_db_arg_name & "->mem_pool");
-        return native_call(init_method_name, args);
+        return native_call(init_method_name, (v, :mem_pool));
       } : v, t <- tables_in_init_order);
 
       body = body & ("") & tables_init_code;
@@ -525,7 +522,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       symb_str = symb_id_name(bare_id(var));
       var_str = native_var_ref_name(var);
       guard_expr_str = native_expr(guard_expr);
-      pool_ref_str = "&" & auto_or_db_arg_name & "->mem_pool";
+      pool_ref_str = native_var_ref_name(:mem_pool);
 
       return (
         "case " & symb_str & ":",
@@ -757,17 +754,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       : v, _ <- isort(block.state_vars)
     );
 
-    stores_decls = ();
-  //   stores_decls = (
-  //     native_updater_type(t) & " " & aux_var_decl_name(vs) & ";"
-  //     : vs, t <- isort(block.value_stores)
-  //   );
+    stores_decls = (
+      native_updater_type(t) & " " & aux_var_decl_name(vs) & ";"
+      : vs, t <- isort(block.value_stores)
+    );
 
-    tables_decls = ();
-  //   tables_decls = (
-  //     pending_updates_var_type(t) & " " & pending_updates_var_decl_name(v) & ";"
-  //     : v, t <- isort(block.tables)
-  //   );
+    tables_decls = (
+      native_table_aux_type(t) & " " & pending_updates_var_decl_name(v) & ";"
+      : v, t <- isort(block.tables)
+    );
 
     foreign_key_checkers_decls = ();
   //   foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
@@ -816,7 +811,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   //     return native_new_call(
   //       pending_updates_var_ref_name(v),
-  //       pending_updates_var_type(t),
+  //       native_table_aux_type(t),
   //       ("\"" & user_repr(original_rel_var(v)) & "\"", v) & other_args & (updater_var_ref_name(vs) : vs <- value_stores)
   //     );
   //   } : v, t <- ord_tables);
@@ -850,11 +845,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
 
     value_stores_reset_code = (
-      native_method_call(updater_var_ref_name(vs), "reset", ()) : vs, _ <- isort(block.value_stores)
+      native_call("value_store_reset", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
     );
 
     tables_reset_code = (
-      native_method_call(pending_updates_var_ref_name(v), "reset", ())
+      native_call(native_table_method_prefix(t) & "_reset", (pending_updates_var_ref_name(v)))
       : v, t <- isort(block.tables)
     );
 
@@ -995,7 +990,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       apply_code = updates_apply_code(dependees, memb_vars, value_stores, tables);
       finish_code = updates_finish_code(deletion_tables, block);
-      reset_code = updates_reset_code(memb_vars, value_stores, table_vars, dependees);
+      reset_code = updates_reset_code(memb_vars, value_stores, tables, dependees);
 
       args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name));
       sgn = "void " & native_apply_method_name(block_name, update_id) & "(" & append(args, ", ") & ") {";
@@ -1038,7 +1033,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updates_reset_code([MembVar] memb_vars, [ValueStoreId] value_stores, [TableVar] tables, [LinkedDBVar] dependees) {
+  String* updates_reset_code([MembVar] memb_vars, [ValueStoreId] value_stores, [TableVar -> AnyTable] tables, [LinkedDBVar] dependees) {
     memb_vars_code = (
       native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();"
       : v <- isort(memb_vars)
@@ -1046,14 +1041,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_vars_code = ("") & memb_vars_code if memb_vars != [];
 
     value_stores_code = (
-      native_method_call(updater_var_ref_name(vs), "reset", ())
+      native_call("obj_store_reset", (updater_var_ref_name(vs)))
       : vs <- isort(value_stores)
     );
     value_stores_code = ("") & value_stores_code if value_stores != [];
 
     tables_code = (
-      native_method_call(pending_updates_var_ref_name(t), "reset", ())
-      : t <- isort(tables)
+      native_call(native_table_method_prefix(tables(v)) & "_reset", (pending_updates_var_ref_name(v)))
+      : v <- isort(keys(tables))
     );
     tables_code = ("") & tables_code if tables != [];
 
@@ -1065,7 +1060,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_vars_code = join((var_apply_code(bare_id(v)) : v <- isort(memb_vars)));
 
     value_stores_code = (
-      native_method_call(updater_var_ref_name(vs), "apply", ())
+      native_call("obj_store_apply", (vs, updater_var_ref_name(vs), :mem_pool))
       : vs <- isort(value_stores)
     );
     value_stores_code = ("") & value_stores_code if value_stores != [];
@@ -1073,7 +1068,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ord_tables = sort_by_key(keys(tables), arity(tables($)));
 
     tables_code = (
-      native_method_call(pending_updates_var_ref_name(t), "apply", ())
+      native_call(native_table_method_prefix(tables(t)) & "_apply", (t, pending_updates_var_ref_name(t), :mem_pool))
       : t <- ord_tables
     );
     tables_code = ("") & tables_code if tables != [];
@@ -1085,7 +1080,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* updates_finish_code([TableVar] deletion_tables, StaticBlock block) {
     value_stores_with_deletions = [s : v <- deletion_tables, s <- value_stores(block.tables(v))];
     code = (
-      native_method_call(updater_var_ref_name(v), "applyDelayedReleases", ())
+      native_call("apply_deferred_releases", (v, updater_var_ref_name(v)))
       : v <- isort(value_stores_with_deletions)
     );
     return code;

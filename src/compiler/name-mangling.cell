@@ -26,12 +26,14 @@
 //  Z
 
 type QualifiableVars    = ObjVar, PendingInputVar, BoolVar, IntVar, Int32Var, FloatVar,
-                          AnyAutoVar, AnyDBVar, AnyTableVar, AnyValueStoreId;
+                          AnyAutoVar, AnyDBVar, AnyTableVar, AnyTableItVar, AnyValueStoreId;
 
-type UnqualifiableVars  = OptTagRecVar, VecVar, ArrayVar, ItVar, StreamVar, AnyClsVar;
+type UnqualifiableVars  = OptTagRecVar, VecVar, ArrayVar, SeqItVar, SetItVar, BinRelItVar, TernRelItVar, StreamVar, AnyClsVar;
 
 
 implicit context : NativeContext {
+  String native_var_ref_name(<mem_pool>) = "&" & auto_or_db_arg_name & "->mem_pool";
+
   String native_var_name(LocOptTagRecVar var) =
     match (var.id)
       <+>     = printed(var.id) & "_Vr_" & printed(var.tag),
@@ -84,42 +86,44 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  String native_var_name(VecVar v)        = "vec" & printed(v.id);
-  String native_var_name(SeqItVar v)      = "seqIt" & printed(bare_id_2(v));
-  String native_var_name(SetItVar v)      = "setIt" & printed(bare_id_2(v));
-  String native_var_name(BinRelItVar v)   = "binRelIt" & printed(bare_id_2(v));
-  String native_var_name(TernRelItVar v)  = "ternRelIt" & printed(bare_id_2(v));
-  String native_var_name(StreamVar v)     = "stream" & printed(bare_id_2(v));
+  String native_var_name(VecVar v)        = "vec_" & printed(v.id);
+  String native_var_name(SeqItVar v)      = "seq_it_" & printed(bare_id_2(v));
+  String native_var_name(SetItVar v)      = "set_it_" & printed(bare_id_2(v));
+  String native_var_name(BinRelItVar v)   = "bin_rel_it_" & printed(bare_id_2(v));
+  String native_var_name(TernRelItVar v)  = "tern_rel_it_" & printed(bare_id_2(v));
+  String native_var_name(StreamVar v)     = "stream_" & printed(bare_id_2(v));
 
   String native_var_name(ArrayVar var) =
     avar()              = "y" & printed(var.id) & "_" & native_type(var.repr, context = :core),
     shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
 
-  String native_var_name(TableItVar v) {
+  String native_var_name(TableItVar v, Bool as_ref_name) {
     prefix = match (v.arity, v.symmetric)
       1,  false   = "unary",
       2,  false   = "bin",
-      2,  true    = "symBin",
+      2,  true    = "sym_bin",
       3,  false   = "tern",
-      3,  true    = "symTern";
-
-    return prefix & "TableIt" & printed(v.id);
+      3,  true    = "sym_12_tern";
+    prefix = "&" & prefix if as_ref_name;
+    return prefix & "_table_it_" & printed(v.id);
   }
 
-  String native_var_name(ColumnItVar var) {
+  String native_var_name(ColumnItVar var, Bool as_ref_name) {
     prefix = match (var.repr)
       object  = "obj",
       int     = "int",
       float   = "float";
-    return prefix & "ColIt" & printed(var.id);
+    prefix = "&" & prefix if as_ref_name;
+    return prefix & "_col_it_" & printed(var.id);
   }
 
-  String native_var_name(SlaveColumnItVar var) {
+  String native_var_name(SlaveColumnItVar var, Bool as_ref_name) {
     prefix = match (var.repr)
       object  = "obj",
       int     = "int",
       float   = "float";
-    return prefix & "SlaveColIt" & printed(var.id);
+    prefix = "&" & prefix if as_ref_name;
+    return prefix & "_slave_col_it_" & printed(var.id);
   }
 
   String native_var_name(AnyClsVar v) =
@@ -186,7 +190,7 @@ implicit context : NativeContext {
       prev_var_value(v?)            = prefix & ad_hoc_var_name(v) & "d",
       pending_state_var(a?)         = prefix & _print_(a) & "_Mp",
       lvar(<*..*> n?)               = "v" & printed(n),
-      evar()                        = "vec" & printed(var.id) & "[(int)(" & native_idx_expr(var.idx) & ")]",
+      evar()                        = "vec_" & printed(var.id) & "[" & native_idx_expr(var.idx) & "]",
       pending_input_var(<+> a?)     = prefix & _print_(a) & "_Sp";
 
 
@@ -276,7 +280,7 @@ implicit context : NativeContext {
 
   String native_var_name(AnyTableVar var, Bool add_prefix) {
     return match (var)
-      table_var(v?)             = {if add_prefix then auto_or_db_arg_name & "->" else ""} & native_name(v),
+      table_var(v?)             = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & native_name(v),
       qual_table_var()          = native_var_name(var.db_var, add_prefix) & "." & native_var_name(var.table_var, false),
       capt_table_var(v?)        = { assert add_prefix; return "this.capt_auto." & native_var_name(v, false);};
 
@@ -287,7 +291,7 @@ implicit context : NativeContext {
 
 
   String native_var_name(AnyValueStoreId v, Bool add_prefix) =
-    value_store_id(n?)        = {if add_prefix then auto_or_db_arg_name & "->" else ""} & "value_store_" & printed(n),
+    value_store_id(n?)        = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & "value_store_" & printed(n),
     nested_value_store_id()   = { assert add_prefix;
                                   db_var_str = native_var_name(v.db_var, true);
                                   return db_var_str & "." & native_var_name(v.store_id, false);
@@ -318,7 +322,7 @@ implicit context : NativeContext {
       split_rel_var(v?, n?) = native_name(v) & "_" & _print_(n);
   }
 
-  String pending_updates_var_ref_name(TableVar table_var) = db_auxiliary_arg_name & "->" & pending_updates_var_decl_name(table_var);
+  String pending_updates_var_ref_name(TableVar table_var) = "&" & db_auxiliary_arg_name & "->" & pending_updates_var_decl_name(table_var);
 
   String dependee_msg_var_decl_name(LinkedDBVar) =
     linked_db_var(i?)   = "dependee_" & _print_(i) & "_msg";
@@ -333,16 +337,16 @@ implicit context : NativeContext {
   String aux_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
 
   String aux_var_decl_name(LinkedDBVar db_var) =
-    linked_db_var(i?)   = "dependee_" & _print_(i) & "_auxiliary";
+    linked_db_var(i?)   = "dependee_" & _print_(i) & "_aux";
 
   String updater_var_ref_name(LocDBVar db_var) = aux_var_decl_name(db_var);
 
   String updater_var_ref_name(LinkedDBVar db_var) = db_auxiliary_arg_name & "->" & aux_var_decl_name(db_var);
 
   String aux_var_decl_name(ValueStoreId vs) =
-    value_store_id(n?)  = "valueStoreUpdater" & printed(n);
+    value_store_id(n?)  = "value_store_aux_" & printed(n);
 
-  String updater_var_ref_name(ValueStoreId vs) = db_auxiliary_arg_name & "->" & aux_var_decl_name(vs);
+  String updater_var_ref_name(ValueStoreId vs) = "&" & db_auxiliary_arg_name & "->" & aux_var_decl_name(vs);
 
   String foreign_key_checker_decl_name(BlockForeignKey key) = undefined;
   String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;
@@ -569,14 +573,37 @@ String slave_column_it_var_type(SlaveColumnItVar var) =
     int       = "INT_COL_ITER",
     float     = "FLOAT_COL_ITER";
 
-String pending_updates_var_type(AnyTable) = "INVALID_TYPE_NAME";
+
+String it_var_method_prefix(SeqItVar var)     = "";
+String it_var_method_prefix(SetItVar var)     = "";
+String it_var_method_prefix(BinRelItVar var)  = "";
+String it_var_method_prefix(TernRelItVar var) = "";
+
+String it_var_method_prefix(TableItVar var) =
+  match (var.arity, var.symmetric)
+    1,  false   = "unary_table_iter",
+    1,  true    = undefined,
+    2,  false   = "bin_table_iter",
+    2,  true    = "sym_bin_table_iter",
+    3,  false   = "tern_table_iter",
+    3,  true    = "sym_12_tern_table_iter";
+
+String it_var_method_prefix(<ColumnItVar, SlaveColumnItVar> var) =
+  match (var.repr)
+    object  = "obj_col_iter",
+    int     = "int_col_iter",
+    float   = "float_col_iter";
+
+
+String native_table_aux_type(AnyTable table) = native_table_type(table) & "_AUX";
+
 
 String native_name(ValueStoreType) =
   integer               |
   mono_tagged_integer() = "INT_STORE",
   object                = "OBJ_STORE";
 
-String native_updater_type(ValueStoreType vs) = native_name(vs) & "_UPDATER";
+String native_updater_type(ValueStoreType vs) = native_name(vs) & "_AUX";
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

@@ -25,7 +25,7 @@ implicit context : NativeContext {
     int_obj(e?)         = "make_int(" & native_expr(e) & ")",
     float_obj(e?)       = "make_float(" & native_expr(e) & ")",
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
-    surr_to_value()     = native_var_ref_name(expr.store) & ".SurrToValue(" & native_expr(expr.surrogate) & ")",
+    surr_to_value()     = "surr_to_value(" & native_var_ref_name(expr.store) & ", " & native_expr(expr.surrogate) & ")",
     column_lookup()     = native_column_lookup_expr(expr.var, expr.key, expr.repr),
     get_value()         = undefined, //native_var_ref_name(expr.var) & ".GetValue()",
     rand_elem(e?)       = "rand_set_elem(" & native_expr(e) & ")";
@@ -99,7 +99,7 @@ implicit context : NativeContext {
       is_flt(e1?, e2?)      = native_nary_op(" < ",  (e1, e2), parenthesized),
       is_fle(e1?, e2?)      = native_nary_op(" <= ", (e1, e2), parenthesized),
 
-      is_out_of_range(v?)   = "is_out_of_range(" & native_var_ref_name(v) & ")",
+      is_out_of_range(v?)   = append_if_nonempty(it_var_method_prefix(v), "_") & "is_out_of_range(" & native_var_ref_name(v) & ")",
 
       is_blank(v?)          = "is_blank(" & native_var_ref_name(v) & ")",
       is_null(v?)           = "is_null_obj(" & native_var_ref_name(v) & ")",
@@ -107,7 +107,7 @@ implicit context : NativeContext {
       has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_id_name(expr.field) & ")",
 
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
-      table_contains()      = native_table_contains(expr.table, expr.tuple, expr.symmetric),
+      table_contains()      = native_table_contains(expr.table_var, expr.table_info, expr.tuple, expr.symmetric),
 
       is_member()           = native_fn_name(expr.pred) & "(" & native_expr(expr.obj) & ")",
       state_is_def()        = native_var_ref_name(expr.auto_var) & "." & state_is_def_proc_name(expr.type) & "()",
@@ -140,8 +140,8 @@ implicit context : NativeContext {
   }
 
 
-  String native_table_contains(AnyTableVar table, Maybe[Int32Var]+ tuple, Bool symmetric) {
-    name = "Contains";
+  String native_table_contains(AnyTableVar table_var, AnyTable table_info, Maybe[Int32Var]+ tuple, Bool symmetric) {
+    name = native_table_method_prefix(table_info) & "_contains";
     if (a <- tuple : a == nothing) {
       if not symmetric {
         suffix = append((printed(i+1) : a @ i <- tuple, a != nothing));
@@ -151,14 +151,14 @@ implicit context : NativeContext {
           (_,       _)                  = "",
           (just(),  just(),  nothing)   = "12",
           (just(),  nothing, just())    |
-          (nothing, just(),  nothing)   = "_13_23",
+          (nothing, just(),  nothing)   = "13_23",
           (just(),  nothing, nothing)   |
-          (nothing, just(),  nothing)   = "_1_2",
+          (nothing, just(),  nothing)   = "1_2",
           (nothing, nothing, just())    = "3";
       }
-      name = name & suffix;
+      name = name & "_" & suffix if suffix != "";
     }
-    return native_method_call_expr(table, name, (native_expr(value(a)) : a <- tuple, a != nothing));
+    return native_call_expr(name, (table_var) & (native_expr(value(a)) : a <- tuple, a != nothing));
   }
 
 
@@ -267,7 +267,7 @@ implicit context : NativeContext {
     float_bits(e?)        = "float_bits(" & native_expr(e) & ")",
     round(e?)             = "float_round(" & native_expr(e) & ")",
     upcast_int32(e?)      = parenthesize("(long) " & native_expr(e, true), parenthesized),
-    surr_to_int_value()   = undefined, // native_method_call_expr(expr.store, "SurrToValue", (expr.surrogate)),
+    surr_to_int_value()   = undefined, // native_call_expr("SurrToValue", (expr.store, expr.surrogate)),
     rand_nat(e?)          = "rand_nat(" & native_expr(e) & ")",
     unique_nat            = "unique_nat()",
     ticks                 = "get_tick_count()";
@@ -308,14 +308,14 @@ implicit context : NativeContext {
 
   String native_expr(Int32NatOp expr, Bool parenthesized) {
     return match (expr)
-      bool_to_bit(e?)       = "(" & native_expr(e, false) & " ? 1 : 0)",
-      get_size(e?)          = "get_size(" & native_expr(e) & ")",
-      get_count()           = native_get_count_expr(expr.table, expr.args, expr.symmetric),
-      table_lookup()        = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
-      cast_int32(e?)        = "cast_int32(" & native_expr(e, false) & ")",
-      add32(e1?, e2?)       = native_nary_op(" + ", (e1, e2), parenthesized),
-      value_to_surr()       = undefined, // native_method_call_expr(expr.store, "ValueToSurr", (expr.value)),
-      get_unknown_arg()     = native_get_unknown_arg_expr(expr.iter, expr.arg),
+      bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
+      get_size(e?)            = "get_size(" & native_expr(e) & ")",
+      get_count()             = native_get_count_expr(expr.table, expr.args, expr.symmetric),
+      table_lookup()          = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
+      cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
+      add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
+      value_to_surr()         = native_call_expr("value_to_surr", (expr.store, expr.value)),
+      get_unknown_arg()       = native_get_unknown_arg_expr(expr.iter, expr.arg),
       get_arg_by_assoc_surr() = native_var_ref_name(expr.table) & ".arg" & _print_(expr.arg + 1) & "(" & native_expr(expr.surr, false) & ")",
       get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")";
 
@@ -324,14 +324,15 @@ implicit context : NativeContext {
       //                           else native_var_ref_name(expr.iter) & ".Get" & printed(expr.arg+1) & "()",
       // get_col_index()       = native_var_ref_name(expr.iter) & ".GetIdx()";
 
-    String native_get_unknown_arg_expr(TableItVar iter, <0..2> arg) =
-      if arity(iter) == 1
-        then native_var_ref_name(iter) & ".get()"
-        else native_var_ref_name(iter) & ".get" & printed(arg+1) & "()";
+    String native_get_unknown_arg_expr(TableItVar iter, <0..2> arg) {
+      method_name = it_var_method_prefix(iter) & "_get";
+      method_name = method_name & "_" & printed(arg + 1) if arity(iter) != 1;
+      return method_name & "(" & native_var_ref_name(iter) & ")";
+    }
 
     String native_get_unknown_arg_expr(<ColumnItVar, SlaveColumnItVar> iter, <0..2> arg) {
       assert arg == 0;
-      return native_var_ref_name(iter) & ".getIdx()";
+      return it_var_method_prefix(iter) & "_get_idx(" & native_var_ref_name(iter) & ")";
     }
   }
 
