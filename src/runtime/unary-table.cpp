@@ -13,6 +13,10 @@ bool unary_table_contains(UNARY_TABLE *table, uint32 value) {
   return table->elements.count(value) > 0;
 }
 
+uint64 unary_table_size(UNARY_TABLE *table) {
+  return table->elements.size();
+}
+
 uint32 unary_table_insert(UNARY_TABLE *table, STATE_MEM_POOL *, uint32 value) {
   table->elements.insert(value);
 }
@@ -80,4 +84,8 @@ bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *iter) {
 
 uint32 unary_table_iter_get(UNARY_TABLE_ITER *iter) {
   return *iter->it;
+}
+
+void unary_table_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *table, OBJ_STORE *store) {
+
 }

@@ -437,56 +437,69 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       first = false;
     }
 
-    // tables_by_relvar = isort(group_by(keys(block.tables), logical_rel_var(original_rel_var($))));
-    // for rv, tvs @ i <- tables_by_relvar {
-    //   symb = symb_id_name(bare_id(rv));
-    //   ord_table_vars = isort(tvs);
-    //   tables = append((native_var_ref_name(tv) : tv <- ord_table_vars), ", ");
-    //   tables_type = only([native_table_base_type(block.tables(tv)) : tv <- tvs]);
-    //   indent_first_line = _print_(not first);
-    //   write_separator = _print_(i < |tables_by_relvar| - 1);
-    //   perm = rel_vars_perm_map(block.name)(rv);
-    //   symmetric = only([
-    //     match (block.tables(tv))
-    //       column()              |
-    //       slave_column()        = false,
-    //       table() t?            |
-    //       master_bin_table() t? |
-    //       slave_tern_table() t? = t.symmetric
-    //     : tv <- tvs
-    //   ]);
-    //   perm_args = if symmetric
-    //     then ""
-    //     else match (|perm|)
-    //       1   = "",
-    //       2   = if perm == [0 -> 1, 1 -> 0] then ", true" else ", false",
-    //       3   = append((", " & _print_(perm(j)) : j < 3));
+    tables_by_relvar = isort(group_by(keys(block.tables), logical_rel_var(original_rel_var($))));
+    for rv, tvs @ i <- tables_by_relvar {
+      symb = symb_id_name(bare_id(rv));
+      ord_table_vars = isort(tvs);
+      tables = append((native_var_ref_name(tv) : tv <- ord_table_vars), ", ");
+      tables_type = only([native_table_base_type(block.tables(tv)) : tv <- tvs]);
+      indent_first_line = _print_(not first);
+      write_separator = _print_(i < |tables_by_relvar| - 1);
+      perm = rel_vars_perm_map(block.name)(rv);
+      symmetric = only([
+        match (block.tables(tv))
+          column()              |
+          slave_column()        = false,
+          table() t?            |
+          master_bin_table() t? |
+          slave_tern_table() t? = t.symmetric
+        : tv <- tvs
+      ]);
 
-    //   are_slave_columns = only([
-    //     match (block.tables(tv))
-    //       slave_column()  = true,
-    //       _               = false
-    //     : tv <- tvs
-    //   ]);
+      perm_args = if symmetric
+        then ()
+        else match (|perm|)
+          1   = (),
+          2   = if perm == [0 -> 1, 1 -> 0] then ("true") else ("false"),
+          3   = (_print_(perm(j)) : j < 3);
 
-    //   if are_slave_columns {
-    //     masters = (
-    //       match (block.tables(v))
-    //         slave_column() c? = c.master,
-    //         _                 = undefined
-    //       : v <- ord_table_vars
-    //     );
-    //     masters_array = ", new MasterBinaryTable[] {" & append((native_var_ref_name(v) : v <- masters), ", ") & "}";
-    //   }
-    //   else
-    //     masters_array = "";
+      are_slave_columns = only([
+        match (block.tables(tv))
+          slave_column()  = true,
+          _               = false
+        : tv <- tvs
+      ]);
 
-    //   instr = "  TextWriter.write(writer, " & symb & ", new " & tables_type & "[] {" & tables &
-    //           "}" & masters_array & perm_args & ", 2, " & indent_first_line & ", " & write_separator & ");";
+      if are_slave_columns {
+        masters = (
+          match (block.tables(v))
+            slave_column() c? = c.master,
+            _                 = undefined
+          : v <- ord_table_vars
+        );
+        masters_array = ", new MasterBinaryTable[] {" & append((native_var_ref_name(v) : v <- masters), ", ") & "}";
+      }
+      else
+        masters_array = "";
 
-    //   code = (code | instr);
-    //   first = false;
-    // }
+
+      code = (code | "  " & write_str_proc_name & "(write_state, \"  \");") if not first;
+      code = (code |
+        "  " & write_symb_proc_name & "(write_state, " & symb & ");",
+        "  " & write_str_proc_name & "(write_state, \": [\\n\");"
+      );
+
+      for tv <- tvs {
+        method_name = native_table_method_prefix(block.tables(tv)) & "_write";
+        instr = "  " & native_call(method_name, ("write_state", tv) & value_stores(block.tables(tv)) & perm_args);
+        code = (code | instr);
+      }
+
+      maybe_comma = if i < |tables_by_relvar| - 1 then "," else "";
+      code = (code | "  " & write_str_proc_name & "(write_state, \"  ]" & maybe_comma & "\\n\");");
+
+      first = false;
+    }
 
     code = (code |
       "  " & write_str_proc_name & "(write_state, \")\\n\");",
@@ -495,6 +508,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
     return code;
+
+
+    ValueStoreId* value_stores(AnyTable table) =
+      table()             = if table.symmetric then drop(table.value_stores, 1) else table.value_stores,
+      master_bin_table()  |
+      slave_tern_table()  = {assert not table.symmetric; return table.value_stores},
+      column()            = (table.value_store),
+      slave_column()      = undefined;
   }
 
 
