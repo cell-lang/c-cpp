@@ -12,7 +12,7 @@ OBJ_STORE_AUX_INSERT_ENTRY *new_insert_entry_array(uint32 size) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void init_obj_store_aux(OBJ_STORE_AUX *store_aux) {
+void obj_store_init_aux(OBJ_STORE_AUX *store_aux) {
   store_aux->deferred_capacity = INLINE_AUX_SIZE;
   store_aux->deferred_count = 0;
   store_aux->deferred_release_surrs = store_aux->deferred_release_buffer;

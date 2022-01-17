@@ -176,7 +176,7 @@ void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void init_obj_store(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
+void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
   const uint32 INIT_SIZE = 256;
 
   store->values = alloc_state_mem_blanked_obj_array(mem_pool, INIT_SIZE);

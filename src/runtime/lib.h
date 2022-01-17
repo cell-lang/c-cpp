@@ -143,11 +143,14 @@ struct UNARY_TABLE {
 };
 
 struct UNARY_TABLE_ITER {
-
+  unordered_set<uint32>::iterator it;
+  unordered_set<uint32>::iterator end;
 };
 
 struct UNARY_TABLE_AUX {
-
+  unordered_set<uint32> deletions;
+  unordered_set<uint32> insertions;
+  bool clear;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -837,12 +840,13 @@ void switch_to_twin_stacks_allocator();
 /////////////////////////////// unary-table.cpp ////////////////////////////////
 
 void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
+void unary_table_init_aux(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 
 bool unary_table_contains(UNARY_TABLE *, uint32);
 
 uint32 unary_table_insert(UNARY_TABLE *, STATE_MEM_POOL *, uint32);
-void unary_table_delete(UNARY_TABLE *, uint32);
-void unary_table_clear(UNARY_TABLE *);
+// void unary_table_delete(UNARY_TABLE *, uint32);
+// void unary_table_clear(UNARY_TABLE *);
 
 uint32 unary_table_queue_insert(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
 void unary_table_queue_delete(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
@@ -861,7 +865,7 @@ uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
-void init_obj_store(OBJ_STORE *store, STATE_MEM_POOL *mem_pool);
+void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool);
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode);
 uint32 value_to_surr(OBJ_STORE *store, OBJ value);
@@ -883,7 +887,7 @@ void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
 
 ////////////////////////////// obj-store-aux.cpp ///////////////////////////////
 
-void init_obj_store_aux(OBJ_STORE_AUX *store_aux);
+void obj_store_init_aux(OBJ_STORE_AUX *store_aux);
 
 void mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
 void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);

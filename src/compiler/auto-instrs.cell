@@ -203,7 +203,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     (native_call(res_var, "insert_or_add_ref", (store, :mem_pool, value)));
 
 
-  String* native_immediate_insert_tuple(TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, Int32Var+ tuple) {
+  String* native_immediate_insert_tuple(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     method_name = native_table_method_prefix(table) & "_insert";
     return (native_call(method_name, (table_var, :mem_pool) & tuple));
   }

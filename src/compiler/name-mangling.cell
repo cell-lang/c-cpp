@@ -605,6 +605,12 @@ String native_name(ValueStoreType) =
 
 String native_updater_type(ValueStoreType vs) = native_name(vs) & "_AUX";
 
+
+String native_value_store_method_prefix(ValueStoreType) =
+  integer               |
+  mono_tagged_integer() = "int_store",
+  object                = "obj_store";
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
