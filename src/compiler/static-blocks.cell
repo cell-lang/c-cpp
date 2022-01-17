@@ -486,12 +486,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = (code | "  " & write_str_proc_name & "(write_state, \"  \");") if not first;
       code = (code |
         "  " & write_symb_proc_name & "(write_state, " & symb & ");",
-        "  " & write_str_proc_name & "(write_state, \": [\\n\");"
+        "  " & write_str_proc_name & "(write_state, \": [\");"
       );
 
-      for tv <- tvs {
-        method_name = native_table_method_prefix(block.tables(tv)) & "_write";
-        instr = "  " & native_call(method_name, ("write_state", tv) & value_stores(block.tables(tv)) & perm_args);
+      for tv @ j <- ord_table_vars {
+        table = block.tables(tv);
+        if j > 0 {
+          exprs = ({
+            ptv = ord_table_vars(k);
+            size_method_name = native_table_method_prefix(block.tables(ptv)) & "_size";
+            return native_call(size_method_name, (ptv)) & " > 0";
+          } : k < j);
+          sep = if arity(table) == 1 then "," else ";";
+          code = (code |
+            "  if (" & append(exprs, " && ") & ")",
+            "    write_str(write_state, \"" & sep & "\");"
+          );
+        }
+        method_name = native_table_method_prefix(table) & "_write";
+        value_store_args = join(((native_value_store_method_prefix(block.value_stores(v)) & "_surr_to_obj", v) : v <- value_stores(table)));
+        instr = "  " & native_call(method_name, ("write_state", tv) & value_store_args & perm_args);
         code = (code | instr);
       }
 
@@ -513,7 +527,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ValueStoreId* value_stores(AnyTable table) =
       table()             = if table.symmetric then drop(table.value_stores, 1) else table.value_stores,
       master_bin_table()  |
-      slave_tern_table()  = {assert not table.symmetric; return table.value_stores},
+      slave_tern_table()  = {assert not table.symmetric; return table.value_stores;},
       column()            = (table.value_store),
       slave_column()      = undefined;
   }

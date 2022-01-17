@@ -86,6 +86,18 @@ uint32 unary_table_iter_get(UNARY_TABLE_ITER *iter) {
   return *iter->it;
 }
 
-void unary_table_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *table, OBJ_STORE *store) {
-
+void unary_table_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *table, OBJ (*surr_to_obj)(void *, uint32), void *store) {
+  UNARY_TABLE_ITER iter;
+  unary_table_iter_init(table, &iter);
+  uint32 count = unary_table_size(table);
+  uint32 idx = 0;
+  while (!unary_table_iter_is_out_of_range(&iter)) {
+    uint32 surr = unary_table_iter_get(&iter);
+    OBJ obj = surr_to_obj(store, surr);
+    write_str(write_state, "\n    ");
+    write_obj(write_state, obj);
+    if (++idx != count)
+      write_str(write_state, ",");
+    unary_table_iter_move_forward(&iter);
+  }
 }

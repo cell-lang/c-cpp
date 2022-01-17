@@ -15,7 +15,7 @@ bool index_has_been_built(BIN_REL_OBJ *rel, uint32 size) {
 void build_map_right_to_left_sorted_idx_array(OBJ map) {
   assert(get_obj_type(map) == TYPE_NE_MAP);
 
-  uint32 size = read_size_field(map);
+  uint32 size = read_size_field_unchecked(map);
   if (size == 1)
     return;
 

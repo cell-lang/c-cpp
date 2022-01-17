@@ -605,7 +605,7 @@ static OBJ copy_boxed_obj_to(OBJ obj, void **dest_var) {
   uint32 mem_size = null_round_up(boxed_obj_mem_size());
   BOXED_OBJ *copy_ptr = (BOXED_OBJ *) grab_mem(dest_var, mem_size);
 
-  copy_ptr->obj = copy_obj_to(copy_ptr->obj, dest_var);
+  copy_ptr->obj = copy_obj_to(get_boxed_obj_ptr(obj)->obj, dest_var);
   return repoint_to_copy(obj, copy_ptr);
 }
 

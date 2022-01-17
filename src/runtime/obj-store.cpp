@@ -96,7 +96,7 @@ void release_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 
 ////////////////////////////////////////////////////////////////////////////////
 
 static void insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
-  uint32 hash_idx = hashcode % store->capacity;
+  uint32 hash_idx = hashcode % (store->capacity / 2);
   store->buckets[index] = store->hashtable[hash_idx];
   store->hashtable[hash_idx] = index;
 }
@@ -106,7 +106,7 @@ static void remove_from_hashtable(OBJ_STORE *store, uint32 index) {
   uint32 *buckets = store->buckets;
 
   uint32 hashcode = store->hashcode_or_next_free[index];
-  uint32 hash_idx = hashcode % store->capacity;
+  uint32 hash_idx = hashcode % (store->capacity / 2);
   uint32 idx = store->hashtable[hash_idx];
   assert(idx != 0xFFFFFFFF);
 
@@ -205,7 +205,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
-  uint32 hash_idx = hashcode % store->capacity;
+  uint32 hash_idx = hashcode % (store->capacity / 2);
   uint32 index = store->hashtable[hash_idx];
   //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT?
   // OBJ *values = store->values;
@@ -375,4 +375,8 @@ bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
 
 bool try_releasing(OBJ_STORE *store, uint32 index) {
   return try_releasing(store, index, 1);
+}
+
+OBJ obj_store_surr_to_obj(void *store, uint32 surr) {
+  return surr_to_value((OBJ_STORE *) store, surr);
 }

@@ -864,7 +864,7 @@ void unary_table_iter_move_forward(UNARY_TABLE_ITER *);
 bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
 uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
-void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ_STORE *);
+void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
@@ -887,6 +887,8 @@ uint32 insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value);
 void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index);
 
 void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
+
+OBJ obj_store_surr_to_obj(void *, uint32);
 
 ////////////////////////////// obj-store-aux.cpp ///////////////////////////////
 
