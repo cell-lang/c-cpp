@@ -510,7 +510,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       }
 
       maybe_comma = if i < |tables_by_relvar| - 1 then "," else "";
-      code = (code | "  " & write_str_proc_name & "(write_state, \"  ]" & maybe_comma & "\\n\");");
+      code = (code | "  " & write_str_proc_name & "(write_state, \"\\n  ]" & maybe_comma & "\\n\");");
 
       first = false;
     }
@@ -585,16 +585,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       indent_lines(native_load_state_case(v, e), 3) : v, e <- isort(memb_vars_check_exprs)
     );
 
-    rel_vars_cases = ();
-
-    // rel_vars_cases = ({
-    //   vars, guard_expr, instrs = rel_vars_load_code(rv);
-    //   case = match (vars)
-    //     (v?)            = native_load_state_case(rv, v, guard_expr, instrs),
-    //     (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs),
-    //     (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
-    //   return indent_lines(case, 3);
-    // } : rv <- isort(keys(rel_vars_load_code)));
+    rel_vars_cases = ({
+      vars, guard_expr, instrs = rel_vars_load_code(rv);
+      case = match (vars)
+        (v?)            = native_load_state_case(rv, v, guard_expr, instrs);
+        // (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs),
+        // (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
+      return indent_lines(case, 3);
+    } : rv <- isort(keys(rel_vars_load_code)));
 
     return header & join(intermix(memb_vars_cases & rel_vars_cases, (""))) & footer;
 
@@ -607,7 +605,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       return (
         "case " & symb_str & ":",
-        // "  bookmark(&parser);",
         "  if (!parse_obj(&parser, &v0)) {",
         "    return false;",
         "  }",
@@ -621,31 +618,36 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    // String* native_load_state_case(RelVar rel_var, LocVar var, BoolExpr guard_expr, Instr+ code) {
-    //   symb_str = symb_id_name(bare_id(rel_var));
-    //   var_str = native_var_ref_name(var);
-    //   guard_expr_str = native_expr(guard_expr);
+    String* native_load_state_case(RelVar rel_var, LocVar var, BoolExpr guard_expr, Instr+ code) {
+      symb_str = symb_id_name(bare_id(rel_var));
+      var_str = native_var_ref_name(var);
+      guard_expr_str = native_expr(guard_expr);
 
-    //   header = (
-    //     "case " & symb_str & ":",
-    //     "  parser.consumeOpenBracket();",
-    //     "  while (!parser.nextIsCloseBracket()) {",
-    //     "    parser.bookmark();",
-    //     "    " & var_str & " = parser.parseObj();",
-    //     "    if (!(" & guard_expr_str & "))",
-    //     "      parser.failAtBookmark();"
-    //   );
+      header = (
+        "case " & symb_str & ":",
+        "  if (!consume_non_ws_char(&parser, '['))",
+        "    return false;",
+        "  if (!consume_non_ws_char(&parser, ']')) {",
+        "    for ( ; ; ) {",
+        "      if (!parse_obj(&parser, &" & var_str & "))",
+        "        return false;",
+        "     if (!(" & guard_expr_str & "))",
+        "       return false;"
+      );
 
-    //   footer = (
-    //     "    if (!parser.tryConsumingComma())",
-    //     "      break;",
-    //     "  }",
-    //     "  parser.consumeCloseBracket();",
-    //     "  break;"
-    //   );
+      footer = (
+        "      if (!consume_non_ws_char(&parser, ',')) {",
+        "        if (!consume_non_ws_char(&parser, ']'))",
+        "          return false;",
+        "        break;",
+        "      }",
+        "    }",
+        "  }",
+        "  break;"
+      );
 
-    //   return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
-    // }
+      return header & indent_lines(native_code(code, nothing, break_target = nothing), 3) & footer;
+    }
 
 
     // String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, BoolExpr guard_expr, Instr+ code) {
