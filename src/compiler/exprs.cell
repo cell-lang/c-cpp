@@ -107,7 +107,7 @@ implicit context : NativeContext {
       has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_id_name(expr.field) & ")",
 
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
-      table_contains()      = native_table_contains(expr.table_var, expr.table_info, expr.tuple, expr.symmetric),
+      table_contains()      = native_table_contains(expr.table_var, expr.table, expr.tuple, expr.symmetric),
 
       is_member()           = native_fn_name(expr.pred) & "(" & native_expr(expr.obj) & ")",
       state_is_def()        = native_var_ref_name(expr.auto_var) & "." & state_is_def_proc_name(expr.type) & "()",
@@ -140,8 +140,8 @@ implicit context : NativeContext {
   }
 
 
-  String native_table_contains(AnyTableVar table_var, AnyTable table_info, Maybe[Int32Var]+ tuple, Bool symmetric) {
-    name = native_table_method_prefix(table_info) & "_contains";
+  String native_table_contains(AnyTableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple, Bool symmetric) {
+    name = native_table_method_prefix(table) & "_contains";
     if (a <- tuple : a == nothing) {
       if not symmetric {
         suffix = append((printed(i+1) : a @ i <- tuple, a != nothing));
@@ -266,7 +266,7 @@ implicit context : NativeContext {
     bitwise_xor(e1?, e2?) = native_nary_op(" ^ ", (e1, e2), parenthesized),
     float_bits(e?)        = "float_bits(" & native_expr(e) & ")",
     round(e?)             = "float_round(" & native_expr(e) & ")",
-    upcast_int32(e?)      = parenthesize("(long) " & native_expr(e, true), parenthesized),
+    upcast_int32(e?)      = parenthesize("(int64) " & native_expr(e, true), parenthesized),
     surr_to_int_value()   = undefined, // native_call_expr("SurrToValue", (expr.store, expr.surrogate)),
     rand_nat(e?)          = "rand_nat(" & native_expr(e) & ")",
     unique_nat            = "unique_nat()",
@@ -310,7 +310,7 @@ implicit context : NativeContext {
     return match (expr)
       bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
       get_size(e?)            = "get_size(" & native_expr(e) & ")",
-      get_count()             = native_get_count_expr(expr.table, expr.args, expr.symmetric),
+      get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, expr.symmetric),
       table_lookup()          = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
@@ -362,37 +362,37 @@ implicit context : NativeContext {
   }
 
 
-  String native_get_count_expr(AnyTableVar table, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_get_count_expr(AnyTableVar table_var, AnyTable table, Maybe[Int32Var]+ args, Bool symmetric) {
     fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = fn_names((a != nothing : a <- args));
-    args_list = append((native_var_ref_name(value(a)) : a <- args, a != nothing), ", ");
-    return native_var_ref_name(table) & "." & fn_name & "(" & args_list & ")";
+    fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
+    call_args = (table_var) & values(args);
+    return native_call_expr(fn_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [
-      (false)               -> "Size",
-      (false, false)        -> "Size",
-      (true,  false)        -> "Count1",
-      (false, true)         -> "Count2",
-      (false, false, false) -> "Size",
-      (true,  false, false) -> "Count1",
-      (false, true,  false) -> "Count2",
-      (false, false, true)  -> "Count3",
-      (true,  true,  false) -> "Count12",
-      (true,  false, true)  -> "Count13",
-      (false, true,  true)  -> "Count23"
+      (false)               -> "size",
+      (false, false)        -> "size",
+      (true,  false)        -> "count_1",
+      (false, true)         -> "count_2",
+      (false, false, false) -> "size",
+      (true,  false, false) -> "count_1",
+      (false, true,  false) -> "count_2",
+      (false, false, true)  -> "count_3",
+      (true,  true,  false) -> "count_12",
+      (true,  false, true)  -> "count_13",
+      (false, true,  true)  -> "count_23"
     ];
 
     [Bool+ -> String] sym_fn_names_by_args = [
-      (false, false)        -> "Size",
-      (true,  false)        -> "Count",
-      (false, true)         -> "Count",
-      (false, false, false) -> "Size",
-      (true,  false, false) -> "Count_1_2",
-      (false, true,  false) -> "Count_1_2",
-      (false, false, true)  -> "Count3",
-      (true,  true,  false) -> "Count12",
-      (true,  false, true)  -> "Count_13_23",
-      (false, true,  true)  -> "Count_13_23"
+      (false, false)        -> "size",
+      (true,  false)        -> "count",
+      (false, true)         -> "count",
+      (false, false, false) -> "size",
+      (true,  false, false) -> "count_1_2",
+      (false, true,  false) -> "count_1_2",
+      (false, false, true)  -> "count_3",
+      (true,  true,  false) -> "count_12",
+      (true,  false, true)  -> "count_13_23",
+      (false, true,  true)  -> "count_13_23"
     ];
   }
 
