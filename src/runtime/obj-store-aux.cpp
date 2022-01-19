@@ -69,7 +69,7 @@ static void resize(OBJ_STORE_AUX *store_aux) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr) {
-  if (!try_releasing(store, surr)) { //## THIS DOESN'T ACTUALLY RELEASE THE MEMORY IF THE REFERENCE COUNT DROPS TO ZERO
+  if (!try_releasing(store, surr)) {
     uint32 capacity = store_aux->deferred_capacity;
     uint32 count = store_aux->deferred_count;
     uint32 *surrs = store_aux->deferred_release_surrs;
@@ -86,7 +86,7 @@ void mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint3
 }
 
 void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count) {
-  if (!try_releasing(store, surr, count)) { //## THIS DOESN'T ACTUALLY RELEASE THE MEMORY IF THE REFERENCE COUNT DROPS TO ZERO
+  if (!try_releasing(store, surr, count)) {
     uint32 capacity = store_aux->batch_deferred_capacity;
     uint32 count = store_aux->batch_deferred_count;
     OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *entries = store_aux->batch_deferred_release_entries;
@@ -153,7 +153,7 @@ void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL 
   }
 }
 
-void obj_store_reset(OBJ_STORE_AUX *store_aux) {
+void obj_store_reset_aux(OBJ_STORE_AUX *store_aux) {
   uint32 count = store_aux->count;
   if (count > 0) {
     store_aux->count = 0;
@@ -296,4 +296,15 @@ uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_
     return surr;
   else
     return insert(store, store_aux, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void obj_store_incr_rc(void *store, uint32 surr) {
+  add_ref((OBJ_STORE *) store, surr);
+}
+
+void obj_store_decr_rc(void *store, void *store_aux, uint32 surr) {
+  mark_for_deferred_release((OBJ_STORE *) store, (OBJ_STORE_AUX *) store_aux, surr);
 }

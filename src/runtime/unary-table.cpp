@@ -41,20 +41,30 @@ void unary_table_queue_clear(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
   table_aux->clear = true;
 }
 
-void unary_table_apply(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
+void unary_table_apply(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *) {
   if (table_aux->clear) {
+    for (unordered_set<uint32>::iterator it = table->elements.begin() ; it != table->elements.end() ; it++)
+      decr_rc(store, store_aux, *it);
     table->elements.clear();
   }
   else {
-    for (unordered_set<uint32>::iterator it = table_aux->deletions.begin() ; it != table_aux->deletions.end() ; it++)
-      table->elements.erase(*it);
+    for (unordered_set<uint32>::iterator it = table_aux->deletions.begin() ; it != table_aux->deletions.end() ; it++) {
+      uint32 surr = *it;
+      table->elements.erase(surr);
+      decr_rc(store, store_aux, surr);
+    }
   }
 
-  for (unordered_set<uint32>::iterator it = table_aux->insertions.begin() ; it != table_aux->insertions.end() ; it++)
-    table->elements.insert(*it);
+  for (unordered_set<uint32>::iterator it = table_aux->insertions.begin() ; it != table_aux->insertions.end() ; it++) {
+    uint32 surr = *it;
+    if (table->elements.count(surr) > 0) {
+      table->elements.insert(surr);
+      incr_rc(store, surr);
+    }
+  }
 }
 
-void unary_table_reset(UNARY_TABLE_AUX *table_aux) {
+void unary_table_reset_aux(UNARY_TABLE_AUX *table_aux) {
   table_aux->insertions.clear();
   table_aux->deletions.clear();
   table_aux->clear = false;

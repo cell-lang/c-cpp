@@ -301,6 +301,7 @@ void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashco
   store->count++;
   store->first_free = store->hashcode_or_next_free[index];
   store->values[index] = copy_to_pool(mem_pool, value);
+  store->hashcode_or_next_free[index] = hashcode;
 
   insert_into_hashtable(store, index, hashcode);
 }
@@ -339,23 +340,22 @@ uint32 next_free_idx(OBJ_STORE *store, uint32 index) {
 bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
   uint8 *refs_counters = store->refs_counters;
   uint32 count = refs_counters[index];
-  assert(count > 0); //## NOT SURE
+  assert(count > 0);
 
   if (count < 128) {
-    if (count < amount)
+    if (count <= amount)
       return false;
     count -= amount;
+    assert(count > 0);
     refs_counters[index] = count;
-    //## WHY ISN'T THE OBJECT RELEASED IF THE REFERENCE COUNT DROPS TO 0?
-    // if (count == 0)
-    //   release_obj_at(store, index);
     return true;
   }
   else if (store->extra_refs.count(index) > 0) {
     count += 64 * store->extra_refs[index];
-    if (count < amount)
+    if (count <= amount)
       return false;
     count -= amount;
+    assert(count > 0);
     if (count >= 256) {
       uint32 new_extra_count = (count / 64) - 2;
       count -= 64 * new_extra_count;
@@ -364,9 +364,6 @@ bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
     else
       store->extra_refs.erase(index);
     refs_counters[index] = count;
-    //## WHY ISN'T THE OBJECT RELEASED IF THE REFERENCE COUNT DROPS TO 0?
-    // if (count == 0)
-    //   release_obj_at(store, index);
     return true;
   }
   else
@@ -376,6 +373,8 @@ bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
 bool try_releasing(OBJ_STORE *store, uint32 index) {
   return try_releasing(store, index, 1);
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 OBJ obj_store_surr_to_obj(void *store, uint32 surr) {
   return surr_to_value((OBJ_STORE *) store, surr);

@@ -853,8 +853,8 @@ uint32 unary_table_queue_insert(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
 void unary_table_queue_delete(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
 void unary_table_queue_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
 
-void unary_table_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, STATE_MEM_POOL *);
-void unary_table_reset(UNARY_TABLE_AUX *);
+void unary_table_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
+void unary_table_reset_aux(UNARY_TABLE_AUX *);
 
 OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ_STORE *store, STREAM *stream);
 
@@ -900,10 +900,13 @@ void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux,
 void apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
 
 void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
-void obj_store_reset(OBJ_STORE_AUX *store_aux);
+void obj_store_reset_aux(OBJ_STORE_AUX *store_aux);
 
 uint32 value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
 uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+
+void obj_store_incr_rc(void *store, uint32 surr);
+void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
