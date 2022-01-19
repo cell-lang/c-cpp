@@ -491,22 +491,27 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       for tv @ j <- ord_table_vars {
         table = block.tables(tv);
+        method_name = native_table_method_prefix(table) & "_write";
+        value_store_args = join(((native_value_store_method_prefix(block.value_stores(v)) & "_surr_to_obj", v) : v <- table_value_stores(table)));
+        instr = native_call(method_name, ("write_state", tv) & value_store_args & perm_args);
+
         if j > 0 {
           exprs = ({
             ptv = ord_table_vars(k);
             size_method_name = native_table_method_prefix(block.tables(ptv)) & "_size";
-            return native_call(size_method_name, (ptv)) & " > 0";
+            return native_call_expr(size_method_name, (ptv)) & " > 0";
           } : k < j);
           sep = if arity(table) == 1 then "," else ";";
           code = (code |
-            "  if (" & append(exprs, " && ") & ")",
-            "    write_str(write_state, \"" & sep & "\");"
+            "  if (" & native_call_expr(native_table_method_prefix(table) & "_size", (tv)) & " > 0) {",
+            "    if (" & append(exprs, " || ") & ")",
+            "      write_str(write_state, \"" & sep & "\");",
+            "    " & instr,
+            "  }"
           );
         }
-        method_name = native_table_method_prefix(table) & "_write";
-        value_store_args = join(((native_value_store_method_prefix(block.value_stores(v)) & "_surr_to_obj", v) : v <- table_value_stores(table)));
-        instr = "  " & native_call(method_name, ("write_state", tv) & value_store_args & perm_args);
-        code = (code | instr);
+        else
+          code = (code | "  " & instr);
       }
 
       maybe_comma = if i < |tables_by_relvar| - 1 then "," else "";
