@@ -1169,7 +1169,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* updates_finish_code([TableVar] deletion_tables, StaticBlock block) {
     value_stores_with_deletions = [s : v <- deletion_tables, s <- table_value_stores(block.tables(v))];
     code = (
-      native_call("apply_deferred_releases", (v, updater_var_ref_name(v)))
+      native_call(native_value_store_method_prefix(block.value_stores(v)) & "_apply_deferred_releases", (v, updater_var_ref_name(v)))
       : v <- isort(value_stores_with_deletions)
     );
     return code;

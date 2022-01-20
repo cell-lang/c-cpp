@@ -160,13 +160,13 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     get_column_iter()     = (native_method_call(instr.it_var, instr.column, "getIter", ())),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
-    lookup_or_queue_insert_value() = (native_call(instr.res_var, "lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
+    lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.key_surr, instr.value, instr.forced),
     ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
 
-    immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.value),
+    immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.key_surr, instr.value);
 
@@ -199,8 +199,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, <AtomicExpr, IntExpr> value) =
-    (native_call(res_var, "insert_or_add_ref", (store, :mem_pool, value)));
+  String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, ValueStoreType store_type, <AtomicExpr, IntExpr> value) =
+    (native_call(res_var, native_value_store_method_prefix(store_type) & "_insert_or_add_ref", (store, :mem_pool, value)));
 
 
   String* native_immediate_insert_tuple(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {

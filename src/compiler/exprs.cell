@@ -25,7 +25,7 @@ implicit context : NativeContext {
     int_obj(e?)         = "make_int(" & native_expr(e) & ")",
     float_obj(e?)       = "make_float(" & native_expr(e) & ")",
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
-    surr_to_value()     = "surr_to_value(" & native_var_ref_name(expr.store) & ", " & native_expr(expr.surrogate) & ")",
+    surr_to_value()     = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_surr_to_value", (expr.store, expr.surrogate)),
     column_lookup()     = native_column_lookup_expr(expr.var, expr.key, expr.repr),
     get_value()         = undefined, //native_var_ref_name(expr.var) & ".GetValue()",
     rand_elem(e?)       = "rand_set_elem(" & native_expr(e) & ")";
@@ -314,7 +314,7 @@ implicit context : NativeContext {
       table_lookup()          = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
-      value_to_surr()         = native_call_expr("value_to_surr", (expr.store, expr.value)),
+      value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_unknown_arg()       = native_get_unknown_arg_expr(expr.iter, expr.arg),
       get_arg_by_assoc_surr() = native_var_ref_name(expr.table) & ".arg" & _print_(expr.arg + 1) & "(" & native_expr(expr.surr, false) & ")",
       get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")";

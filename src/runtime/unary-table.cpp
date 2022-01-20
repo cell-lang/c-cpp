@@ -73,7 +73,7 @@ void unary_table_reset_aux(UNARY_TABLE_AUX *table_aux) {
 OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ_STORE *store, STREAM *stream) {
   for (unordered_set<uint32>::iterator it = table->elements.begin() ; it != table->elements.end() ; it++) {
     uint32 surr = *it;
-    OBJ value = surr_to_value(store, surr);
+    OBJ value = obj_store_surr_to_value(store, surr);
     append(*stream, value);
   }
 }

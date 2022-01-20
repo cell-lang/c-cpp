@@ -95,13 +95,13 @@ void release_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-static void insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
+static void obj_store_insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
   store->buckets[index] = store->hashtable[hash_idx];
   store->hashtable[hash_idx] = index;
 }
 
-static void remove_from_hashtable(OBJ_STORE *store, uint32 index) {
+static void obj_store_remove_from_hashtable(OBJ_STORE *store, uint32 index) {
   uint32 *hashtable = store->hashtable;
   uint32 *buckets = store->buckets;
 
@@ -127,10 +127,10 @@ static void remove_from_hashtable(OBJ_STORE *store, uint32 index) {
   buckets[index] = 0xFFFFFFFF; //## NOT STRICTLY NECESSARY, COMMENT OUT ONCE TESTED
 }
 
-static void release_obj_at(OBJ_STORE *store, uint32 index) {
+static void obj_store_release_obj_at(OBJ_STORE *store, uint32 index) {
   assert(!is_blank(store->values[index]));
 
-  remove_from_hashtable(store, index);
+  obj_store_remove_from_hashtable(store, index);
   store->values[index] = make_blank_obj();
   store->hashcode_or_next_free[index] = store->first_free;
   store->first_free = index;
@@ -140,7 +140,7 @@ static void release_obj_at(OBJ_STORE *store, uint32 index) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity) {
+void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity) {
   assert(min_capacity > store->capacity);
 
   uint32 capacity = store->capacity;
@@ -169,7 +169,7 @@ void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity) {
   for (uint32 i=0 ; i < capacity ; i++) {
     OBJ value = values[i];
     if (!is_blank(value))
-      insert_into_hashtable(store, i, hashcode_or_next_free[i]);
+      obj_store_insert_into_hashtable(store, i, hashcode_or_next_free[i]);
   }
 }
 
@@ -204,7 +204,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
+uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
   uint32 index = store->hashtable[hash_idx];
   //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT?
@@ -220,19 +220,19 @@ uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
   }
 }
 
-uint32 value_to_surr(OBJ_STORE *store, OBJ value) {
+uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value) {
   uint32 hashcode = compute_hashcode(value);
-  return value_to_surr(store, value, hashcode);
+  return obj_store_value_to_surr(store, value, hashcode);
 }
 
-OBJ surr_to_value(OBJ_STORE *store, uint32 surr) {
+OBJ obj_store_surr_to_value(OBJ_STORE *store, uint32 surr) {
   return store->values[surr];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void add_ref(OBJ_STORE *store, uint32 index) {
+void obj_store_add_ref(OBJ_STORE *store, uint32 index) {
   uint8 *refs_counters = store->refs_counters;
   uint32 count = refs_counters[index] + 1;
   if (count == 256) {
@@ -242,7 +242,7 @@ void add_ref(OBJ_STORE *store, uint32 index) {
   refs_counters[index] = count;
 }
 
-void release(OBJ_STORE *store, uint32 index) {
+void obj_store_release(OBJ_STORE *store, uint32 index) {
   uint8 *refs_counters = store->refs_counters;
   assert(refs_counters[index] > 0);
   uint32 count = refs_counters[index] - 1;
@@ -257,12 +257,12 @@ void release(OBJ_STORE *store, uint32 index) {
     }
   }
   else if (count == 0) {
-    release_obj_at(store, index);
+    obj_store_release_obj_at(store, index);
   }
   refs_counters[index] = count;
 }
 
-void release(OBJ_STORE *store, uint32 index, uint32 amount) {
+void obj_store_release(OBJ_STORE *store, uint32 index, uint32 amount) {
   uint8 *refs_counters = store->refs_counters;
   uint32 count = refs_counters[index];
   assert(count > 0);
@@ -286,13 +286,13 @@ void release(OBJ_STORE *store, uint32 index, uint32 amount) {
 
   refs_counters[index] = count;
   if (count == 0)
-    release_obj_at(store, index);
+    obj_store_release_obj_at(store, index);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index) {
+void obj_store_insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index) {
   assert(store->first_free == index);
   assert(index < store->capacity);
   assert(is_blank(store->values[index]));
@@ -303,27 +303,27 @@ void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashco
   store->values[index] = copy_to_pool(mem_pool, value);
   store->hashcode_or_next_free[index] = hashcode;
 
-  insert_into_hashtable(store, index, hashcode);
+  obj_store_insert_into_hashtable(store, index, hashcode);
 }
 
-uint32 insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value) {
-  uint32 surr = value_to_surr(store, value);
+uint32 obj_store_insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value) {
+  uint32 surr = obj_store_value_to_surr(store, value);
   if (surr == 0xFFFFFFFF) {
     uint32 capacity = store->capacity;
     uint32 count = store->count;
     assert(count <= capacity);
     if (count == capacity)
-      resize(store, mem_pool, count + 1);
+      obj_store_resize(store, mem_pool, count + 1);
     surr = store->first_free;
-    insert(store, mem_pool, value, compute_hashcode(value), surr);
+    obj_store_insert(store, mem_pool, value, compute_hashcode(value), surr);
   }
-  add_ref(store, surr);
+  obj_store_add_ref(store, surr);
   return surr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 next_free_idx(OBJ_STORE *store, uint32 index) {
+uint32 obj_store_next_free_idx(OBJ_STORE *store, uint32 index) {
   assert(index == 0xFFFFFFFF || index >= store->capacity || is_blank(store->values[index]));
 
   if (index == 0xFFFFFFFF)
@@ -337,7 +337,7 @@ uint32 next_free_idx(OBJ_STORE *store, uint32 index) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
+bool obj_store_try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
   uint8 *refs_counters = store->refs_counters;
   uint32 count = refs_counters[index];
   assert(count > 0);
@@ -370,12 +370,12 @@ bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount) {
     return false;
 }
 
-bool try_releasing(OBJ_STORE *store, uint32 index) {
-  return try_releasing(store, index, 1);
+bool obj_store_try_releasing(OBJ_STORE *store, uint32 index) {
+  return obj_store_try_releasing(store, index, 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ obj_store_surr_to_obj(void *store, uint32 surr) {
-  return surr_to_value((OBJ_STORE *) store, surr);
+  return obj_store_surr_to_value((OBJ_STORE *) store, surr);
 }

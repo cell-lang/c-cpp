@@ -870,23 +870,10 @@ void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32
 
 void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool);
 
-uint32 value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode);
-uint32 value_to_surr(OBJ_STORE *store, OBJ value);
-OBJ surr_to_value(OBJ_STORE *store, uint32 surr);
+uint32 obj_store_insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value);
 
-uint32 next_free_idx(OBJ_STORE *store, uint32 index);
-
-void add_ref(OBJ_STORE *store, uint32 index);
-void release(OBJ_STORE *store, uint32 index);
-void release(OBJ_STORE *store, uint32 index, uint32 amount);
-
-bool try_releasing(OBJ_STORE *store, uint32 index, uint32 amount);
-bool try_releasing(OBJ_STORE *store, uint32 index);
-
-uint32 insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value);
-void insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index);
-
-void resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
+uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value);
+OBJ obj_store_surr_to_value(OBJ_STORE *store, uint32 surr);
 
 OBJ obj_store_surr_to_obj(void *, uint32);
 
@@ -894,16 +881,16 @@ OBJ obj_store_surr_to_obj(void *, uint32);
 
 void obj_store_init_aux(OBJ_STORE_AUX *store_aux);
 
-void mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
-void mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);
+void obj_store_mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
+void obj_store_mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);
 
-void apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
+void obj_store_apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
 
 void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
 void obj_store_reset_aux(OBJ_STORE_AUX *store_aux);
 
-uint32 value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
-uint32 lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
+uint32 obj_store_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
 
 void obj_store_incr_rc(void *store, uint32 surr);
 void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
