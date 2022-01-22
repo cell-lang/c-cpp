@@ -1,7 +1,9 @@
 #include "lib.h"
 
+
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode);
 uint32 obj_store_next_free_idx(OBJ_STORE *store, uint32 index);
+
 void obj_store_add_ref(OBJ_STORE *store, uint32 index);
 void obj_store_release(OBJ_STORE *store, uint32 index);
 void obj_store_release(OBJ_STORE *store, uint32 index, uint32 amount);
@@ -12,14 +14,13 @@ bool obj_store_try_releasing(OBJ_STORE *store, uint32 index);
 void obj_store_insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index);
 void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
 
+////////////////////////////////////////////////////////////////////////////////
 
-
-
-OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *new_batch_release_entry_array(uint32 size) {
+static OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *new_batch_release_entry_array(uint32 size) {
   return (OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *) new_obj(null_round_up_8(size * sizeof(OBJ_STORE_AUX_BATCH_RELEASE_ENTRY)));
 }
 
-OBJ_STORE_AUX_INSERT_ENTRY *new_insert_entry_array(uint32 size) {
+static OBJ_STORE_AUX_INSERT_ENTRY *new_insert_entry_array(uint32 size) {
   return (OBJ_STORE_AUX_INSERT_ENTRY *) new_obj(null_round_up_8(size * sizeof(OBJ_STORE_AUX_INSERT_ENTRY)));
 }
 

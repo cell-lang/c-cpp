@@ -131,6 +131,7 @@ static void obj_store_release_obj_at(OBJ_STORE *store, uint32 index) {
   assert(!is_blank(store->values[index]));
 
   obj_store_remove_from_hashtable(store, index);
+  //## BUG BUG BUG: AND WHEN IS THE MEMORY FREED?
   store->values[index] = make_blank_obj();
   store->hashcode_or_next_free[index] = store->first_free;
   store->first_free = index;
@@ -149,13 +150,16 @@ void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
     new_capacity *= 2;
 
   OBJ *values = extend_state_mem_blanked_obj_array(mem_pool, store->values, capacity, new_capacity);
+  //## store->values IS NEVER RELEASED
   store->values = values;
 
   uint32 *hashcode_or_next_free = extend_state_mem_uint32_array(mem_pool, store->hashcode_or_next_free, capacity, new_capacity);
   for (uint32 i=capacity ; i < new_capacity ; i++)
     hashcode_or_next_free[i] = i + 1;
+  //## store->hashcode_or_next_free IS NEVER RELEASED
   store->hashcode_or_next_free = hashcode_or_next_free;
 
+  //## BUG BUG BUG: store->ref_counters IS NEVER SET!!! (AND ALSO NEVER RELEASED)
   uint8 *refs_counters = extend_state_mem_zeroed_uint8_array(mem_pool, store->refs_counters, capacity, new_capacity);
 
   release_state_mem_uint32_array(mem_pool, store->hashtable, capacity / 2);
