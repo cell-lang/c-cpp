@@ -6,7 +6,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
 
 
-  String* native_copy_rel_code(WriteObjVar res_var, [+TableVar -> AnyTable] tables, [+Nat -> Nat] applied_perm) {
+  String* native_copy_rel_code(WriteObjVar res_var, DBSymbol rel_auto_id, [+TableVar -> AnyTable] tables, [+Nat -> Nat] applied_perm) {
     is_column = only([
       match (t)
         column()  = true,
@@ -90,7 +90,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         value_store = match (tables(v))
           table() t?  = only_unsafe(t.value_stores),
           _           = undefined;
-        code = (code | "  " & native_call(copy_method_name, (v, value_store, "&stream")));
+        store_type = prg_data.value_stores(rel_auto_id)(value_store);
+        args = (v, native_value_store_method_prefix(store_type) & "_surr_to_obj", value_store, "&stream");
+        code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_set", ("stream")), "}");
       return code;

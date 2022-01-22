@@ -70,10 +70,10 @@ void unary_table_reset_aux(UNARY_TABLE_AUX *table_aux) {
   table_aux->clear = false;
 }
 
-OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ_STORE *store, STREAM *stream) {
+OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *stream) {
   for (unordered_set<uint32>::iterator it = table->elements.begin() ; it != table->elements.end() ; it++) {
     uint32 surr = *it;
-    OBJ value = obj_store_surr_to_value(store, surr);
+    OBJ value = surr_to_obj(store, surr);
     append(*stream, value);
   }
 }

@@ -915,7 +915,7 @@ void unary_table_queue_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
 void unary_table_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void unary_table_reset_aux(UNARY_TABLE_AUX *);
 
-OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ_STORE *store, STREAM *stream);
+OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *store, STREAM *stream);
 
 void unary_table_iter_init(UNARY_TABLE *, UNARY_TABLE_ITER *);
 void unary_table_iter_move_forward(UNARY_TABLE_ITER *);
