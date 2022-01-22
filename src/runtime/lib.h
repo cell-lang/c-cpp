@@ -949,7 +949,7 @@ void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL 
 void int_store_reset_aux(INT_STORE_AUX *store_aux);
 
 uint32 int_store_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, OBJ value);
-uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, int64 value);
 
 void int_store_incr_rc(void *store, uint32 surr);
 void int_store_decr_rc(void *store, void *store_aux, uint32 surr);

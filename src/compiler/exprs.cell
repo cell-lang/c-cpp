@@ -267,7 +267,7 @@ implicit context : NativeContext {
     float_bits(e?)        = "float_bits(" & native_expr(e) & ")",
     round(e?)             = "float_round(" & native_expr(e) & ")",
     upcast_int32(e?)      = parenthesize("(int64) " & native_expr(e, true), parenthesized),
-    surr_to_int_value()   = undefined, // native_call_expr("SurrToValue", (expr.store, expr.surrogate)),
+    surr_to_int_value()   = native_call_expr("int_store_surr_to_value", (expr.store, expr.surrogate)),
     rand_nat(e?)          = "rand_nat(" & native_expr(e) & ")",
     unique_nat            = "unique_nat()",
     ticks                 = "get_tick_count()";
