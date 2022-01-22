@@ -179,7 +179,7 @@ struct OBJ_STORE_AUX_BATCH_RELEASE_ENTRY {
 };
 
 struct OBJ_STORE_AUX_INSERT_ENTRY {
-  OBJ obj;
+  OBJ    obj;
   uint32 hashcode;
   uint32 surr;
 };
@@ -200,6 +200,65 @@ struct OBJ_STORE_AUX {
 
   OBJ_STORE_AUX_INSERT_ENTRY *entries;
   OBJ_STORE_AUX_INSERT_ENTRY entries_buffer[INLINE_AUX_SIZE];
+
+  uint32 *hashtable;
+  uint32 *buckets;
+
+  uint32 hash_range;
+  uint32 last_surr;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct INT_STORE {
+  // Bits  0 - 31: 32-bit value, or index of 64-bit value
+  // Bits 32 - 61: index of next value in the bucket if used or next free index otherwise
+  // Bits 62 - 63: tag: 00 used (32 bit), 01 used (64 bit), 10 free
+  uint64 *slots;
+
+  unordered_map<uint32, int64> large_ints;
+
+  // INV_IDX when there's no value in that bucket
+  uint32 *hashtable;
+
+  uint8  *refs_counters;
+  unordered_map<uint32, uint32> extra_refs;
+
+  uint32 capacity;
+  uint32 count;
+  uint32 first_free;
+};
+
+
+// const uint32 INLINE_AUX_SIZE = 16;
+
+struct INT_STORE_AUX_BATCH_RELEASE_ENTRY {
+  uint32 surr;
+  uint32 count;
+};
+
+struct INT_STORE_AUX_INSERT_ENTRY {
+  int64  value;
+  uint32 hashcode;
+  uint32 surr;
+};
+
+struct INT_STORE_AUX {
+  uint32 deferred_capacity;
+  uint32 deferred_count;
+  uint32 *deferred_release_surrs;
+  uint32 deferred_release_buffer[INLINE_AUX_SIZE];
+
+  uint32 batch_deferred_capacity;
+  uint32 batch_deferred_count;
+  INT_STORE_AUX_BATCH_RELEASE_ENTRY *batch_deferred_release_entries;
+  INT_STORE_AUX_BATCH_RELEASE_ENTRY batch_deferred_release_buffer[INLINE_AUX_SIZE];
+
+  uint32 capacity;
+  uint32 count;
+
+  INT_STORE_AUX_INSERT_ENTRY *entries;
+  INT_STORE_AUX_INSERT_ENTRY entries_buffer[INLINE_AUX_SIZE];
 
   uint32 *hashtable;
   uint32 *buckets;
@@ -865,6 +924,35 @@ bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
 uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
+
+//////////////////////////////// int-store.cpp /////////////////////////////////
+
+void int_store_init(INT_STORE *store, STATE_MEM_POOL *mem_pool);
+
+uint32 int_store_insert_or_add_ref(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value);
+
+uint32 int_store_value_to_surr(INT_STORE *store, int64 value);
+int64 int_store_surr_to_value(INT_STORE *store, uint32 surr);
+
+OBJ int_store_surr_to_obj(void *, uint32);
+
+////////////////////////////// int-store-aux.cpp ///////////////////////////////
+
+void int_store_init_aux(INT_STORE_AUX *store_aux);
+
+void int_store_mark_for_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr);
+void int_store_mark_for_batch_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr, uint32 count);
+
+void int_store_apply_deferred_releases(INT_STORE *store, INT_STORE_AUX *store_aux);
+
+void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
+void int_store_reset_aux(INT_STORE_AUX *store_aux);
+
+uint32 int_store_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, OBJ value);
+uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+
+void int_store_incr_rc(void *store, uint32 surr);
+void int_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
