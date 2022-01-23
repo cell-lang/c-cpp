@@ -492,7 +492,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       for tv @ j <- ord_table_vars {
         table = block.tables(tv);
         method_name = native_table_method_prefix(table) & "_write";
-        value_store_args = join(((native_value_store_method_prefix(block.value_stores(v)) & "_surr_to_obj", v) : v <- table_value_stores(table)));
+        value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
         instr = native_call(method_name, ("write_state", tv) & value_store_args & perm_args);
 
         if j > 0 {

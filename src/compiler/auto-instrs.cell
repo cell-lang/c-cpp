@@ -91,7 +91,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
           table() t?  = only_unsafe(t.value_stores),
           _           = undefined;
         store_type = prg_data.value_stores(rel_auto_id)(value_store);
-        args = (v, native_value_store_method_prefix(store_type) & "_surr_to_obj", value_store, "&stream");
+        args = (v, native_surr_to_obj_method_name(store_type), value_store, "&stream");
         code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_set", ("stream")), "}");

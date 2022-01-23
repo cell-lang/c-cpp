@@ -53,7 +53,8 @@ type PrgData =  prg_data(
     symbols_arrays_decls(values(prg_data.symbols_sets_info)),
     env_decl(prg.procs),
     abstract_closure_class_decl(prg.procs),
-    native_opt_type_decls(prg.opt_reprs, prg_data = prg_data, context = :core)
+    native_opt_type_decls(prg.opt_reprs, prg_data = prg_data, context = :core),
+    tagged_int_stores_accessors(prg.static_blocks)
   );
 
   // Runtime typechecking functions' declarations
@@ -144,6 +145,26 @@ type PrgData =  prg_data(
   //   "automata.cpp"  -> flatten(wrappers_content) if not has_main,
   //   "automata.txt" -> flatten(automata_docs) if not has_main
   // ];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+String* tagged_int_stores_accessors([StaticBlock] static_blocks) {
+  value_store_int_tags = [
+    match (t)
+      mono_tagged_integer(s?) = s,
+      _ = undefined
+    : a <- static_blocks, _ t <- a.value_stores, t != :object and t != :integer
+  ];
+  code = ();
+  for t <- value_store_int_tags
+    code = (code |
+      "",
+      "OBJ " & native_tagged_int_store_surr_to_obj_method_name(t) & "(void *store, uint32 surr) {",
+      "  return make_tag_int(" & symb_id_name(t, context = :core) & ", int_store_surr_to_value((INT_STORE *) store, surr));",
+      "}"
+    );
+  return code;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

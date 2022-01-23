@@ -611,6 +611,14 @@ String native_value_store_method_prefix(ValueStoreType) =
   mono_tagged_integer() = "int_store",
   object                = "obj_store";
 
+
+String native_surr_to_obj_method_name(ValueStoreType) =
+  integer                 = "int_store_surr_to_obj",
+  mono_tagged_integer(s?) = native_tagged_int_store_surr_to_obj_method_name(s),
+  object                  = "obj_store_surr_to_obj";
+
+String native_tagged_int_store_surr_to_obj_method_name(Symbol tag) = "int_store_surr_to_obj_" & _print_(tag);
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
