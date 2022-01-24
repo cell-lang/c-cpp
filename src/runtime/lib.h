@@ -155,6 +155,50 @@ struct UNARY_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct OBJ_COL {
+  OBJ *array;
+  uint32 capacity;
+  uint32 count;
+};
+
+struct OBJ_COL_ITER {
+  OBJ *array;
+  uint32 left; // Includes current value
+  uint32 idx;
+};
+
+const uint32 OBJ_COL_AUX_INLINE_SIZE = 16;
+
+struct QUEUE_U32 {
+  uint32 capacity;
+  uint32 count;
+  uint32 *array;
+  uint32 inline_array[OBJ_COL_AUX_INLINE_SIZE];
+};
+
+struct QUEUE_U32_OBJ {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
+  OBJ *obj_array;
+  OBJ inline_obj_array[OBJ_COL_AUX_INLINE_SIZE];
+};
+
+struct OBJ_COL_AUX {
+  QUEUE_U32 deletions;
+  QUEUE_U32_OBJ insertions;
+  QUEUE_U32_OBJ updates;
+
+  uint32 bitmap_size;
+  uint64 *bitmap; // Stored in state memory
+
+  uint32 max_idx_plus_one;
+  bool dirty;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_STORE {                // VALUE     NO VALUE
   OBJ    *values;                 //           blank
   uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
@@ -924,6 +968,23 @@ bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
 uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
+
+//////////////////////////////////////// obj-col.cpp ////////////////////////////////////////
+
+void obj_col_init(OBJ_COL *column);
+
+bool obj_col_contains_1(OBJ_COL *column, uint32 idx);
+OBJ obj_col_lookup(OBJ_COL *column, uint32 idx);
+
+void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value);
+void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value);
+void obj_col_delete(OBJ_COL *column, uint32 idx);
+
+void obj_col_init_iter(OBJ_COL *column, OBJ_COL_ITER *iter);
+bool obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);
+uint32 obj_col_iter_get_idx(OBJ_COL_ITER *iter);
+OBJ obj_col_iter_get_value(OBJ_COL_ITER *iter);
+void obj_col_iter_move_forward(OBJ_COL_ITER *iter);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
 
