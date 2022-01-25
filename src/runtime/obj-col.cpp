@@ -2,10 +2,23 @@
 
 
 
-void obj_col_init(OBJ_COL *column) {
+void obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
   const uint32 INIT_SIZE = 256;
 
-  impl_fail(""); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  column->array = alloc_state_mem_blanked_obj_array(mem_pool, INIT_SIZE);
+  column->capacity = INIT_SIZE;
+  column->count = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static void obj_col_resize(OBJ_COL *column, uint32 min_capacity, STATE_MEM_POOL *mem_pool) {
+  uint32 capacity = column->capacity;
+  uint32 new_capacity = 2 * capacity;
+  while (new_capacity < min_capacity)
+    new_capacity *= 2;
+  column->capacity = new_capacity;
+  column->array = extend_state_mem_blanked_obj_array(mem_pool, column->array, capacity, new_capacity);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,46 +36,41 @@ OBJ obj_col_lookup(OBJ_COL *column, uint32 idx) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value) {
-  if (idx < column->capacity) {
-    // column = Array.extend(column, Array.capacity(column.length, idx+1));
-    impl_fail(""); //## IMPLEMENT IMPLEMENT IMPLEMENT
-  }
+void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
+  if (idx >= column->capacity)
+    obj_col_resize(column, idx + 1, mem_pool);
   OBJ *array = column->array;
   OBJ curr_value = array[idx];
   if (is_blank(curr_value)) {
     column->count++;
-    array[idx] = value; //## DOES THIS HAVE TO BE COPIED NOW INTO LONG-TERM MEMORY?
+    array[idx] = copy_to_pool(mem_pool, value);
   }
   else if (!are_eq(curr_value, value)) {
     soft_fail(NULL); //## ADD A MESSAGE?
   }
 }
 
-void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value) {
-  if (idx < column->capacity) {
-    // column = Array.extend(column, Array.capacity(column.length, idx+1));
-    impl_fail(""); //## IMPLEMENT IMPLEMENT IMPLEMENT
-  }
+void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
+  if (idx >= column->capacity)
+    obj_col_resize(column, idx + 1, mem_pool);
   OBJ *array = column->array;
   OBJ curr_value = array[idx];
-  if (is_blank(curr_value)) {
+  //## SHOULD WE BE CHECKING THAT curr_value AND value ARE NOT EQUAL BEFORE PROCEEDING?
+  array[idx] = copy_to_pool(mem_pool, value);
+  if (is_blank(curr_value))
     column->count++;
-  }
-  else {
-    //## BUG BUG BUG: RELEASE THE CURRENT VALUE
-  }
-  array[idx] = value; //## DOES THIS HAVE TO BE COPIED NOW INTO LONG-TERM MEMORY?
+  else
+    remove_from_pool(mem_pool, curr_value);
 }
 
-void obj_col_delete(OBJ_COL *column, uint32 idx) {
+void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
   if (idx < column->capacity) {
     OBJ *array = column->array;
     OBJ obj = array[idx];
     if (!is_blank(obj)) {
-      //## RELEASE THE OBJECT HERE
       array[idx] = make_blank_obj();
       column->count--;
+      remove_from_pool(mem_pool, obj);
     }
   }
 }

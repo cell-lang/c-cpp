@@ -191,7 +191,7 @@ struct OBJ_COL_AUX {
   QUEUE_U32_OBJ updates;
 
   uint32 bitmap_size;
-  uint64 *bitmap; // Stored in state memory
+  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
 
   uint32 max_idx_plus_one;
   bool dirty;
@@ -361,6 +361,26 @@ inline uint32 null_round_up_8(uint32 mem_size) {
   return mem_size;
 }
 
+
+//## THESE ARE ALL IN THE WRONG FILE
+
+OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
+OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
+void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size);
+
+uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
+uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
+void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
+
+uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
+uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
+uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size);
+
+uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint32 size);
+uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size);
+
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
 void *alloc_eternal_block(uint32 byte_size);
@@ -413,8 +433,7 @@ SEQ_OBJ *new_int32_seq(uint32 length, uint32 capacity);
 SEQ_OBJ *new_int64_seq(uint32 length);
 SEQ_OBJ *new_int64_seq(uint32 length, uint32 capacity);
 
-OBJ* new_obj_array(uint32 size);
-OBJ* resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
+OBJ *new_obj_array(uint32 size);
 
 bool *new_bool_array(uint32 size);
 double *new_float_array(uint32 size);
@@ -430,6 +449,9 @@ uint8  *new_uint8_array(uint32 size);
 
 char *new_byte_array(uint32 size);
 void *new_void_array(uint32 size);
+
+OBJ    *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
+uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size);
 
 //////////////////////////////// mem-utils.cpp /////////////////////////////////
 
@@ -976,9 +998,9 @@ void obj_col_init(OBJ_COL *column);
 bool obj_col_contains_1(OBJ_COL *column, uint32 idx);
 OBJ obj_col_lookup(OBJ_COL *column, uint32 idx);
 
-void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value);
-void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value);
-void obj_col_delete(OBJ_COL *column, uint32 idx);
+void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
+void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
+void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 
 void obj_col_init_iter(OBJ_COL *column, OBJ_COL_ITER *iter);
 bool obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);

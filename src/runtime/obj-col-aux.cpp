@@ -13,7 +13,9 @@ void queue_u32_insert(QUEUE_U32 *queue, uint32 value) {
   uint32 *array = queue->array;
   assert(count <= capacity);
   if (count == capacity) {
-    impl_fail(""); //## IMPLEMENT IMPLEMENT IMPLEMENT
+    array = resize_uint32_array(array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->array = array;
   }
   array[count] = value;
   queue->count = count + 1;
@@ -43,7 +45,11 @@ void queue_u32_obj_insert(QUEUE_U32_OBJ *queue, uint32 u32_value, OBJ obj_value)
   OBJ *obj_array = queue->obj_array;
   assert(count <= capacity);
   if (count == capacity) {
-    impl_fail(""); //## IMPLEMENT IMPLEMENT IMPLEMENT
+    u32_array = resize_uint32_array(u32_array, capacity, 2 * capacity);
+    obj_array = resize_obj_array(obj_array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->u32_array = u32_array;
+    queue->obj_array = obj_array;
   }
   u32_array[count] = u32_value;
   obj_array[count] = obj_value;
@@ -61,16 +67,13 @@ void queue_u32_obj_reset(QUEUE_U32_OBJ *queue) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_col_init(OBJ_COL_AUX *col_aux) {
+void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   queue_u32_init(&col_aux->deletions);
   queue_u32_obj_init(&col_aux->insertions);
   queue_u32_obj_init(&col_aux->updates);
 
-  // long[] bitmap = Array.emptyLongArray;
-
-  // uint32 bitmap_size;
-  // uint64 *bitmap;
-  // uint64 *bitmap_inline[OBJ_COL_AUX_INLINE_SIZE];
+  col_aux->bitmap_size = 8; // 256 entries, 2 bits each
+  col_aux->bitmap = alloc_state_mem_zeroed_uint64_array(mem_pool, 8);
 
   col_aux->max_idx_plus_one = 0;
   col_aux->dirty = false;
@@ -107,12 +110,12 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
+void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = col_aux->deletions.count;
   if (count > 0) {
     uint32 *idxs = col_aux->deletions.array;
     for (uint32 i=0 ; i < count ; i++)
-      obj_col_delete(col, idxs[i]);
+      obj_col_delete(col, idxs[i], mem_pool);
   }
 
   count = col_aux->updates.count;
@@ -120,7 +123,7 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
     uint32 *idxs = col_aux->updates.u32_array;
     OBJ *values = col_aux->updates.obj_array;
     for (uint32 i=0 ; i < count ; i++)
-      obj_col_update(col, idxs[i], values[i]);
+      obj_col_update(col, idxs[i], values[i], mem_pool);
   }
 
   count = col_aux->insertions.count;
@@ -128,7 +131,7 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
     uint32 *idxs = col_aux->insertions.u32_array;
     OBJ *values = col_aux->insertions.obj_array;
     for (uint32 i=0 ; i < count ; i++)
-      obj_col_insert(col, idxs[i], values[i]);
+      obj_col_insert(col, idxs[i], values[i], mem_pool);
   }
 }
 
@@ -214,16 +217,22 @@ void record_col_1_key_violation(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 idx, 
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool obj_col_aux_build_bitmap_and_check_key(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
+bool obj_col_aux_build_bitmap_and_check_key(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   assert(col_aux->insertions.count > 0 && col_aux->updates.count > 0);
   assert(col_aux->max_idx_plus_one > 0);
 
   uint32 max_idx = col_aux->max_idx_plus_one - 1;
+  uint32 bitmap_size = col_aux->bitmap_size;
   uint64 *bitmap = col_aux->bitmap;
 
-  if (max_idx / 32 >= col_aux->bitmap_size) {
-    //bitmap = Array.extend(bitmap, Array.capacity(bitmap.length, maxIdx / 32 + 1));
-    impl_fail("");
+  if (max_idx / 32 >= bitmap_size) {
+    release_state_mem_uint64_array(mem_pool, bitmap, bitmap_size);
+    do
+      bitmap_size *= 2;
+    while (max_idx / 32 >= bitmap_size);
+    bitmap = alloc_state_mem_zeroed_uint64_array(mem_pool, bitmap_size);
+    col_aux->bitmap_size = bitmap_size;
+    col_aux->bitmap = bitmap;
   }
 
   col_aux->dirty = true;
@@ -354,10 +363,10 @@ OBJ obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
+bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->insertions.count != 0 || col_aux->updates.count != 0) {
     assert(col_aux->max_idx_plus_one > 0 && !col_aux->dirty);
-    return obj_col_aux_build_bitmap_and_check_key(col, col_aux);
+    return obj_col_aux_build_bitmap_and_check_key(col, col_aux, mem_pool);
   }
   else
     return true;
