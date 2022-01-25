@@ -546,11 +546,12 @@ String native_table_method_prefix(Table table) =
 String native_table_method_prefix(MasterBinTable) = "master_bin_table";
 String native_table_method_prefix(SlaveTernTable) = "slave_tern_table";
 
-String native_table_method_prefix(<Column, SlaveColumn> column) =
-  match (column.repr)
-    object    = "obj_col",
-    int       = "int_col",
-    float     = "float_col";
+String native_table_method_prefix(<Column, SlaveColumn> column) = native_column_method_prefix(column.repr);
+
+String native_column_method_prefix(ColumnRepr) =
+  object    = "obj_col",
+  int       = "int_col",
+  float     = "float_col";
 
 
 String table_it_var_type(TableItVar var) =

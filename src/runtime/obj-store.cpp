@@ -34,13 +34,29 @@ void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
   assert(size > 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint64));
+  uint64 *ptr = (uint64 *) alloc_state_mem_block(mem_pool, byte_size);
+  memset(ptr, 0, byte_size);
+  for (int i=0 ; i < size ; i++)
+    assert(ptr[i] == 0);
+  return ptr;
+}
+
+void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, null_round_up_8(size * sizeof(uint64)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0 && size % 2 == 0);
   return (uint32 *) alloc_state_mem_block(mem_pool, null_round_up_8(size * sizeof(uint32)));
 }
 
 uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size) {
-  assert(size > 0);
+  assert(size > 0 && size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint32));
   uint32 *ptr = (uint32 *) alloc_state_mem_block(mem_pool, byte_size);
   memset(ptr, 0xFF, byte_size);

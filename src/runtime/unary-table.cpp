@@ -5,7 +5,7 @@ void unary_table_init(UNARY_TABLE *table, STATE_MEM_POOL *) {
 
 }
 
-void unary_table_init_aux(UNARY_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
+void unary_table_aux_init(UNARY_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   table_aux->clear = false;
 }
 

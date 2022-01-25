@@ -281,6 +281,27 @@ bool consume_non_ws_char(PARSER *parser, char ch) {
   return consume_char(parser, ch);
 }
 
+bool consume_non_ws_chars(PARSER *parser, char ch1, char ch2) {
+  consume_ws(parser);
+  int32 maybe_char;
+  if (peek_char(parser, &maybe_char) && maybe_char == ch1) {
+    uint8 byte;
+    if (peek_byte_after_next_char(parser, &byte) && byte == ch2) {
+      bool success = consume_char(parser, ch1);
+      assert(success);
+      success = consume_char(parser, ch2);
+      assert(success);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool next_non_ws_char_is(PARSER *parser, char ch) {
+  consume_ws(parser);
+  return next_char_is(parser, ch);
+}
+
 // Can be called only after read_char() or peek_char() return false
 bool eof(PARSER *parser) {
   assert(parser->next_char == -1);

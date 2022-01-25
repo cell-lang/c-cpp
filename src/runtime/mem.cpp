@@ -279,12 +279,6 @@ OBJ *new_obj_array(uint32 size) {
   return (OBJ *) new_obj(size * sizeof(OBJ));
 }
 
-OBJ *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size) {
-  OBJ *new_array = new_obj_array(new_size);
-  memcpy(new_array, buffer, size * sizeof(OBJ));
-  return new_array;
-}
-
 bool *new_bool_array(uint32 size) {
   total_count_new_bool_array += size * sizeof(bool);
   return (bool *) new_obj(size * sizeof(bool));
@@ -343,4 +337,18 @@ char *new_byte_array(uint32 size) {
 
 void *new_void_array(uint32 size) {
   return new_obj(size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+OBJ *resize_obj_array(OBJ* array, uint32 size, uint32 new_size) {
+  OBJ *new_array = new_obj_array(new_size);
+  memcpy(new_array, array, size * sizeof(OBJ));
+  return new_array;
+}
+
+uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size) {
+  uint32 *new_array = new_uint32_array(new_size);
+  memcpy(new_array, array, size * sizeof(uint32));
+  return new_array;
 }

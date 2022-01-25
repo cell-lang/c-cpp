@@ -65,9 +65,17 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     copy_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
 
     if is_column {
-      // type_name = "__COLUMN__";
-      // method_name = "__column_copy__";
-      fail;
+      code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
+      for v @ i <- ord_table_vars {
+        value_store = match (tables(v))
+          column() t? = t.value_store,
+          _           = undefined;
+        store_type = prg_data.value_stores(rel_auto_id)(value_store);
+        args = (v, native_surr_to_obj_method_name(store_type), value_store) & perm_args & ("&stream_1", "&stream_2");
+        code = (code | "  " & native_call(copy_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
+      return code;
     }
     else if is_slave_column {
       // type_name = "__COLUMN__";
@@ -159,18 +167,18 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
 
     get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table, instr.args)),
-    get_column_iter()     = (native_method_call(instr.it_var, instr.column, "getIter", ())),
+    get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.column)),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
-    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.key_surr, instr.value, instr.forced),
+    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.key_surr, instr.value, instr.forced),
     ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
-    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.key_surr, instr.value);
+    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.col_repr, instr.key_surr, instr.value);
 
 
   String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {
@@ -182,14 +190,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_column_insert_immediate_code(TableVar table_var, Int32Var key_surr, AnyTypeExpr value) {
-    return (native_call("insert", (table_var, key_surr, value)));
+  String* native_column_insert_immediate_code(TableVar table_var, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value) {
+    return (native_call(native_column_method_prefix(col_repr) & "_insert", (table_var, key_surr, value, :mem_pool)));
   }
 
 
-  String* native_column_insert_deferred_code(TableVar table_var, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
+  String* native_column_insert_deferred_code(TableVar table_var, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = if forced then "update" else "insert";
+    method_name = native_column_method_prefix(col_repr) & if forced then "_update" else "_insert";
     return (native_call(method_name, (updater, key_surr, value)));
   }
 
@@ -333,6 +341,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       (false, false, true)    -> "sym_12_tern_table_iter_init_3",
       (false, false, false)   -> "sym_12_tern_table_iter_init"
     ];
+  }
+
+
+  String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar column) {
+    method_name = native_column_method_prefix(it_var.repr) & "_iter_init";
+    return native_call(method_name, (column, it_var));
   }
 
 

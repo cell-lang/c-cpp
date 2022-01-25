@@ -450,6 +450,7 @@ uint8  *new_uint8_array(uint32 size);
 char *new_byte_array(uint32 size);
 void *new_void_array(uint32 size);
 
+// Extra memory is not initialized
 OBJ    *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
 uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size);
 
@@ -810,9 +811,12 @@ struct PARSER {
 
 void init_parser(PARSER *, uint32 (*)(void *, uint8 *, uint32), void *);
 bool consume_non_ws_char(PARSER *, char);
+bool consume_non_ws_chars(PARSER *, char, char);
 bool read_label(PARSER *parser, uint16 *value);
 bool parse_obj(PARSER *, OBJ *);
 bool skip_value(PARSER *);
+
+bool next_non_ws_char_is(PARSER *, char);
 
 bool parse(const char *text, uint32 size, OBJ *var, uint32 *error_offset);
 
@@ -965,7 +969,7 @@ void switch_to_twin_stacks_allocator();
 /////////////////////////////// unary-table.cpp ////////////////////////////////
 
 void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
-void unary_table_init_aux(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
+void unary_table_aux_init(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 
 bool unary_table_contains(UNARY_TABLE *, uint32);
 uint64 unary_table_size(UNARY_TABLE *);
@@ -991,9 +995,9 @@ uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
 
-//////////////////////////////////////// obj-col.cpp ////////////////////////////////////////
+////////////////////////////////// obj-col.cpp /////////////////////////////////
 
-void obj_col_init(OBJ_COL *column);
+void obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
 
 bool obj_col_contains_1(OBJ_COL *column, uint32 idx);
 OBJ obj_col_lookup(OBJ_COL *column, uint32 idx);
@@ -1002,11 +1006,32 @@ void obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_
 void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
 void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 
-void obj_col_init_iter(OBJ_COL *column, OBJ_COL_ITER *iter);
+OBJ obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, bool flip, STREAM *, STREAM *);
+
+void obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
+
+void obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter);
 bool obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);
 uint32 obj_col_iter_get_idx(OBJ_COL_ITER *iter);
 OBJ obj_col_iter_get_value(OBJ_COL_ITER *iter);
 void obj_col_iter_move_forward(OBJ_COL_ITER *iter);
+
+//////////////////////////////// obj-col-aux.cpp ///////////////////////////////
+
+void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+
+void obj_col_aux_clear(OBJ_COL_AUX *col_aux);
+void obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index);
+void obj_col_aux_insert(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
+void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
+
+bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
+
+void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
+
+bool obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
+OBJ obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
 
