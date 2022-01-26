@@ -197,7 +197,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_column_insert_deferred_code(TableVar table_var, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = native_column_method_prefix(col_repr) & if forced then "_update" else "_insert";
+    method_name = native_column_method_prefix(col_repr) & if forced then "_aux_update" else "_aux_insert";
     return (native_call(method_name, (updater, key_surr, value)));
   }
 
@@ -221,7 +221,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String native_queue_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
-    return native_call(native_table_method_prefix(table) & "_queue_insert", (table_var, updater) & (native_expr(v) : v <- tuple));
+    return native_call(native_table_method_prefix(table) & "_aux_insert", (table_var, updater) & (native_expr(v) : v <- tuple));
   }
 
 
@@ -265,12 +265,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   // }
 
 
-  String native_queue_deletes_code(TableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_queue_deletes_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ args, Bool symmetric) {
     set_args = (a != nothing : a <- args);
     fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = native_table_method_prefix(table) & "_queue_" & fn_names(set_args);
-    target = pending_updates_var_ref_name(table_var);
-    return native_call(fn_name, (table_var, target) & (native_expr(value(a)) : a <- args, a != nothing));
+    fn_name = native_table_method_prefix(table) & "_aux_" & fn_names(set_args);
+    auxiliary = pending_updates_var_ref_name(table_var);
+    return native_call(fn_name, (auxiliary) & (native_expr(value(a)) : a <- args, a != nothing));
 
     [Bool+ -> String] fn_names_by_args = [
       (true)                  -> "delete",

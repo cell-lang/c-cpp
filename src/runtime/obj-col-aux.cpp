@@ -110,28 +110,37 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = col_aux->deletions.count;
   if (count > 0) {
     uint32 *idxs = col_aux->deletions.array;
-    for (uint32 i=0 ; i < count ; i++)
-      obj_col_delete(col, idxs[i], mem_pool);
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 idx = idxs[i]
+      obj_col_delete(col, idx, mem_pool);
+      decr_rc(store, store_aux, idx);
+    }
   }
 
   count = col_aux->updates.count;
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     OBJ *values = col_aux->updates.obj_array;
-    for (uint32 i=0 ; i < count ; i++)
-      obj_col_update(col, idxs[i], values[i], mem_pool);
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 idx = idxs[i];
+      obj_col_update(col, idx, values[i], mem_pool);
+      decr_rc(store, store_aux, idx);
+    }
   }
 
   count = col_aux->insertions.count;
   if (count > 0) {
     uint32 *idxs = col_aux->insertions.u32_array;
     OBJ *values = col_aux->insertions.obj_array;
-    for (uint32 i=0 ; i < count ; i++)
-      obj_col_insert(col, idxs[i], values[i], mem_pool);
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 idx = idxs[i];
+      obj_col_insert(col, idx, values[i], mem_pool);
+      incr_rc(store, idx);
+    }
   }
 }
 

@@ -938,11 +938,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
 
     value_stores_reset_code = (
-      native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_reset_aux", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
+      native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_aux_reset", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
     );
 
     tables_reset_code = (
-      native_call(native_table_method_prefix(t) & "_reset_aux", (pending_updates_var_ref_name(v)))
+      native_call(native_table_method_prefix(t) & "_aux_reset", (pending_updates_var_ref_name(v)))
       : v, t <- isort(block.tables)
     );
 
@@ -1107,7 +1107,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     value_stores_code = ("") & value_stores_code if value_stores != [];
 
     tables_code = (
-      native_call(native_table_method_prefix(tables(v)) & "_reset_aux", (pending_updates_var_ref_name(v)))
+      native_call(native_table_method_prefix(tables(v)) & "_aux_reset", (pending_updates_var_ref_name(v)))
       : v <- isort(keys(tables))
     );
     tables_code = ("") & tables_code if tables != [];
@@ -1136,7 +1136,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           return (prefix & "_incr_rc", prefix & "_decr_rc", v, updater_var_ref_name(v));
         } : v <- table_value_stores(tables(t))));
         args = (t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
-        return native_call(native_table_method_prefix(tables(t)) & "_apply", args);
+        return native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
       } : t <- ord_tables);
       code = (code | "") if code != ();
       code = code & tables_code;
@@ -1190,17 +1190,19 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
-    keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
-    keys_check_code = (check_stmt(k) : k <- sort_by_key(keys, order));
-    keys_check_code = ("") & keys_check_code if keys != [];
+    return ();
 
-    foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
-                    [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
+    // keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
+    // keys_check_code = (check_stmt(k) : k <- sort_by_key(keys, order));
+    // keys_check_code = ("") & keys_check_code if keys != [];
 
-    foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
-    foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
+    // foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
+    //                 [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
 
-    return keys_check_code & foreign_keys_check_code;
+    // foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
+    // foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
+
+    // return keys_check_code & foreign_keys_check_code;
 
 
     String check_stmt((TableVar, NzNat, [+Nat]) key) {

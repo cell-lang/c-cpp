@@ -348,7 +348,23 @@ implicit context : NativeContext {
 
   String updater_var_ref_name(ValueStoreId vs) = "&" & db_auxiliary_arg_name & "->" & aux_var_decl_name(vs);
 
-  String foreign_key_checker_decl_name(BlockForeignKey key) = undefined;
+  String foreign_key_checker_decl_name(BlockForeignKey key) {
+
+    // foreign_key(
+    //   type: binary_unary(0),
+    //   origin: table_var(phys_rel_var(str_attr)),
+    //   target: table_var(phys_rel_var(entity))
+    // )
+
+    // suffix = foreign_key_checker_suffix(key.type);
+    // origin = native_var_decl_name(key.origin);
+    // target = native_var_decl_name(key.target);
+    // return "foreignKeyChecker" & suffix & "_" & origin & "_" & target;
+
+    fail;
+  }
+
+
   String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;
 
   String native_foreign_key_checker_type(BlockForeignKey, AnyTable, AnyTable) = undefined;
