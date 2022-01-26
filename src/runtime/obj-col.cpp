@@ -1,10 +1,9 @@
 #include "lib.h"
 
 
+const uint32 INIT_SIZE = 256;
 
 void obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
-  const uint32 INIT_SIZE = 256;
-
   column->array = alloc_state_mem_blanked_obj_array(mem_pool, INIT_SIZE);
   column->capacity = INIT_SIZE;
   column->count = 0;
@@ -72,6 +71,22 @@ void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
       column->count--;
       remove_from_pool(mem_pool, obj);
     }
+  }
+}
+
+void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
+  uint32 capacity = column->capacity;
+  //## MAYBE WE SHOULDN'T GO ALL THE WAY BACK DOWN TO THE INITIAL CAPACITY
+  if (capacity != INIT_SIZE) {
+    release_state_mem_obj_array(mem_pool, column->array, capacity);
+    obj_col_init(column, mem_pool);
+  }
+  else if (column->count != 0) {
+    //## IF THE NUMBER OF SET ENTRIES IS MUCH LOWER THAN THE CAPACITY,
+    //## IT WOULD MAKE SENSE TO COUNT THE NUMBER OF ENTRIES THAT WE RESET
+    memset(column->array, 0, capacity);
+    for (int i=0 ; i < capacity ; i++)
+      assert(is_blank(column->array[i]));
   }
 }
 

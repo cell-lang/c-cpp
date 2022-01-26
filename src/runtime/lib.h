@@ -190,11 +190,13 @@ struct OBJ_COL_AUX {
   QUEUE_U32_OBJ insertions;
   QUEUE_U32_OBJ updates;
 
-  uint32 bitmap_size;
   uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
+  uint32 bitmap_size;
 
   uint32 max_idx_plus_one;
   bool dirty;
+
+  bool clear;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1006,6 +1008,7 @@ OBJ    obj_col_lookup(OBJ_COL *column, uint32 idx);
 void   obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
 void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
 void   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
 
 OBJ    obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, bool flip, STREAM *, STREAM *);
 void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);

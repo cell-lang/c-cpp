@@ -77,17 +77,14 @@ void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
 
   col_aux->max_idx_plus_one = 0;
   col_aux->dirty = false;
+
+  col_aux->clear = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void obj_col_aux_clear(OBJ_COL_AUX *col_aux) {
-  // ObjColumn.Iter it = column.getIter();
-  // while (!it.done()) {
-  //   delete(it.getIdx());
-  //   it.next();
-  // }
-  impl_fail("");
+  col_aux->clear = true;
 }
 
 void obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index) {
@@ -111,24 +108,40 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
-  uint32 count = col_aux->deletions.count;
-  if (count > 0) {
-    uint32 *idxs = col_aux->deletions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i]
-      obj_col_delete(col, idx, mem_pool);
+  if (col_aux->clear) {
+    OBJ_COL_ITER iter;
+    obj_col_iter_init(col, &iter);
+    while (!obj_col_iter_is_out_of_range(&iter)) {
+      assert(!is_blank(obj_col_iter_get_value(&iter)));
+      uint32 idx = obj_col_iter_get_idx(&iter);
       decr_rc(store, store_aux, idx);
+      obj_col_iter_move_forward(&iter);
+    }
+
+    obj_col_clear(col, mem_pool);
+  }
+  else {
+    uint32 count = col_aux->deletions.count;
+    if (count > 0) {
+      uint32 *idxs = col_aux->deletions.array;
+      for (uint32 i=0 ; i < count ; i++) {
+        uint32 idx = idxs[i];
+        obj_col_delete(col, idx, mem_pool);
+        decr_rc(store, store_aux, idx);
+      }
     }
   }
 
-  count = col_aux->updates.count;
+  uint32 count = col_aux->updates.count;
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     OBJ *values = col_aux->updates.obj_array;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 idx = idxs[i];
+      OBJ value = values[i];
+      if (!is_blank(value))
+        incr_rc(store, idx);
       obj_col_update(col, idx, values[i], mem_pool);
-      decr_rc(store, store_aux, idx);
     }
   }
 
@@ -152,6 +165,8 @@ void obj_col_aux_reset(OBJ_COL_AUX *col_aux) {
   queue_u32_obj_reset(&col_aux->updates);
 
   col_aux->max_idx_plus_one = 0;
+
+  col_aux->clear = false;
 
   if (col_aux->dirty) {
     col_aux->dirty = false;
