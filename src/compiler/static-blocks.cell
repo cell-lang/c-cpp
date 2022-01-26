@@ -638,6 +638,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "          return false;",
         "        break;",
         "      }",
+        "      if (consume_non_ws_char(&parser, ']'))",
+        "        break;",
         "    }",
         "  }",
         "  break;"

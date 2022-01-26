@@ -79,21 +79,26 @@ void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
 
 OBJ obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
   uint32 capacity = col->capacity;
+  uint32 remaining = col->count;
   OBJ *array = col->array;
-  for (uint32 i=0 ; i < capacity ; i++) {
+  for (uint32 i=0 ; remaining > 0 ; i++) {
+    assert(i < capacity);
     OBJ value = array[i];
     if (!is_blank(value)) {
       OBJ key = surr_to_obj(store, i);
       append(*strm_1, flip ? value : key);
       append(*strm_2, flip ? key : value);
+      remaining--;
     }
   }
 }
 
 void obj_col_write(WRITE_FILE_STATE *write_state, OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip) {
   uint32 capacity = col->capacity;
+  uint32 remaining = col->count;
   OBJ *array = col->array;
-  for (uint32 i=0 ; i < capacity ; i++) {
+  for (uint32 i=0 ; remaining > 0 ; i++) {
+    assert(i < capacity);
     OBJ value = array[i];
     if (!is_blank(value)) {
       OBJ key = surr_to_obj(store, i);
@@ -101,7 +106,7 @@ void obj_col_write(WRITE_FILE_STATE *write_state, OBJ_COL *col, OBJ (*surr_to_ob
       write_obj(write_state, flip ? value : key);
       write_str(write_state, " -> ");
       write_obj(write_state, flip ? key : value);
-      if (i != capacity - 1)
+      if (--remaining > 0)
         write_str(write_state, ",");
     }
   }
