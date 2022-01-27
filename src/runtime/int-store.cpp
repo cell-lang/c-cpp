@@ -3,12 +3,40 @@
 
 uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
   assert(size > 0);
-  uint32 byte_size = size * null_round_up_8(sizeof(int64));
+  uint32 byte_size = size * null_round_up_8(sizeof(uint64));
   uint64 *ptr = (uint64 *) alloc_state_mem_block(mem_pool, byte_size);
   // memset(ptr, 0, byte_size);
   // for (uint32 i=0 ; i < size ; i++)
   //   assert(ptr[i] == 0);
   return ptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(int64));
+  int64 *ptr = (int64 *) alloc_state_mem_block(mem_pool, byte_size);
+  // memset(ptr, 0, byte_size);
+  // for (uint32 i=0 ; i < size ; i++)
+  //   assert(ptr[i] == 0);
+  return ptr;
+}
+
+int64 *extend_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(int64));
+  uint32 new_byte_size = null_round_up_8(size *sizeof(int64));
+  int64 *new_ptr = (int64 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  // memset(new_ptr + size, 0, new_byte_size - byte_size);
+  // for (uint32 i=0 ; i < new_size ; i++)
+  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+
 }
 
 void release_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size) {

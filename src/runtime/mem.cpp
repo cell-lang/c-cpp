@@ -342,12 +342,21 @@ void *new_void_array(uint32 size) {
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ *resize_obj_array(OBJ* array, uint32 size, uint32 new_size) {
+  assert(new_size > size);
   OBJ *new_array = new_obj_array(new_size);
   memcpy(new_array, array, size * sizeof(OBJ));
   return new_array;
 }
 
+int64 *resize_int64_array(int64 *array, uint32 size, uint32 new_size) {
+  assert(new_size > size);
+  int64 *new_array = new_int64_array(new_size);
+  memcpy(new_array, array, size * sizeof(int64));
+  return new_array;
+}
+
 uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size) {
+  assert(new_size > size);
   uint32 *new_array = new_uint32_array(new_size);
   memcpy(new_array, array, size * sizeof(uint32));
   return new_array;

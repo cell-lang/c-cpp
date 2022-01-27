@@ -200,6 +200,48 @@ struct OBJ_COL_AUX {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+struct INT_COL {
+  int64 *array;
+  uint32 capacity;
+  uint32 count;
+
+  unordered_set<uint32> collisions;
+};
+
+struct INT_COL_ITER {
+  int64 *array;
+  uint32 left; // Includes current value
+  uint32 idx;
+
+  unordered_set<uint32> *collisions;
+};
+
+struct QUEUE_U32_I64 {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
+  int64 *i64_array;
+  int64 inline_i64_array[OBJ_COL_AUX_INLINE_SIZE];
+};
+
+struct INT_COL_AUX {
+  QUEUE_U32 deletions;
+  QUEUE_U32_I64 insertions;
+  QUEUE_U32_I64 updates;
+
+  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
+  uint32 bitmap_size;
+
+  uint32 max_idx_plus_one;
+  bool dirty;
+
+  bool clear;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 
 struct OBJ_STORE {                // VALUE     NO VALUE
   OBJ    *values;                 //           blank
@@ -374,6 +416,10 @@ uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
 
+int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size);
+int64 *extend_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size);
+
 uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size);
@@ -455,6 +501,7 @@ void *new_void_array(uint32 size);
 // Extra memory is not initialized
 OBJ    *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
 uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size);
+int64  *resize_int64_array(int64 *array, uint32 size, uint32 new_size);
 
 //////////////////////////////// mem-utils.cpp /////////////////////////////////
 
@@ -998,6 +1045,44 @@ void   unary_table_aux_clear(UNARY_TABLE_AUX *);
 void   unary_table_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void   unary_table_aux_reset(UNARY_TABLE_AUX *);
 
+////////////////////////////////// int-col.cpp /////////////////////////////////
+
+void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool);
+
+bool int_col_contains_1(INT_COL *column, uint32 idx);
+int64 int_col_lookup(INT_COL *column, uint32 idx);
+
+void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
+void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
+void int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool);
+
+void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2);
+void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+
+void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter);
+bool int_col_iter_is_out_of_range(INT_COL_ITER *iter);
+uint32 int_col_iter_get_idx(INT_COL_ITER *iter);
+int64 int_col_iter_get_value(INT_COL_ITER *iter);
+void int_col_iter_move_forward(INT_COL_ITER *iter);
+
+//////////////////////////////// int-col-aux.cpp ///////////////////////////////
+
+void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+
+void int_col_aux_clear(INT_COL_AUX *col_aux);
+void int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index);
+void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
+void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
+
+void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
+void int_col_aux_reset(INT_COL_AUX *col_aux);
+
+bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
+int64 int_col_aux_lookup(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
+bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
 void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
@@ -1010,7 +1095,7 @@ void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *me
 void   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
 
-OBJ    obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, bool flip, STREAM *, STREAM *);
+void   obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, bool flip, STREAM *, STREAM *);
 void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
 
 void   obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter);
