@@ -84,6 +84,7 @@ void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
   else if (column->count != 0) {
     //## IF THE NUMBER OF SET ENTRIES IS MUCH LOWER THAN THE CAPACITY,
     //## IT WOULD MAKE SENSE TO COUNT THE NUMBER OF ENTRIES THAT WE RESET
+    column->count = 0;
     memset(column->array, 0, capacity);
     for (int i=0 ; i < capacity ; i++)
       assert(is_blank(column->array[i]));
@@ -92,7 +93,7 @@ void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
+void obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
   uint32 capacity = col->capacity;
   uint32 remaining = col->count;
   OBJ *array = col->array;

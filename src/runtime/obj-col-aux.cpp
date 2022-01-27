@@ -139,7 +139,8 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void 
     for (uint32 i=0 ; i < count ; i++) {
       uint32 idx = idxs[i];
       OBJ value = values[i];
-      if (!is_blank(value))
+      assert(!is_blank(value));
+      if (!obj_col_contains_1(col, idx)) //## NOT TOTALLY SURE ABOUT THIS ONE
         incr_rc(store, idx);
       obj_col_update(col, idx, values[i], mem_pool);
     }
