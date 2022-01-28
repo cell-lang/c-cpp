@@ -107,8 +107,16 @@ static int32 min32(int32 x, int32 y) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint64 reinterpret_cast_double_uint64(double value) {
+inline bool is_nan(double value) {
+  return isnan(value);
+}
+
+static uint64 bits_cast_double_uint64(double value) {
   return * (uint64 *) &value;
+}
+
+inline double bits_cast_uint64_double(uint64 value) {
+  return * (double *) &value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

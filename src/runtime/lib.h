@@ -200,7 +200,6 @@ struct OBJ_COL_AUX {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
 struct INT_COL {
   int64 *array;
@@ -231,6 +230,43 @@ struct INT_COL_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32_I64 insertions;
   QUEUE_U32_I64 updates;
+
+  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
+  uint32 bitmap_size;
+
+  uint32 max_idx_plus_one;
+  bool dirty;
+
+  bool clear;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct FLOAT_COL {
+  double *array;
+  uint32 capacity;
+  uint32 count;
+};
+
+struct FLOAT_COL_ITER {
+  double *array;
+  uint32 left; // Includes current value
+  uint32 idx;
+};
+
+struct QUEUE_U32_FLOAT {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
+  double *float_array;
+  double inline_float_array[OBJ_COL_AUX_INLINE_SIZE];
+};
+
+struct FLOAT_COL_AUX {
+  QUEUE_U32 deletions;
+  QUEUE_U32_FLOAT insertions;
+  QUEUE_U32_FLOAT updates;
 
   uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
   uint32 bitmap_size;
@@ -412,6 +448,10 @@ OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
 OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
 void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size);
 
+double *alloc_state_mem_float_array(STATE_MEM_POOL *mem_pool, uint32 size);
+double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size, uint32 new_size);
+void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size);
+
 uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
@@ -499,7 +539,8 @@ char *new_byte_array(uint32 size);
 void *new_void_array(uint32 size);
 
 // Extra memory is not initialized
-OBJ    *resize_obj_array(OBJ* buffer, uint32 size, uint32 new_size);
+OBJ    *resize_obj_array(OBJ* array, uint32 size, uint32 new_size);
+double *resize_float_array(double* array, uint32 size, uint32 new_size);
 uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size);
 int64  *resize_int64_array(int64 *array, uint32 size, uint32 new_size);
 
@@ -1082,6 +1123,44 @@ bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, 
 bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
 int64 int_col_aux_lookup(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+
+///////////////////////////////// float-col.cpp ////////////////////////////////
+
+void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
+
+bool float_col_contains_1(FLOAT_COL *column, uint32 idx);
+double float_col_lookup(FLOAT_COL *column, uint32 idx);
+
+void float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
+void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
+void float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
+
+void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2);
+void float_col_write(WRITE_FILE_STATE *write_state, FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+
+void float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter);
+bool float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter);
+uint32 float_col_iter_get_idx(FLOAT_COL_ITER *iter);
+double float_col_iter_get_value(FLOAT_COL_ITER *iter);
+void float_col_iter_move_forward(FLOAT_COL_ITER *iter);
+
+/////////////////////////////// float-col-aux.cpp //////////////////////////////
+
+void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+
+void float_col_aux_clear(FLOAT_COL_AUX *col_aux);
+void float_col_aux_delete_1(FLOAT_COL_AUX *col_aux, uint32 index);
+void float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
+void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
+
+void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
+void float_col_aux_reset(FLOAT_COL_AUX *col_aux);
+
+bool float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
+double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
+
+bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 

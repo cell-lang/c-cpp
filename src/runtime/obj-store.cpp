@@ -34,6 +34,32 @@ void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size
 
 ////////////////////////////////////////////////////////////////////////////////
 
+double *alloc_state_mem_float_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0 && size % 2 == 0);
+  return (double *) alloc_state_mem_block(mem_pool, null_round_up_8(size * sizeof(double)));
+}
+
+double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(double));
+  uint32 new_byte_size = null_round_up_8(size * sizeof(double));
+  double *new_ptr = (double *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  // memset(new_ptr + size, 0, new_byte_size - byte_size);
+  // for (uint32 i=0 ; i < new_size ; i++)
+  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, null_round_up_8(size * sizeof(double)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
   assert(size > 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint64));
@@ -68,7 +94,7 @@ uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size)
 uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint32));
-  uint32 new_byte_size = null_round_up_8(size *sizeof(uint32));
+  uint32 new_byte_size = null_round_up_8(size * sizeof(uint32));
   uint32 *new_ptr = (uint32 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   // memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -94,7 +120,7 @@ uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint32 size) {
 uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 8 == 0 & new_size % 8 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint8));
-  uint32 new_byte_size = null_round_up_8(size *sizeof(uint8));
+  uint32 new_byte_size = null_round_up_8(size * sizeof(uint8));
   uint8 *new_ptr = (uint8 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   memset(new_ptr + size, 0, new_byte_size - byte_size);

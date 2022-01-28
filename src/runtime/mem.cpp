@@ -348,6 +348,13 @@ OBJ *resize_obj_array(OBJ* array, uint32 size, uint32 new_size) {
   return new_array;
 }
 
+double *resize_float_array(double* array, uint32 size, uint32 new_size) {
+  assert(new_size > size);
+  double *new_array = new_float_array(new_size);
+  memcpy(new_array, array, size * sizeof(double));
+  return new_array;
+}
+
 int64 *resize_int64_array(int64 *array, uint32 size, uint32 new_size) {
   assert(new_size > size);
   int64 *new_array = new_int64_array(new_size);

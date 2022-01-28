@@ -91,7 +91,7 @@ static uint32 compute_ne_float_seq_hashcode(OBJ obj) {
   double *elts = (double *) obj.core_data.ptr;
   uint64 hashcode = extra_data_hashcode(obj);
   for (int i=0 ; i < len ; i++)
-    hashcode = 31 * hashcode + hashcode_64(reinterpret_cast_double_uint64(elts[i]));
+    hashcode = 31 * hashcode + hashcode_64(bits_cast_double_uint64(elts[i]));
   return hashcode_64(hashcode);
 }
 
