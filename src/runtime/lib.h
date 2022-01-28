@@ -155,6 +155,22 @@ struct UNARY_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct BIN_TABLE {
+  unordered_map<uint32, unordered_set<uint32> > forward;
+  unordered_map<uint32, unordered_set<uint32> > backward;
+  uint32 count;
+};
+
+struct BIN_TABLE_ITER {
+
+};
+
+struct BIN_TABLE_AUX {
+
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_COL {
   OBJ *array;
   uint32 capacity;
@@ -1067,7 +1083,7 @@ uint32 unary_table_insert(UNARY_TABLE *, STATE_MEM_POOL *, uint32);
 // void unary_table_delete(UNARY_TABLE *, uint32);
 // void unary_table_clear(UNARY_TABLE *);
 
-OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *store, STREAM *stream);
+OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *, STREAM *stream);
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
 
 void unary_table_iter_init(UNARY_TABLE *, UNARY_TABLE_ITER *);
@@ -1085,6 +1101,50 @@ void   unary_table_aux_clear(UNARY_TABLE_AUX *);
 
 void   unary_table_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void   unary_table_aux_reset(UNARY_TABLE_AUX *);
+
+///////////////////////////////// bin-table.cpp ////////////////////////////////
+
+void bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 bin_table_size(BIN_TABLE *);
+uint32 bin_table_count_1(BIN_TABLE *, uint32 arg1);
+uint32 bin_table_count_2(BIN_TABLE *, uint32 arg2);
+
+bool bin_table_contains(BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool bin_table_contains_1(BIN_TABLE *, uint32 arg1);
+bool bin_table_contains_2(BIN_TABLE *, uint32 arg2);
+
+uint32 bin_table_lookup_1(BIN_TABLE *, uint32 arg1);
+uint32 bin_table_lookup_2(BIN_TABLE *, uint32 arg2);
+
+uint32 bin_table_restrict_1(BIN_TABLE *, uint32 arg1, uint32 *args2);
+uint32 bin_table_restrict_2(BIN_TABLE *, uint32 arg2, uint32 *args1);
+
+bool bin_table_insert(BIN_TABLE *, STATE_MEM_POOL *, uint32 arg1, uint32 arg2);
+bool bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
+void bin_table_delete_1(BIN_TABLE *, uint32 arg1, uint32 *args2);
+void bin_table_delete_2(BIN_TABLE *, uint32 arg2, uint32 *args1);
+void bin_table_clear(BIN_TABLE *);
+
+// OBJ bin_table_copy(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped);
+
+bool bin_table_col_1_is_key(BIN_TABLE *);
+bool bin_table_col_2_is_key(BIN_TABLE *);
+
+void bin_table_copy_to(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped, STREAM *, STREAM *);
+void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped);
+
+void bin_table_iter_init(BIN_TABLE *, BIN_TABLE_ITER *);
+void bin_table_iter_init_1(BIN_TABLE *, BIN_TABLE_ITER *, uint32 arg1);
+void bin_table_iter_init_2(BIN_TABLE *, BIN_TABLE_ITER *, uint32 arg2);
+bool bin_table_iter_is_out_of_range(BIN_TABLE_ITER *);
+uint32 bin_table_iter_get_1(BIN_TABLE_ITER *);
+uint32 bin_table_iter_get_2(BIN_TABLE_ITER *);
+void bin_table_iter_move_forward(BIN_TABLE_ITER *);
+
+/////////////////////////////// bin-table-aux.cpp //////////////////////////////
+
+void bin_table_aux_init(BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

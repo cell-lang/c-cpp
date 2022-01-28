@@ -106,9 +106,25 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       return code;
     }
     else if arity == 2 {
-      // 2 = if symmetric then ("SYM_BIN_TABLE", "sym_bin_table_copy") else ("BIN_TABLE", "bin_table_copy"),
-
-      fail;
+      if symmetric {
+        fail;
+      }
+      else {
+        code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
+        for v <- ord_table_vars {
+          value_stores = match (tables(v))
+            table() t?  = t.value_stores,
+            _           = undefined;
+          assert |value_stores| == 2;
+          store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
+          method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
+          stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
+          args = (v) & stores_args & perm_args & ("&stream_1", "&stream_2");
+          code = (code | "  " & native_call(copy_method_name, args));
+        }
+        code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
+        return code;
+      }
     }
     else {
       assert arity == 3;
