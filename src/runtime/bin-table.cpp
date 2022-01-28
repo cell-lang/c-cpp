@@ -122,21 +122,48 @@ void bin_table_clear(BIN_TABLE *table) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool bin_table_col_1_is_key(BIN_TABLE *table) {
-
+  for (unordered_map<uint32, unordered_set<uint32>>::iterator it = table->forward.begin() ; it != table->forward.end() ; it++)
+    if (it->second.size() > 1)
+      return false;
+  return true;
 }
 
 bool bin_table_col_2_is_key(BIN_TABLE *table) {
-
+  for (unordered_map<uint32, unordered_set<uint32>>::iterator it = table->backward.begin() ; it != table->backward.end() ; it++)
+    if (it->second.size() > 1)
+      return false;
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void bin_table_copy_to(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped, STREAM *, STREAM *) {
-
+void bin_table_copy_to(BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped, STREAM *strm_1, STREAM *strm_2) {
+  for (unordered_map<uint32, unordered_set<uint32>>::iterator it1 = table->forward.begin() ; it1 != table->forward.end() ; it1++) {
+    OBJ obj1 = surr_to_obj_1(store_1, it1->first);
+    for (unordered_set<uint32>::iterator it2 = it1->second.begin() ; it2 != it1->second.end() ; it2++) {
+      OBJ obj2 = surr_to_obj_2(store_2, *it2);
+      append(*strm_1, flipped ? obj2 : obj1);
+      append(*strm_2, flipped ? obj1 : obj2);
+    }
+  }
 }
 
-void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped) {
-
+void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped) {
+  uint32 count = table->count;
+  bool is_map = flipped ? bin_table_col_2_is_key(table) : bin_table_col_1_is_key(table);
+  uint32 idx = 0;
+  for (unordered_map<uint32, unordered_set<uint32>>::iterator it1 = table->forward.begin() ; it1 != table->forward.end() ; it1++) {
+    OBJ obj1 = surr_to_obj_1(store_1, it1->first);
+    for (unordered_set<uint32>::iterator it2 = it1->second.begin() ; it2 != it1->second.end() ; it2++) {
+      OBJ obj2 = surr_to_obj_2(store_2, *it2);
+      write_str(write_state, "\n    ");
+      write_obj(write_state, flipped ? obj2 : obj1);
+      write_str(write_state, is_map ? " -> " : ", ");
+      write_obj(write_state, flipped ? obj1 : obj2);
+      if (++idx != count)
+        write_str(write_state, is_map ? "," : ";");
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
