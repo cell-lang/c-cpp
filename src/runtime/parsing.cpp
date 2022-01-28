@@ -1243,7 +1243,7 @@ bool parse_obj(PARSER *parser, OBJ *result) {
       int32 res = read_number(parser, &int64_value, &double_value);
       if (res == 0)
         return false;
-      assert(res == 1 || res == 0);
+      assert(res == 1 || res == 2);
       *result = res == 1 ? make_int(int64_value) : make_float(double_value);
       return true;
     }

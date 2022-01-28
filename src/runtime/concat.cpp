@@ -371,10 +371,10 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq_new(OBJ left, uint32 lenl, OBJ 
     }
 
     case INT_BITS_TAG_64: {
-      SEQ_OBJ *seq_ptr = new_int32_seq(len, next_capacity(4, len));
-      copy_int32_range_unchecked(left, 0, lenl, seq_ptr->buffer.int32_);
-      copy_int32_range_unchecked(right, 0, lenr, seq_ptr->buffer.int32_ + lenl);
-      return make_seq_int32(seq_ptr, len);
+      SEQ_OBJ *seq_ptr = new_int64_seq(len, next_capacity(4, len));
+      copy_int64_range_unchecked(left, 0, lenl, seq_ptr->buffer.int64_);
+      copy_int64_range_unchecked(right, 0, lenr, seq_ptr->buffer.int64_ + lenl);
+      return make_seq_int64(seq_ptr, len);
     }
 
     default:

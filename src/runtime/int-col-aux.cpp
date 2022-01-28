@@ -117,7 +117,7 @@ void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void 
       int64 value = values[i];
       if (!int_col_contains_1(col, idx)) //## NOT TOTALLY SURE ABOUT THIS ONE
         incr_rc(store, idx);
-      int_col_update(col, idx, values[i], mem_pool);
+      int_col_update(col, idx, value, mem_pool);
     }
   }
 
