@@ -162,7 +162,9 @@ struct BIN_TABLE {
 };
 
 struct BIN_TABLE_ITER {
-
+  uint32 *args;
+  uint32 left;
+  bool single_col;
 };
 
 struct BIN_TABLE_AUX {

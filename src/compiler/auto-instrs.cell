@@ -122,7 +122,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
           args = (v) & stores_args & perm_args & ("&stream_1", "&stream_2");
           code = (code | "  " & native_call(copy_method_name, args));
         }
-        code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
+        code = (code | "  " & native_call(res_var, "build_bin_rel", ("stream_1", "stream_2")), "}");
         return code;
       }
     }

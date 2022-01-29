@@ -168,31 +168,73 @@ void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr
 
 ////////////////////////////////////////////////////////////////////////////////
 
-
 void bin_table_iter_init(BIN_TABLE *table, BIN_TABLE_ITER *iter) {
+  uint32 count = table->count;
+  if (count == 0) {
+    iter->args = NULL;
+    iter->left = 0;
+    iter->single_col = false; //## UNNECESSARY
+  }
 
+  uint32 *args = new_uint32_array(count);
+  iter->args = args;
+  iter->left = count;
+  iter->single_col = false;
+
+  for (unordered_map<uint32, unordered_set<uint32>>::iterator it1 = table->forward.begin() ; it1 != table->forward.end() ; it1++) {
+    uint32 arg1 = it1->first;
+    for (unordered_set<uint32>::iterator it2 = it1->second.begin() ; it2 != it1->second.end() ; it2++) {
+      uint32 arg2 = *it2;
+      *(args++) = arg1;
+      *(args++) = arg2;
+    }
+  }
 }
 
 void bin_table_iter_init_1(BIN_TABLE *table, BIN_TABLE_ITER *iter, uint32 arg1) {
-
+  uint32 count = bin_table_count_1(table, arg1);
+  uint32 *args;
+  if (count > 0) {
+    args = new_uint32_array(count);
+    bin_table_restrict_1(table, arg1, args);
+  }
+  else
+    args = NULL;
+  iter->args = args;
+  iter->left = count;
+  iter->single_col = true;
 }
 
 void bin_table_iter_init_2(BIN_TABLE *table, BIN_TABLE_ITER *iter, uint32 arg2) {
-
+  uint32 count = bin_table_count_2(table, arg2);
+  uint32 *args;
+  if (count > 0) {
+    args = new_uint32_array(count);
+    bin_table_restrict_2(table, arg2, args);
+  }
+  else
+    args = NULL;
+  iter->args = args;
+  iter->left = count;
+  iter->single_col = true;
 }
 
-bool bin_table_iter_is_out_of_range(BIN_TABLE *table) {
-
+bool bin_table_iter_is_out_of_range(BIN_TABLE_ITER *iter) {
+  return iter->left == 0;
 }
 
-uint32 bin_table_iter_get_1(BIN_TABLE *table) {
-
+uint32 bin_table_iter_get_1(BIN_TABLE_ITER *iter) {
+  assert(!bin_table_iter_is_out_of_range(iter));
+  return *iter->args;
 }
 
-uint32 bin_table_iter_get_2(BIN_TABLE *table) {
-
+uint32 bin_table_iter_get_2(BIN_TABLE_ITER *iter) {
+  assert(!bin_table_iter_is_out_of_range(iter));
+  return *(iter->args + 1);
 }
 
-void bin_table_iter_move_forward(BIN_TABLE *table) {
-
+void bin_table_iter_move_forward(BIN_TABLE_ITER *iter) {
+  assert(!bin_table_iter_is_out_of_range(iter));
+  iter->args += iter->single_col ? 1 : 2;
+  iter->left--;
 }
