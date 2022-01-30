@@ -77,7 +77,7 @@ uint32 unary_table_iter_get(UNARY_TABLE_ITER *iter) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 unary_table_aux_insert(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, uint32 value) {
+uint32 unary_table_aux_insert(UNARY_TABLE_AUX *table_aux, uint32 value) {
   table_aux->insertions.insert(value);
 }
 

@@ -138,6 +138,51 @@ struct STREAM {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+const uint32 QUEUE_INLINE_SIZE = 16;
+
+struct QUEUE_U32 {
+  uint32 capacity;
+  uint32 count;
+  uint32 *array;
+  uint32 inline_array[QUEUE_INLINE_SIZE];
+};
+
+struct QUEUE_U64 {
+  uint32 capacity;
+  uint32 count;
+  uint64 *array;
+  uint64 inline_array[QUEUE_INLINE_SIZE];
+};
+
+struct QUEUE_U32_I64 {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[QUEUE_INLINE_SIZE];
+  int64 *i64_array;
+  int64 inline_i64_array[QUEUE_INLINE_SIZE];
+};
+
+struct QUEUE_U32_FLOAT {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[QUEUE_INLINE_SIZE];
+  double *float_array;
+  double inline_float_array[QUEUE_INLINE_SIZE];
+};
+
+struct QUEUE_U32_OBJ {
+  uint32 capacity;
+  uint32 count;
+  uint32 *u32_array;
+  uint32 inline_u32_array[QUEUE_INLINE_SIZE];
+  OBJ *obj_array;
+  OBJ inline_obj_array[QUEUE_INLINE_SIZE];
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct UNARY_TABLE {
   unordered_set<uint32> elements;
 };
@@ -168,7 +213,13 @@ struct BIN_TABLE_ITER {
 };
 
 struct BIN_TABLE_AUX {
+  QUEUE_U64 deletions;
+  QUEUE_U32 deletions_1;
+  QUEUE_U32 deletions_2;
 
+  QUEUE_U64 insertions;
+
+  bool clear;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,24 +234,6 @@ struct OBJ_COL_ITER {
   OBJ *array;
   uint32 left; // Includes current value
   uint32 idx;
-};
-
-const uint32 OBJ_COL_AUX_INLINE_SIZE = 16;
-
-struct QUEUE_U32 {
-  uint32 capacity;
-  uint32 count;
-  uint32 *array;
-  uint32 inline_array[OBJ_COL_AUX_INLINE_SIZE];
-};
-
-struct QUEUE_U32_OBJ {
-  uint32 capacity;
-  uint32 count;
-  uint32 *u32_array;
-  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
-  OBJ *obj_array;
-  OBJ inline_obj_array[OBJ_COL_AUX_INLINE_SIZE];
 };
 
 struct OBJ_COL_AUX {
@@ -235,15 +268,6 @@ struct INT_COL_ITER {
   unordered_set<uint32> *collisions;
 };
 
-struct QUEUE_U32_I64 {
-  uint32 capacity;
-  uint32 count;
-  uint32 *u32_array;
-  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
-  int64 *i64_array;
-  int64 inline_i64_array[OBJ_COL_AUX_INLINE_SIZE];
-};
-
 struct INT_COL_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32_I64 insertions;
@@ -270,15 +294,6 @@ struct FLOAT_COL_ITER {
   double *array;
   uint32 left; // Includes current value
   uint32 idx;
-};
-
-struct QUEUE_U32_FLOAT {
-  uint32 capacity;
-  uint32 count;
-  uint32 *u32_array;
-  uint32 inline_u32_array[OBJ_COL_AUX_INLINE_SIZE];
-  double *float_array;
-  double inline_float_array[OBJ_COL_AUX_INLINE_SIZE];
 };
 
 struct FLOAT_COL_AUX {
@@ -560,6 +575,7 @@ void *new_void_array(uint32 size);
 OBJ    *resize_obj_array(OBJ* array, uint32 size, uint32 new_size);
 double *resize_float_array(double* array, uint32 size, uint32 new_size);
 uint32 *resize_uint32_array(uint32 *array, uint32 size, uint32 new_size);
+uint64 *resize_uint64_array(uint64 *array, uint32 size, uint32 new_size);
 int64  *resize_int64_array(int64 *array, uint32 size, uint32 new_size);
 
 //////////////////////////////// mem-utils.cpp /////////////////////////////////
@@ -1097,7 +1113,7 @@ uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
 void   unary_table_aux_init(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 
-uint32 unary_table_aux_insert(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
+uint32 unary_table_aux_insert(UNARY_TABLE_AUX *, uint32);
 void   unary_table_aux_delete(UNARY_TABLE_AUX *, uint32);
 void   unary_table_aux_clear(UNARY_TABLE_AUX *);
 
@@ -1124,8 +1140,8 @@ uint32 bin_table_restrict_2(BIN_TABLE *, uint32 arg2, uint32 *args1);
 
 bool bin_table_insert(BIN_TABLE *, STATE_MEM_POOL *, uint32 arg1, uint32 arg2);
 bool bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
-void bin_table_delete_1(BIN_TABLE *, uint32 arg1, uint32 *args2);
-void bin_table_delete_2(BIN_TABLE *, uint32 arg2, uint32 *args1);
+void bin_table_delete_1(BIN_TABLE *, uint32 arg1);
+void bin_table_delete_2(BIN_TABLE *, uint32 arg2);
 void bin_table_clear(BIN_TABLE *);
 
 // OBJ bin_table_copy(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped);
@@ -1147,6 +1163,23 @@ void bin_table_iter_move_forward(BIN_TABLE_ITER *);
 /////////////////////////////// bin-table-aux.cpp //////////////////////////////
 
 void bin_table_aux_init(BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+void bin_table_aux_clear(BIN_TABLE_AUX *);
+void bin_table_aux_delete(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void bin_table_aux_delete_1(BIN_TABLE_AUX *, uint32 arg1);
+void bin_table_aux_delete_2(BIN_TABLE_AUX *, uint32 arg2);
+void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+
+bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
+bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
+void bin_table_aux_reset(BIN_TABLE_AUX *);
+
+bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1);
+bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
+OBJ  bin_table_aux_lookup(BIN_TABLE *, BIN_TABLE_AUX *, uint32 surr_1);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

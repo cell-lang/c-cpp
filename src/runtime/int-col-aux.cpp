@@ -8,7 +8,7 @@ void queue_u32_reset(QUEUE_U32 *queue);
 ////////////////////////////////////////////////////////////////////////////////
 
 void queue_u32_i64_init(QUEUE_U32_I64 *queue) {
-  queue->capacity = OBJ_COL_AUX_INLINE_SIZE;
+  queue->capacity = QUEUE_INLINE_SIZE;
   queue->count = 0;
   queue->u32_array = queue->inline_u32_array;
   queue->i64_array = queue->inline_i64_array;
@@ -34,8 +34,8 @@ void queue_u32_i64_insert(QUEUE_U32_I64 *queue, uint32 u32_value, int64 i64_valu
 
 void queue_u32_i64_reset(QUEUE_U32_I64 *queue) {
   queue->count = 0;
-  if (queue->capacity != OBJ_COL_AUX_INLINE_SIZE) {
-    queue->capacity = OBJ_COL_AUX_INLINE_SIZE;
+  if (queue->capacity != QUEUE_INLINE_SIZE) {
+    queue->capacity = QUEUE_INLINE_SIZE;
     queue->u32_array = queue->inline_u32_array;
     queue->i64_array = queue->inline_i64_array;
   }

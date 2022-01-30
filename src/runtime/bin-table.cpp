@@ -91,25 +91,21 @@ bool bin_table_delete(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   return false;
 }
 
-void bin_table_delete_1(BIN_TABLE *table, uint32 arg1, uint32 *args2) {
+void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
   unordered_set<uint32> &args2_set = table->forward[arg1];
   table->count -= args2_set.size();
   uint32 idx = 0;
-  for (unordered_set<uint32>::iterator it = args2_set.begin() ; it != args2_set.end() ; it++) {
-    args2[idx++] = *it;
+  for (unordered_set<uint32>::iterator it = args2_set.begin() ; it != args2_set.end() ; it++)
     table->backward[*it].erase(arg1);
-  }
   table->forward.erase(arg1);
 }
 
-void bin_table_delete_2(BIN_TABLE *table, uint32 arg2, uint32 *args1) {
+void bin_table_delete_2(BIN_TABLE *table, uint32 arg2) {
   unordered_set<uint32> &args1_set = table->backward[arg2];
   table->count -= args1_set.size();
   uint32 idx = 0;
-  for (unordered_set<uint32>::iterator it = args1_set.begin() ; it != args1_set.end() ; it++) {
-    args1[idx++] = *it;
+  for (unordered_set<uint32>::iterator it = args1_set.begin() ; it != args1_set.end() ; it++)
     table->forward[*it].erase(arg2);
-  }
   table->backward.erase(arg2);
 }
 
