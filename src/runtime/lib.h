@@ -1176,10 +1176,10 @@ bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
-bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1);
-bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
-OBJ  bin_table_aux_lookup(BIN_TABLE *, BIN_TABLE_AUX *, uint32 surr_1);
+// bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+// bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1);
+// bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
+// OBJ  bin_table_aux_lookup(BIN_TABLE *, BIN_TABLE_AUX *, uint32 surr_1);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

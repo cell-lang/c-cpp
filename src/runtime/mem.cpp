@@ -355,7 +355,7 @@ double *resize_float_array(double* array, uint32 size, uint32 new_size) {
   return new_array;
 }
 
-uint64 *resize_int64_array(uint64 *array, uint32 size, uint32 new_size) {
+uint64 *resize_uint64_array(uint64 *array, uint32 size, uint32 new_size) {
   assert(new_size > size);
   uint64 *new_array = new_uint64_array(new_size);
   memcpy(new_array, array, size * sizeof(uint64));

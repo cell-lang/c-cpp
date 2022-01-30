@@ -797,7 +797,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     keys_check_code = join(({
       method_name = key_check_method_names((a, k), !);
       return (
-        "if (!" & native_var_ref_name(v) & "." & method_name & "())",
+        "if (!" & native_call_expr(method_name, (v)) & ")",
         "  return false;"
       );
     } : v, a, k <- ord_keys));
@@ -814,12 +814,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     [(NzNat, [+Nat]) -> String] key_check_method_names = [
-      (2, [0])    -> "col1_is_key",
-      (2, [1])    -> "col2_is_key",
-      (3, [2])    -> "col3_is_key",
-      (3, [0, 1]) -> "cols12_are_key",
-      (3, [0, 2]) -> "cols13_are_key",
-      (3, [1, 2]) -> "cols23_are_key"
+      (2, [0])    -> "bin_table_col_1_is_key",
+      (2, [1])    -> "bin_table_col_2_is_key",
+      (3, [2])    -> "tern_table_col_3_is_key",
+      (3, [0, 1]) -> "tern_table_cols_12_are_key",
+      (3, [0, 2]) -> "tern_table_cols_13_are_key",
+      (3, [1, 2]) -> "tern_table_cols_23_are_key"
     ];
 
 
@@ -1190,11 +1190,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
-    return ();
-
-    // keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
-    // keys_check_code = (check_stmt(k) : k <- sort_by_key(keys, order));
-    // keys_check_code = ("") & keys_check_code if keys != [];
+    keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
+    keys_check_code = (check_stmt(v, a, k, block) : v, a, k <- sort_by_key(keys, order));
+    keys_check_code = ("") & keys_check_code if keys != [];
 
     // foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
     //                 [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
@@ -1202,14 +1200,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
     // foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
 
-    // return keys_check_code & foreign_keys_check_code;
+    return keys_check_code; // & foreign_keys_check_code;
 
 
-    String check_stmt((TableVar, NzNat, [+Nat]) key) {
-      var, arity, args = key;
-      var_name = pending_updates_var_ref_name(var);
-      method_name = key_check_method_name(arity, args);
-      return native_method_call_expr(var_name, method_name, ()) & ";";
+    String check_stmt(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
+      table_type = block.tables(var);
+      method_name = match (table_type)
+        table()             = table_key_check_method_names(arity, key, !),
+        master_bin_table()  = undefined,
+        slave_tern_table()  = undefined,
+        column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
+        slave_column()      = undefined;
+      return native_call_expr(method_name, (var, pending_updates_var_ref_name(var), :mem_pool)) & ";";
     }
 
 
@@ -1219,17 +1221,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String key_check_method_name(NzNat arity, [+Nat] key) =
-      "checkKey_" & key_check_method_suffixes(arity, key, !);
-
-
-    [NzNat, [+Nat], String] key_check_method_suffixes = [
-      2,  [0],    "1";
-      2,  [1],    "2";
-      3,  [2],    "3";
-      3,  [0, 1], "12";
-      3,  [1, 2], "23";
-      3,  [0, 2], "13"
+    [NzNat, [+Nat], String] table_key_check_method_names = [
+      2,  [0],    "bin_table_aux_check_key_1";
+      2,  [1],    "bin_table_aux_check_key_2";
+      3,  [2],    "tern_table_aux_check_key_3";
+      3,  [0, 1], "tern_table_aux_check_key_12";
+      3,  [1, 2], "tern_table_aux_check_key_23";
+      3,  [0, 2], "tern_table_aux_check_key_13"
     ];
 
 
