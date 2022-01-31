@@ -21,12 +21,32 @@ void queue_u32_insert(QUEUE_U32 *queue, uint32 value) {
   queue->count = count + 1;
 }
 
+void queue_u32_prepare(QUEUE_U32 *queue) {
+  uint32 count = queue->count;
+  if (count > 16)
+    sort_u32(queue->array, queue->count);
+}
+
 void queue_u32_reset(QUEUE_U32 *queue) {
   queue->count = 0;
   if (queue->capacity != QUEUE_INLINE_SIZE) {
     queue->capacity = QUEUE_INLINE_SIZE;
     queue->array = queue->inline_array;
   }
+}
+
+bool queue_u32_contains(QUEUE_U32 *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->array;
+    if (count > 16)
+      return sorted_u32_array_contains(array, count, value);
+    //## WE COULD SPEED THIS UP BY READING A 64-BIT WORD AT A TIME
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == value)
+        return true;
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -243,7 +263,7 @@ void record_col_1_key_violation(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 idx, 
 //////////////////////////////////////////////////////////////////////////////
 
 bool obj_col_aux_build_bitmap_and_check_key(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(col_aux->insertions.count > 0 && col_aux->updates.count > 0);
+  assert(col_aux->insertions.count > 0 || col_aux->updates.count > 0);
   assert(col_aux->max_idx_plus_one > 0);
 
   uint32 max_idx = col_aux->max_idx_plus_one - 1;
@@ -280,7 +300,7 @@ bool obj_col_aux_build_bitmap_and_check_key(OBJ_COL *col, OBJ_COL_AUX *col_aux, 
     }
   }
 
-  count = col_aux->insertions.count;
+  count = col_aux->updates.count;
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     for (uint32 i=0 ; i < count ; i++) {

@@ -1,6 +1,16 @@
 #include "lib.h"
 
 
+void sort_u32(uint32 *array, uint32 len) {
+  std::sort(array, array + len);
+}
+
+void sort_u64(uint64 *array, uint32 len) {
+  std::sort(array, array + len);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 uint32 *stable_sort_obj_index(uint32 *ys, uint32 *zs, uint32 size, OBJ *objs) {
   int sort_len = 1;
   while (sort_len < size) {

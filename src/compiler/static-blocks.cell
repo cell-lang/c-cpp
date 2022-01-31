@@ -1211,7 +1211,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         slave_tern_table()  = undefined,
         column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
         slave_column()      = undefined;
-      return native_call_expr(method_name, (var, pending_updates_var_ref_name(var), :mem_pool)) & ";";
+      needs_mem_pool = match (table_type)
+        column()            = true,
+        table()             = false,
+        master_bin_table()  = undefined,
+        slave_tern_table()  = undefined,
+        slave_column()      = undefined;
+      args = (var, pending_updates_var_ref_name(var), :mem_pool if needs_mem_pool);
+      return native_call_expr(method_name, args) & ";";
     }
 
 

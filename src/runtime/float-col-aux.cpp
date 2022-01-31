@@ -218,7 +218,7 @@ static void record_col_1_key_violation(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, u
 //////////////////////////////////////////////////////////////////////////////
 
 bool float_col_aux_build_bitmap_and_check_key(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(col_aux->insertions.count > 0 && col_aux->updates.count > 0);
+  assert(col_aux->insertions.count > 0 || col_aux->updates.count > 0);
   assert(col_aux->max_idx_plus_one > 0);
 
   uint32 max_idx = col_aux->max_idx_plus_one - 1;
@@ -255,7 +255,7 @@ bool float_col_aux_build_bitmap_and_check_key(FLOAT_COL *col, FLOAT_COL_AUX *col
     }
   }
 
-  count = col_aux->insertions.count;
+  count = col_aux->updates.count;
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     for (uint32 i=0 ; i < count ; i++) {

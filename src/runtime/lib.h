@@ -216,10 +216,9 @@ struct BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
-
   QUEUE_U64 insertions;
-
   bool clear;
+  bool deletions_prepared;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -839,6 +838,9 @@ void internal_fail();
 
 ////////////////////////////////// sorting.cpp /////////////////////////////////
 
+void sort_u32(uint32 *array, uint32 len);
+void sort_u64(uint64 *array, uint32 len);
+
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort);
@@ -848,6 +850,9 @@ void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort)
 void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort, OBJ *minor_sort);
 
 /////////////////////////////////// algs.cpp ///////////////////////////////////
+
+bool sorted_u32_array_contains(uint32 *array, uint32 len, uint32 value);
+bool sorted_u64_array_contains(uint64 *array, uint32 len, uint64 value);
 
 uint32 sort_unique(OBJ* objs, uint32 size);
 uint32 sort_and_check_no_dups(OBJ* keys, OBJ* values, uint32 size);
