@@ -223,6 +223,31 @@ struct BIN_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct MASTER_BIN_TABLE {
+  BIN_TABLE plain_table;
+
+  unordered_map<uint64, uint32> args_to_idx;
+
+  uint64 *slots;
+  uint32 capacity;
+  uint32 first_free;
+};
+
+struct MASTER_BIN_TABLE_ITER {
+  BIN_TABLE_ITER iter;
+};
+
+struct MASTER_BIN_TABLE_AUX {
+  QUEUE_U64 deletions;
+  QUEUE_U32 deletions_1;
+  QUEUE_U32 deletions_2;
+  QUEUE_U64 insertions;
+  bool clear;
+  bool deletions_prepared;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_COL {
   OBJ *array;
   uint32 capacity;
@@ -486,6 +511,7 @@ void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32
 
 uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
+uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size);
 void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
 
 int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size);
@@ -1175,8 +1201,8 @@ void bin_table_aux_delete_1(BIN_TABLE_AUX *, uint32 arg1);
 void bin_table_aux_delete_2(BIN_TABLE_AUX *, uint32 arg2);
 void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
-bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
-bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
+bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *);
+bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *);
 
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
@@ -1185,6 +1211,63 @@ void bin_table_aux_reset(BIN_TABLE_AUX *);
 // bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1);
 // bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
 // OBJ  bin_table_aux_lookup(BIN_TABLE *, BIN_TABLE_AUX *, uint32 surr_1);
+
+///////////////////////////// master-bin-table.cpp /////////////////////////////
+
+void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool);
+
+uint32 master_bin_table_size(MASTER_BIN_TABLE *table);
+uint32 master_bin_table_count_1(MASTER_BIN_TABLE *table, uint32 arg1);
+uint32 master_bin_table_count_2(MASTER_BIN_TABLE *table, uint32 arg2);
+
+bool master_bin_table_contains(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
+bool master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg1);
+bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2);
+
+uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *args2);
+uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *args1);
+
+uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1);
+uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2);
+
+uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
+
+void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool);
+bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
+void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1);
+void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2);
+
+int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *mem_pool);
+bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool);
+
+bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table);
+bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table);
+
+void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped, STREAM *strm_1, STREAM *strm_2);
+void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped);
+
+void master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter);
+void master_bin_table_iter_init_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter, uint32 arg1);
+void master_bin_table_iter_init_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter, uint32 arg2);
+bool master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *iter);
+uint32 master_bin_table_iter_get_1(MASTER_BIN_TABLE_ITER *iter);
+uint32 master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *iter);
+void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter);
+
+/////////////////////////// master-bin-table-aux.cpp ///////////////////////////
+
+void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *);
+void master_bin_table_aux_clear(MASTER_BIN_TABLE_AUX *table_aux);
+void master_bin_table_aux_delete(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
+void master_bin_table_aux_delete_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1);
+void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2);
+void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
+
+bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
+bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
+
+void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool);
+void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 
