@@ -47,17 +47,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     assert not symmetric or (applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 0, 1 -> 1, 2 -> 2]);
 
     arity = |applied_perm|;
-    if arity == 1 {
-      perm_args = ();
-    }
-    else if arity == 2 {
-      assert applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 1, 1 -> 0];
-      perm_args = if applied_perm == [0 -> 0, 1 -> 1] then (false if not symmetric) else (true);
-    }
-    else {
-      assert arity == 3;
-      perm_args = if symmetric then () else (applied_perm(!, i) : i < arity);
-    }
 
     table_vars = keys(tables);
     ord_table_vars = isort(table_vars);
@@ -65,13 +54,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     copy_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
 
     if is_column {
+      assert applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 1, 1 -> 0];
+      flipped = applied_perm == [0 -> 1, 1 -> 0];
+      streams_args = if flipped then ("&stream_2", "&stream_1") else ("&stream_1", "&stream_2");
       code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
       for v @ i <- ord_table_vars {
         value_store = match (tables(v))
           column() t? = t.value_store,
           _           = undefined;
         store_type = prg_data.value_stores(rel_auto_id)(value_store);
-        args = (v, native_surr_to_obj_method_name(store_type), value_store) & perm_args & ("&stream_1", "&stream_2");
+        args = (v, native_surr_to_obj_method_name(store_type), value_store) & streams_args;
         code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
@@ -110,6 +102,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         fail;
       }
       else {
+        assert applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 1, 1 -> 0];
+        flipped = applied_perm == [0 -> 1, 1 -> 0];
+        streams_args = if flipped then ("&stream_2", "&stream_1") else ("&stream_1", "&stream_2");
         code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
         for v <- ord_table_vars {
           value_stores = match (tables(v))
@@ -119,7 +114,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
           store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
           method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
           stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
-          args = (v) & stores_args & perm_args & ("&stream_1", "&stream_2");
+          args = (v) & stores_args & streams_args;
           code = (code | "  " & native_call(copy_method_name, args));
         }
         code = (code | "  " & native_call(res_var, "build_bin_rel", ("stream_1", "stream_2")), "}");
@@ -231,7 +226,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_immediate_insert_tuple(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     method_name = native_table_method_prefix(table) & "_insert";
-    return (native_call(method_name, (table_var, :mem_pool) & tuple));
+    return (native_call(method_name, (table_var) & tuple & (:mem_pool)));
   }
 
 
@@ -323,40 +318,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String native_get_table_iter_code(<TableItVar, SlaveColumnItVar> it_var, AnyTableVar table_var, Maybe[Int32Var]+ args) {
-    fn_names = fn_names_by_args(it_var);
-    fn_name = fn_names((a != nothing : a <- args));
-    return native_call(fn_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
+    method_name = init_method_name(it_var);
+    return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
 
-
-    [Bool+ -> String] fn_names_by_args(TableItVar it_var) = if it_var.symmetric then sym_fn_names_by_args else fn_names_by_args;
-    [Bool+ -> String] fn_names_by_args(SlaveColumnItVar)  = fn_names_by_args;
-
-    [Bool+ -> String] fn_names_by_args = [
-      (false)                 -> "unary_table_iter_init",
-      (true,  false)          -> "bin_table_iter_init_1",
-      (false, true)           -> "bin_table_iter_init_2",
-      (false, false)          -> "bin_table_iter_init",
-      (true,  true,  false)   -> "tern_table_iter_init_12",
-      (true,  false, true)    -> "tern_table_iter_init_13",
-      (false, true,  true)    -> "tern_table_iter_init_23",
-      (true,  false, false)   -> "tern_table_iter_init_1",
-      (false, true,  false)   -> "tern_table_iter_init_2",
-      (false, false, true)    -> "tern_table_iter_init_3",
-      (false, false, false)   -> "tern_table_iter_init"
-    ];
-
-    [Bool+ -> String] sym_fn_names_by_args = [
-      (true,  false)          -> "sym_bin_table_iter_init",
-      (false, true)           -> "sym_bin_table_iter_init",
-      (false, false)          -> "sym_bin_table_iter_init",
-      (true,  true,  false)   -> "sym_12_tern_table_iter_init_12",
-      (true,  false, true)    -> "sym_12_tern_table_iter_init_13_23",
-      (false, true,  true)    -> "sym_12_tern_table_iter_init_13_23",
-      (true,  false, false)   -> "sym_12_tern_table_iter_init_1_2",
-      (false, true,  false)   -> "sym_12_tern_table_iter_init_1_2",
-      (false, false, true)    -> "sym_12_tern_table_iter_init_3",
-      (false, false, false)   -> "sym_12_tern_table_iter_init"
-    ];
+    String init_method_name(TableItVar it_var) = it_var_method_prefix(it_var) & "_init";
+    String init_method_name(SlaveColumnItVar it_var) = undefined;
   }
 
 

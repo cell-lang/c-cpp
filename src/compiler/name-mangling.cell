@@ -98,12 +98,14 @@ implicit context : NativeContext {
     shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
 
   String native_var_name(TableItVar v, Bool as_ref_name) {
-    prefix = match (v.arity, v.symmetric)
-      1,  false   = "unary",
-      2,  false   = "bin",
-      2,  true    = "sym_bin",
-      3,  false   = "tern",
-      3,  true    = "sym_12_tern";
+    prefix = match (v.table_type)
+      unary_table       = "unary",
+      bin_table         = "bin",
+      sym_bin_table     = "sym_bin",
+      master_bin_table  = "master_bin",
+      tern_table        = "tern",
+      sym_12_tern_table = "sym_12_tern",
+      slave_tern_table  = "slave_tern";
     prefix = "&" & prefix if as_ref_name;
     return prefix & "_table_it_" & printed(v.id);
   }
@@ -570,13 +572,27 @@ String native_column_method_prefix(ColumnRepr) =
   float     = "float_col";
 
 
-String table_it_var_type(TableItVar var) =
-  match (var.arity, var.symmetric)
-    1,  false   = "UNARY_TABLE_ITER",
-    2,  false   = "BIN_TABLE_ITER",
-    2,  true    = "SYM_BIN_TABLE_ITER",
-    3,  false   = "TERN_TABLE_ITER",
-    3,  true    = "SYM12_TERN_TABLE_ITER";
+String table_it_var_type(TableItVar var) {
+  prefix = match (var.table_type)
+    unary_table       = "UNARY_TABLE",
+    bin_table         = "BIN_TABLE",
+    sym_bin_table     = "SYM_BIN_TABLE",
+    master_bin_table  = "MASTER_BIN_TABLE",
+    tern_table        = "TERN_TABLE",
+    sym_12_tern_table = "SYM_12_TERN_TABLE",
+    slave_tern_table  = "SLAVE_TERN_TABLE";
+  return prefix & "_ITER" & set_args_suffixes(var.set_args, !);
+
+  [[Nat] -> String] set_args_suffixes = [
+    []      -> "",
+    [0]     -> "_1",
+    [1]     -> "_2",
+    [2]     -> "_3",
+    [0, 1]  -> "_12",
+    [0, 2]  -> "_13",
+    [1, 2]  -> "_23"
+  ];
+}
 
 String column_it_var_type(ColumnItVar var) =
   match (var.repr)
@@ -596,14 +612,27 @@ String it_var_method_prefix(SetItVar var)     = "";
 String it_var_method_prefix(BinRelItVar var)  = "";
 String it_var_method_prefix(TernRelItVar var) = "";
 
-String it_var_method_prefix(TableItVar var) =
-  match (var.arity, var.symmetric)
-    1,  false   = "unary_table_iter",
-    1,  true    = undefined,
-    2,  false   = "bin_table_iter",
-    2,  true    = "sym_bin_table_iter",
-    3,  false   = "tern_table_iter",
-    3,  true    = "sym_12_tern_table_iter";
+String it_var_method_prefix(TableItVar var) {
+  prefix = match (var.table_type)
+    unary_table       = "unary_table",
+    bin_table         = "bin_table",
+    sym_bin_table     = "sym_bin_table",
+    master_bin_table  = "master_bin_table",
+    tern_table        = "tern_table",
+    sym_12_tern_table = "sym_12_tern_table",
+    slave_tern_table  = "slave_tern_table";
+  return prefix & "_iter" & set_args_suffixes(var.set_args, !);
+
+  [[Nat] -> String] set_args_suffixes = [
+    []      -> "",
+    [0]     -> "_1",
+    [1]     -> "_2",
+    [2]     -> "_3",
+    [0, 1]  -> "_12",
+    [0, 2]  -> "_13",
+    [1, 2]  -> "_23"
+  ];
+}
 
 String it_var_method_prefix(<ColumnItVar, SlaveColumnItVar> var) =
   match (var.repr)
