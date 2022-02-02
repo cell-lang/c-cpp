@@ -204,10 +204,10 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
       uint32 *array = table_aux->deletions_1.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg1 = array[i];
-        MASTER_BIN_TABLE_ITER iter;
-        master_bin_table_iter_init_1(table, &iter, arg1);
-        while (!master_bin_table_iter_is_out_of_range(&iter)) {
-          uint32 arg2 = master_bin_table_iter_get_1(&iter);
+        MASTER_BIN_TABLE_ITER_1 iter;
+        master_bin_table_iter_1_init(table, &iter, arg1);
+        while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
+          uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
         }
@@ -220,10 +220,10 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
       uint32 *array = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg2 = array[i];
-        MASTER_BIN_TABLE_ITER iter;
-        master_bin_table_iter_init_2(table, &iter, arg2);
-        while (!master_bin_table_iter_is_out_of_range(&iter)) {
-          uint32 arg1 = master_bin_table_iter_get_1(&iter);
+        MASTER_BIN_TABLE_ITER_2 iter;
+        master_bin_table_iter_2_init(table, &iter, arg2);
+        while (!master_bin_table_iter_2_is_out_of_range(&iter)) {
+          uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
         }

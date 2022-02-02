@@ -234,7 +234,7 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint32 arg2 = bin_table_iter_get_2(&iter);
       decr_rc_2(store_2, store_aux_2, arg2);
     }
-    bin_table_clear(table);
+    bin_table_clear(table, mem_pool);
   }
   else {
     uint32 count = table_aux->deletions.count;
@@ -256,10 +256,10 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint32 *array = table_aux->deletions_1.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg1 = array[i];
-        BIN_TABLE_ITER iter;
-        bin_table_iter_init_1(table, &iter, arg1);
-        while (!bin_table_iter_is_out_of_range(&iter)) {
-          uint32 arg2 = bin_table_iter_get_1(&iter);
+        BIN_TABLE_ITER_1 iter;
+        bin_table_iter_1_init(table, &iter, arg1);
+        while (!bin_table_iter_1_is_out_of_range(&iter)) {
+          uint32 arg2 = bin_table_iter_1_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
         }
@@ -272,10 +272,10 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint32 *array = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg2 = array[i];
-        BIN_TABLE_ITER iter;
-        bin_table_iter_init_2(table, &iter, arg2);
-        while (!bin_table_iter_is_out_of_range(&iter)) {
-          uint32 arg1 = bin_table_iter_get_1(&iter);
+        BIN_TABLE_ITER_2 iter;
+        bin_table_iter_2_init(table, &iter, arg2);
+        while (!bin_table_iter_2_is_out_of_range(&iter)) {
+          uint32 arg1 = bin_table_iter_2_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
         }
@@ -291,7 +291,7 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint64 args = array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      if (bin_table_insert(table, mem_pool, arg1, arg2)) {
+      if (bin_table_insert(table, arg1, arg2, mem_pool)) {
         incr_rc_1(store_1, arg1);
         incr_rc_2(store_2, arg2);
       }

@@ -105,7 +105,7 @@ uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   uint64 args = pack_args(arg1, arg2);
   assert(table->args_to_idx.count(args) != 0);
-  return table->args_to_idx[args];
+  return table->args_to_idx[args]; //## BUG BUG BUG: MUST RETURN 0xFFFFFFFF IF THERE'S NO SURROGATE
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +122,7 @@ int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, ST
   }
 
   uint32 idx = master_bin_table_alloc_index(table, arg1, arg2, mem_pool);
-  bool is_new = bin_table_insert(&table->plain_table, mem_pool, arg1, arg2);
+  bool is_new = bin_table_insert(&table->plain_table, arg1, arg2, mem_pool);
   assert(is_new);
   return idx;
 }
@@ -133,7 +133,7 @@ bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, 
 }
 
 void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  bin_table_clear(&table->plain_table);
+  bin_table_clear(&table->plain_table, mem_pool);
 
   table->args_to_idx.clear();
 
@@ -217,8 +217,8 @@ bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped, STREAM *strm_1, STREAM *strm_2) {
-  bin_table_copy_to(&table->plain_table, surr_to_obj_1, store_1, surr_to_obj_2, store_2, flipped, strm_1, strm_2);
+void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2) {
+  bin_table_copy_to(&table->plain_table, surr_to_obj_1, store_1, surr_to_obj_2, store_2, strm_1, strm_2);
 }
 
 void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped) {
@@ -227,16 +227,12 @@ void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *tab
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *iter) {
+  bin_table_iter_init_empty(&iter->iter);
+}
+
 void master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter) {
   bin_table_iter_init(&table->plain_table, &iter->iter);
-}
-
-void master_bin_table_iter_init_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter, uint32 arg1) {
-  bin_table_iter_init_1(&table->plain_table, &iter->iter, arg1);
-}
-
-void master_bin_table_iter_init_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter, uint32 arg2) {
-  bin_table_iter_init_2(&table->plain_table, &iter->iter, arg2);
 }
 
 bool master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *iter) {
@@ -255,3 +251,46 @@ void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
   bin_table_iter_move_forward(&iter->iter);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+void master_bin_table_iter_1_init_empty(MASTER_BIN_TABLE_ITER_1 *iter) {
+  bin_table_iter_1_init_empty(&iter->iter);
+}
+
+void master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_1 *iter, uint32 arg1) {
+  bin_table_iter_1_init(&table->plain_table, &iter->iter, arg1);
+}
+
+void master_bin_table_iter_1_move_forward(MASTER_BIN_TABLE_ITER_1 *iter) {
+  bin_table_iter_1_move_forward(&iter->iter);
+}
+
+bool master_bin_table_iter_1_is_out_of_range(MASTER_BIN_TABLE_ITER_1 *iter) {
+  return bin_table_iter_1_is_out_of_range(&iter->iter);
+}
+
+uint32 master_bin_table_iter_1_get_1(MASTER_BIN_TABLE_ITER_1 *iter) {
+  return bin_table_iter_1_get_1(&iter->iter);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *iter) {
+  bin_table_iter_2_init_empty(&iter->iter);
+}
+
+void master_bin_table_iter_2_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_2 *iter, uint32 arg2) {
+  bin_table_iter_2_init(&table->plain_table, &iter->iter, arg2);
+}
+
+void master_bin_table_iter_2_move_forward(MASTER_BIN_TABLE_ITER_2 *iter) {
+  bin_table_iter_2_move_forward(&iter->iter);
+}
+
+bool master_bin_table_iter_2_is_out_of_range(MASTER_BIN_TABLE_ITER_2 *iter) {
+  return bin_table_iter_2_is_out_of_range(&iter->iter);
+}
+
+uint32 master_bin_table_iter_2_get_1(MASTER_BIN_TABLE_ITER_2 *iter) {
+  return bin_table_iter_2_get_1(&iter->iter);
+}
