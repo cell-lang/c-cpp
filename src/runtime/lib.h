@@ -1357,6 +1357,79 @@ bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_
 void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool);
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
 
+///////////////////////////// slave-tern-table.cpp /////////////////////////////
+
+bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3);
+void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_pool);
+
+uint32 slave_tern_table_size(BIN_TABLE *slave_table);
+uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
+uint32 slave_tern_table_count_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2);
+uint32 slave_tern_table_count_3(BIN_TABLE *slave_table, uint32 arg3);
+uint32 slave_tern_table_count_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
+uint32 slave_tern_table_count_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
+uint32 slave_tern_table_count_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+
+bool slave_tern_table_contains(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3);
+bool slave_tern_table_contains_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
+bool slave_tern_table_contains_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2);
+bool slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3);
+bool slave_tern_table_contains_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
+bool slave_tern_table_contains_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
+bool slave_tern_table_contains_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+
+uint32 slave_tern_table_lookup_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
+uint32 slave_tern_table_lookup_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
+uint32 slave_tern_table_lookup_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+
+bool slave_tern_table_cols_12_are_key(BIN_TABLE *slave_table);
+bool slave_tern_table_col_3_is_key(BIN_TABLE *slave_table);
+
+void slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+
+void slave_tern_table_iter_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER *iter);
+void slave_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
+bool slave_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
+uint32 slave_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
+uint32 slave_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
+uint32 slave_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
+
+void slave_tern_table_iter_1_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
+void slave_tern_table_iter_1_move_forward(SLAVE_TERN_TABLE_ITER_1 *iter);
+bool slave_tern_table_iter_1_is_out_of_range(SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 slave_tern_table_iter_1_get_1(SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 slave_tern_table_iter_1_get_2(SLAVE_TERN_TABLE_ITER_1 *iter);
+
+void slave_tern_table_iter_2_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_2 *iter, uint32 arg2);
+void slave_tern_table_iter_2_move_forward(SLAVE_TERN_TABLE_ITER_2 *iter);
+bool slave_tern_table_iter_2_is_out_of_range(SLAVE_TERN_TABLE_ITER_2 *iter);
+uint32 slave_tern_table_iter_2_get_1(SLAVE_TERN_TABLE_ITER_2 *iter);
+uint32 slave_tern_table_iter_2_get_2(SLAVE_TERN_TABLE_ITER_2 *iter);
+
+void slave_tern_table_iter_12_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
+void slave_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
+bool slave_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
+uint32 slave_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
+
+void slave_tern_table_iter_3_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
+void slave_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
+bool slave_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 slave_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 slave_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
+
+void slave_tern_table_iter_13_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
+void slave_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
+bool slave_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
+uint32 slave_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
+
+void slave_tern_table_iter_23_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_23 *iter, uint32 arg2, uint32 arg3);
+void slave_tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
+bool slave_tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
+uint32 slave_tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
+
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 
 void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool);
