@@ -141,7 +141,7 @@ void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
+void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2) {
   uint32 capacity = col->capacity;
   uint32 remaining = col->count;
   int64 *array = col->array;
@@ -151,8 +151,8 @@ void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *sto
     if (is_set_at(col, i, int_value)) {
       OBJ key = surr_to_obj(store, i);
       OBJ value = make_int(int_value);
-      append(*strm_1, flip ? value : key);
-      append(*strm_2, flip ? key : value);
+      append(*strm_1, key);
+      append(*strm_2, value);
       remaining--;
     }
   }

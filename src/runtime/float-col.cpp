@@ -118,7 +118,7 @@ void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
+void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2) {
   uint32 capacity = col->capacity;
   uint32 remaining = col->count;
   double *array = col->array;
@@ -128,8 +128,8 @@ void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void 
     if (!is_float_col_null(float_value)) {
       OBJ key = surr_to_obj(store, i);
       OBJ value = make_float(float_value);
-      append(*strm_1, flip ? value : key);
-      append(*strm_2, flip ? key : value);
+      append(*strm_1, key);
+      append(*strm_2, value);
       remaining--;
     }
   }

@@ -17,7 +17,7 @@ uint64 unary_table_size(UNARY_TABLE *table) {
   return table->elements.size();
 }
 
-uint32 unary_table_insert(UNARY_TABLE *table, STATE_MEM_POOL *, uint32 value) {
+uint32 unary_table_insert(UNARY_TABLE *table, uint32 value, STATE_MEM_POOL *) {
   table->elements.insert(value);
 }
 

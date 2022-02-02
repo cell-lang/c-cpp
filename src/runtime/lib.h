@@ -1186,7 +1186,7 @@ void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
 bool unary_table_contains(UNARY_TABLE *, uint32);
 uint64 unary_table_size(UNARY_TABLE *);
 
-uint32 unary_table_insert(UNARY_TABLE *, STATE_MEM_POOL *, uint32);
+uint32 unary_table_insert(UNARY_TABLE *, uint32, STATE_MEM_POOL *);
 // void unary_table_delete(UNARY_TABLE *, uint32);
 // void unary_table_clear(UNARY_TABLE *);
 

@@ -108,6 +108,14 @@ uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, u
   return table->args_to_idx[args]; //## BUG BUG BUG: MUST RETURN 0xFFFFFFFF IF THERE'S NO SURROGATE
 }
 
+uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Code to recover the surrogate:
@@ -235,6 +243,10 @@ void master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *
   bin_table_iter_init(&table->plain_table, &iter->iter);
 }
 
+void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
+  bin_table_iter_move_forward(&iter->iter);
+}
+
 bool master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *iter) {
   return bin_table_iter_is_out_of_range(&iter->iter);
 }
@@ -247,8 +259,8 @@ uint32 master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *iter) {
   return bin_table_iter_get_2(&iter->iter);
 }
 
-void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
-  bin_table_iter_move_forward(&iter->iter);
+uint32 master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *iter) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -273,6 +285,10 @@ uint32 master_bin_table_iter_1_get_1(MASTER_BIN_TABLE_ITER_1 *iter) {
   return bin_table_iter_1_get_1(&iter->iter);
 }
 
+uint32 master_bin_table_iter_1_get_surr(MASTER_BIN_TABLE_ITER_1 *iter) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *iter) {
@@ -293,4 +309,8 @@ bool master_bin_table_iter_2_is_out_of_range(MASTER_BIN_TABLE_ITER_2 *iter) {
 
 uint32 master_bin_table_iter_2_get_1(MASTER_BIN_TABLE_ITER_2 *iter) {
   return bin_table_iter_2_get_1(&iter->iter);
+}
+
+uint32 master_bin_table_iter_2_get_surr(MASTER_BIN_TABLE_ITER_2 *iter) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
 }

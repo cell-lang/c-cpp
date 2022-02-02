@@ -93,7 +93,7 @@ void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip, STREAM *strm_1, STREAM *strm_2) {
+void obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2) {
   uint32 capacity = col->capacity;
   uint32 remaining = col->count;
   OBJ *array = col->array;
@@ -102,8 +102,8 @@ void obj_col_copy_to(OBJ_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *sto
     OBJ value = array[i];
     if (!is_blank(value)) {
       OBJ key = surr_to_obj(store, i);
-      append(*strm_1, flip ? value : key);
-      append(*strm_2, flip ? key : value);
+      append(*strm_1, key);
+      append(*strm_2, value);
       remaining--;
     }
   }
