@@ -271,7 +271,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       //     _                   = arg_list;
       //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
 
-        init_method_name = native_table_method_prefix(t) & "_init";
+        init_method_name = match (t)
+          slave_tern_table()  = "bin_table_init",
+          _                   = native_table_method_prefix(t) & "_init";
+
         return native_call(init_method_name, (v, :mem_pool));
       } : v, t <- tables_in_init_order);
 
@@ -493,7 +496,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table = block.tables(tv);
         method_name = native_table_method_prefix(table) & "_write";
         value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
-        instr = native_call(method_name, ("write_state", tv) & value_store_args & perm_args);
+        instr = native_call(method_name, ("write_state", table.master if table :: SlaveTernTable, tv) & value_store_args & perm_args);
 
         if j > 0 {
           exprs = ({
@@ -586,8 +589,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       vars, guard_expr, instrs = rel_vars_load_code(rv);
       case = match (vars)
         (v?)            = native_load_state_case(rv, v, guard_expr, instrs),
-        (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs);
-        // (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
+        (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs),
+        (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
       return indent_lines(case, 3);
     } : rv <- isort(keys(rel_vars_load_code)));
 
@@ -718,39 +721,51 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    // String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, LocVar var3, BoolExpr guard_expr, Instr+ code) {
-    //   symb_str = symb_id_name(bare_id(rel_var));
-    //   var1_str = native_var_ref_name(var1);
-    //   var2_str = native_var_ref_name(var2);
-    //   var3_str = native_var_ref_name(var3);
-    //   guard_expr_str = native_expr(guard_expr);
+    String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, LocVar var3, BoolExpr guard_expr, Instr+ code) {
+      symb_str = symb_id_name(bare_id(rel_var));
+      var1_str = native_var_ref_name(var1);
+      var2_str = native_var_ref_name(var2);
+      var3_str = native_var_ref_name(var3);
+      guard_expr_str = native_expr(guard_expr);
 
-    //   header = (
-    //     "case " & symb_str & ":",
-    //     "  parser.consumeOpenBracket();",
-    //     "  for (int i=0 ; !parser.nextIsCloseBracket() ; i++) {",
-    //     "    parser.bookmark();",
-    //     "    " & var1_str & " = parser.parseObj();",
-    //     "    parser.consumeComma();",
-    //     "    " & var2_str & " = parser.parseObj();",
-    //     "    parser.consumeComma();",
-    //     "    " & var3_str & " = parser.parseObj();",
-    //     "    if (!(" & guard_expr_str & "))",
-    //     "      parser.failAtBookmark();"
-    //   );
+      header = (
+        "case " & symb_str & ":",
+        "  if (!consume_non_ws_char(&parser, '['))",
+        "    return false;",
+        "  if (!consume_non_ws_char(&parser, '['))",
+        "    return false;",
+        "  for (int i=0 ; !next_non_ws_char_is(&parser, ']') ; i++) {",
+        // "    parser.bookmark();",
+        "    if (!parse_obj(&parser, &" & var1_str & "))",
+        "      return false;",
+        "    if (!consume_non_ws_char(&parser, ','))",
+        "      return false;",
+        "    if (!parse_obj(&parser, &" & var2_str & "))",
+        "      return false;",
+        "    if (!consume_non_ws_char(&parser, ','))",
+        "      return false;",
+        "    if (!parse_obj(&parser, &" & var3_str & "))",
+        "      return false;",
+        "    if (!(" & guard_expr_str & "))",
+        // "      parser.failAtBookmark();"
+        "      return false;"
+      );
 
-    //   footer = (
-    //     "  if (i == 0)",
-    //     "    parser.consumeSemicolon();",
-    //     "  else if (!parser.tryConsumingSemicolon())",
-    //     "    break;",
-    //     "}",
-    //     "parser.consumeCloseBracket();",
-    //     "break;"
-    //   );
+      footer = (
+        "    if (!consume_non_ws_char(&parser, ';')) {",
+        "      if (i == 0)",
+        "        return false;",
+        "      else",
+        "        break;",
+        "    }",
+        "  }",
+        "  if (!consume_non_ws_char(&parser, ']'))",
+        "    return false;",
+        "  break;"
+      );
 
-    //   return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
-    // }
+      return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
+    }
   }
 
 

@@ -32,12 +32,16 @@ static uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1,
   }
 
   table->first_free = (uint32) slots[first_free];
-  slots[first_free] = pack_args(arg1, arg2);
+  uint64 args = pack_args(arg1, arg2);
+  slots[first_free] = args;
+  table->args_to_idx[args] = first_free;
   return first_free;
 }
 
 static void master_bin_table_release_index(MASTER_BIN_TABLE *table, uint32 idx) {
-  table->slots[idx] = table->first_free;
+  uint64 *slot_ptr = table->slots + idx;
+  table->args_to_idx.erase(*slot_ptr);
+  *slot_ptr = table->first_free;
   table->first_free = idx;
 }
 
@@ -48,12 +52,13 @@ const uint32 INIT_SIZE = 256;
 void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   bin_table_init(&table->plain_table, mem_pool);
 
-  unordered_map<uint64, uint32> args_to_idx;
+  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
+  for (uint32 i=0 ; i < INIT_SIZE ; i++)
+    slots[i] = i + 1;
 
-  uint64 *slots;
-  uint32 capacity;
-  uint32 first_free;
-
+  table->slots = slots;
+  table->capacity = INIT_SIZE;
+  table->first_free = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -104,16 +109,21 @@ uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 
 uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   uint64 args = pack_args(arg1, arg2);
-  assert(table->args_to_idx.count(args) != 0);
-  return table->args_to_idx[args]; //## BUG BUG BUG: MUST RETURN 0xFFFFFFFF IF THERE'S NO SURROGATE
+  return table->args_to_idx.count(args) != 0 ? table->args_to_idx[args] : 0xFFFFFFFF;
 }
 
-uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *table, uint32 surr) {
+  assert(surr < table->capacity);
+  uint64 slot = table->slots[surr];
+  assert(table->args_to_idx.count(slot) > 0 && table->args_to_idx[slot] == surr);
+  return unpack_arg1(slot);
 }
 
-uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
+  assert(surr < table->capacity);
+  uint64 slot = table->slots[surr];
+  assert(table->args_to_idx.count(slot) > 0 && table->args_to_idx[slot] == surr);
+  return unpack_arg2(slot);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

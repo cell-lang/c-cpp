@@ -75,14 +75,44 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       fail;
     }
     else if is_master_bin_table {
-      // type_name = "MASTER_BIN_TABLE";
-      // method_name = "master_bin_table_copy";
-      fail;
+      assert applied_perm == [0 -> 0, 1 -> 1];
+      streams_args = ("&stream_1", "&stream_2");
+      code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
+      for v <- ord_table_vars {
+        value_stores = match (tables(v))
+          master_bin_table() t? = t.value_stores,
+          _                     = undefined;
+        assert |value_stores| == 2;
+        store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
+        method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
+        stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
+        args = (v) & stores_args & streams_args;
+        code = (code | "  " & native_call(copy_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_bin_rel", ("stream_1", "stream_2")), "}");
+      return code;
     }
     else if is_slave_tern_table {
-      // type_name = "SLAVE_TERN_TABLE";
-      // method_name = "slave_tern_table_copy";
-      fail;
+      assert applied_perm == [0 -> 0, 1 -> 1, 2 -> 2];
+      unpermutated_stream_args = ("&stream_1", "&stream_2", "&stream_3");
+      streams_args = (unpermutated_stream_args(applied_perm(!, i)) : i < 3);
+      code = (
+        "{ STREAM stream_1, stream_2, stream_3;",
+        "  init(stream_1);", "  init(stream_2);", "  init(stream_3);"
+      );
+      for v <- ord_table_vars {
+        value_stores, master = match (tables(v))
+          slave_tern_table() t? = (t.value_stores, t.master),
+          _                     = undefined;
+        assert |value_stores| == 3;
+        store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
+        method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
+        stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
+        args = (master, v) & stores_args & streams_args;
+        code = (code | "  " & native_call(copy_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_tern_rel", ("stream_1", "stream_2", "stream_3")), "}");
+      return code;
     }
     else if arity == 1 {
       code = ("{ STREAM stream;", "  init(stream);");
@@ -177,7 +207,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     init_table()          = (), //(native_method_call(instr.rel_var, "init",    ())),
     cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
 
-    get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table, instr.args)),
+    get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table_var, instr.table, instr.args)),
+    get_slave_col_iter()  = (native_get_slave_col_iter_code(instr.it_var, instr.table_var, instr.column, instr.args)),
     get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.column)),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
@@ -226,7 +257,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_immediate_insert_tuple(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     method_name = native_table_method_prefix(table) & "_insert";
-    return (native_call(method_name, (table_var) & tuple & (:mem_pool)));
+    return (native_call(method_name, (table.master if table :: SlaveTernTable, table_var) & tuple & (:mem_pool)));
   }
 
 
@@ -317,12 +348,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_get_table_iter_code(<TableItVar, SlaveColumnItVar> it_var, AnyTableVar table_var, Maybe[Int32Var]+ args) {
-    method_name = init_method_name(it_var);
-    return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
+  String native_get_table_iter_code(TableItVar it_var, AnyTableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args) {
+    method_name = it_var_method_prefix(it_var) & "_init";
+    native_args = (table.master if table :: SlaveTernTable, table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing);
+    return native_call(method_name, native_args);
+  }
 
-    String init_method_name(TableItVar it_var) = it_var_method_prefix(it_var) & "_init";
-    String init_method_name(SlaveColumnItVar it_var) = undefined;
+
+  String native_get_slave_col_iter_code(SlaveColumnItVar it_var, AnyTableVar table_var, SlaveColumn column, Maybe[Int32Var]+ args) {
+    method_name = it_var_method_prefix(it_var) & "_init";
+    return native_call(method_name, (column.master, table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
   }
 
 

@@ -540,7 +540,7 @@ String native_table_type(Table table) =
     3,  true    = "SYM12_TERN_TABLE";
 
 String native_table_type(MasterBinTable) = "MASTER_BIN_TABLE";
-String native_table_type(SlaveTernTable) = "SLAVE_TERN_TABLE";
+String native_table_type(SlaveTernTable) = "BIN_TABLE";
 
 String native_table_type(<Column, SlaveColumn> column) =
   match (column.repr)
@@ -641,7 +641,9 @@ String it_var_method_prefix(<ColumnItVar, SlaveColumnItVar> var) =
     float   = "float_col_iter";
 
 
-String native_table_aux_type(AnyTable table) = native_table_type(table) & "_AUX";
+String native_table_aux_type(AnyTable table) =
+  slave_tern_table()  = "SLAVE_TERN_TABLE_AUX",
+  _                   = native_table_type(table) & "_AUX";
 
 
 String native_name(ValueStoreType) =

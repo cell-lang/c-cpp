@@ -304,6 +304,10 @@ struct SLAVE_TERN_TABLE_ITER_23 {
   uint32 arg2;
 };
 
+struct SLAVE_TERN_TABLE_AUX {
+
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct OBJ_COL {
@@ -1429,6 +1433,10 @@ void slave_tern_table_iter_23_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *sl
 void slave_tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
 bool slave_tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
 uint32 slave_tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
+
+///////////////////////////// slave-tern-table.cpp /////////////////////////////
+
+void slave_tern_table_aux_init(SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

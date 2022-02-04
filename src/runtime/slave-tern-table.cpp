@@ -250,6 +250,7 @@ void slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_t
     append(*strm_1, obj1);
     append(*strm_2, obj2);
     append(*strm_3, obj3);
+    bin_table_iter_move_forward(&iter);
   }
 }
 
@@ -284,6 +285,8 @@ void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *mas
     write_obj(write_state, idx1 == 2 ? obj1 : (idx2 == 2 ? obj2 : obj3));
     if (++idx != count)
       write_str(write_state, ";");
+
+    bin_table_iter_move_forward(&iter);
   }
 }
 
