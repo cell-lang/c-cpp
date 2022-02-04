@@ -225,13 +225,13 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table) {
-  return bin_table_col_1_is_key(&table->plain_table);
-}
+// bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table) {
+//   return bin_table_col_1_is_key(&table->plain_table);
+// }
 
-bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table) {
-  return bin_table_col_2_is_key(&table->plain_table);
-}
+// bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table) {
+//   return bin_table_col_2_is_key(&table->plain_table);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 

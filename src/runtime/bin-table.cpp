@@ -78,7 +78,9 @@ bool bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL
     table->forward[arg1].insert(arg2);
     table->backward[arg2].insert(arg1);
     table->count++;
+    return true;
   }
+  return false;
 }
 
 bool bin_table_delete(BIN_TABLE *table, uint32 arg1, uint32 arg2) {

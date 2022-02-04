@@ -1316,8 +1316,8 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2);
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *mem_pool);
 bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool);
 
-bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table);
-bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table);
+// bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table);
+// bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table);
 
 void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2);
 void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped);
@@ -1355,8 +1355,8 @@ void master_bin_table_aux_delete_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1)
 void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2);
 void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
 
-bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
-bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
+// bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
+// bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 
 void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool);
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
@@ -1434,9 +1434,26 @@ void slave_tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
 bool slave_tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
 uint32 slave_tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
 
-///////////////////////////// slave-tern-table.cpp /////////////////////////////
+/////////////////////////// slave-tern-table-aux.cpp ///////////////////////////
 
 void slave_tern_table_aux_init(SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
+
+void slave_tern_table_aux_clear(SLAVE_TERN_TABLE_AUX *);
+void slave_tern_table_aux_delete(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+void slave_tern_table_aux_delete_12(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void slave_tern_table_aux_delete_13(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg3);
+void slave_tern_table_aux_delete_23(SLAVE_TERN_TABLE_AUX *, uint32 arg2, uint32 arg3);
+void slave_tern_table_aux_delete_1(SLAVE_TERN_TABLE_AUX *, uint32 arg1);
+void slave_tern_table_aux_delete_2(SLAVE_TERN_TABLE_AUX *, uint32 arg2);
+void slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *, uint32 arg3);
+
+void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+
+// bool slave_tern_table_aux_check_key_1(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+// bool slave_tern_table_aux_check_key_2(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+
+void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
+void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

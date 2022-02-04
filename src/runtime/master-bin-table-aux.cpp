@@ -94,81 +94,81 @@ static void record_col_1_key_violation(MASTER_BIN_TABLE *col, MASTER_BIN_TABLE_A
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
-  assert(table_aux->insertions.count > 0);
+// bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
+//   assert(table_aux->insertions.count > 0);
 
-  uint32 count = table_aux->insertions.count;
-  if (count > 0) {
-    queue_u64_prepare(&table_aux->insertions);
+//   uint32 count = table_aux->insertions.count;
+//   if (count > 0) {
+//     queue_u64_prepare(&table_aux->insertions);
 
-    bool clear = table_aux->clear;
-    uint64 *array = table_aux->insertions.array;
+//     bool clear = table_aux->clear;
+//     uint64 *array = table_aux->insertions.array;
 
-    uint32 prev_arg1 = 0xFFFFFFFF;
-    uint32 prev_arg2 = 0xFFFFFFFF;
-    for (int i=0 ; i < count ; i++) {
-      uint64 args = array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      assert(i == 0 || arg1 > prev_arg1 || (arg1 == prev_arg1 && arg2 >= prev_arg2));
-      if (arg1 == prev_arg1 && arg2 != prev_arg2) {
-        record_col_1_key_violation(table, table_aux, arg1, arg2, true);
-        return false;
-      }
-      prev_arg1 = arg1;
-      prev_arg2 = arg2;
-      if (!clear) {
-        if (master_bin_table_contains_1(table, arg1))
-          if (!master_bin_table_aux_was_deleted(table_aux, arg1, arg2)) {
-            record_col_1_key_violation(table, table_aux, arg1, arg2, false);
-            return false;
-          }
-      }
-    }
-  }
+//     uint32 prev_arg1 = 0xFFFFFFFF;
+//     uint32 prev_arg2 = 0xFFFFFFFF;
+//     for (int i=0 ; i < count ; i++) {
+//       uint64 args = array[i];
+//       uint32 arg1 = unpack_arg1(args);
+//       uint32 arg2 = unpack_arg2(args);
+//       assert(i == 0 || arg1 > prev_arg1 || (arg1 == prev_arg1 && arg2 >= prev_arg2));
+//       if (arg1 == prev_arg1 && arg2 != prev_arg2) {
+//         record_col_1_key_violation(table, table_aux, arg1, arg2, true);
+//         return false;
+//       }
+//       prev_arg1 = arg1;
+//       prev_arg2 = arg2;
+//       if (!clear) {
+//         if (master_bin_table_contains_1(table, arg1))
+//           if (!master_bin_table_aux_was_deleted(table_aux, arg1, arg2)) {
+//             record_col_1_key_violation(table, table_aux, arg1, arg2, false);
+//             return false;
+//           }
+//       }
+//     }
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
-bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
-  assert(table_aux->insertions.count > 0);
+// bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
+//   assert(table_aux->insertions.count > 0);
 
-  uint32 count = table_aux->insertions.count;
-  if (count > 0) {
-    queue_u64_flip_words(&table_aux->insertions);
-    queue_u64_prepare(&table_aux->insertions);
+//   uint32 count = table_aux->insertions.count;
+//   if (count > 0) {
+//     queue_u64_flip_words(&table_aux->insertions);
+//     queue_u64_prepare(&table_aux->insertions);
 
-    bool clear = table_aux->clear;
-    uint64 *array = table_aux->insertions.array;
+//     bool clear = table_aux->clear;
+//     uint64 *array = table_aux->insertions.array;
 
-    uint32 prev_arg1 = 0xFFFFFFFF;
-    uint32 prev_arg2 = 0xFFFFFFFF;
-    for (int i=0 ; i < count ; i++) {
-      uint64 args = array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      assert(i == 0 || arg2 > prev_arg2 || (arg2 == prev_arg2 && arg1 >= prev_arg1));
-      if (arg2 == prev_arg2 && arg1 != prev_arg1) {
-        record_col_1_key_violation(table, table_aux, arg1, arg2, true);
-        queue_u64_flip_words(&table_aux->insertions);
-        return false;
-      }
-      prev_arg1 = arg1;
-      prev_arg2 = arg2;
-      if (!clear) {
-        if (master_bin_table_contains_2(table, arg2))
-          if (!master_bin_table_aux_was_deleted(table_aux, arg1, arg2)) {
-            record_col_1_key_violation(table, table_aux, arg1, arg2, false);
-            queue_u64_flip_words(&table_aux->insertions);
-            return false;
-          }
-      }
-    }
-    queue_u64_flip_words(&table_aux->insertions);
-  }
+//     uint32 prev_arg1 = 0xFFFFFFFF;
+//     uint32 prev_arg2 = 0xFFFFFFFF;
+//     for (int i=0 ; i < count ; i++) {
+//       uint64 args = array[i];
+//       uint32 arg1 = unpack_arg1(args);
+//       uint32 arg2 = unpack_arg2(args);
+//       assert(i == 0 || arg2 > prev_arg2 || (arg2 == prev_arg2 && arg1 >= prev_arg1));
+//       if (arg2 == prev_arg2 && arg1 != prev_arg1) {
+//         record_col_1_key_violation(table, table_aux, arg1, arg2, true);
+//         queue_u64_flip_words(&table_aux->insertions);
+//         return false;
+//       }
+//       prev_arg1 = arg1;
+//       prev_arg2 = arg2;
+//       if (!clear) {
+//         if (master_bin_table_contains_2(table, arg2))
+//           if (!master_bin_table_aux_was_deleted(table_aux, arg1, arg2)) {
+//             record_col_1_key_violation(table, table_aux, arg1, arg2, false);
+//             queue_u64_flip_words(&table_aux->insertions);
+//             return false;
+//           }
+//       }
+//     }
+//     queue_u64_flip_words(&table_aux->insertions);
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 

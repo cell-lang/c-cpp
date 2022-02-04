@@ -732,8 +732,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "case " & symb_str & ":",
         "  if (!consume_non_ws_char(&parser, '['))",
         "    return false;",
-        "  if (!consume_non_ws_char(&parser, '['))",
-        "    return false;",
         "  for (int i=0 ; !next_non_ws_char_is(&parser, ']') ; i++) {",
         // "    parser.bookmark();",
         "    if (!parse_obj(&parser, &" & var1_str & "))",
@@ -807,15 +805,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* full_check_method_code(StaticBlock block) {
-    keys = [(v, arity(t), k) : v t <- block.tables, needs_keys_check(t), k <- keys(t)];
-    ord_keys = sort_by_key(keys, $(1));
+    keys = [(v, t, k) : v t <- block.tables, needs_keys_check(t), k <- keys(t)];
+    ord_keys = sort_by_key(keys, arity($(1)));
     keys_check_code = join(({
-      method_name = key_check_method_names((a, k), !);
+      method_name = key_check_method_name(t, k);
       return (
         "if (!" & native_call_expr(method_name, (v)) & ")",
         "  return false;"
       );
-    } : v, a, k <- ord_keys));
+    } : v, t, k <- ord_keys));
 
     foreign_keys_check_code = native_code(block.foreign_keys_check_code, nothing, break_target = nothing);
     vars_decls = gen_vars_decls(block.foreign_keys_check_code, []);
@@ -828,6 +826,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (sgn) & indent_lines(body) & ("}");
 
 
+    String key_check_method_name(AnyTable table, [+Nat] key) =
+      table()             = key_check_method_names((arity(table), key), !),
+      master_bin_table()  = master_bin_table_key_check_method_names(key, !),
+      slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
+      column()            |
+      slave_column()      = undefined;
+
+
     [(NzNat, [+Nat]) -> String] key_check_method_names = [
       (2, [0])    -> "bin_table_col_1_is_key",
       (2, [1])    -> "bin_table_col_2_is_key",
@@ -835,6 +841,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       (3, [0, 1]) -> "tern_table_cols_12_are_key",
       (3, [0, 2]) -> "tern_table_cols_13_are_key",
       (3, [1, 2]) -> "tern_table_cols_23_are_key"
+    ];
+
+    [[+Nat] -> String] master_bin_table_key_check_method_names = [
+      [0] -> "master_bin_table_col_1_is_key",
+      [1] -> "master_bin_table_col_2_is_key"
+    ];
+
+    [[+Nat] -> String] slave_tern_table_key_check_method_names = [
+      [0, 1] -> "slave_tern_table_cols_12_are_key",
+      [2]    -> "slave_tern_table_col_3_is_key"
     ];
 
 
@@ -1146,11 +1162,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     if tables != [] {
       ord_tables = sort_by_key(keys(tables), arity(tables($)));
       tables_code = ({
+        table = tables(t);
         value_store_args = join(({
           prefix = native_value_store_method_prefix(block.value_stores(v));
           return (prefix & "_incr_rc", prefix & "_decr_rc", v, updater_var_ref_name(v));
-        } : v <- table_value_stores(tables(t))));
-        args = (t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
+        } : v <- table_value_stores(table)));
+        args = (table.master if table :: SlaveTernTable, t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
         return native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
       } : t <- ord_tables);
       code = (code | "") if code != ();
