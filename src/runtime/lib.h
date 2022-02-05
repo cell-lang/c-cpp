@@ -305,7 +305,8 @@ struct SLAVE_TERN_TABLE_ITER_23 {
 };
 
 struct SLAVE_TERN_TABLE_AUX {
-
+  BIN_TABLE_AUX slave_table_aux;
+  QUEUE_U32 insertions;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -928,6 +929,7 @@ void internal_fail();
 
 void sort_u32(uint32 *array, uint32 len);
 void sort_u64(uint64 *array, uint32 len);
+void sort_3u32(uint32 *array, uint32 len);
 
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
@@ -941,6 +943,7 @@ void index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *middle_sort
 
 bool sorted_u32_array_contains(uint32 *array, uint32 len, uint32 value);
 bool sorted_u64_array_contains(uint64 *array, uint32 len, uint64 value);
+bool sorted_3u32_array_contains(uint32 *array, uint32 len, uint32, uint32, uint32);
 
 uint32 sort_unique(OBJ* objs, uint32 size);
 uint32 sort_and_check_no_dups(OBJ* keys, OBJ* values, uint32 size);
@@ -1280,10 +1283,8 @@ bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *);
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
-// bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-// bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1);
-// bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
-// OBJ  bin_table_aux_lookup(BIN_TABLE *, BIN_TABLE_AUX *, uint32 surr_1);
+bool bin_table_aux_arg1_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2);
+bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2);
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 
@@ -1449,8 +1450,8 @@ void slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *, uint32 arg3);
 
 void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
 
-// bool slave_tern_table_aux_check_key_1(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
-// bool slave_tern_table_aux_check_key_2(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool slave_tern_table_aux_check_key_3(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_BIN_TABLE_AUX *, SLAVE_TERN_TABLE_AUX *);
 
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);

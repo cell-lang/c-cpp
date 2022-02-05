@@ -310,18 +310,10 @@ void bin_table_aux_reset(BIN_TABLE_AUX *table_aux) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// bool bin_table_aux_contains(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
 
-// }
-
-// bool bin_table_aux_contains_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
-
-// }
-
-// bool bin_table_aux_contains_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg2) {
-
-// }
-
-// OBJ  bin_table_aux_lookup(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 surr_1) {
-
-// }
+bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}

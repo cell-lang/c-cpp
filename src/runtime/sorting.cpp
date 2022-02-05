@@ -9,6 +9,10 @@ void sort_u64(uint64 *array, uint32 len) {
   std::sort(array, array + len);
 }
 
+void sort_3u32(uint32 *array, uint32 len) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 *stable_sort_obj_index(uint32 *ys, uint32 *zs, uint32 size, OBJ *objs) {

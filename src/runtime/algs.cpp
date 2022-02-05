@@ -45,6 +45,10 @@ bool sorted_u64_array_contains(uint64 *array, uint32 len, uint64 value) {
   return false;
 }
 
+bool sorted_3u32_array_contains(uint32 *array, uint32 len, uint32 value1, uint32 value2, uint32 value3) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // The array mustn't contain duplicates
