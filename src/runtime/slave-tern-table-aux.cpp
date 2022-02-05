@@ -19,7 +19,6 @@ bool queue_u64_contains(QUEUE_U64 *, uint64);
 ////////////////////////////////////////////////////////////////////////////////
 
 void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
-  //## IMPLEMENT BETTER
   uint32 capacity = queue->capacity;
   uint32 count = queue->count;
   uint32 *array = queue->array;
@@ -205,7 +204,7 @@ bool slave_tern_table_aux_check_key_3(MASTER_BIN_TABLE *master_table, BIN_TABLE 
       }
 
       if (bin_table_contains_2(slave_table, arg3)) {
-        if (!bin_table_aux_arg2_was_deleted(&table_aux->slave_table_aux, arg3)) {
+        if (!bin_table_aux_arg2_was_deleted(slave_table, &table_aux->slave_table_aux, arg3)) {
           slave_tern_table_aux_record_col_3_key_violation(table_aux, arg1, arg2, arg3, false);
           return false;
         }
@@ -243,7 +242,7 @@ bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *master_table, BIN_TABLE
 
       uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
       if (surr12 != 0xFFFFFFFF && bin_table_contains_1(slave_table, surr12))
-        if (!bin_table_aux_arg1_was_deleted(&table_aux->slave_table_aux, surr12)) {
+        if (!bin_table_aux_arg1_was_deleted(slave_table, &table_aux->slave_table_aux, surr12)) {
           slave_tern_table_aux_record_cols_12_key_violation(table_aux, arg1, arg2, arg3, false);
           return false;
         }

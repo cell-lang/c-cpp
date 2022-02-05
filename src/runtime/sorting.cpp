@@ -9,8 +9,31 @@ void sort_u64(uint64 *array, uint32 len) {
   std::sort(array, array + len);
 }
 
+struct U32P3 {
+  uint32 array[3];
+};
+
+bool operator == (U32P3 const &x, U32P3 const &y) {
+  return x.array[0] == y.array[0] && x.array[1] == y.array[1] && x.array[2] == y.array[2];
+}
+
+bool operator < (U32P3 const &x, U32P3 const &y) {
+  if (x.array[0] != y.array[0])
+    return x.array[0] < y.array[0];
+  if (x.array[1] != y.array[1])
+    return x.array[1] < y.array[1];
+  return x.array[2] < y.array[2];
+}
+
 void sort_3u32(uint32 *array, uint32 len) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  U32P3 *begin = (U32P3 *) array;
+  assert(sizeof(U32P3) == 12);
+  assert(begin[0].array == array);
+  assert(begin[1].array == array + 3);
+  assert(begin[2].array == array + 6);
+  for (uint32 i=0 ; i < len ; i++)
+    assert(begin[i].array == array + 3 * i);
+  std::sort(begin, begin + len);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

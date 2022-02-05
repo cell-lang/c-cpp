@@ -1283,8 +1283,8 @@ bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *);
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
-bool bin_table_aux_arg1_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2);
-bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2);
+bool bin_table_aux_arg1_was_deleted(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
+bool bin_table_aux_arg2_was_deleted(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 

@@ -115,7 +115,6 @@ void bin_table_aux_delete_2(BIN_TABLE_AUX *table_aux, uint32 arg2) {
 
 void bin_table_aux_insert(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   queue_u64_insert(&table_aux->insertions, pack_args(arg1, arg2));
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -310,10 +309,42 @@ void bin_table_aux_reset(BIN_TABLE_AUX *table_aux) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool bin_table_aux_arg1_was_deleted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  if (!table_aux->deletions_prepared)
+    bin_table_aux_prepare_deletions(table_aux);
+
+  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+    return true;
+
+  //## THIS IS NOT AT ALL IDEAL
+  BIN_TABLE_ITER_1 iter;
+  bin_table_iter_1_init(table, &iter, arg1);
+  while (!bin_table_iter_1_is_out_of_range(&iter)) {
+    uint32 arg2 = bin_table_iter_1_get_1(&iter);
+    uint32 args = pack_args(arg1, arg2);
+    if (queue_u64_contains(&table_aux->deletions, args) || queue_u32_contains(&table_aux->deletions_2, arg2))
+      return true;
+  }
+
+  return false;
 }
 
-bool bin_table_aux_arg2_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool bin_table_aux_arg2_was_deleted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  if (!table_aux->deletions_prepared)
+    bin_table_aux_prepare_deletions(table_aux);
+
+  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+    return true;
+
+  //## THIS IS NOT AT ALL IDEAL
+  BIN_TABLE_ITER_2 iter;
+  bin_table_iter_2_init(table, &iter, arg2);
+  while (!bin_table_iter_2_is_out_of_range(&iter)) {
+    uint32 arg1 = bin_table_iter_2_get_1(&iter);
+    uint32 args = pack_args(arg1, arg2);
+    if (queue_u64_contains(&table_aux->deletions, args) || queue_u32_contains(&table_aux->deletions_1, arg2))
+      return true;
+  }
+
+  return false;
 }
