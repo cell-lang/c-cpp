@@ -1240,16 +1240,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       method_name = match (table_type)
         table()             = table_key_check_method_names(arity, key, !),
         master_bin_table()  = undefined,
-        slave_tern_table()  = undefined,
+        slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
         column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
         slave_column()      = undefined;
-      needs_mem_pool = match (table_type)
-        column()            = true,
-        table()             = false,
-        master_bin_table()  = undefined,
-        slave_tern_table()  = undefined,
+      aux_var = pending_updates_var_ref_name(var);
+      args = match (table_type)
+        column()            = (var, aux_var, :mem_pool),
+        slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
+        table()             |
+        master_bin_table()  = (var, aux_var),
         slave_column()      = undefined;
-      args = (var, pending_updates_var_ref_name(var), :mem_pool if needs_mem_pool);
       return native_call_expr(method_name, args) & ";";
     }
 
@@ -1267,6 +1267,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       3,  [0, 1], "tern_table_aux_check_key_12";
       3,  [1, 2], "tern_table_aux_check_key_23";
       3,  [0, 2], "tern_table_aux_check_key_13"
+    ];
+
+
+    [[+Nat] -> String] slave_tern_table_key_check_method_names = [
+      [0, 1]  -> "slave_tern_table_aux_check_key_12",
+      [2]     -> "slave_tern_table_aux_check_key_3"
     ];
 
 

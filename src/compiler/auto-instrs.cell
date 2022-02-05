@@ -312,7 +312,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
     fn_name = native_table_method_prefix(table) & "_aux_" & fn_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);
-    return native_call(fn_name, (auxiliary) & (native_expr(value(a)) : a <- args, a != nothing));
+    call_args = match (table)
+      slave_tern_table()  = (table.master if set_args != (false, false, false), auxiliary),
+      _                   = (auxiliary);
+    call_args = call_args & (native_expr(value(a)) : a <- args, a != nothing);
+    return native_call(fn_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [
       (true)                  -> "delete",
