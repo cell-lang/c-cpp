@@ -95,12 +95,23 @@ String parenthesize(String code, Bool parenthesized) = if parenthesized then "("
 
 String uppercase_encoding(Nat n) {
   m = n;
-  chs = ();
-  while m > 0 or chs == () {
-    chs = (nat(ascii_upper_a + mod(n, 26))) & chs;
+
+  len = 1;
+  size = 26;
+  while m >= size {
+    len = len + 1;
+    m = m - size;
+    size = 26 * size;
+  }
+
+  ds = ();
+  for len {
+    ds = (ds | _mod_(m, 26));
     m = m / 26;
   }
-  return string(chs);
+  ds = _rev_(ds);
+  chs = (nat(`A` + d) : d <- ds);
+  return :string(chs);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
