@@ -32,7 +32,8 @@ implicit context : NativeContext {
 
 
   String native_column_lookup_expr(AnyTableVar var, Int32Var key, ColumnRepr repr) {
-    expr = native_var_ref_name(var) & ".Lookup(" & native_expr(key) & ")";
+    method_name = native_column_method_prefix(repr) & "_lookup";
+    expr = native_call_expr(method_name, (var, key));
     return match (repr)
       object  = expr,
       int     = "make_int(" & expr & ")",
@@ -191,10 +192,10 @@ implicit context : NativeContext {
 
     int_obj(e1?),       int_obj(e2?)      = native_nary_op(" == ", (e1, e2), parenthesized),
     int_obj(e1?),       column_lookup()   = if expr2.repr == :int
-                                              then native_column_lookup_eq(expr2.var, expr2.key, e1)
+                                              then native_column_lookup_eq(expr2.var, expr2.key, expr2.repr, e1)
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
     column_lookup(),    int_obj(e2?)      = if expr1.repr == :int
-                                              then native_column_lookup_eq(expr1.var, expr1.key, e2)
+                                              then native_column_lookup_eq(expr1.var, expr1.key, expr1.repr, e2)
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
     int_obj(e1?),       _                 = "is_int(" & native_expr(expr2) & ", " & native_expr(e1) & ")",
     _,                  int_obj(e2?)      = "is_int(" & native_expr(expr1) & ", " & native_expr(e2) & ")",
@@ -220,8 +221,10 @@ implicit context : NativeContext {
     _,                  _                 = "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")";
 
 
-  String native_column_lookup_eq(AnyTableVar var, Int32Expr key, IntExpr value) =
-    native_var_ref_name(var) & ".Lookup(" & native_expr(key) & ") == " & native_expr(value, true);
+  String native_column_lookup_eq(AnyTableVar var, Int32Expr key, ColumnRepr repr, IntExpr value) {
+    method_name = native_column_method_prefix(repr) & "_lookup";
+    return native_call_expr(method_name, (var, key)) & " == " & native_expr(value, true);
+  }
 
 
   String native_neq_expr(ObjExpr expr1, ObjExpr expr2, Bool parenthesized) =
@@ -311,7 +314,7 @@ implicit context : NativeContext {
       bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
       get_size(e?)            = "get_size(" & native_expr(e) & ")",
       get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, expr.symmetric),
-      table_lookup()          = native_table_lookup_expr(expr.table, expr.args, expr.symmetric),
+      table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args, expr.symmetric),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
@@ -337,27 +340,28 @@ implicit context : NativeContext {
   }
 
 
-  // table_lookup(table: AnyTableVar, args: Maybe[Int32Var]+, symmetric: Bool),
-  String native_table_lookup_expr(AnyTableVar table, Maybe[Int32Var]+ args, Bool symmetric) {
-    fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = fn_names((a != nothing : a <- args));
-    args_list = append((native_var_ref_name(value(a)) : a <- args, a != nothing), ", ");
-    return native_var_ref_name(table) & "." & fn_name & "(" & args_list & ")";
+  // table_lookup(table_var: AnyTableVar, table: AnySurrTable, args: Maybe[Int32Var]+, symmetric: Bool),
+  String native_table_lookup_expr(AnyTableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args, Bool symmetric) {
+    base_names = if symmetric then sym_base_names_by_args else base_names_by_args;
+    method_name = native_table_method_prefix(table) & "_" & base_names((a != nothing : a <- args));
+    call_args = (table_var) & values(args);
+    return native_call_expr(method_name, call_args);
 
-    [Bool+ -> String] fn_names_by_args = [
-      (true,  false)        -> "Lookup1",
-      (false, true)         -> "Lookup2",
-      (true,  true,  false) -> "Lookup12",
-      (true,  false, true)  -> "Lookup13",
-      (false, true,  true)  -> "Lookup23"
+
+    [Bool+ -> String] base_names_by_args = [
+      (true,  false)        -> "lookup_1",
+      (false, true)         -> "lookup_2",
+      (true,  true,  false) -> "lookup_12",
+      (true,  false, true)  -> "lookup_13",
+      (false, true,  true)  -> "lookup_23"
     ];
 
-    [Bool+ -> String] sym_fn_names_by_args = [
-      (true,  false)        -> "Lookup",
-      (false, true)         -> "Lookup",
-      (true,  false, true)  -> "Lookup_13_23",
-      (false, true,  true)  -> "Lookup_13_23",
-      (true,  true,  false) -> "Lookup12"
+    [Bool+ -> String] sym_base_names_by_args = [
+      (true,  false)        -> "lookup",
+      (false, true)         -> "lookup",
+      (true,  false, true)  -> "lookup_13_23",
+      (false, true,  true)  -> "lookup_13_23",
+      (true,  true,  false) -> "lookup_12"
     ];
   }
 

@@ -220,7 +220,7 @@ implicit context : NativeContext {
       up_to_date_var(nested_auto_node_id(a?))       = prefix & _print_(a) & "_Ua",
       up_to_date_var(nested_auto_input_id() id?)    = prefix & _print_(id.auto) & "_Ua_" & _print_(id.input),
       is_new                                        = prefix & "is_new",
-      qual_bool_var() = native_var_name(var.auto_var, add_prefix) & "." & native_var_name(var.memb_var, false);
+      qual_bool_var() = native_var_name(var.auto_var, add_prefix) & "->" & native_var_name(var.memb_var, false);
   }
 
 
@@ -283,7 +283,7 @@ implicit context : NativeContext {
   String native_var_name(AnyTableVar var, Bool add_prefix) {
     return match (var)
       table_var(v?)             = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & native_name(v),
-      qual_table_var()          = native_var_name(var.db_var, add_prefix) & "." & native_var_name(var.table_var, false),
+      qual_table_var()          = "&" & native_var_name(var.db_var, add_prefix) & "->" & native_var_name(var.table_var, false),
       capt_table_var(v?)        = { assert add_prefix; return "this.capt_auto." & native_var_name(v, false);};
 
     String native_name(PhysRelVar) =
@@ -296,7 +296,7 @@ implicit context : NativeContext {
     value_store_id(n?)        = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & "value_store_" & printed(n),
     nested_value_store_id()   = { assert add_prefix;
                                   db_var_str = native_var_name(v.db_var, true);
-                                  return db_var_str & "." & native_var_name(v.store_id, false);
+                                  return "&" & db_var_str & "->" & native_var_name(v.store_id, false);
                                 },
     capt_value_store_id(id?)  = { assert add_prefix;
                                   return "this.capt_auto." & native_var_name(id, false);
