@@ -247,10 +247,12 @@ void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *tab
 
 void master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *iter) {
   bin_table_iter_init_empty(&iter->iter);
+  iter->args_to_idx = NULL;
 }
 
 void master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter) {
   bin_table_iter_init(&table->plain_table, &iter->iter);
+  iter->args_to_idx = &table->args_to_idx;
 }
 
 void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
@@ -270,17 +272,23 @@ uint32 master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *iter) {
 }
 
 uint32 master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *iter) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 arg1 = bin_table_iter_get_1(&iter->iter);
+  uint32 arg2 = bin_table_iter_get_2(&iter->iter);
+  return iter->args_to_idx->at(pack_args(arg1, arg2));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_iter_1_init_empty(MASTER_BIN_TABLE_ITER_1 *iter) {
   bin_table_iter_1_init_empty(&iter->iter);
+  iter->args_to_idx = NULL;
+  iter->arg1 = 0xFFFFFFFF;
 }
 
 void master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_1 *iter, uint32 arg1) {
   bin_table_iter_1_init(&table->plain_table, &iter->iter, arg1);
+  iter->args_to_idx = &table->args_to_idx;
+  iter->arg1 = arg1;
 }
 
 void master_bin_table_iter_1_move_forward(MASTER_BIN_TABLE_ITER_1 *iter) {
@@ -296,17 +304,23 @@ uint32 master_bin_table_iter_1_get_1(MASTER_BIN_TABLE_ITER_1 *iter) {
 }
 
 uint32 master_bin_table_iter_1_get_surr(MASTER_BIN_TABLE_ITER_1 *iter) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 arg1 = iter->arg1;
+  uint32 arg2 = bin_table_iter_1_get_1(&iter->iter);
+  return iter->args_to_idx->at(pack_args(arg1, arg2));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *iter) {
   bin_table_iter_2_init_empty(&iter->iter);
+  iter->args_to_idx = NULL;
+  iter->arg2 = 0xFFFFFFFF;
 }
 
 void master_bin_table_iter_2_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_2 *iter, uint32 arg2) {
   bin_table_iter_2_init(&table->plain_table, &iter->iter, arg2);
+  iter->args_to_idx = &table->args_to_idx;
+  iter->arg2 = arg2;
 }
 
 void master_bin_table_iter_2_move_forward(MASTER_BIN_TABLE_ITER_2 *iter) {
@@ -322,5 +336,7 @@ uint32 master_bin_table_iter_2_get_1(MASTER_BIN_TABLE_ITER_2 *iter) {
 }
 
 uint32 master_bin_table_iter_2_get_surr(MASTER_BIN_TABLE_ITER_2 *iter) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 arg1 = bin_table_iter_2_get_1(&iter->iter);
+  uint32 arg2 = iter->arg2;
+  return iter->args_to_idx->at(pack_args(arg1, arg2));
 }

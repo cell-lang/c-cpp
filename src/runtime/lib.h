@@ -244,14 +244,19 @@ struct MASTER_BIN_TABLE {
 
 struct MASTER_BIN_TABLE_ITER {
   BIN_TABLE_ITER iter;
+  unordered_map<uint64, uint32> *args_to_idx;
 };
 
 struct MASTER_BIN_TABLE_ITER_1 {
   BIN_TABLE_ITER_1 iter;
+  unordered_map<uint64, uint32> *args_to_idx;
+  uint32 arg1;
 };
 
 struct MASTER_BIN_TABLE_ITER_2 {
   BIN_TABLE_ITER_2 iter;
+  unordered_map<uint64, uint32> *args_to_idx;
+  uint32 arg2;
 };
 
 struct MASTER_BIN_TABLE_AUX {
