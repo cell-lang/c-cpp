@@ -12,7 +12,7 @@ OBJ copy_ne_int_seq(OBJ seq) {
   uint32 len = read_size_field_unchecked(seq);
   INT_BITS_TAG bits_tag = get_int_bits_tag(seq);
 
-  uint32 mem_size = len * (8 << bits_tag);
+  uint32 mem_size = len * (1 << bits_tag);
   void *copy_elts = new_obj((mem_size + 7) & ~7);
   memcpy(copy_elts, seq.core_data.ptr, mem_size);
   return repoint_to_sliced_copy(seq, copy_elts);

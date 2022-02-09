@@ -42,7 +42,7 @@ double *alloc_state_mem_float_array(STATE_MEM_POOL *mem_pool, uint32 size) {
 double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(double));
-  uint32 new_byte_size = null_round_up_8(size * sizeof(double));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(double));
   double *new_ptr = (double *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   // memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -87,14 +87,14 @@ uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size)
   uint32 *ptr = (uint32 *) alloc_state_mem_block(mem_pool, byte_size);
   memset(ptr, 0xFF, byte_size);
   for (int i=0 ; i < size ; i++)
-    assert(ptr[i] == 255);
+    assert(ptr[i] == 0xFFFFFFFF);
   return ptr;
 }
 
 uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint32));
-  uint32 new_byte_size = null_round_up_8(size * sizeof(uint32));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint32));
   uint32 *new_ptr = (uint32 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   // memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -120,7 +120,7 @@ uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint32 size) {
 uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 8 == 0 & new_size % 8 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint8));
-  uint32 new_byte_size = null_round_up_8(size * sizeof(uint8));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint8));
   uint8 *new_ptr = (uint8 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -192,17 +192,18 @@ void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
     new_capacity *= 2;
 
   OBJ *values = extend_state_mem_blanked_obj_array(mem_pool, store->values, capacity, new_capacity);
-  //## store->values IS NEVER RELEASED
+  //## BUG BUG BUG: store->values IS NEVER RELEASED
   store->values = values;
 
   uint32 *hashcode_or_next_free = extend_state_mem_uint32_array(mem_pool, store->hashcode_or_next_free, capacity, new_capacity);
   for (uint32 i=capacity ; i < new_capacity ; i++)
     hashcode_or_next_free[i] = i + 1;
-  //## store->hashcode_or_next_free IS NEVER RELEASED
+  //## BUG BUG BUG: store->hashcode_or_next_free IS NEVER RELEASED
   store->hashcode_or_next_free = hashcode_or_next_free;
 
-  //## BUG BUG BUG: store->ref_counters IS NEVER SET!!! (AND ALSO NEVER RELEASED)
+  //## BUG BUG BUG: store->ref_counters IS NEVER RELEASED
   uint8 *refs_counters = extend_state_mem_zeroed_uint8_array(mem_pool, store->refs_counters, capacity, new_capacity);
+  store->refs_counters = refs_counters;
 
   release_state_mem_uint32_array(mem_pool, store->hashtable, capacity / 2);
   store->hashtable = alloc_state_mem_oned_uint32_array(mem_pool, new_capacity / 2);

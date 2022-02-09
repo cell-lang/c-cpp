@@ -10,6 +10,10 @@
 //     r++;
 // }
 
+inline uint32 pages_4096(uint32 mem_size) {
+  return (mem_size + 4095) / 4096;
+}
+
 static uint32 subpool_index(uint32 size) {
   assert(size <= 4096);
 
@@ -33,7 +37,13 @@ static uint32 subpool_index(uint32 size) {
 
 static void *alloc_new_pages(uint32 count) {
   assert(count > 0);
-  return malloc(4096 * count);
+  void *ptr = malloc(4096 * count);
+  return ptr;
+}
+
+static void release_pages(void *ptr, uint32 count) {
+  assert(count > 0);
+  free(ptr);
 }
 
 static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
@@ -74,7 +84,7 @@ void release_mem_pool(STATE_MEM_POOL *mem_pool) {
 
 void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
   if (byte_size > 4096) {
-    internal_fail();
+    return alloc_new_pages(pages_4096(byte_size));
   }
 
   uint32 pool_idx = subpool_index(byte_size);
@@ -84,7 +94,8 @@ void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
 
 void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
   if (byte_size > 4096) {
-    internal_fail();
+    release_pages(ptr, pages_4096(byte_size));
+    return;
   }
 
   uint32 pool_idx = subpool_index(byte_size);
@@ -325,7 +336,7 @@ uint32 obj_mem_size(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-inline void *grab_mem(void **mem_var, uint32 byte_size) {
+void *grab_mem(void **mem_var, uint32 byte_size) {
   assert(byte_size % 8 == 0);
   uint8 *mem = (uint8 *) *mem_var;
   *mem_var = mem + byte_size;
@@ -661,7 +672,7 @@ OBJ copy_to_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
   uint32 total_mem_size = obj_mem_size(obj);
   assert(total_mem_size % 8 == 0);
 
-#ifndef NDEBUG
+#ifdef EXDEBUG
   if (total_mem_size < 64 * 1024) {
     uint8 test_mem_0[128 * 1024];
     uint8 test_mem_1[128 * 1024];

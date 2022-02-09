@@ -439,7 +439,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     rel_args = join(((native_var_ref_name(v), updater_var_ref_name(v)) : v, _ <- rel_auto_args));
     react_args = (native_var_ref_name(v) : v <- react_auto_args);
     args_list = args & cls_args_refs & rel_args & react_args;
-    args_list = (args_list | "env") if not name :: ConvFnId;
+    is_builtin_proc = name :: ProcSymbol and builtin_procs_map(name, _);
+    args_list = (args_list | "env") if not name :: ConvFnId and not is_builtin_proc;
     name_str = native_fn_name(name);
     call_code = if var != nothing
       then native_call(value(var), name_str, args_list)

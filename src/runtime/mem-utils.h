@@ -539,22 +539,22 @@ inline bool is_signed(OBJ seq) {
   return (seq.extra_data & SIGNED_BIT_MASK) == SIGNED_BIT_MASK;
 }
 
-inline int is_8_bit_wide(OBJ seq) {
+inline bool is_8_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_8;
 }
 
-inline int is_16_bit_wide(OBJ seq) {
+inline bool is_16_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_16;
 }
 
-inline int is_32_bit_wide(OBJ seq) {
+inline bool is_32_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_32;
 }
 
-inline int is_64_bit_wide(OBJ seq) {
+inline bool is_64_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_64;
 }

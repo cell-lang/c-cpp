@@ -43,7 +43,13 @@ double get_float_at(OBJ seq, int64 idx) {
   if (((uint64) idx) >= read_size_field(seq))
     soft_fail("Invalid sequence index");
 
-  return get_seq_elts_ptr_float(seq)[idx];
+  OBJ_TYPE type = get_obj_type(seq);
+  assert(type == TYPE_NE_FLOAT_SEQ || type == TYPE_NE_SEQ);
+
+  if (type == TYPE_NE_FLOAT_SEQ)
+    return get_seq_elts_ptr_float(seq)[idx];
+  else
+    return get_float(get_seq_elts_ptr(seq)[idx]);
 }
 
 int64 get_int_at(OBJ seq, int64 idx) {
@@ -74,13 +80,13 @@ int64 get_int_at_unchecked(OBJ seq, uint32 idx) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   assert(idx < read_size_field_unchecked(seq));
 
-  uint32 width_tag = get_int_bits_tag(seq);
-
   if (!is_signed(seq)) {
-    assert(width_tag == INT_BITS_TAG_8);
+    assert(get_int_bits_tag(seq) == INT_BITS_TAG_8);
     uint8 *elts = (uint8 *) seq.core_data.ptr;
     return elts[idx];
   }
+
+  uint32 width_tag = get_int_bits_tag(seq);
 
   if (width_tag < INT_BITS_TAG_32) {
     if (width_tag == INT_BITS_TAG_8) {

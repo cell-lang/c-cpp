@@ -29,6 +29,7 @@ static uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1,
     for (uint32 i=capacity ; i < new_capacity ; i++)
       slots[i] = i + 1;
     table->slots = slots;
+    table->capacity = new_capacity;
   }
 
   table->first_free = (uint32) slots[first_free];

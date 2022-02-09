@@ -14,7 +14,7 @@ uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
 uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(uint64));
-  uint32 new_byte_size = null_round_up_8(size * sizeof(uint64));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint64));
   uint64 *new_ptr = (uint64 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   // memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -41,7 +41,7 @@ int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
 int64 *extend_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
   uint32 byte_size = null_round_up_8(size * sizeof(int64));
-  uint32 new_byte_size = null_round_up_8(size * sizeof(int64));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(int64));
   int64 *new_ptr = (int64 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
   // memset(new_ptr + size, 0, new_byte_size - byte_size);
@@ -235,6 +235,8 @@ void int_store_resize(INT_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
 
   uint8 *curr_refs_counters = store->refs_counters; //## REMEMBER TO RELEASE
   uint8 *new_refs_counters = extend_state_mem_zeroed_uint8_array(mem_pool, curr_refs_counters, curr_capacity, new_capacity);
+  for (uint32 i=curr_capacity ; i < new_capacity ; i++)
+    assert(new_refs_counters[i] == 0);
   store->refs_counters = new_refs_counters;
 }
 
@@ -291,6 +293,7 @@ int64 int_store_surr_to_value(INT_STORE *store, uint32 surr) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void int_store_add_ref(INT_STORE *store, uint32 index) {
+  assert(index < store->capacity);
   uint8 *refs_counters = store->refs_counters;
   uint32 count = refs_counters[index] + 1;
   if (count == 256) {
@@ -301,6 +304,7 @@ void int_store_add_ref(INT_STORE *store, uint32 index) {
 }
 
 void int_store_release(INT_STORE *store, uint32 index) {
+  assert(index < store->capacity);
   uint8 *refs_counters = store->refs_counters;
   assert(refs_counters[index] > 0);
   uint32 count = refs_counters[index] - 1;
@@ -374,6 +378,8 @@ void int_store_insert(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value, u
   assert(index < store->capacity);
   assert(is_empty(store->slots[index]));
   assert(store->refs_counters[index] == 0);
+  // for (uint32 i=store->count ; i < store->capacity ; i++)
+  //   assert(store->refs_counters[i] == 0);
 
   uint64 *slots = store->slots;
   uint32 *hashtable = store->hashtable;

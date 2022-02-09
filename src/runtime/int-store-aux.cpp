@@ -177,7 +177,10 @@ void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL 
 void int_store_reset_aux(INT_STORE_AUX *store_aux) {
   uint32 count = store_aux->count;
   if (count > 0) {
+    assert(store_aux->last_surr != 0xFFFFFFFF);
+
     store_aux->count = 0;
+    store_aux->last_surr = 0xFFFFFFFF;
 
     if (count > INLINE_AUX_SIZE) {
       store_aux->capacity = INLINE_AUX_SIZE;
@@ -188,7 +191,6 @@ void int_store_reset_aux(INT_STORE_AUX *store_aux) {
       store_aux->buckets = NULL;
 
       store_aux->hash_range = 0;
-      store_aux->last_surr = 0xFFFFFFFF;
     }
   }
 

@@ -170,7 +170,10 @@ void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL 
 void obj_store_reset_aux(OBJ_STORE_AUX *store_aux) {
   uint32 count = store_aux->count;
   if (count > 0) {
+    assert(store_aux->last_surr != 0xFFFFFFFF);
+
     store_aux->count = 0;
+    store_aux->last_surr = 0xFFFFFFFF;
 
     if (count > INLINE_AUX_SIZE) {
       store_aux->capacity = INLINE_AUX_SIZE;
@@ -181,7 +184,6 @@ void obj_store_reset_aux(OBJ_STORE_AUX *store_aux) {
       store_aux->buckets = NULL;
 
       store_aux->hash_range = 0;
-      store_aux->last_surr = 0xFFFFFFFF;
     }
   }
 
@@ -270,6 +272,7 @@ uint32 obj_store_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
   }
 
   uint32 surr = obj_store_next_free_idx(store, store_aux->last_surr);
+  assert(surr <= store->capacity + count);
   store_aux->last_surr = surr;
 
   OBJ_STORE_AUX_INSERT_ENTRY *entry_ptr = store_aux->entries + count;
