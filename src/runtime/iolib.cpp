@@ -2,11 +2,7 @@
 #include "os-interface.h"
 
 
-struct ENV_;
-typedef struct ENV_ ENV;
-
-
-OBJ FileRead_P(OBJ filename, ENV &) {
+OBJ FileRead_P(OBJ filename) {
   char *fname = obj_to_str(filename);
   int size;
   uint8 *data = file_read(fname, size);
@@ -28,7 +24,7 @@ OBJ FileRead_P(OBJ filename, ENV &) {
   // return make_tag_obj(symb_id_just, seq_obj);
 }
 
-OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
+OBJ FileWrite_P(OBJ filename, OBJ data) {
   char *fname = obj_to_str(filename);
   uint32 size;
   uint8 *buffer = obj_to_byte_array(data, size);
@@ -43,19 +39,33 @@ OBJ FileWrite_P(OBJ filename, OBJ data, ENV &) {
   return make_bool(res);
 }
 
-OBJ GetChar_P(ENV &env) {
+OBJ GetChar_P() {
   int ch = getchar();
   if (ch == EOF)
     return make_symb(symb_id_nothing);
   return make_tag_obj(symb_id_just, make_int(ch));
 }
 
-void Print_P(OBJ str_obj, ENV &env) {
+OBJ Ticks_P() {
+  const uint64 BLANK_TICKS = 0xFFFFFFFFFFFFFFFFULL;
+  static uint64 init_ticks = BLANK_TICKS;
+
+  uint64 ticks = get_tick_count();
+  if (init_ticks == BLANK_TICKS)
+    init_ticks = ticks;
+  return make_int(ticks - init_ticks);
+}
+
+void Print_P(OBJ str_obj) {
   char *str = obj_to_str(str_obj);
   fputs(str, stdout);
   fflush(stdout);
 }
 
-void Exit_P(OBJ exit_code, struct ENV_ &env) {
+void Exit_P(OBJ exit_code) {
   exit(get_int(exit_code));
+}
+
+OBJ Error_P(void *, void *) {
+  return make_tag_obj(symb_id_string, make_empty_seq());
 }

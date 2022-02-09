@@ -43,6 +43,18 @@ const OBJ_TYPE NE_INT_SEQ_TYPE_RANGE_END    = TYPE_NE_INT_SEQ;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// ---------------- ---------------- ---------------- ----------------
+//                                                    ----------------  symbol id          (16)
+//                                   ---------------- ----------------  size               (32)
+//                                                    ----------------  ad hoc repr id     (16)
+//                                   ----------------                   inner tag id       (16)
+//                  ----------------                                    tag id             (16)
+//             ----                                                     unused?             (4)
+//           --                                                         no of tags          (2)
+//      -----                                                           obj type            (5)
+// -----                                                                physical repr info  (5)
+
+
 struct OBJ {
   union {
     int64   int_;
@@ -184,17 +196,20 @@ struct QUEUE_U32_OBJ {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct UNARY_TABLE {
-  unordered_set<uint32> elements;
+  uint64 *bitmap;
+  uint32 capacity; // Number of bits
+  uint32 count;
 };
 
 struct UNARY_TABLE_ITER {
-  unordered_set<uint32>::iterator it;
-  unordered_set<uint32>::iterator end;
+  uint64 *bitmap;
+  uint32 index;
+  uint32 left;
 };
 
 struct UNARY_TABLE_AUX {
-  unordered_set<uint32> deletions;
-  unordered_set<uint32> insertions;
+  QUEUE_U32 deletions;
+  QUEUE_U32 insertions;
   bool clear;
 };
 
@@ -566,9 +581,6 @@ inline uint32 null_round_up_8(uint32 mem_size) {
   return mem_size;
 }
 
-
-//## THESE ARE ALL IN THE WRONG FILE
-
 OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
 OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
 void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size);
@@ -580,6 +592,7 @@ void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32
 uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
 uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size);
+uint64 *extend_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size);
 void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
 
 int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size);
@@ -1198,11 +1211,11 @@ void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
 bool unary_table_contains(UNARY_TABLE *, uint32);
 uint64 unary_table_size(UNARY_TABLE *);
 
-uint32 unary_table_insert(UNARY_TABLE *, uint32, STATE_MEM_POOL *);
-// void unary_table_delete(UNARY_TABLE *, uint32);
-// void unary_table_clear(UNARY_TABLE *);
+bool unary_table_insert(UNARY_TABLE *, uint32, STATE_MEM_POOL *);
+bool unary_table_delete(UNARY_TABLE *, uint32);
+void unary_table_clear(UNARY_TABLE *);
 
-OBJ unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *, STREAM *stream);
+void unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *, STREAM *stream);
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
 
 void unary_table_iter_init(UNARY_TABLE *, UNARY_TABLE_ITER *);

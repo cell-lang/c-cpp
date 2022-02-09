@@ -539,6 +539,11 @@ inline bool is_signed(OBJ seq) {
   return (seq.extra_data & SIGNED_BIT_MASK) == SIGNED_BIT_MASK;
 }
 
+inline bool is_u8_array(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  return (seq.extra_data >> SIGNED_BIT_SHIFT) == 0;
+}
+
 inline bool is_8_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_8;

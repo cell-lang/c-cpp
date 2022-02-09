@@ -721,3 +721,380 @@ void remove_from_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
     release_state_mem_block(mem_pool, obj.core_data.ptr, total_mem_size);
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+OBJ copy_str_to_pool(STATE_MEM_POOL *mem_pool, OBJ str, void *slot16) {
+  assert(!is_inline_obj(str));
+  assert(get_obj_type(str) == TYPE_NE_INT_SEQ);
+
+  INT_BITS_TAG bits_tag = get_int_bits_tag(str);
+
+  if (bits_tag == INT_BITS_TAG_8) {
+    uint32 len = read_size_field_unchecked(str);
+
+    // Works also for unsigned bytes
+    uint32 mem_size = round_up(len * sizeof(int8));
+
+    void *src = get_seq_elts_ptr_int8_or_uint8(str);
+    void *dest = mem_size <= 16 ? slot16 : alloc_state_mem_block(mem_pool, mem_size);
+    memcpy(dest, src, mem_size);
+    return repoint_to_sliced_copy(str, dest);
+  }
+  else
+    return copy_to_pool(mem_pool, str);
+}
+
+OBJ copy_str_to_pool(STATE_MEM_POOL *mem_pool, OBJ str) {
+  assert(!is_inline_obj(str));
+  assert(get_obj_type(str) == TYPE_NE_INT_SEQ);
+
+  INT_BITS_TAG bits_tag = get_int_bits_tag(str);
+
+  if (bits_tag == INT_BITS_TAG_8) {
+    uint32 len = read_size_field_unchecked(str);
+
+    // Works also for unsigned bytes
+    uint32 mem_size = round_up(len * sizeof(int8));
+
+    void *src = get_seq_elts_ptr_int8_or_uint8(str);
+    void *dest = alloc_state_mem_block(mem_pool, mem_size);
+    memcpy(dest, src, mem_size);
+    return repoint_to_sliced_copy(str, dest);
+  }
+  else
+    return copy_to_pool(mem_pool, str);
+
+
+  // if (bits_tag < INT_BITS_TAG_32) {
+  //   if (bits_tag == INT_BITS_TAG_8) {
+  //     // Works also for unsigned bytes
+  //     uint32 mem_size = round_up(len * sizeof(int8));
+  //     void *src = get_seq_elts_ptr_int8_or_uint8(str);
+  //     void *dest = alloc_state_mem_block(mem_pool, mem_size);
+  //     memcpy(dest, src, mem_size);
+  //     return repoint_to_sliced_copy(str, dest);
+  //   }
+  //   else {
+  //     assert(bits_tag == INT_BITS_TAG_16);
+
+  //     int16 *array = get_seq_elts_ptr_int16(str);
+
+  //     int16 min = 0, max = 0;
+  //     for (uint32 i=0 ; i < len ; i++) {
+  //       int16 value = array[i];
+  //       min = value < min ? value : min;
+  //       max = value > max ? value : max;
+  //       if (!is_int8_or_uint8_range(min, max)) {
+  //         uint32 mem_size = round_up(len * sizeof(int16));
+  //         void *dest = alloc_state_mem_block(mem_pool, mem_size);
+  //         memcpy(dest, array, mem_size);
+  //         return repoint_to_sliced_copy(str, dest);
+  //       }
+  //     }
+
+  //     uint32 mem_size = round_up(len * sizeof(int8)); // Works also for unsigned bytes
+  //     void *dest = alloc_state_mem_block(mem_pool, mem_size);
+
+  //     if (is_uint8_range(min, max)) {
+  //       uint8 *dest = (uint8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_uint8_sliced_copy(str, dest);
+  //     }
+  //     else {
+  //       assert(is_int8_range(min, max));
+  //       int8 *dest = (int8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int8_sliced_copy(str, dest);
+  //     }
+  //   }
+  // }
+  // else {
+  //   if (bits_tag == INT_BITS_TAG_32) {
+  //     int32 *array = get_seq_elts_ptr_int32(str);
+
+  //     int64 min = 0, max = 0;
+  //     for (uint32 i=0 ; i < len ; i++) {
+  //       int64 value = array[i];
+  //       min = value < min ? value : min;
+  //       max = value > max ? value : max;
+  //       if (!is_int16_range(min, max)) {
+  //         uint32 mem_size = round_up(len * sizeof(int32));
+  //         void *dest = alloc_state_mem_block(mem_pool, mem_size);
+  //         memcpy(dest, array, mem_size);
+  //         return repoint_to_sliced_copy(str, dest);
+  //       }
+  //     }
+
+  //     if (is_uint8_range(min, max)) {
+  //       uint32 mem_size = round_up(len * sizeof(uint8));
+  //       uint8 *dest = (uint8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_uint8_sliced_copy(str, dest);
+  //     }
+  //     else if (is_int8_range(min, max)) {
+  //       uint32 mem_size = round_up(len * sizeof(int8));
+  //       int8 *dest = (int8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int8_sliced_copy(str, dest);
+  //     }
+  //     else {
+  //       assert(is_int16_range(min, max));
+  //       uint32 mem_size = round_up(len * sizeof(int16));
+  //       int16 *dest = (int16 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int16_sliced_copy(str, dest);
+
+  //     }
+  //   }
+  //   else {
+  //     assert(bits_tag == INT_BITS_TAG_64);
+  //     int64 *array = get_seq_elts_ptr_int64(str);
+  //     int64 min = 0, max = 0;
+  //     for (uint32 i=0 ; i < len ; i++) {
+  //       int64 value = array[i];
+  //       min = value < min ? value : min;
+  //       max = value > max ? value : max;
+  //       if (!is_int32_range(min, max)) {
+  //         uint32 mem_size = null_round_up(len * sizeof(int64));
+  //         void *dest = alloc_state_mem_block(mem_pool, mem_size);
+  //         memcpy(dest, array, mem_size);
+  //         return repoint_to_sliced_copy(str, dest);
+  //       }
+  //     }
+
+  //     if (is_uint8_range(min, max)) {
+  //       uint32 mem_size = round_up(len * sizeof(uint8));
+  //       uint8 *dest = (uint8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_uint8_sliced_copy(str, dest);
+  //     }
+  //     else if (is_int8_range(min, max)) {
+  //       uint32 mem_size = round_up(len * sizeof(int8));
+  //       int8 *dest = (int8 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int8_sliced_copy(str, dest);
+  //     }
+  //     else if (is_int16_range(min, max)) {
+  //       uint32 mem_size = round_up(len * sizeof(int16));
+  //       int16 *dest = (int16 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int16_sliced_copy(str, dest);
+  //     }
+  //     else {
+  //       assert(is_int32_range(min, max));
+  //       uint32 mem_size = round_up(len * sizeof(int32));
+  //       int32 *dest = (int32 *) alloc_state_mem_block(mem_pool, mem_size);
+  //       for (int i=0 ; i < len ; i++)
+  //         dest[i] = array[i];
+  //       return repoint_to_int32_sliced_copy(str, dest);
+  //     }
+  //   }
+  // }
+
+  // internal_fail();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(OBJ));
+  OBJ *ptr = (OBJ *) alloc_state_mem_block(mem_pool, byte_size);
+  memset(ptr, 0, byte_size);
+  for (uint32 i=0 ; i < size ; i++)
+    assert(is_blank(ptr[i]));
+  return ptr;
+}
+
+OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 && new_size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(OBJ));
+  uint32 new_byte_size = new_size * null_round_up_8(sizeof(OBJ));
+  OBJ *new_ptr = (OBJ *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  memset(new_ptr + size, 0, new_byte_size - byte_size);
+  for (uint32 i=0 ; i < new_size ; i++)
+    assert(i < size ? are_shallow_eq(new_ptr[i], ptr[i]) : is_blank(new_ptr[i]));
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, size * null_round_up_8(sizeof(OBJ)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+double *alloc_state_mem_float_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0 && size % 2 == 0);
+  return (double *) alloc_state_mem_block(mem_pool, null_round_up_8(size * sizeof(double)));
+}
+
+double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(double));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(double));
+  double *new_ptr = (double *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  // memset(new_ptr + size, 0, new_byte_size - byte_size);
+  // for (uint32 i=0 ; i < new_size ; i++)
+  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, null_round_up_8(size * sizeof(double)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(uint64));
+  uint64 *ptr = (uint64 *) alloc_state_mem_block(mem_pool, byte_size);
+  return ptr;
+}
+
+uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint64));
+  uint64 *ptr = (uint64 *) alloc_state_mem_block(mem_pool, byte_size);
+  memset(ptr, 0, byte_size);
+  for (int i=0 ; i < size ; i++)
+    assert(ptr[i] == 0);
+  return ptr;
+}
+
+uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint64));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint64));
+  uint64 *new_ptr = (uint64 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+uint64 *extend_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint64));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint64));
+  uint64 *new_ptr = (uint64 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  memset(new_ptr + size, 0, new_byte_size - byte_size);
+  for (uint32 i=0 ; i < new_size ; i++)
+    assert(new_ptr[i] == (i < size ? ptr[i] : 0));
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, null_round_up_8(size * sizeof(uint64)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(int64));
+  int64 *ptr = (int64 *) alloc_state_mem_block(mem_pool, byte_size);
+  // memset(ptr, 0, byte_size);
+  // for (uint32 i=0 ; i < size ; i++)
+  //   assert(ptr[i] == 0);
+  return ptr;
+}
+
+int64 *extend_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(int64));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(int64));
+  int64 *new_ptr = (int64 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  // memset(new_ptr + size, 0, new_byte_size - byte_size);
+  // for (uint32 i=0 ; i < new_size ; i++)
+  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, size * null_round_up_8(sizeof(int64)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0 && size % 2 == 0);
+  return (uint32 *) alloc_state_mem_block(mem_pool, null_round_up_8(size * sizeof(uint32)));
+}
+
+uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0 && size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint32));
+  uint32 *ptr = (uint32 *) alloc_state_mem_block(mem_pool, byte_size);
+  memset(ptr, 0xFF, byte_size);
+  for (int i=0 ; i < size ; i++)
+    assert(ptr[i] == 0xFFFFFFFF);
+  return ptr;
+}
+
+uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint32));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint32));
+  uint32 *new_ptr = (uint32 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  // memset(new_ptr + size, 0, new_byte_size - byte_size);
+  // for (uint32 i=0 ; i < new_size ; i++)
+  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, round_up_8(size * sizeof(uint32)));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  return (uint8 *) alloc_state_mem_block(mem_pool, size * sizeof(uint8));
+}
+
+uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 8 == 0 & new_size % 8 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint8));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint8));
+  uint8 *new_ptr = (uint8 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  memset(new_ptr + size, 0, new_byte_size - byte_size);
+  for (uint32 i=0 ; i < new_size ; i++)
+    assert(new_ptr[i] == (i < size ? ptr[i] : 0));
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+void release_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size) {
+  release_state_mem_block(mem_pool, ptr, round_up_8(size * sizeof(uint8)));
+}
