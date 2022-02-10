@@ -275,7 +275,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           slave_tern_table()  = "bin_table_init",
           _                   = native_table_method_prefix(t) & "_init";
 
-        return native_call(init_method_name, (v, :mem_pool));
+        extra_args = match (t)
+          column()  = (get_master(t) if is_mandatory(t)),
+          _         = ();
+
+        return native_call(init_method_name, (extra_args | v, :mem_pool));
       } : v, t <- tables_in_init_order);
 
       body = body & ("") & code;
@@ -1241,7 +1245,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table()             = table_key_check_method_names(arity, key, !),
         master_bin_table()  = undefined,
         slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
-        column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
+        column()            = native_column_method_prefix(table_type.repr, is_mandatory(table_type)) & "_aux_check_key_1",
         slave_column()      = undefined;
       aux_var = pending_updates_var_ref_name(var);
       args = match (table_type)

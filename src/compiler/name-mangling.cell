@@ -542,12 +542,19 @@ String native_table_type(Table table) =
 String native_table_type(MasterBinTable) = "MASTER_BIN_TABLE";
 String native_table_type(SlaveTernTable) = "BIN_TABLE";
 
-String native_table_type(<Column, SlaveColumn> column) =
+String native_table_type(Column column) = native_column_type(column.repr, is_mandatory(column));
+
+// It's implemented as a raw array if it has a designated master and it's mandatory
+String native_column_type(ColumnRepr, Bool mandatory) =
+  object    = if mandatory then "OBJ*"    else "OBJ_COL",
+  int       = if mandatory then "int64*"  else "INT_COL",
+  float     = if mandatory then "double*" else "FLOAT_COL";
+
+String native_table_type(SlaveColumn column) =
   match (column.repr)
     object    = "OBJ_COL",
     int       = "INT_COL",
     float     = "FLOAT_COL";
-
 
 String native_table_base_type(<Table, MasterBinTable, SlaveTernTable> table)  = native_table_type(table);
 String native_table_base_type(<Column, SlaveColumn>)                          = "ANY_COL";
@@ -564,12 +571,14 @@ String native_table_method_prefix(Table table) =
 String native_table_method_prefix(MasterBinTable) = "master_bin_table";
 String native_table_method_prefix(SlaveTernTable) = "slave_tern_table";
 
-String native_table_method_prefix(<Column, SlaveColumn> column) = native_column_method_prefix(column.repr);
+String native_table_method_prefix(Column column) = native_column_method_prefix(column.repr, is_mandatory(column));
 
-String native_column_method_prefix(ColumnRepr) =
-  object    = "obj_col",
-  int       = "int_col",
-  float     = "float_col";
+String native_table_method_prefix(SlaveColumn column) = native_column_method_prefix(column.repr, false);
+
+String native_column_method_prefix(ColumnRepr, Bool raw_array) =
+  object    = if raw_array then "raw_obj_col"   else "obj_col",
+  int       = if raw_array then "raw_int_col"   else "int_col",
+  float     = if raw_array then "raw_float_col" else "float_col";
 
 
 String table_it_var_type(TableItVar var) {
@@ -642,6 +651,7 @@ String it_var_method_prefix(<ColumnItVar, SlaveColumnItVar> var) =
 
 
 String native_table_aux_type(AnyTable table) =
+  column()            = native_column_type(table.repr, false) & "_AUX",
   slave_tern_table()  = "SLAVE_TERN_TABLE_AUX",
   _                   = native_table_type(table) & "_AUX";
 

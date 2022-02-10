@@ -215,12 +215,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
-    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.key_surr, instr.value, instr.forced),
+    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value, instr.forced),
     ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
-    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.col_repr, instr.key_surr, instr.value);
+    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value);
 
 
   String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {
@@ -232,14 +232,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_column_insert_immediate_code(TableVar table_var, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value) {
-    return (native_call(native_column_method_prefix(col_repr) & "_insert", (table_var, key_surr, value, :mem_pool)));
+  String* native_column_insert_immediate_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value) {
+    return (native_call(native_column_method_prefix(col_repr, mandatory) & "_insert", (table_var, key_surr, value, :mem_pool)));
   }
 
 
-  String* native_column_insert_deferred_code(TableVar table_var, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
+  String* native_column_insert_deferred_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = native_column_method_prefix(col_repr) & if forced then "_aux_update" else "_aux_insert";
+    method_name = native_column_method_prefix(col_repr, mandatory) & if forced then "_aux_update" else "_aux_insert";
     return (native_call(method_name, (updater, key_surr, value)));
   }
 
@@ -366,7 +366,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar column) {
-    method_name = native_column_method_prefix(it_var.repr) & "_iter_init";
+    method_name = native_column_method_prefix(it_var.repr, it_var.mandatory) & "_iter_init";
     return native_call(method_name, (column, it_var));
   }
 
