@@ -544,6 +544,26 @@ inline bool is_u8_array(OBJ seq) {
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == 0;
 }
 
+inline bool is_i8_array(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_8 << 1) | 1);
+}
+
+inline bool is_i16_array(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_16 << 1) | 1);
+}
+
+inline bool is_i32_array(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_32 << 1) | 1);
+}
+
+inline bool is_i64_array(OBJ seq) {
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_64 << 1) | 1);
+}
+
 inline bool is_8_bit_wide(OBJ seq) {
   assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
   return (seq.extra_data >> INT_WIDTH_SHIFT) == INT_BITS_TAG_8;

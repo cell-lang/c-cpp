@@ -278,7 +278,7 @@ implicit context : NativeContext {
 
   String native_get_int_val_expr(ObjExpr expr, Bool parenthesized) {
     return match (expr)
-      at()                = "get_int_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
+      at()                = native_get_int_at_expr(expr.seq, expr.idx, expr.fast_repr),
       lookup_field()      = if expr.repr == just(:int) and expr.record :: OptTagRecExpr
                               then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                               else "get_int(" & native_expr(expr) & ")",
@@ -289,6 +289,17 @@ implicit context : NativeContext {
                               else "get_int(" & native_expr(expr) & ")",
       _                   = "get_int(" & native_expr(expr) & ")";
 
+
+    String native_get_int_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) {
+      method_name = match (fast_repr)
+        nat8    = "get_int_at_fast_uint8",
+        int8    = "get_int_at_fast_int8",
+        int16   = "get_int_at_fast_int16",
+        int32   = "get_int_at_fast_int32",
+        int     = "get_int_at_fast_int64",
+        _       = "get_int_at";
+      return native_call_expr(method_name, (seq, idx));
+    }
 
     String native_get_int_val_array_at_expr(ArrayVar array, Int32Var size, IntExpr idx) {
       array_str = native_var_ref_name(array);

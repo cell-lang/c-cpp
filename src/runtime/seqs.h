@@ -16,6 +16,39 @@ inline OBJ get_obj_at(OBJ seq, int64 idx) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+inline int64 get_int_at_fast_uint8(OBJ seq, int64 idx) {
+  if (((uint64) idx) < read_size_field_unchecked(seq) & is_u8_array(seq))
+    return get_seq_elts_ptr_uint8(seq)[idx];
+  return get_int_at(seq, idx);
+}
+
+inline int64 get_int_at_fast_int8(OBJ seq, int64 idx) {
+  if (((uint64) idx) < read_size_field_unchecked(seq) & is_i8_array(seq))
+    return get_seq_elts_ptr_int8(seq)[idx];
+  return get_int_at(seq, idx);
+}
+
+inline int64 get_int_at_fast_int16(OBJ seq, int64 idx) {
+  if (((uint64) idx) < read_size_field_unchecked(seq) & is_i16_array(seq))
+    return get_seq_elts_ptr_int16(seq)[idx];
+  return get_int_at(seq, idx);
+}
+
+inline int64 get_int_at_fast_int32(OBJ seq, int64 idx) {
+  if (((uint64) idx) < read_size_field_unchecked(seq) & is_i32_array(seq))
+    return get_seq_elts_ptr_int32(seq)[idx];
+  return get_int_at(seq, idx);
+}
+
+inline int64 get_int_at_fast_int64(OBJ seq, int64 idx) {
+  if (((uint64) idx) < read_size_field_unchecked(seq) & is_i64_array(seq))
+    return get_seq_elts_ptr_int64(seq)[idx];
+  return get_int_at(seq, idx);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+
 inline uint8 inline_uint8_at(uint64 packed_elts, uint32 idx) {
   return (packed_elts >> (8 * idx)) & 0xFF;
 }
