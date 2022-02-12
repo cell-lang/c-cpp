@@ -231,7 +231,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
-    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value);
+    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value),
+
+    raise_load_error()    = ("return false;");
 
 
   String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {

@@ -555,7 +555,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* native_load_state_code(DBSymbol name, [MembVar -> BoolExpr] memb_vars_check_exprs, [RelVar -> (LocVar+, BoolExpr, Instr+)] rel_vars_load_code) {
+  String* native_load_state_code(DBSymbol name, [MembVar -> BoolExpr] memb_vars_check_exprs, [RelVar -> (LocVar+, Instr*, Instr+, Instr*)] rel_vars_load_code) {
     header = (
       "bool " & load_state_proc_name(name) & "(" & target_arg_decl(name) & ", " & auxiliary_arg_decl(name) & ", uint32 (*read)(void *, uint8 *, uint32), void *read_state) {",
       "  " & obj_type_name & " v0, v1, v2;",
@@ -598,11 +598,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
     rel_vars_cases = ({
-      vars, guard_expr, instrs = rel_vars_load_code(rv);
+      vars, entry_instrs, loop_instrs, exit_instrs = rel_vars_load_code(rv);
       case = match (vars)
-        (v?)            = native_load_state_case(rv, v, guard_expr, instrs),
-        (v1?, v2?)      = native_load_state_case(rv, v1, v2, guard_expr, instrs),
-        (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, guard_expr, instrs);
+        (v?)            = native_load_state_case(rv, v, entry_instrs, loop_instrs, exit_instrs),
+        (v1?, v2?)      = native_load_state_case(rv, v1, v2, entry_instrs, loop_instrs, exit_instrs),
+        (v1?, v2?, v3?) = native_load_state_case(rv, v1, v2, v3, entry_instrs, loop_instrs, exit_instrs);
       return indent_lines(case, 3);
     } : rv <- isort(keys(rel_vars_load_code)));
 
@@ -630,10 +630,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* native_load_state_case(RelVar rel_var, LocVar var, BoolExpr guard_expr, Instr+ code) {
+    String* native_load_state_case(RelVar rel_var, LocVar var, Instr* entry_code, Instr+ loop_code, Instr* exit_code) {
       symb_str = symb_id_name(bare_id(rel_var));
       var_str = native_var_ref_name(var);
-      guard_expr_str = native_expr(guard_expr);
 
       header = (
         "case " & symb_str & ":",
@@ -642,9 +641,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "  if (!consume_non_ws_char(&parser, ']')) {",
         "    for ( ; ; ) {",
         "      if (!parse_obj(&parser, &" & var_str & "))",
-        "        return false;",
-        "     if (!(" & guard_expr_str & "))",
-        "       return false;"
+        "        return false;"
       );
 
       footer = (
@@ -660,15 +657,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "  break;"
       );
 
-      return header & indent_lines(native_code(code, nothing, break_target = nothing), 3) & footer;
+      return header & indent_lines(native_code(loop_code, nothing, break_target = nothing), 3) & footer;
     }
 
 
-    String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, BoolExpr guard_expr, Instr+ code) {
+    String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, Instr* entry_code, Instr+ loop_code, Instr* exit_code) {
       symb_str = symb_id_name(bare_id(rel_var));
       var1_str = native_var_ref_name(var1);
       var2_str = native_var_ref_name(var2);
-      guard_expr_str = native_expr(guard_expr);
 
       header = (
         "case " & symb_str & ":",
@@ -681,10 +677,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "    if (consume_non_ws_chars(&parser, '-', '>')) {",
         "      if (!parse_obj(&parser, &" & var2_str & "))",
         "        return false;",
-        "      for ( ; ; ) {",
-        "        if (!(" & guard_expr_str & "))",
-        // "          parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-        "          return false;"
+        "      for ( ; ; ) {"
+        // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
       );
 
       middle = (
@@ -705,10 +699,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;",
         "      if (!parse_obj(&parser, &" & var2_str & "))",
         "        return false;",
-        "      for ( ; ; ) {",
-        "        if (!(" & guard_expr_str & "))",
-        // "          parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-        "          return false;"
+        "      for ( ; ; ) {"
+        // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
       );
 
       footer = (
@@ -729,16 +721,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "  break;"
       );
 
-      return join(intermix((header, middle, footer), indent_lines(native_code(code, nothing, break_target = nothing), 4)));
+      return join(intermix((header, middle, footer), indent_lines(native_code(loop_code, nothing, break_target = nothing), 4)));
     }
 
 
-    String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, LocVar var3, BoolExpr guard_expr, Instr+ code) {
+    String* native_load_state_case(RelVar rel_var, LocVar var1, LocVar var2, LocVar var3, Instr* entry_code, Instr+ loop_code, Instr* exit_code) {
       symb_str = symb_id_name(bare_id(rel_var));
       var1_str = native_var_ref_name(var1);
       var2_str = native_var_ref_name(var2);
       var3_str = native_var_ref_name(var3);
-      guard_expr_str = native_expr(guard_expr);
 
       header = (
         "case " & symb_str & ":",
@@ -755,10 +746,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "    if (!consume_non_ws_char(&parser, ','))",
         "      return false;",
         "    if (!parse_obj(&parser, &" & var3_str & "))",
-        "      return false;",
-        "    if (!(" & guard_expr_str & "))",
-        // "      parser.failAtBookmark();"
         "      return false;"
+        // "    parser.failAtBookmark();"
       );
 
       footer = (
@@ -774,7 +763,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "  break;"
       );
 
-      return header & indent_lines(native_code(code, nothing, break_target = nothing), 2) & footer;
+      return header & indent_lines(native_code(loop_code, nothing, break_target = nothing), 2) & footer;
     }
   }
 

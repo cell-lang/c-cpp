@@ -1492,6 +1492,7 @@ void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 
 void   raw_obj_col_init(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
+void   raw_obj_col_resize(RAW_OBJ_COL *, uint32, uint32, STATE_MEM_POOL *);
 
 // bool   raw_obj_col_contains_1(OBJ_COL *, uint32);
 OBJ    raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
