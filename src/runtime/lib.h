@@ -419,6 +419,19 @@ struct FLOAT_COL_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct RAW_OBJ_COL {
+  OBJ *array;
+  uint32 capacity;
+  uint32 count;
+};
+
+struct RAW_OBJ_COL_ITER {
+  UNARY_TABLE_ITER iter;
+  OBJ *array;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_STORE {                // VALUE     NO VALUE
   OBJ    *values;                 //           blank
   uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
@@ -581,7 +594,9 @@ inline uint32 null_round_up_8(uint32 mem_size) {
   return mem_size;
 }
 
+OBJ *alloc_state_mem_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
 OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
+OBJ *extend_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
 OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
 void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size);
 
@@ -1474,161 +1489,40 @@ bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_B
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
-
-
-
-
-
-
-
-//////////////////////////////// raw_int-col.cpp ///////////////////////////////
-
-void raw_int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool);
-
-bool raw_int_col_contains_1(INT_COL *column, uint32 idx);
-int64 raw_int_col_lookup(INT_COL *column, uint32 idx);
-
-void raw_int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
-void raw_int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
-void raw_int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void raw_int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool);
-
-void raw_int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
-void raw_int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
-
-void raw_int_col_iter_init(INT_COL *column, INT_COL_ITER *iter);
-bool raw_int_col_iter_is_out_of_range(INT_COL_ITER *iter);
-uint32 raw_int_col_iter_get_idx(INT_COL_ITER *iter);
-int64 raw_int_col_iter_get_value(INT_COL_ITER *iter);
-void raw_int_col_iter_move_forward(INT_COL_ITER *iter);
-
-////////////////////////////// raw-int-col-aux.cpp /////////////////////////////
-
-void raw_int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
-
-void raw_int_col_aux_clear(INT_COL_AUX *col_aux);
-void raw_int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index);
-void raw_int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
-void raw_int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
-
-void raw_int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
-void raw_int_col_aux_reset(INT_COL_AUX *col_aux);
-
-bool raw_int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
-bool raw_int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
-int64 raw_int_col_aux_lookup(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
-bool raw_int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
-
-/////////////////////////////// raw-float-col.cpp //////////////////////////////
-
-void raw_float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
-
-bool raw_float_col_contains_1(FLOAT_COL *column, uint32 idx);
-double raw_float_col_lookup(FLOAT_COL *column, uint32 idx);
-
-void raw_float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
-void raw_float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
-void raw_float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void raw_float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
-
-void raw_float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
-void raw_float_col_write(WRITE_FILE_STATE *write_state, FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
-
-void raw_float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter);
-bool raw_float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter);
-uint32 raw_float_col_iter_get_idx(FLOAT_COL_ITER *iter);
-double raw_float_col_iter_get_value(FLOAT_COL_ITER *iter);
-void raw_float_col_iter_move_forward(FLOAT_COL_ITER *iter);
-
-///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
-
-void raw_float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
-
-void raw_float_col_aux_clear(FLOAT_COL_AUX *col_aux);
-void raw_float_col_aux_delete_1(FLOAT_COL_AUX *col_aux, uint32 index);
-void raw_float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
-void raw_float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
-
-void raw_float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
-void raw_float_col_aux_reset(FLOAT_COL_AUX *col_aux);
-
-bool raw_float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
-double raw_float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
-
-bool raw_float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
-
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 
-void   raw_obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
+void   raw_obj_col_init(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
 
-bool   raw_obj_col_contains_1(OBJ_COL *column, uint32 idx);
-OBJ    raw_obj_col_lookup(OBJ_COL *column, uint32 idx);
+// bool   raw_obj_col_contains_1(OBJ_COL *, uint32);
+OBJ    raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
 
-void   raw_obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
-void   raw_obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
-void   raw_obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void   raw_obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
+void   raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+void   raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+// void   raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
+// void   raw_obj_col_clear(RAW_OBJ_COL *, STATE_MEM_POOL *);
 
-void   raw_obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
-void   raw_obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
+void   raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
+void   raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
 
-void   raw_obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter);
-bool   raw_obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);
-uint32 raw_obj_col_iter_get_idx(OBJ_COL_ITER *iter);
-OBJ    raw_obj_col_iter_get_value(OBJ_COL_ITER *iter);
-void   raw_obj_col_iter_move_forward(OBJ_COL_ITER *iter);
+void   raw_obj_col_iter_init(UNARY_TABLE *, RAW_OBJ_COL *, RAW_OBJ_COL_ITER *);
+bool   raw_obj_col_iter_is_out_of_range(RAW_OBJ_COL_ITER *);
+uint32 raw_obj_col_iter_get_idx(RAW_OBJ_COL_ITER *);
+OBJ    raw_obj_col_iter_get_value(RAW_OBJ_COL_ITER *);
+void   raw_obj_col_iter_move_forward(RAW_OBJ_COL_ITER *);
 
 ////////////////////////////// raw-obj-col-aux.cpp /////////////////////////////
 
-void raw_obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+// void raw_obj_col_aux_clear(OBJ_COL_AUX *);
+// void raw_obj_col_aux_delete_1(OBJ_COL_AUX *, uint32);
+// void raw_obj_col_aux_insert(OBJ_COL_AUX *, uint32, OBJ);
+// void raw_obj_col_aux_update(OBJ_COL_AUX *, uint32, OBJ);
 
-void raw_obj_col_aux_clear(OBJ_COL_AUX *col_aux);
-void raw_obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index);
-void raw_obj_col_aux_insert(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
-void raw_obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
+bool raw_obj_col_aux_check_key_1(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_COL_AUX *);
 
-bool raw_obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
+void raw_obj_col_aux_apply(RAW_OBJ_COL *, OBJ_COL_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 
-void raw_obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
-void raw_obj_col_aux_reset(OBJ_COL_AUX *col_aux);
-
-bool raw_obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
-OBJ  raw_obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// bool raw_obj_col_aux_contains_1(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);
+// OBJ  raw_obj_col_aux_lookup(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

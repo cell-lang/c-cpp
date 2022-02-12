@@ -141,7 +141,14 @@ implicit context : NativeContext {
   }
 
 
-  String native_table_contains(AnyTableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple, Bool symmetric) {
+  String native_table_contains(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ tuple, Bool symmetric) {
+    fail if not tuple :: (Just[Int32Var], Nothing);
+    method_name = native_table_method_prefix(1, false) & "_contains";
+    return native_call_expr(method_name, (column.master, value(tuple(0))));
+  }
+
+
+  String native_table_contains(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ tuple, Bool symmetric) {
     name = native_table_method_prefix(table) & "_contains";
     if (a <- tuple : a == nothing) {
       if not symmetric {
@@ -222,7 +229,7 @@ implicit context : NativeContext {
 
 
   String native_column_lookup_eq(AnyTableVar var, Int32Expr key, Bool mandatory, ColumnRepr repr, IntExpr value) {
-    method_name = native_column_method_prefix(repr, mandatory) & "_lookup";
+    method_name = native_mandatory_column_method_prefix(repr) & "_lookup";
     return native_call_expr(method_name, (var, key)) & " == " & native_expr(value, true);
   }
 

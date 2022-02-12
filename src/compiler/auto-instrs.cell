@@ -14,6 +14,13 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       : _ t <- tables
     ]);
 
+    is_mandatory_column = only([
+      match (t)
+        mandatory_column()  = true,
+        _                   = false
+      : _ t <- tables
+    ]);
+
     is_slave_column = only([
       match (t)
         slave_column()  = true,
@@ -37,11 +44,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     symmetric = only([
       match (t)
-        table()            |
-        master_bin_table() |
-        slave_tern_table() = t.symmetric,
-        column()           |
-        slave_column()     = false
+        table()             |
+        master_bin_table()  |
+        slave_tern_table()  = t.symmetric,
+        mandatory_column()  |
+        column()            |
+        slave_column()      = false
       : _ t <- tables
     ]);
     assert not symmetric or (applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 0, 1 -> 1, 2 -> 2]);
@@ -53,25 +61,28 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     copy_method_name = only([native_table_method_prefix(t) : _ t <- tables]) & "_copy_to";
 
-    if is_column {
+    if is_column or is_mandatory_column {
       assert applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 1, 1 -> 0];
       flipped = applied_perm == [0 -> 1, 1 -> 0];
       streams_args = if flipped then ("&stream_2", "&stream_1") else ("&stream_1", "&stream_2");
       code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
       for v @ i <- ord_table_vars {
-        value_store = match (tables(v))
-          column() t? = t.value_store,
-          _           = undefined;
+        table = tables(v);
+        value_store = match (table)
+          column()            |
+          mandatory_column()  = table.value_store,
+          _                   = undefined;
         store_type = prg_data.value_stores(rel_auto_id)(value_store);
-        args = (v, native_surr_to_obj_method_name(store_type), value_store) & streams_args;
+        maybe_master_table_arg = match (table)
+          mandatory_column()  = (table.master),
+          _                   = ();
+        args = maybe_master_table_arg & (v, native_surr_to_obj_method_name(store_type), value_store) & streams_args;
         code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
       return code;
     }
     else if is_slave_column {
-      // type_name = "__COLUMN__";
-      // method_name = "__column_copy__"
       fail;
     }
     else if is_master_bin_table {
@@ -239,7 +250,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_column_insert_deferred_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = native_column_method_prefix(col_repr, mandatory) & if forced then "_aux_update" else "_aux_insert";
+    method_name = native_column_method_prefix(col_repr) & if forced then "_aux_update" else "_aux_insert";
     return (native_call(method_name, (updater, key_surr, value)));
   }
 
@@ -309,14 +320,17 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String native_queue_deletes_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ args, Bool symmetric) {
     set_args = (a != nothing : a <- args);
-    fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = native_table_method_prefix(table) & "_aux_" & fn_names(set_args);
+    base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
+    prefix = match (table)
+      mandatory_column()  = native_column_method_prefix(table.repr),
+      _                   = native_table_method_prefix(table);
+    method_name = prefix & "_aux_" & base_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);
     call_args = match (table)
       slave_tern_table()  = (table.master if set_args != (false, false, false), auxiliary),
       _                   = (auxiliary);
     call_args = call_args & (native_expr(value(a)) : a <- args, a != nothing);
-    return native_call(fn_name, call_args);
+    return native_call(method_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [
       (true)                  -> "delete",

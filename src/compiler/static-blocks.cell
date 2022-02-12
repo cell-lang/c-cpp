@@ -276,8 +276,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           _                   = native_table_method_prefix(t) & "_init";
 
         extra_args = match (t)
-          column()  = (get_master(t) if is_mandatory(t)),
-          _         = ();
+          mandatory_column()  = (t.master),
+          _                   = ();
 
         return native_call(init_method_name, (extra_args | v, :mem_pool));
       } : v, t <- tables_in_init_order);
@@ -327,7 +327,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       //     _                   = arg_list;
       //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
 
-        init_method_name = native_table_method_prefix(t) & "_aux_init";
+        prefix = match (t)
+          mandatory_column()  = native_column_method_prefix(t.repr),
+          _                   = native_table_method_prefix(t);
+        init_method_name = prefix & "_aux_init";
+
         return native_call(init_method_name, (pending_updates_var_ref_name(v), :mem_pool));
       } : v, t <- tables_in_init_order);
 
@@ -449,13 +453,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       symb = symb_id_name(bare_id(rv));
       ord_table_vars = isort(tvs);
       tables = append((native_var_ref_name(tv) : tv <- ord_table_vars), ", ");
-      tables_type = only([native_table_base_type(block.tables(tv)) : tv <- tvs]);
       indent_first_line = _print_(not first);
       write_separator = _print_(i < |tables_by_relvar| - 1);
       perm = rel_vars_perm_map(block.name)(rv);
       symmetric = only([
         match (block.tables(tv))
           column()              |
+          mandatory_column()    |
           slave_column()        = false,
           table() t?            |
           master_bin_table() t? |
@@ -500,7 +504,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table = block.tables(tv);
         method_name = native_table_method_prefix(table) & "_write";
         value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
-        instr = native_call(method_name, ("write_state", table.master if table :: SlaveTernTable, tv) & value_store_args & perm_args);
+        maybe_master_table_arg = match (table)
+          mandatory_column()  |
+          slave_column()      = (table.master),
+          _                   = ();
+        instr = native_call(method_name, ("write_state") & maybe_master_table_arg & (tv) & value_store_args & perm_args);
 
         if j > 0 {
           exprs = ({
@@ -564,7 +572,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return false;",
       "  }",
       "",
-      " uint16 field;",
+      "  uint16 field;",
       "  while (read_label(&parser, &field)) {",
       "    switch (field) {"
     );
@@ -859,7 +867,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     True  needs_keys_check(<Table, MasterBinTable, SlaveTernTable>) = true;
-    False needs_keys_check(<Column, SlaveColumn>) = false; //## NOT SURE ABOUT THIS ONE
+    False needs_keys_check(<MandatoryColumn, Column, SlaveColumn>) = false; //## NOT SURE ABOUT THIS ONE
   }
 
 
@@ -976,10 +984,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_aux_reset", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
     );
 
-    tables_reset_code = (
-      native_call(native_table_method_prefix(t) & "_aux_reset", (pending_updates_var_ref_name(v)))
-      : v, t <- isort(block.tables)
-    );
+    tables_reset_code = ({
+      prefix = match (t)
+        mandatory_column()  = native_column_method_prefix(t.repr),
+        _                   = native_table_method_prefix(t);
+      return native_call(prefix & "_aux_reset", (pending_updates_var_ref_name(v)));
+    } : v, t <- isort(block.tables));
 
     body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
            value_stores_reset_code & tables_reset_code;
@@ -1141,10 +1151,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
     value_stores_code = ("") & value_stores_code if value_stores != [];
 
-    tables_code = (
-      native_call(native_table_method_prefix(tables(v)) & "_aux_reset", (pending_updates_var_ref_name(v)))
-      : v <- isort(keys(tables))
-    );
+    tables_code = ({
+      table = tables(v);
+      prefix = match (table)
+        mandatory_column()  = native_column_method_prefix(table.repr),
+        _                   = native_table_method_prefix(table);
+      return native_call(prefix & "_aux_reset", (pending_updates_var_ref_name(v)));
+    } : v <- isort(keys(tables)));
     tables_code = ("") & tables_code if tables != [];
 
     return memb_vars_code & value_stores_code & tables_code;
@@ -1245,12 +1258,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table()             = table_key_check_method_names(arity, key, !),
         master_bin_table()  = undefined,
         slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
-        column()            = native_column_method_prefix(table_type.repr, is_mandatory(table_type)) & "_aux_check_key_1",
+        mandatory_column()  = native_table_method_prefix(table_type) & "_aux_check_key_1",
+        column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
         slave_column()      = undefined;
       aux_var = pending_updates_var_ref_name(var);
       args = match (table_type)
         column()            = (var, aux_var, :mem_pool),
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
+        mandatory_column()  = (table_type.master, pending_updates_var_ref_name(table_type.master), var, aux_var),
         table()             |
         master_bin_table()  = (var, aux_var),
         slave_column()      = undefined;
@@ -1328,5 +1343,6 @@ ValueStoreId* table_value_stores(AnyTable table) =
   table()             = if table.symmetric then drop(table.value_stores, 1) else table.value_stores,
   master_bin_table()  |
   slave_tern_table()  = {assert not table.symmetric; return table.value_stores;},
+  mandatory_column()  |
   column()            = (table.value_store),
   slave_column()      = undefined;
