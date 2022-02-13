@@ -556,10 +556,19 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* native_load_state_code(DBSymbol name, [MembVar -> BoolExpr] memb_vars_check_exprs, [RelVar -> (LocVar+, Instr*, Instr+, Instr*)] rel_vars_load_code) {
+    code_blocks = ();
+    for _ info <- rel_vars_load_code {
+      _, ec, lc, xc = info;
+      code_blocks = (code_blocks | ec, lc, xc);
+    }
+    vars_decls = gen_all_vars_decls(code_blocks, []);
+
     header = (
       "bool " & load_state_proc_name(name) & "(" & target_arg_decl(name) & ", " & auxiliary_arg_decl(name) & ", uint32 (*read)(void *, uint8 *, uint32), void *read_state) {",
-      "  " & obj_type_name & " v0, v1, v2;",
-      "  int i0, i1, i2;", ## IMPLEMENT: int IS NOT THE RIGHT TYPE HERE
+    ) & indent_lines(vars_decls) & (
+      "",
+      "  SURR_SET surr_set;",
+      "  surr_set_init(&surr_set);",
       "",
       "  PARSER parser;",
       "  init_parser(&parser, read, read_state);",
@@ -634,17 +643,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       symb_str = symb_id_name(bare_id(rel_var));
       var_str = native_var_ref_name(var);
 
-      header = (
+      entry_code_text = indent_lines(native_code(entry_code, nothing, break_target = nothing), 2);
+      loop_code_text = indent_lines(native_code(loop_code, nothing, break_target = nothing), 3);
+      exit_code_text = indent_lines(native_code(exit_code, nothing, break_target = nothing), 1);
+
+      return (
         "case " & symb_str & ":",
         "  if (!consume_non_ws_char(&parser, '['))",
         "    return false;",
-        "  if (!consume_non_ws_char(&parser, ']')) {",
+        "  if (!consume_non_ws_char(&parser, ']')) {"
+      ) & entry_code_text & (
         "    for ( ; ; ) {",
         "      if (!parse_obj(&parser, &" & var_str & "))",
         "        return false;"
-      );
-
-      footer = (
+      ) & loop_code_text & (
         "      if (!consume_non_ws_char(&parser, ',')) {",
         "        if (!consume_non_ws_char(&parser, ']'))",
         "          return false;",
@@ -653,11 +665,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "      if (consume_non_ws_char(&parser, ']'))",
         "        break;",
         "    }",
-        "  }",
+        "  }"
+      ) & exit_code_text & (
         "  break;"
       );
-
-      return header & indent_lines(native_code(loop_code, nothing, break_target = nothing), 3) & footer;
     }
 
 
@@ -666,11 +677,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       var1_str = native_var_ref_name(var1);
       var2_str = native_var_ref_name(var2);
 
-      header = (
+      entry_code_text = indent_lines(native_code(entry_code, nothing, break_target = nothing), 2);
+      loop_code_text = indent_lines(native_code(loop_code, nothing, break_target = nothing), 4);
+      exit_code_text = indent_lines(native_code(exit_code, nothing, break_target = nothing), 1);
+
+      return (
         "case " & symb_str & ":",
         "  if (!consume_non_ws_char(&parser, '['))",
         "    return false;",
-        "  if (!consume_non_ws_char(&parser, ']')) {",
+        "  if (!consume_non_ws_char(&parser, ']')) {"
+      ) & entry_code_text & (
         // "    parser.bookmark();", ## IMPLEMENT IMPLEMENT IMPLEMENT
         "    if (!parse_obj(&parser, &" & var1_str & "))",
         "      return false;",
@@ -679,9 +695,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;",
         "      for ( ; ; ) {"
         // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-      );
-
-      middle = (
+      ) & loop_code_text & (
         "        if (!consume_non_ws_char(&parser, ',') || next_non_ws_char_is(&parser, ']'))",
         "          break;",
         "",
@@ -701,9 +715,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;",
         "      for ( ; ; ) {"
         // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-      );
-
-      footer = (
+      ) & loop_code_text & (
         "        if (!consume_non_ws_char(&parser, ';') || next_non_ws_char_is(&parser, ']'))",
         "          break;",
         // "        parser.bookmark();",
@@ -717,11 +729,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "    }",
         "  }",
         "  if (!consume_non_ws_char(&parser, ']'))",
-        "    return false;",
+        "    return false;"
+      ) & exit_code_text & (
         "  break;"
       );
-
-      return join(intermix((header, middle, footer), indent_lines(native_code(loop_code, nothing, break_target = nothing), 4)));
     }
 
 
@@ -731,26 +742,30 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       var2_str = native_var_ref_name(var2);
       var3_str = native_var_ref_name(var3);
 
-      header = (
+      entry_code_text = indent_lines(native_code(entry_code, nothing, break_target = nothing), 2);
+      loop_code_text = indent_lines(native_code(loop_code, nothing, break_target = nothing), 3);
+      exit_code_text = indent_lines(native_code(exit_code, nothing, break_target = nothing), 1);
+
+      return (
         "case " & symb_str & ":",
         "  if (!consume_non_ws_char(&parser, '['))",
         "    return false;",
-        "  for (int i=0 ; !next_non_ws_char_is(&parser, ']') ; i++) {",
-        // "    parser.bookmark();",
-        "    if (!parse_obj(&parser, &" & var1_str & "))",
-        "      return false;",
-        "    if (!consume_non_ws_char(&parser, ','))",
-        "      return false;",
-        "    if (!parse_obj(&parser, &" & var2_str & "))",
-        "      return false;",
-        "    if (!consume_non_ws_char(&parser, ','))",
-        "      return false;",
-        "    if (!parse_obj(&parser, &" & var3_str & "))",
-        "      return false;"
-        // "    parser.failAtBookmark();"
-      );
-
-      footer = (
+        "  if (!consume_non_ws_char(&parser, ']')) {"
+      ) & entry_code_text & (
+        "    for (int i=0 ; !next_non_ws_char_is(&parser, ']') ; i++) {",
+        // "      parser.bookmark();",
+        "      if (!parse_obj(&parser, &" & var1_str & "))",
+        "        return false;",
+        "      if (!consume_non_ws_char(&parser, ','))",
+        "        return false;",
+        "      if (!parse_obj(&parser, &" & var2_str & "))",
+        "        return false;",
+        "      if (!consume_non_ws_char(&parser, ','))",
+        "        return false;",
+        "      if (!parse_obj(&parser, &" & var3_str & "))",
+        "        return false;"
+        // "      parser.failAtBookmark();"
+      ) & loop_code_text & (
         "    if (!consume_non_ws_char(&parser, ';')) {",
         "      if (i == 0)",
         "        return false;",
@@ -759,11 +774,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "    }",
         "  }",
         "  if (!consume_non_ws_char(&parser, ']'))",
-        "    return false;",
+        "    return false;"
+      ) & exit_code_text & (
         "  break;"
       );
-
-      return header & indent_lines(native_code(loop_code, nothing, break_target = nothing), 2) & footer;
     }
   }
 

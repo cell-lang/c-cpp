@@ -1224,7 +1224,9 @@ void switch_to_twin_stacks_allocator();
 void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
 
 bool unary_table_contains(UNARY_TABLE *, uint32);
-uint64 unary_table_size(UNARY_TABLE *);
+uint64 unary_table_size(UNARY_TABLE *); //## WHY IS THIS A uint64
+
+uint32 unary_table_capacity(UNARY_TABLE *);
 
 bool unary_table_insert(UNARY_TABLE *, uint32, STATE_MEM_POOL *);
 bool unary_table_delete(UNARY_TABLE *, uint32);
@@ -1699,6 +1701,18 @@ void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+struct SURR_SET {
+
+};
+
+uint32 surr_set_size(SURR_SET *);
+
+void surr_set_init(SURR_SET *);
+void surr_set_clear(SURR_SET *);
+bool surr_set_try_insert(SURR_SET *, uint32);
+
+
 
 #include "extern.h"
 #include "mem-utils.h"

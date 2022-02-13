@@ -220,7 +220,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table_var, instr.table, instr.args)),
     get_slave_col_iter()  = (native_get_slave_col_iter_code(instr.it_var, instr.table_var, instr.column, instr.args)),
-    get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.column)),
+    get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.col_var, instr.column)),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
@@ -233,8 +233,17 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value),
 
-    raise_load_error()    = ("return false;");
+    resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
+    raise_load_error()        = ("return false;"),
+    surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
+    surr_set_clear            = (native_call("surr_set_clear", ("&surr_set")));
 
+
+  String* native_resize_mandatory_column_code(AnyTableVar table_var, MandatoryColumn column, Int32Expr curr_capacity, Int32Expr new_capacity) {
+    method_name = native_table_method_prefix(column) & "_resize";
+    args = (table_var, curr_capacity, new_capacity, :mem_pool);
+    return (native_call(method_name, args));
+  }
 
   String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {
     db_var_name = if maybe_db_var != nothing
@@ -381,9 +390,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar column) {
+  String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar col_var, <Column, MandatoryColumn> column) {
     method_name = native_column_method_prefix(it_var.repr, it_var.mandatory) & "_iter_init";
-    return native_call(method_name, (column, it_var));
+    return native_call(method_name, (column.master if is_mandatory_column(column), col_var, it_var));
   }
 
 

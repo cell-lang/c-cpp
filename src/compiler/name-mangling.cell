@@ -609,11 +609,14 @@ String table_it_var_type(TableItVar var) {
   ];
 }
 
-String column_it_var_type(ColumnItVar var) =
-  match (var.repr)
+String column_it_var_type(ColumnItVar var) {
+  name = match (var.repr)
     object    = "OBJ_COL_ITER",
     int       = "INT_COL_ITER",
     float     = "FLOAT_COL_ITER";
+  name = "RAW_" & name if var.mandatory;
+  return name;
+}
 
 String slave_column_it_var_type(SlaveColumnItVar var) =
   match (var.repr)
@@ -649,7 +652,16 @@ String it_var_method_prefix(TableItVar var) {
   ];
 }
 
-String it_var_method_prefix(<ColumnItVar, SlaveColumnItVar> var) =
+String it_var_method_prefix(ColumnItVar var) {
+  prefix = match (var.repr)
+    object  = "obj_col_iter",
+    int     = "int_col_iter",
+    float   = "float_col_iter";
+  prefix = "raw_" & prefix if var.mandatory;
+  return prefix;
+}
+
+String it_var_method_prefix(SlaveColumnItVar var) =
   match (var.repr)
     object  = "obj_col_iter",
     int     = "int_col_iter",

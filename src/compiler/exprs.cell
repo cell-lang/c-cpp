@@ -338,7 +338,10 @@ implicit context : NativeContext {
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_unknown_arg()       = native_get_unknown_arg_expr(expr.iter, expr.arg),
       get_arg_by_assoc_surr() = native_var_ref_name(expr.table) & ".arg" & _print_(expr.arg + 1) & "(" & native_expr(expr.surr, false) & ")",
-      get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")";
+      get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")",
+
+      get_capacity()          = native_call_expr(native_table_method_prefix(expr.table) & "_capacity", (expr.table_var)),
+      surr_set_size           = "surr_set_size(&surr_set)";
 
       // get_unknown_arg()     = if expr.iter.arity == 1
       //                           then native_var_ref_name(expr.iter) & ".Get()"

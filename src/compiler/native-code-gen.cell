@@ -422,8 +422,10 @@ String* main_fn(Bool debug_mode) = (
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit context : NativeContext {
-  String* gen_vars_decls(Instr* body, [AnyVar] exclusions) {
-    vars_to_decl = [v : v <- vars_to_declare(body), not exclusions(v), not v :: AuxVar];
+  String* gen_vars_decls(Instr* code, [AnyVar] exclusions) = gen_all_vars_decls((code), exclusions);
+
+  String* gen_all_vars_decls(Instr** code_blocks, [AnyVar] exclusions) {
+    vars_to_decl = [v : b <- code_blocks, v <- vars_to_declare(b), not exclusions(v), not v :: AuxVar];
 
     vector_vars = [v : v <- vars_to_decl, v :: VecVar];
     array_vars = [v : v <- vars_to_decl, v :: ArrayVar];
