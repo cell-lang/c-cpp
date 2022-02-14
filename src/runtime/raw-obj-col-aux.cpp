@@ -3,16 +3,7 @@
 
 void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_table_aux, RAW_OBJ_COL *column, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
-    OBJ_COL_ITER iter;
-    obj_col_iter_init(column, &iter);
-    while (!obj_col_iter_is_out_of_range(&iter)) {
-      assert(!is_blank(obj_col_iter_get_value(&iter)));
-      uint32 idx = obj_col_iter_get_idx(&iter);
-      decr_rc(store, store_aux, idx);
-      obj_col_iter_move_forward(&iter);
-    }
-
-    obj_col_clear(column, mem_pool);
+    // obj_col_clear(column, mem_pool);
   }
   else {
     uint32 count = col_aux->deletions.count;
@@ -20,8 +11,7 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        obj_col_delete(column, idx, mem_pool);
-        decr_rc(store, store_aux, idx);
+        raw_obj_col_delete(column, idx, mem_pool);
       }
     }
   }
@@ -34,9 +24,7 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
       uint32 idx = idxs[i];
       OBJ value = values[i];
       assert(!is_blank(value));
-      if (!obj_col_contains_1(column, idx)) //## NOT TOTALLY SURE ABOUT THIS ONE
-        incr_rc(store, idx);
-      obj_col_update(column, idx, values[i], mem_pool);
+      raw_obj_col_update(master_table, column, idx, values[i], mem_pool);
     }
   }
 
@@ -46,8 +34,7 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
     OBJ *values = col_aux->insertions.obj_array;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 idx = idxs[i];
-      obj_col_insert(column, idx, values[i], mem_pool);
-      incr_rc(store, idx);
+      raw_obj_col_insert(column, idx, values[i], mem_pool);
     }
   }
 }
@@ -128,7 +115,7 @@ bool obj_col_aux_build_bitmap_and_check_key(UNARY_TABLE *master_table, RAW_OBJ_C
         record_col_1_key_violation(column, col_aux, idx, col_aux->insertions.obj_array[i], true);
         return false;
       }
-      if (flags == 0 && obj_col_contains_1(col, idx)) {
+      if (flags == 0 && unary_table_contains(master_table, idx)) {
         //## HERE I WOULD ACTUALLY NEED TO CHECK THAT THE NEW VALUE IS DIFFERENT FROM THE OLD ONE
         record_col_1_key_violation(column, col_aux, idx, col_aux->insertions.obj_array[i], false);
         return false;
