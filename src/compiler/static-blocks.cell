@@ -1183,11 +1183,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       ord_tables = sort_by_key(keys(tables), arity(tables($)));
       tables_code = ({
         table = tables(t);
+
         value_store_args = join(({
           prefix = native_value_store_method_prefix(block.value_stores(v));
           return (prefix & "_incr_rc", prefix & "_decr_rc", v, updater_var_ref_name(v));
         } : v <- table_value_stores(table)));
-        args = (table.master if table :: SlaveTernTable, t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
+
+        args = if is_mandatory_column(table)
+          then (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t), :mem_pool)
+          else (table.master if is_slave_column(table), t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
+
         return native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
       } : t <- ord_tables);
       code = (code | "") if code != ();
@@ -1267,8 +1272,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       aux_var = pending_updates_var_ref_name(var);
       args = match (table_type)
         column()            = (var, aux_var, :mem_pool),
+        mandatory_column()  = (table_type.master, var, aux_var, :mem_pool),
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
-        mandatory_column()  = (table_type.master, pending_updates_var_ref_name(table_type.master), var, aux_var),
         table()             |
         master_bin_table()  = (var, aux_var),
         slave_column()      = undefined;

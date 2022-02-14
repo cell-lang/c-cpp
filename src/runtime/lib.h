@@ -216,6 +216,7 @@ struct UNARY_TABLE_ITER {
 struct UNARY_TABLE_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32 insertions;
+  uint32 init_capacity; // Capacity before the update is executed
   bool clear;
 };
 
@@ -1262,7 +1263,7 @@ void   unary_table_aux_init(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 
 uint32 unary_table_aux_insert(UNARY_TABLE_AUX *, uint32);
 void   unary_table_aux_delete(UNARY_TABLE_AUX *, uint32);
-void   unary_table_aux_clear(UNARY_TABLE_AUX *);
+void   unary_table_aux_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 void   unary_table_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void   unary_table_aux_reset(UNARY_TABLE_AUX *);
@@ -1536,9 +1537,9 @@ void   raw_obj_col_iter_move_forward(RAW_OBJ_COL_ITER *);
 // void raw_obj_col_aux_insert(OBJ_COL_AUX *, uint32, OBJ);
 // void raw_obj_col_aux_update(OBJ_COL_AUX *, uint32, OBJ);
 
-bool raw_obj_col_aux_check_key_1(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_COL_AUX *);
+bool raw_obj_col_aux_check_key_1(UNARY_TABLE *, RAW_OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
-void raw_obj_col_aux_apply(RAW_OBJ_COL *, OBJ_COL_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
+void raw_obj_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 // bool raw_obj_col_aux_contains_1(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);
 // OBJ  raw_obj_col_aux_lookup(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);

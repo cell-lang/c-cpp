@@ -11,6 +11,9 @@ void queue_u32_reset(QUEUE_U32 *queue);
 void unary_table_aux_init(UNARY_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   queue_u32_init(&table_aux->deletions);
   queue_u32_init(&table_aux->insertions);
+#ifndef NDEBUG
+  table_aux->init_capacity = 0xFFFFFFFF;
+#endif
   table_aux->clear = false;
 }
 
@@ -22,7 +25,8 @@ void unary_table_aux_delete(UNARY_TABLE_AUX *table_aux, uint32 elt) {
   queue_u32_insert(&table_aux->deletions, elt);
 }
 
-void unary_table_aux_clear(UNARY_TABLE_AUX *table_aux) {
+void unary_table_aux_clear(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
+  table_aux->init_capacity = table->capacity;
   table_aux->clear = true;
 }
 
@@ -47,7 +51,7 @@ void unary_table_aux_apply(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void 
     }
   }
 
-  uint32 count = table_aux->deletions.count;
+  uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint32 *array = table_aux->insertions.array;
     for (uint32 i=0 ; i < count ; i++) {
@@ -61,5 +65,8 @@ void unary_table_aux_apply(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void 
 void unary_table_aux_reset(UNARY_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->insertions);
   queue_u32_reset(&table_aux->deletions);
+#ifndef NDEBUG
+  table_aux->init_capacity = 0xFFFFFFFF;
+#endif
   table_aux->clear = false;
 }

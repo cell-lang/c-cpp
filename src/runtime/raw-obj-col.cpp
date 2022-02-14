@@ -22,7 +22,7 @@ void raw_obj_col_resize(RAW_OBJ_COL *column, uint32 capacity, uint32 new_capacit
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ raw_obj_col_lookup(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 idx) {
-  assert(master_table->count = column->count && master_table->capacity == column->capacity);
+  assert(master_table->count == column->count && master_table->capacity == column->capacity);
 
   if (unary_table_contains(master_table, idx)) {
     assert(!is_blank(column->array[idx]));
@@ -37,6 +37,10 @@ OBJ raw_obj_col_lookup(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 id
 void raw_obj_col_insert(RAW_OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
   assert(idx < column->capacity && is_blank(column->array[idx]));
   column->array[idx] = copy_to_pool(mem_pool, value);
+
+#ifndef NDEBUG
+  column->count++;
+#endif
 }
 
 void raw_obj_col_update(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
@@ -48,6 +52,11 @@ void raw_obj_col_update(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 i
   if (!is_blank(curr_value))
     remove_from_pool(mem_pool, curr_value);
   *ptr = copy_to_pool(mem_pool, value);
+
+#ifndef NDEBUG
+  if (is_blank(curr_value))
+    column->count++;
+#endif
 }
 
 void raw_obj_col_delete(RAW_OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
@@ -58,12 +67,17 @@ void raw_obj_col_delete(RAW_OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_poo
   if (!is_inline_obj(value))
     remove_from_pool(mem_pool, value);
   *ptr = make_blank_obj(); //## ANY WAY TO MAKE THIS UNNECESSARY?
+
+#ifndef NDEBUG
+  if (!is_blank(value))
+    column->count--;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void raw_obj_col_copy_to(UNARY_TABLE *master_table, RAW_OBJ_COL *column, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2) {
-  assert(master_table->count = column->count && master_table->capacity == column->capacity);
+  assert(master_table->count == column->count && master_table->capacity == column->capacity);
 
   UNARY_TABLE_ITER iter;
   unary_table_iter_init(master_table, &iter);
@@ -82,7 +96,7 @@ void raw_obj_col_copy_to(UNARY_TABLE *master_table, RAW_OBJ_COL *column, OBJ (*s
 }
 
 void raw_obj_col_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *master_table, RAW_OBJ_COL *column, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip) {
-  assert(master_table->count = column->count && master_table->capacity == column->capacity);
+  assert(master_table->count == column->count && master_table->capacity == column->capacity);
 
   uint32 remaining = master_table->count;
 

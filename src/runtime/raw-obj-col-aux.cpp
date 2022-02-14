@@ -41,7 +41,9 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void record_col_1_key_violation(RAW_OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 idx, OBJ value, bool between_new);
+void record_col_1_key_violation(RAW_OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 idx, OBJ value, bool between_new) {
+
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

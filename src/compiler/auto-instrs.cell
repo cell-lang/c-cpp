@@ -337,10 +337,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       _                   = native_table_method_prefix(table);
     method_name = prefix & "_aux_" & base_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);
-    call_args = match (table)
-      slave_tern_table()  = (table.master if set_args != (false, false, false), auxiliary),
-      _                   = (auxiliary);
-    call_args = call_args & (native_expr(value(a)) : a <- args, a != nothing);
+    ad_hoc_args = match (table)
+      table()             = (table_var if arity(table) == 1 and set_args == (false)),
+      slave_tern_table()  = (table.master if set_args != (false, false, false)),
+      _                   = ();
+    call_args = (ad_hoc_args | auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
     return native_call(method_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [
