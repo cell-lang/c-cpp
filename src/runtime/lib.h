@@ -195,6 +195,12 @@ struct QUEUE_U32_OBJ {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SURR_SET {
+
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct UNARY_TABLE {
   uint64 *bitmap;
   uint32 capacity; // Number of bits
@@ -421,8 +427,10 @@ struct FLOAT_COL_AUX {
 
 struct RAW_OBJ_COL {
   OBJ *array;
+#ifndef NDEBUG
   uint32 capacity;
   uint32 count;
+#endif
 };
 
 struct RAW_OBJ_COL_ITER {
@@ -991,6 +999,14 @@ uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len
 int comp_objs(OBJ obj1, OBJ obj2);
 int cmp_objs(OBJ obj1, OBJ obj2);
 
+///////////////////////////////// surr-set.cpp /////////////////////////////////
+
+uint32 surr_set_size(SURR_SET *);
+
+void surr_set_init(SURR_SET *);
+void surr_set_clear(SURR_SET *);
+bool surr_set_try_insert(SURR_SET *, uint32);
+
 ///////////////////////////////// datetime.cpp /////////////////////////////////
 
 void get_year_month_day(int32 epoc_days, int32 &year, int32 &month, int32 &day);
@@ -1501,7 +1517,7 @@ OBJ    raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
 
 void   raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
 void   raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
-// void   raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
+void   raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
 // void   raw_obj_col_clear(RAW_OBJ_COL *, STATE_MEM_POOL *);
 
 void   raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
@@ -1701,18 +1717,6 @@ void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-struct SURR_SET {
-
-};
-
-uint32 surr_set_size(SURR_SET *);
-
-void surr_set_init(SURR_SET *);
-void surr_set_clear(SURR_SET *);
-bool surr_set_try_insert(SURR_SET *, uint32);
-
-
 
 #include "extern.h"
 #include "mem-utils.h"

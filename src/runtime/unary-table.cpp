@@ -25,6 +25,10 @@ uint64 unary_table_size(UNARY_TABLE *table) {
   return table->count;
 }
 
+uint32 unary_table_capacity(UNARY_TABLE *table) {
+  return table->capacity;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool unary_table_insert(UNARY_TABLE *table, uint32 value, STATE_MEM_POOL *mem_pool) {

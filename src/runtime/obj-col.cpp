@@ -27,6 +27,7 @@ bool obj_col_contains_1(OBJ_COL *column, uint32 idx) {
 }
 
 OBJ obj_col_lookup(OBJ_COL *column, uint32 idx) {
+  //## BUG BUG BUG: CHECK THE CAPACITY HERE. THE SAME BUG IS ALSO PRESENT IN THE OTHER TYPES OF COLUMNS
   OBJ obj = column->array[idx];
   if (is_blank(obj))
     soft_fail(NULL); //## ADD A MESSAGE?
