@@ -441,6 +441,34 @@ struct RAW_OBJ_COL_ITER {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct RAW_INT_COL {
+  int64 *array;
+#ifndef NDEBUG
+  uint32 capacity;
+#endif
+};
+
+struct RAW_INT_COL_ITER {
+  UNARY_TABLE_ITER iter;
+  int64 *array;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct RAW_FLOAT_COL {
+  double *array;
+#ifndef NDEBUG
+  uint32 capacity;
+#endif
+};
+
+struct RAW_FLOAT_COL_ITER {
+  UNARY_TABLE_ITER iter;
+  double *array;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_STORE {                // VALUE     NO VALUE
   OBJ    *values;                 //           blank
   uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
@@ -1507,6 +1535,56 @@ bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_B
 
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
+
+//////////////////////////////// raw-int-col.cpp ///////////////////////////////
+
+void raw_int_col_init(UNARY_TABLE *, RAW_INT_COL *, STATE_MEM_POOL *);
+void raw_int_col_resize(RAW_INT_COL *, uint32 capacity, uint32 new_capacity, STATE_MEM_POOL *);
+
+int64 raw_int_col_lookup(UNARY_TABLE *, RAW_INT_COL *, uint32 idx);
+
+void raw_int_col_insert(RAW_INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
+void raw_int_col_update(UNARY_TABLE *, RAW_INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
+
+void raw_int_col_copy_to(UNARY_TABLE *, RAW_INT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
+void raw_int_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_INT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+
+void raw_int_col_iter_init(UNARY_TABLE *, RAW_INT_COL *, RAW_INT_COL_ITER *);
+bool raw_int_col_iter_is_out_of_range(RAW_INT_COL_ITER *);
+uint32 raw_int_col_iter_get_idx(RAW_INT_COL_ITER *);
+int64 raw_int_col_iter_get_value(RAW_INT_COL_ITER *);
+void raw_int_col_iter_move_forward(RAW_INT_COL_ITER *);
+
+////////////////////////////// raw-int-col-aux.cpp /////////////////////////////
+
+void raw_int_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
+
+bool raw_int_col_aux_check_key_1(UNARY_TABLE *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
+
+/////////////////////////////// raw-float-col.cpp //////////////////////////////
+
+void raw_float_col_init(UNARY_TABLE *, RAW_FLOAT_COL *, STATE_MEM_POOL *);
+void raw_float_col_resize(RAW_FLOAT_COL *, uint32 capacity, uint32 new_capacity, STATE_MEM_POOL *);
+
+double raw_float_col_lookup(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx);
+
+void raw_float_col_insert(RAW_FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
+void raw_float_col_update(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
+
+void raw_float_col_copy_to(UNARY_TABLE *, RAW_FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
+void raw_float_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+
+void raw_float_col_iter_init(UNARY_TABLE *, RAW_FLOAT_COL *, RAW_FLOAT_COL_ITER *);
+bool raw_float_col_iter_is_out_of_range(RAW_FLOAT_COL_ITER *);
+uint32 raw_float_col_iter_get_idx(RAW_FLOAT_COL_ITER *);
+double raw_float_col_iter_get_value(RAW_FLOAT_COL_ITER *);
+void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *);
+
+///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
+
+void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
+
+bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 
