@@ -13,7 +13,21 @@ void raw_obj_col_init(UNARY_TABLE *master_table, RAW_OBJ_COL *column, STATE_MEM_
 void raw_obj_col_resize(RAW_OBJ_COL *column, uint32 capacity, uint32 new_capacity, STATE_MEM_POOL *mem_pool) {
   assert(capacity == column->capacity);
 
-  column->array = extend_state_mem_blanked_obj_array(mem_pool, column->array, capacity, new_capacity);
+  if (new_capacity > capacity) {
+    column->array = extend_state_mem_blanked_obj_array(mem_pool, column->array, capacity, new_capacity);
+  }
+  else {
+    OBJ *array = column->array;
+    for (int i=new_capacity ; i < capacity ; i++) {
+      OBJ obj = array[i];
+      if (!is_inline_obj(obj))
+        remove_from_pool(mem_pool, obj);
+    }
+    OBJ *new_array = alloc_state_mem_obj_array(mem_pool, new_capacity);
+    memcpy(new_array, array, new_capacity * sizeof(OBJ));
+    release_state_mem_obj_array(mem_pool, array, capacity);
+  }
+
 #ifndef NDEBUG
   column->capacity = new_capacity;
 #endif

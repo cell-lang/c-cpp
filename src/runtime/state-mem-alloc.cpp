@@ -907,6 +907,13 @@ OBJ copy_str_to_pool(STATE_MEM_POOL *mem_pool, OBJ str) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+OBJ *alloc_state_mem_obj_array(STATE_MEM_POOL *mem_pool, uint32 size) {
+  assert(size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(OBJ));
+  OBJ *ptr = (OBJ *) alloc_state_mem_block(mem_pool, byte_size);
+  return ptr;
+}
+
 OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size) {
   assert(size > 0);
   uint32 byte_size = size * null_round_up_8(sizeof(OBJ));

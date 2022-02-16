@@ -5,7 +5,8 @@ type PrgData =  prg_data(
                   int_seqs:                       Int+*,
                   cached_semi_consts_by_impl_arg: [ImplArg -> [+FnId]],
                   symbols_sets_info:              [[+Symbol] -> (Symbol+, Nat)],
-                  value_stores:                   [DBSymbol -> [ValueStoreId -> ValueStoreType]]
+                  value_stores:                   [DBSymbol -> [ValueStoreId -> ValueStoreType]],
+                  masters_raw_columns:            [DBSymbol -> [TableVar, TableVar]]
                );
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,7 +35,8 @@ type PrgData =  prg_data(
     int_seqs:                       prg.int_seqs,
     cached_semi_consts_by_impl_arg: cached_semi_consts_by_impl_arg(prg),
     symbols_sets_info:              symbols_sets_info(prg),
-    value_stores:                   [b.name -> b.value_stores : b <- prg.static_blocks]
+    value_stores:                   [b.name -> b.value_stores : b <- prg.static_blocks],
+    masters_raw_columns:            [b.name -> masters_raw_columns(b) : b <- prg.static_blocks]
   );
 
   // Sorting static blocks in topological order

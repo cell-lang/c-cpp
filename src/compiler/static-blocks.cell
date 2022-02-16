@@ -1180,8 +1180,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
     if tables != [] {
+      code = (code | "") if code != ();
+
       ord_tables = sort_by_key(keys(tables), arity(tables($)));
-      tables_code = ({
+      for t <- ord_tables {
         table = tables(t);
 
         value_store_args = join(({
@@ -1193,10 +1195,32 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           then (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t), :mem_pool)
           else (table.master if is_slave_column(table), t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
 
-        return native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
-      } : t <- ord_tables);
-      code = (code | "") if code != ();
-      code = code & tables_code;
+        apply_instr = native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
+
+        masters_raw_columns = prg_data.masters_raw_columns(block.name);
+        if arity(table) == 1 and masters_raw_columns(t, _) {
+          capacity_var = native_var_decl_name(t) & "_capacity";
+          new_capacity_var = native_var_decl_name(t) & "_new_capacity";
+
+          capacity_expr = native_call(native_table_method_prefix(table) & "_capacity", (native_var_ref_name(t)));
+
+          resize_instrs = (
+            native_call(native_table_method_prefix(block.tables(c)) & "_resize", (c, capacity_var, new_capacity_var, :mem_pool))
+            : c <- isort([c : c <- masters_raw_columns(t, ?)])
+          );
+
+          code = code & (
+            "uint32 " & capacity_var & " = " & capacity_expr & ";",
+            apply_instr,
+            "uint32 " & new_capacity_var & " = " & capacity_expr & ";",
+            "if (" & capacity_var & " != " & new_capacity_var & ") {"
+          ) & indent_lines(resize_instrs) & (
+            "}"
+          );
+        }
+        else
+          code = (code | apply_instr);
+      }
     }
 
     return code;
