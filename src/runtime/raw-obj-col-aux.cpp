@@ -25,7 +25,7 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
       uint32 idx = idxs[i];
       OBJ value = values[i];
       assert(!is_blank(value));
-      raw_obj_col_update(master_table, column, idx, values[i], mem_pool);
+      raw_obj_col_update(master_table, column, idx, value, mem_pool);
     }
   }
 
