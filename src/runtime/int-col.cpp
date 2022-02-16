@@ -48,6 +48,12 @@ inline bool is_set_at(INT_COL *column, uint32 idx) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 int_col_size(INT_COL *column) {
+  return column->count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool int_col_contains_1(INT_COL *column, uint32 idx) {
   return idx < column->capacity && is_set_at(column, idx);
 }

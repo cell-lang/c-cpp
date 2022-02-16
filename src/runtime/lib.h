@@ -1548,6 +1548,8 @@ void raw_obj_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_
 
 void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool);
 
+uint32 int_col_size(INT_COL*);
+
 bool int_col_contains_1(INT_COL *column, uint32 idx);
 int64 int_col_lookup(INT_COL *column, uint32 idx);
 
@@ -1586,6 +1588,8 @@ bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL 
 
 void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
 
+uint32 float_col_size(FLOAT_COL *);
+
 bool float_col_contains_1(FLOAT_COL *column, uint32 idx);
 double float_col_lookup(FLOAT_COL *column, uint32 idx);
 
@@ -1623,6 +1627,8 @@ bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
 void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
+
+uint32 obj_col_size(OBJ_COL *);
 
 bool   obj_col_contains_1(OBJ_COL *column, uint32 idx);
 OBJ    obj_col_lookup(OBJ_COL *column, uint32 idx);

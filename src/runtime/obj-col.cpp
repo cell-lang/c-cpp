@@ -22,6 +22,12 @@ static void obj_col_resize(OBJ_COL *column, uint32 min_capacity, STATE_MEM_POOL 
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 obj_col_size(OBJ_COL *column) {
+  return column->count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool obj_col_contains_1(OBJ_COL *column, uint32 idx) {
   return idx < column->capacity && !is_blank(column->array[idx]);
 }

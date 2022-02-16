@@ -47,6 +47,12 @@ void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 float_col_size(FLOAT_COL *column) {
+  return column->count;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool float_col_contains_1(FLOAT_COL *column, uint32 idx) {
   return idx < column->capacity && !is_float_col_null(column->array[idx]);
 }
