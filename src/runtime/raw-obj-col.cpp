@@ -22,9 +22,14 @@ void raw_obj_col_resize(RAW_OBJ_COL *column, uint32 capacity, uint32 new_capacit
       OBJ obj = array[i];
       if (!is_inline_obj(obj))
         remove_from_pool(mem_pool, obj);
+#ifndef NDEBUG
+      if (!is_blank(obj))
+        column->count--;
+#endif
     }
     OBJ *new_array = alloc_state_mem_obj_array(mem_pool, new_capacity);
     memcpy(new_array, array, new_capacity * sizeof(OBJ));
+    column->array = new_array;
     release_state_mem_obj_array(mem_pool, array, capacity);
   }
 
@@ -85,6 +90,23 @@ void raw_obj_col_delete(RAW_OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_poo
 #ifndef NDEBUG
   if (!is_blank(value))
     column->count--;
+#endif
+}
+
+void raw_obj_col_clear(UNARY_TABLE *master_table, RAW_OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
+  assert(master_table->capacity == column->capacity);
+  assert(master_table->count == 0);
+
+  uint32 capacity = master_table->capacity;
+  OBJ *array = column->array;
+  for (uint32 i=0 ; i < capacity ; i++) {
+    OBJ obj = array[i];
+    if (!is_inline_obj(obj))
+      remove_from_pool(mem_pool, obj);
+  }
+
+#ifndef NDEBUG
+  column->count = 0;
 #endif
 }
 

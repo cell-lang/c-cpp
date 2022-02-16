@@ -1519,7 +1519,7 @@ OBJ    raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
 void   raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
 void   raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
 void   raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
-// void   raw_obj_col_clear(RAW_OBJ_COL *, STATE_MEM_POOL *);
+void   raw_obj_col_clear(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
 
 void   raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void   raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);

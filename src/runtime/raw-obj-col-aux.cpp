@@ -3,7 +3,8 @@
 
 void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_table_aux, RAW_OBJ_COL *column, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
-    // obj_col_clear(column, mem_pool);
+    assert(master_table->count == 0);
+    raw_obj_col_clear(master_table, column, mem_pool);
   }
   else {
     uint32 count = col_aux->deletions.count;
