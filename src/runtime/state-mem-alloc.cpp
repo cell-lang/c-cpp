@@ -954,11 +954,8 @@ double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint
   uint32 new_byte_size = null_round_up_8(new_size * sizeof(double));
   double *new_ptr = (double *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
-  // memset(new_ptr + size, 0, new_byte_size - byte_size);
-  // for (uint32 i=0 ; i < new_size ; i++)
-  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
-  for (uint32 i=0 ; i < size ; i++)
-    assert(new_ptr[i] == ptr[i]);
+  // for (uint32 i=0 ; i < size ; i++)
+  //   assert(new_ptr[i] == ptr[i]);
   release_state_mem_block(mem_pool, ptr, byte_size);
   return new_ptr;
 }

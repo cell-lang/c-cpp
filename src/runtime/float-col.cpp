@@ -178,7 +178,7 @@ void float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter) {
 }
 
 bool float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter) {
-  return iter->left <= 0;
+  return iter->left == 0;
 }
 
 uint32 float_col_iter_get_idx(FLOAT_COL_ITER *iter) {

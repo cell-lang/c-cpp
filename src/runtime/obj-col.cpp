@@ -152,7 +152,7 @@ void obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter) {
 }
 
 bool obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter) {
-  return iter->left <= 0;
+  return iter->left == 0;
 }
 
 uint32 obj_col_iter_get_idx(OBJ_COL_ITER *iter) {

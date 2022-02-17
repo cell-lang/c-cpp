@@ -202,7 +202,7 @@ void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter) {
 }
 
 bool int_col_iter_is_out_of_range(INT_COL_ITER *iter) {
-  return iter->left <= 0;
+  return iter->left == 0;
 }
 
 uint32 int_col_iter_get_idx(INT_COL_ITER *iter) {
