@@ -229,9 +229,10 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
     bin_table_iter_init(table, &iter);
     while (!bin_table_iter_is_out_of_range(&iter)) {
       uint32 arg1 = bin_table_iter_get_1(&iter);
-      decr_rc_1(store_1, store_aux_1, arg1);
       uint32 arg2 = bin_table_iter_get_2(&iter);
+      decr_rc_1(store_1, store_aux_1, arg1);
       decr_rc_2(store_2, store_aux_2, arg2);
+      bin_table_iter_move_forward(&iter);
     }
     bin_table_clear(table, mem_pool);
   }
@@ -261,6 +262,7 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
           uint32 arg2 = bin_table_iter_1_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
+          bin_table_iter_1_move_forward(&iter);
         }
         bin_table_delete_1(table, arg1);
       }
@@ -277,6 +279,7 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
           uint32 arg1 = bin_table_iter_2_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
+          bin_table_iter_2_move_forward(&iter);
         }
         bin_table_delete_2(table, arg2);
       }
@@ -324,6 +327,7 @@ bool bin_table_aux_arg1_was_deleted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, 
     uint32 args = pack_args(arg1, arg2);
     if (queue_u64_contains(&table_aux->deletions, args) || queue_u32_contains(&table_aux->deletions_2, arg2))
       return true;
+    bin_table_iter_1_move_forward(&iter);
   }
 
   return false;
@@ -344,6 +348,7 @@ bool bin_table_aux_arg2_was_deleted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, 
     uint32 args = pack_args(arg1, arg2);
     if (queue_u64_contains(&table_aux->deletions, args) || queue_u32_contains(&table_aux->deletions_1, arg2))
       return true;
+    bin_table_iter_2_move_forward(&iter);
   }
 
   return false;

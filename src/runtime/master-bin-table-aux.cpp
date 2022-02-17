@@ -178,9 +178,10 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
     master_bin_table_iter_init(table, &iter);
     while (!master_bin_table_iter_is_out_of_range(&iter)) {
       uint32 arg1 = master_bin_table_iter_get_1(&iter);
-      decr_rc_1(store_1, store_aux_1, arg1);
       uint32 arg2 = master_bin_table_iter_get_2(&iter);
+      decr_rc_1(store_1, store_aux_1, arg1);
       decr_rc_2(store_2, store_aux_2, arg2);
+      master_bin_table_iter_move_forward(&iter);
     }
     master_bin_table_clear(table, mem_pool);
   }
@@ -210,6 +211,7 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
           uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
+          master_bin_table_iter_1_move_forward(&iter);
         }
         master_bin_table_delete_1(table, arg1);
       }
@@ -226,6 +228,7 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
           uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
+          master_bin_table_iter_2_move_forward(&iter);
         }
         master_bin_table_delete_2(table, arg2);
       }
