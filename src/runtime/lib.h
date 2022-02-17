@@ -1582,9 +1582,9 @@ void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *);
 
 ///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
 
-void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
+void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
-bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
+bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 

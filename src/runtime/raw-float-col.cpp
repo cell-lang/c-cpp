@@ -116,7 +116,7 @@ void raw_float_col_iter_init(UNARY_TABLE *master_table, RAW_FLOAT_COL *column, R
 }
 
 bool raw_float_col_iter_is_out_of_range(RAW_FLOAT_COL_ITER *iter) {
-  unary_table_iter_is_out_of_range(&iter->iter);
+  return unary_table_iter_is_out_of_range(&iter->iter);
 }
 
 uint32 raw_float_col_iter_get_idx(RAW_FLOAT_COL_ITER *iter) {

@@ -164,7 +164,7 @@ void raw_obj_col_iter_init(UNARY_TABLE *master_table, RAW_OBJ_COL *column, RAW_O
 }
 
 bool raw_obj_col_iter_is_out_of_range(RAW_OBJ_COL_ITER *iter) {
-  unary_table_iter_is_out_of_range(&iter->iter);
+  return unary_table_iter_is_out_of_range(&iter->iter);
 }
 
 uint32 raw_obj_col_iter_get_idx(RAW_OBJ_COL_ITER *iter) {

@@ -221,9 +221,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     tables_in_init_order = sort_by_key(
       [(v, t) : v t <- tables],
-      match ($)
-        (_, slave_tern_table()) = 1,
-        _                       = 0
+      match ($(1))
+        table()             |
+        master_bin_table()  = 0,
+        slave_tern_table()  |
+        column()            |
+        mandatory_column()  |
+        slave_column()      = 1
     );
 
     // Local variables declaration
@@ -504,11 +508,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table = block.tables(tv);
         method_name = native_table_method_prefix(table) & "_write";
         value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
-        maybe_master_table_arg = match (table)
+        ad_hoc_args = match (table)
           mandatory_column()  |
-          slave_column()      = (table.master),
+          slave_column()      |
+          slave_tern_table()  = (table.master),
           _                   = ();
-        instr = native_call(method_name, ("write_state") & maybe_master_table_arg & (tv) & value_store_args & perm_args);
+        instr = native_call(method_name, ("write_state") & ad_hoc_args & (tv) & value_store_args & perm_args);
 
         if j > 0 {
           exprs = ({
@@ -766,11 +771,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;"
         // "      parser.failAtBookmark();"
       ) & loop_code_text & (
-        "    if (!consume_non_ws_char(&parser, ';')) {",
-        "      if (i == 0)",
-        "        return false;",
-        "      else",
-        "        break;",
+        "      if (!consume_non_ws_char(&parser, ';')) {",
+        "        if (i == 0)",
+        "          return false;",
+        "        else",
+        "          break;",
+        "      }",
         "    }",
         "  }",
         "  if (!consume_non_ws_char(&parser, ']'))",
@@ -1194,6 +1200,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         args = if is_mandatory_column(table)
           then (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t), :mem_pool)
           else (table.master if is_slave_column(table), t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
+
+        ## THERE ARE ALL SORTS OF UNNECESSARY VALUE STORE ARGUMENTS HERE THAT SHOULD BE ELIMINATED
+        args = match (table)
+          table()             |
+          master_bin_table()  |
+          column()            = (t, pending_updates_var_ref_name(t)) & value_store_args,
+          mandatory_column()  = (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t)),
+          slave_tern_table()  |
+          slave_column()      = (table.master, t, pending_updates_var_ref_name(t)) & value_store_args;
+        args = (args | :mem_pool);
 
         apply_instr = native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
 

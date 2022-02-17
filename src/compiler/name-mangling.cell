@@ -115,6 +115,7 @@ implicit context : NativeContext {
       object  = "obj",
       int     = "int",
       float   = "float";
+    prefix = "raw_" & prefix if var.mandatory;
     prefix = "&" & prefix if as_ref_name;
     return prefix & "_col_it_" & printed(var.id);
   }
