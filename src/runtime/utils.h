@@ -139,17 +139,17 @@ bool _assert_(int exp, const char *exp_text, const char *file, int line);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline uint32 high32(uint64 word) {
+inline uint32 get_high_32(uint64 word) {
   return (uint32) (word >> 32);
 }
 
-inline uint32 low32(uint64 word) {
+inline uint32 get_low_32(uint64 word) {
   return (uint32) word;
 }
 
 inline uint64 pack(uint32 low, uint32 high) {
   uint64 word = (((uint64) high) << 32) | low;
-  assert(low32(word) == low);
-  assert(high32(word) == high);
+  assert(get_low_32(word) == low);
+  assert(get_high_32(word) == high);
   return word;
 }

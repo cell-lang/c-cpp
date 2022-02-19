@@ -222,6 +222,21 @@ struct UNARY_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct ARRAY_MEM_POOL {
+  uint64 *slots;
+  uint32 size;
+  uint32 head2, head4, head8, head16;
+};
+
+struct ONE_WAY_BIN_TABLE {
+  ARRAY_MEM_POOL array_pool;
+  uint64 *column;
+  uint32 capacity;
+  uint32 count;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct BIN_TABLE {
   unordered_map<uint32, unordered_set<uint32> > forward;
   unordered_map<uint32, unordered_set<uint32> > backward;
