@@ -10,7 +10,7 @@
 //     This type of slot can only be stored in a block, but cannot be passed in or out
 
 
-const uint32 MIN_CAPACITY = 16;
+const uint32 MIN_CAPACITY = 256;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +34,18 @@ static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_p
     new_slots[i] = EMPTY_SLOT;
   table->capacity = new_capacity;
   table->column = new_slots;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  array_mem_pool_init(&table->array_pool, mem_pool);
+  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MIN_CAPACITY);
+  for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
+    slots[i] = EMPTY_SLOT;
+  table->column = slots;
+  table->capacity = MIN_CAPACITY;
+  table->count = 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -289,6 +301,12 @@ void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uin
       table->count--;
   }
 }
+
+void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table) {
+  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table) {
   uint32 capacity = table->capacity;

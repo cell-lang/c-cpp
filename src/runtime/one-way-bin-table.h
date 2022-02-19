@@ -77,6 +77,8 @@ void overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *dest
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+
 bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
 bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1);
 uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest);
@@ -90,6 +92,7 @@ uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 s
 
 bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
 void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2);
+void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
 
 bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table);
 void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest);
