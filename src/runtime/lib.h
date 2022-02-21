@@ -216,7 +216,7 @@ struct UNARY_TABLE_ITER {
 struct UNARY_TABLE_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32 insertions;
-  uint32 init_capacity; // Capacity before the update is executed
+  uint32 init_capacity; // Capacity before the update is executed (DO WE STILL NEED THIS?)
   bool clear;
 };
 
@@ -238,22 +238,30 @@ struct ONE_WAY_BIN_TABLE {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct BIN_TABLE {
-  unordered_map<uint32, unordered_set<uint32> > forward;
-  unordered_map<uint32, unordered_set<uint32> > backward;
-  uint32 count;
+  ONE_WAY_BIN_TABLE forward;
+  ONE_WAY_BIN_TABLE backward;
 };
 
+const uint32 BIN_TABLE_ITER_INLINE_SIZE = 256; //## TOO MUCH?
+
 struct BIN_TABLE_ITER {
-  uint32 *args;
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
+  BIN_TABLE *table;
+  uint32 *arg2s;
+  uint32 capacity;
+  uint32 idx_last;
+  uint32 arg1;
   uint32 left;
 };
 
 struct BIN_TABLE_ITER_1 {
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
   uint32 *args;
   uint32 left;
 };
 
 struct BIN_TABLE_ITER_2 {
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
   uint32 *args;
   uint32 left;
 };
