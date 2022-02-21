@@ -1,6 +1,12 @@
+const uint32 INLINE_SLOT    = 0;
+const uint32 SIZE_2_BLOCK   = 1;
+const uint32 SIZE_4_BLOCK   = 2;
+const uint32 SIZE_8_BLOCK   = 3;
+const uint32 SIZE_16_BLOCK  = 4;
+const uint32 HASHED_BLOCK   = 5;
+
 const uint32 EMPTY_MARKER   = 0xFFFFFFFF;
 const uint32 PAYLOAD_MASK   = 0x1FFFFFFF;
-const uint32 INLINE_SLOT    = 0;
 
 const uint64 EMPTY_SLOT     = 0xFFFFFFFFULL;
 
@@ -21,13 +27,27 @@ inline uint32 pack_tag_payload(uint32 tag, uint32 payload) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 get_count(uint64 slot);
+inline uint32 get_count(uint64 slot) {
+  assert(get_tag(get_low_32(slot)) >= SIZE_2_BLOCK & get_tag(get_low_32(slot)) <= HASHED_BLOCK);
+  // assert(get_high_32(slot) > 2); // Not true when initializing a hashed block
+  return get_high_32(slot);
+}
 
-// static uint32 get_count(uint64 slot) {
-//   assert(get_tag(get_low_32(slot)) >= SIZE_2_BLOCK & get_tag(get_low_32(slot)) <= HASHED_BLOCK);
-//   // assert(get_high_32(slot) > 2); // Not true when initializing a hashed block
-//   return get_high_32(slot);
-// }
+static uint32 get_index(uint32 value) {
+  assert(get_tag(value) == INLINE_SLOT);
+  return value & 0xF;
+}
+
+static uint32 clipped(uint32 value) {
+  return value >> 4;
+}
+
+static uint32 unclipped(uint32 value, uint32 index) {
+  assert(get_tag(value) == 0);
+  assert(get_tag(value << 4) == 0);
+  assert(index >= 0 & index < 16);
+  return (value << 4) | index;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

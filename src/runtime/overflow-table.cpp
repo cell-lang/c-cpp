@@ -10,14 +10,6 @@
 //   - Empty:               32 zeros                 - 32 ones
 //     This type of slot can only be stored in a block, but cannot be passed in or out
 
-
-// const uint32 INLINE_SLOT    = 0; // Moved to header file
-const uint32 SIZE_2_BLOCK   = 1;
-const uint32 SIZE_4_BLOCK   = 2;
-const uint32 SIZE_8_BLOCK   = 3;
-const uint32 SIZE_16_BLOCK  = 4;
-const uint32 HASHED_BLOCK   = 5;
-
 const uint32 SIZE_2_BLOCK_MIN_COUNT   = 3;
 const uint32 SIZE_4_BLOCK_MIN_COUNT   = 4;
 const uint32 SIZE_8_BLOCK_MIN_COUNT   = 7;
@@ -30,14 +22,6 @@ static uint32 get_capacity(uint32 tag) {
   assert(tag >= SIZE_2_BLOCK & tag <= SIZE_16_BLOCK);
   assert(SIZE_2_BLOCK == 1 | SIZE_16_BLOCK == 4);
   return 2 << tag;
-}
-
-//## CANNOT BE STATIC BECAUSE IT'S NEDEED IN one-way-bin-table.cpp
-// static uint32 get_count(uint64 slot) {
-uint32 get_count(uint64 slot) {
-  assert(get_tag(get_low_32(slot)) >= SIZE_2_BLOCK & get_tag(get_low_32(slot)) <= HASHED_BLOCK);
-  // assert(get_high_32(slot) > 2); // Not true when initializing a hashed block
-  return get_high_32(slot);
 }
 
 static uint64 linear_block_handle(uint32 tag, uint32 index, uint32 count) {
@@ -78,22 +62,6 @@ static uint64 hashed_block_handle(uint32 index, uint32 count) {
   return handle;
 }
 
-static uint32 get_index(uint32 value) {
-  assert(get_tag(value) == INLINE_SLOT);
-  return value & 0xF;
-}
-
-static uint32 clipped(uint32 value) {
-  return value >> 4;
-}
-
-static uint32 unclipped(uint32 value, uint32 index) {
-  assert(get_tag(value) == 0);
-  assert(get_tag(value << 4) == 0);
-  assert(index >= 0 & index < 16);
-  return (value << 4) | index;
-}
-
 static uint32 min_count(uint32 tag) {
   if (tag == SIZE_2_BLOCK)
     return SIZE_2_BLOCK_MIN_COUNT;
@@ -127,9 +95,9 @@ static uint64 insert_2_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 v
     return handle;
 
   uint32 block_idx = array_mem_pool_alloc_2_block(array_pool, mem_pool);
-  uint64 *slots = array_pool->slots;
-  slots[block_idx]     = pack(low,   high);
-  slots[block_idx + 1] = pack(value, EMPTY_MARKER);
+  uint64 *target_slots = array_pool->slots + block_idx;
+  target_slots[0] = pack(low,   high);
+  target_slots[1] = pack(value, EMPTY_MARKER);
   return size_2_block_handle(block_idx, 3);
 }
 
@@ -187,7 +155,7 @@ static uint64 insert_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
       slots[new_block_idx + i] = slots[block_idx + i];
     slots[new_block_idx + idx] = pack(value, EMPTY_MARKER);
     for (uint32 i=idx+1 ; i < count ; i++)
-      slots[new_block_idx + i] = pack(EMPTY_MARKER, 0);
+      slots[new_block_idx + i] = EMPTY_SLOT;
 
     // Releasing the old block
     if (tag == SIZE_2_BLOCK)
@@ -207,7 +175,7 @@ static uint64 insert_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
   slots = array_pool->slots;
 
   for (uint32 i=0 ; i < 16 ; i++)
-    slots[hashed_block_idx + i] = pack(EMPTY_MARKER, 0);
+    slots[hashed_block_idx + i] = EMPTY_SLOT;
 
   // Transferring the existing values
   for (uint32 i=0 ; i < 16 ; i++) {
@@ -321,7 +289,7 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
       slots[new_block_idx + i] = slots[block_idx + i];
     slots[new_block_idx + idx] = pack(value, EMPTY_MARKER);
     for (uint32 i=idx+1 ; i < count ; i++)
-      slots[new_block_idx + i] = pack(EMPTY_MARKER, 0);
+      slots[new_block_idx + i] = EMPTY_SLOT;
 
     // Releasing the old block
     if (tag == SIZE_2_BLOCK)
@@ -341,7 +309,7 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
   slots = array_pool->slots;
 
   for (uint32 i=0 ; i < 16 ; i++)
-    slots[hashed_block_idx + i] = pack(EMPTY_MARKER, 0);
+    slots[hashed_block_idx + i] = EMPTY_SLOT;
 
   // Transferring the existing values
   for (uint32 i=0 ; i < 16 ; i++) {
@@ -442,7 +410,7 @@ static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32
   return size_8_block_handle(block_idx, count);
 }
 
-uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint64 state, uint32 least_bits) {
+static uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint64 state, uint32 least_bits) {
   if (handle == EMPTY_SLOT)
     return state;
 
@@ -521,12 +489,12 @@ uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint64 
 static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) {
   assert(HASHED_BLOCK_MIN_COUNT == 13);
 
-  uint64 *slots = array_pool->slots;
+  uint64 *target_slots = array_pool->slots + block_idx;
 
   // Here we've exactly 12 elements left, therefore we need the save the first 6 slots
   uint64 saved_slots[6];
   for (uint32 i=0 ; i < 6 ; i++)
-    saved_slots[i] = slots[block_idx + i];
+    saved_slots[i] = target_slots[i];
 
   uint64 state = pack(block_idx, EMPTY_MARKER);
   for (uint32 i=0 ; i < 6 ; i++)
@@ -534,12 +502,12 @@ static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) 
 
   uint32 end_idx = block_idx + 6;
   for (uint32 i=6 ; get_low_32(state) < end_idx ; i++)
-    state = copy_and_release_block(array_pool, slots[block_idx + i], state, i);
+    state = copy_and_release_block(array_pool, target_slots[i], state, i);
 
   assert(state == pack(block_idx + 6, EMPTY_MARKER));
 
-  slots[block_idx + 6] = pack(EMPTY_MARKER, 0);
-  slots[block_idx + 7] = pack(EMPTY_MARKER, 0);
+  target_slots[6] = EMPTY_SLOT;
+  target_slots[7] = EMPTY_SLOT;
 
   array_mem_pool_release_16_block_upper_half(array_pool, block_idx);
   return size_8_block_handle(block_idx, 12);
@@ -596,7 +564,7 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
       }
       else {
         last = last_low;
-        slots[block_idx + last_slot_idx] = pack(EMPTY_MARKER, 0);
+        slots[block_idx + last_slot_idx] = EMPTY_SLOT;
       }
 
       // Replacing the value to be deleted with the last one
@@ -647,7 +615,7 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
   }
   else if (low == value) {
     if (high == EMPTY_MARKER)
-      slots[slot_idx] = pack(EMPTY_MARKER, 0);
+      slots[slot_idx] = EMPTY_SLOT;
     else
       slots[slot_idx] = pack(high, EMPTY_MARKER);
   }
@@ -707,7 +675,7 @@ static bool hashed_block_contains(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *dest, uint32 offset, uint32 shift, uint32 least_bits) {
+static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *dest, uint32 offset, uint32 shift, uint32 least_bits) {
   uint64 *slots = array_pool->slots;
 
   uint32 subshift = shift + 4;
@@ -817,9 +785,9 @@ void overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle) {
     array_mem_pool_release_16_block(array_pool, block_idx);
   else {
     assert(tag == HASHED_BLOCK);
-    uint64 *slots = array_pool->slots;
+    uint64 *target_slots = array_pool->slots + block_idx;
     for (uint32 i=0 ; i < 16 ; i++) {
-      uint64 slot = slots[block_idx + i];
+      uint64 slot = target_slots[i];
       if (slot != EMPTY_SLOT && get_tag(get_low_32(slot)) != INLINE_SLOT)
         overflow_table_delete(array_pool, slot);
     }
@@ -842,8 +810,6 @@ bool overflow_table_contains(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 v
 }
 
 void overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *dest, uint32 offset) {
-  uint64 *slots = array_pool->slots;
-
   uint32 low = get_low_32(handle);
   uint32 tag = get_tag(low);
   uint32 block_idx = get_payload(low);
@@ -856,8 +822,10 @@ void overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *dest
     uint32 end = (count + 1) / 2;
     uint32 target_idx = offset;
 
+    uint64 *src_slots = array_pool->slots + block_idx;
+
     for (uint32 i=0 ; i < end ; i++) {
-      uint64 slot = slots[block_idx + i];
+      uint64 slot = src_slots[i];
       uint32 slot_low = get_low_32(slot);
       uint32 slot_high = get_high_32(slot);
 
