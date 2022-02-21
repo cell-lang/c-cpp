@@ -52,9 +52,7 @@ void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) 
 //////////////////////////////////////////////////////////////////////////////
 
 bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
-  uint32 capacity = table->capacity;
-
-  if (surr1 >= capacity)
+  if (surr1 >= table->capacity)
     return false;
 
   uint64 slot = table->column[surr1];
@@ -320,44 +318,44 @@ bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table) {
   return true;
 }
 
-void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest) {
-  uint32 capacity = table->capacity;
-  uint64 *slots = table->column;
+// void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest) {
+//   uint32 capacity = table->capacity;
+//   uint64 *slots = table->column;
 
-  uint32 inline_buffer[1024];
-  uint32 *buffer = inline_buffer;
-  uint32 buffer_size = 1024;
+//   uint32 inline_buffer[1024];
+//   uint32 *buffer = inline_buffer;
+//   uint32 buffer_size = 1024;
 
-  uint32 next = 0;
-  for (uint32 i=0 ; i < capacity ; i++) {
-    uint64 slot = slots[i];
-    if (!is_empty(slot)) {
-      if (is_index(slot)) {
-        uint32 slot_count = get_count(slot);
-        if (slot_count > buffer_size) {
-          do
-            buffer_size *= 2;
-          while (slot_count > buffer_size);
-          buffer = new_uint32_array(buffer_size);
-        }
-        overflow_table_copy(&table->array_pool, slot, buffer, 0);
-        for (uint32 j=0 ; j < slot_count ; j++) {
-          uint32 idx = next + 2 * j;
-          dest[idx] = i;
-          dest[idx + 1] = buffer[j];
-        }
-        next += 2 * slot_count;
-      }
-      else {
-        dest[next++] = i;
-        dest[next++] = get_low_32(slot);
-        uint32 high = get_high_32(slot);
-        if (high != EMPTY_MARKER) {
-          dest[next++] = i;
-          dest[next++] = high;
-        }
-      }
-    }
-  }
-  assert(next == 2 * table->count);
-}
+//   uint32 next = 0;
+//   for (uint32 i=0 ; i < capacity ; i++) {
+//     uint64 slot = slots[i];
+//     if (!is_empty(slot)) {
+//       if (is_index(slot)) {
+//         uint32 slot_count = get_count(slot);
+//         if (slot_count > buffer_size) {
+//           do
+//             buffer_size *= 2;
+//           while (slot_count > buffer_size);
+//           buffer = new_uint32_array(buffer_size);
+//         }
+//         overflow_table_copy(&table->array_pool, slot, buffer, 0);
+//         for (uint32 j=0 ; j < slot_count ; j++) {
+//           uint32 idx = next + 2 * j;
+//           dest[idx] = i;
+//           dest[idx + 1] = buffer[j];
+//         }
+//         next += 2 * slot_count;
+//       }
+//       else {
+//         dest[next++] = i;
+//         dest[next++] = get_low_32(slot);
+//         uint32 high = get_high_32(slot);
+//         if (high != EMPTY_MARKER) {
+//           dest[next++] = i;
+//           dest[next++] = high;
+//         }
+//       }
+//     }
+//   }
+//   assert(next == 2 * table->count);
+// }

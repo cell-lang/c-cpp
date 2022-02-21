@@ -316,7 +316,7 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
     slots[last_slot_idx] = EMPTY_SLOT;
 
     if (data != NULL)
-      data[0] = get_high_32(last_slot);
+      *data = get_high_32(last_slot);
 
     // Shrinking the block if need be
     if (count == min_count(tag))
@@ -340,7 +340,7 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
       slots[last_slot_idx] = EMPTY_SLOT;
 
       if (data != NULL)
-        data[0] = get_high_32(slot);
+        *data = get_high_32(slot);
 
       // Shrinking the block if need be
       if (count == min_count(tag))
@@ -382,7 +382,7 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
   else if (low == value) {
     slots[slot_idx] = EMPTY_SLOT;
     if (data != NULL)
-      data[0] = get_high_32(slot);
+      *data = get_high_32(slot);
   }
   else {
     return hashed_block_handle(block_idx, count);
@@ -400,9 +400,9 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
 ////////////////////////////////////////////////////////////////////////////////
 
 static uint32 linear_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
-  uint64 *slots = array_pool->slots;
+  uint64 *target_slots = array_pool->slots + block_idx;
   for (uint32 i=0 ; i < count ; i++) {
-    uint64 slot = slots[block_idx + i];
+    uint64 slot = target_slots[i];
     assert(get_tag(get_low_32(slot)) == INLINE_SLOT);
     if (value == get_low_32(slot))
       return get_high_32(slot);
@@ -436,7 +436,7 @@ static uint32 hashed_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *surrs2, uint32 *data, uint32 offset, uint32 step, uint32 shift, uint32 least_bits) {
+static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *surrs2, uint32 *data, uint32 offset, uint32 shift, uint32 least_bits) {
   uint64 *slots = array_pool->slots;
 
   uint32 subshift = shift + 4;
@@ -454,10 +454,10 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
         surrs2[target_idx] = (get_payload(low) << shift) + least_bits;
         if (data != NULL)
           data[target_idx] = get_high_32(slot);
-        target_idx += step;
+        target_idx++;
       }
       else if (tag == HASHED_BLOCK) {
-        target_idx = copy_hashed_block(array_pool, get_payload(low), surrs2, data, target_idx, step, subshift, slot_least_bits);
+        target_idx = copy_hashed_block(array_pool, get_payload(low), surrs2, data, target_idx, subshift, slot_least_bits);
       }
       else {
         uint32 subblock_idx = get_payload(low);
@@ -471,7 +471,7 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
           surrs2[target_idx] = (get_low_32(subslot) << subshift) + slot_least_bits;
           if (data != NULL)
             data[target_idx] = get_high_32(subslot);
-          target_idx += step;
+          target_idx++;
         }
       }
     }
@@ -550,7 +550,7 @@ uint32 loaded_overflow_table_lookup(ARRAY_MEM_POOL *array_pool, uint64 handle, u
     return hashed_block_lookup(array_pool, block_idx, value);
 }
 
-void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *surrs2, uint32 *data, uint32 offset, uint32 step) {
+void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *surrs2, uint32 *data, uint32 offset) {
   uint32 low = get_low_32(handle);
   uint32 tag = get_tag(low);
   uint32 block_idx = get_payload(low);
@@ -572,9 +572,9 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint3
       if (data != NULL)
         data[target_idx] = get_high_32(slot);
 
-      target_idx += step;
+      target_idx++;
     }
   }
   else
-    copy_hashed_block(array_pool, block_idx, surrs2, data, offset, step, 0, 0);
+    copy_hashed_block(array_pool, block_idx, surrs2, data, offset, 0, 0);
 }
