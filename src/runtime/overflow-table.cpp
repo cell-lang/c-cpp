@@ -178,6 +178,9 @@ static uint64 insert_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
     else
       new_block_idx = array_mem_pool_alloc_16_block(array_pool, mem_pool);
 
+    // Reloading the pointer to the slot array, which may have changed with the previous allocation
+    slots = array_pool->slots;
+
     // Initializing the new block
     uint32 idx = count / 2;
     for (uint32 i=0 ; i < idx ; i++)
@@ -199,11 +202,16 @@ static uint64 insert_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
 
   // Allocating and initializing the hashed block
   uint32 hashed_block_idx = array_mem_pool_alloc_16_block(array_pool, mem_pool);
+
+  // Reloading the pointer to the slot array, which may have changed with the previous allocation
+  slots = array_pool->slots;
+
   for (uint32 i=0 ; i < 16 ; i++)
     slots[hashed_block_idx + i] = pack(EMPTY_MARKER, 0);
 
   // Transferring the existing values
   for (uint32 i=0 ; i < 16 ; i++) {
+    slots = array_pool->slots; // Refreshing the local variable
     uint64 slot = slots[block_idx + i];
     uint64 tmp_handle = insert_into_hashed_block(array_pool, hashed_block_idx, 2 * i, get_low_32(slot), mem_pool);
     assert(get_count(tmp_handle) == 2 * i + 1);
@@ -249,6 +257,7 @@ static uint64 insert_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
       return hashed_block_handle(block_idx, count);
     uint64 handle = insert_2_block(array_pool, pack(clipped(low), clipped(high)), clipped(value), mem_pool);
     assert(get_count(handle) == 3);
+    slots = array_pool->slots; // Refreshing local copy
     slots[slot_idx] = handle;
     return hashed_block_handle(block_idx, count + 1);
   }
@@ -265,6 +274,7 @@ static uint64 insert_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
     return hashed_block_handle(block_idx, count);
 
   assert(get_count(handle) == get_count(slot) + 1);
+  slots = array_pool->slots; // Refreshing local copy
   slots[slot_idx] = handle;
   return hashed_block_handle(block_idx, count + 1);
 }
@@ -302,6 +312,9 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
     else
       new_block_idx = array_mem_pool_alloc_16_block(array_pool, mem_pool);
 
+    // Reloading the pointer to the slot array, which may have changed with the previous allocation
+    slots = array_pool->slots;
+
     // Initializing the new block
     uint32 idx = count / 2;
     for (uint32 i=0 ; i < idx ; i++)
@@ -323,11 +336,16 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
 
   // Allocating and initializing the hashed block
   uint32 hashed_block_idx = array_mem_pool_alloc_16_block(array_pool, mem_pool);
+
+  // Reloading the pointer to the slot array, which may have changed with the previous allocation
+  slots = array_pool->slots;
+
   for (uint32 i=0 ; i < 16 ; i++)
     slots[hashed_block_idx + i] = pack(EMPTY_MARKER, 0);
 
   // Transferring the existing values
   for (uint32 i=0 ; i < 16 ; i++) {
+    slots = array_pool->slots; // Refreshing the local copy
     uint64 slot = slots[block_idx + i];
     uint64 tmp_handle = insert_unique_into_hashed_block(array_pool, hashed_block_idx, 2 * i, get_low_32(slot), mem_pool);
     assert(get_count(tmp_handle) == 2 * i + 1);
@@ -371,6 +389,7 @@ static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32
     assert(value != high);
     uint64 handle = insert_2_block(array_pool, pack(clipped(low), clipped(high)), clipped(value), mem_pool);
     assert(get_count(handle) == 3);
+    slots = array_pool->slots; // Refreshing the local copy
     slots[slot_idx] = handle;
     return hashed_block_handle(block_idx, count + 1);
   }
@@ -384,6 +403,7 @@ static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32
     handle = insert_unique_with_linear_block(array_pool, slot, clipped(value), mem_pool);
 
   assert(get_count(handle) == get_count(slot) + 1);
+  slots = array_pool->slots; // Refreshing the local copy
   slots[slot_idx] = handle;
   return hashed_block_handle(block_idx, count + 1);
 }
@@ -404,6 +424,7 @@ static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32
     uint64 slot_1 = slots[block_idx + 1];
     array_mem_pool_release_4_block(array_pool, block_idx);
     uint32 size_2_block_idx = array_mem_pool_alloc_2_block(array_pool, NULL); // We've just released a block of size 4, no need to allocate new memory
+    assert(slots == array_pool->slots); //## THIS ONE SHOULD BE FINE
     slots[size_2_block_idx] = slot_0;
     slots[size_2_block_idx + 1] = slot_1;
     return size_2_block_handle(size_2_block_idx, count);
