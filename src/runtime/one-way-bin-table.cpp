@@ -25,8 +25,9 @@ static bool is_index(uint64 slot) {
 //////////////////////////////////////////////////////////////////////////////
 
 static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_pool) {
+  assert(table->capacity >= MIN_CAPACITY);
   uint32 capacity = table->capacity;
-  uint32 new_capacity = capacity == 0 ? MIN_CAPACITY : 2 * capacity;
+  uint32 new_capacity = 2 * capacity;
   while (index >= new_capacity)
     new_capacity *= 2;
   uint64 *new_slots = extend_state_mem_uint64_array(mem_pool, table->column, capacity, new_capacity);
@@ -360,85 +361,3 @@ void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest) {
   }
   assert(next == 2 * table->count);
 }
-
-// uint32[] one_way_bin_table_copySym(ONE_WAY_BIN_TABLE *table, uint32 eqCount) {
-//   uint32[] data = new uint32[count+eqCount];
-
-//   uint32[] buffer = new uint32[32];
-
-//   uint32 next = 0;
-//   for (uint32 surr1 = 0 ; surr1 < column.length ; surr1++) {
-//     uint64 slot = column[surr1];
-//     if (!is_empty(slot)) {
-//       if (is_index(slot)) {
-//         uint32 slot_count = get_count(slot);
-//         if (slot_count > buffer.length)
-//           buffer = new uint32[Array.capacity(buffer.length, slot_count)];
-//         uint32 _count = restrict(surr1, buffer);
-//         assert(_count == slot_count);
-//         for (uint32 i=0 ; i < slot_count ; i++) {
-//           uint32 surr2 = buffer[i];
-//           if (surr1 <= surr2) {
-//             data[next++] = surr1;
-//             data[next++] = surr2;
-//           }
-//         }
-//       }
-//       else {
-//         uint32 low = get_low_32(slot);
-//         uint32 high = get_high_32(slot);
-//         if (surr1 <= low) {
-//           data[next++] = surr1;
-//           data[next++] = get_low_32(slot);
-//         }
-//         if (high != EMPTY_MARKER & surr1 <= high) {
-//           data[next++] = surr1;
-//           data[next++] = high;
-//         }
-//       }
-//     }
-//   }
-//   assert(next == count + eqCount);
-//   return data;
-// }
-
-//////////////////////////////////////////////////////////////////////////////
-
-// void one_way_bin_table_initReverse(ONE_WAY_BIN_TABLE *table, OneWayBinTable source) {
-//   assert(count == 0);
-
-//   uint32 len = source.column.length;
-//   for (uint32 i=0 ; i < len ; i++) {
-//     uint32[] surrs = source.restrict(i);
-//     for (uint32 j=0 ; j < surrs.length ; j++)
-//       insert(surrs[j], i);
-//   }
-// }
-
-// void one_way_bin_table_initReverse(ONE_WAY_BIN_TABLE *table, LoadedOneWayBinTable source) {
-//   assert(count == 0);
-
-//   uint32 len = source.column.length;
-//   for (uint32 i=0 ; i < len ; i++) {
-//     uint32[] surrs = source.restrict(i);
-//     for (uint32 j=0 ; j < surrs.length ; j++)
-//       insert(surrs[j], i);
-//   }
-// }
-
-//////////////////////////////////////////////////////////////////////////////
-
-
-// public void check() {
-//   overflowTable.check(column, count);
-// }
-
-// public void dump() {
-//   System.out.println("count = " + Integer.toString(count));
-//   System.out.print("column = [");
-//   for (uint32 i=0 ; i < column.length ; i++)
-//     System.out.printf("%s%X", i > 0 ? " " : "", column[i]);
-//   System.out.println("]");
-//   overflowTable.dump();
-// }
-
