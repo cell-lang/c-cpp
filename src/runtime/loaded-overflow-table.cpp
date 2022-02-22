@@ -451,7 +451,8 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
       uint32 tag = get_tag(low);
 
       if (tag == INLINE_SLOT) {
-        surrs2[target_idx] = (get_payload(low) << shift) + least_bits;
+        if (surrs2 != NULL)
+          surrs2[target_idx] = (get_payload(low) << shift) + least_bits;
         if (data != NULL)
           data[target_idx] = get_high_32(slot);
         target_idx++;
@@ -468,7 +469,8 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
 
           assert(subslot != EMPTY_SLOT & get_tag(get_low_32(subslot)) == INLINE_SLOT);
 
-          surrs2[target_idx] = (get_low_32(subslot) << subshift) + slot_least_bits;
+          if (surrs2 != NULL)
+            surrs2[target_idx] = (get_low_32(subslot) << subshift) + slot_least_bits;
           if (data != NULL)
             data[target_idx] = get_high_32(subslot);
           target_idx++;
@@ -568,7 +570,8 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint3
 
       assert(slot != EMPTY_SLOT & get_tag(get_low_32(slot)) == INLINE_SLOT);
 
-      surrs2[target_idx] = get_low_32(slot);
+      if (surrs2 != NULL)
+        surrs2[target_idx] = get_low_32(slot);
       if (data != NULL)
         data[target_idx] = get_high_32(slot);
 

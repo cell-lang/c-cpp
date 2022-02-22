@@ -278,30 +278,31 @@ struct BIN_TABLE_AUX {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct MASTER_BIN_TABLE {
-  BIN_TABLE plain_table;
-
-  unordered_map<uint64, uint32> args_to_idx;
-
+  ONE_WAY_BIN_TABLE forward;
+  ONE_WAY_BIN_TABLE backward;
   uint64 *slots;
   uint32 capacity;
   uint32 first_free;
 };
 
 struct MASTER_BIN_TABLE_ITER {
-  BIN_TABLE_ITER iter;
-  unordered_map<uint64, uint32> *args_to_idx;
+  uint64 *slots;
+  uint32 index;
+  uint32 left;
 };
 
 struct MASTER_BIN_TABLE_ITER_1 {
-  BIN_TABLE_ITER_1 iter;
-  unordered_map<uint64, uint32> *args_to_idx;
-  uint32 arg1;
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
+  uint32 *arg2s;
+  uint32 *surrs;
+  uint32 left;
 };
 
 struct MASTER_BIN_TABLE_ITER_2 {
-  BIN_TABLE_ITER_2 iter;
-  unordered_map<uint64, uint32> *args_to_idx;
-  uint32 arg2;
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
+  uint32 *arg1s;
+  uint32 *surrs;
+  uint32 left;
 };
 
 struct MASTER_BIN_TABLE_AUX {
@@ -1401,7 +1402,7 @@ bool master_bin_table_contains(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2
 bool master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg1);
 bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2);
 
-uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *args2);
+uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *args2, uint32 *surrs);
 uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *args1);
 
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1);

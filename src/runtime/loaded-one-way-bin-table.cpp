@@ -66,7 +66,7 @@ bool loaded_one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, u
   return loaded_one_way_bin_table_payload(table, surr1, surr2) != 0xFFFFFFFF;
 }
 
-uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest) {
+uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest, uint32 *data) {
   if (surr >= table->capacity)
     return 0;
 
@@ -76,11 +76,14 @@ uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, 
     return 0;
 
   if (is_index(slot)) {
-    loaded_overflow_table_copy(&table->array_pool, slot, dest, NULL, 0);
+    loaded_overflow_table_copy(&table->array_pool, slot, dest, data, 0);
     return get_count(slot);
   }
 
-  dest[0] = get_low_32(slot);
+  if (dest != 0)
+    dest[0] = get_low_32(slot);
+  if (data != NULL)
+    data[0] = get_high_32(slot);
   return 1;
 }
 
@@ -96,7 +99,7 @@ uint32 loaded_one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr) {
   return get_low_32(slot);
 }
 
-uint32 loaded_one_way_bin_table_count(ONE_WAY_BIN_TABLE *table, uint32 surr) {
+uint32 loaded_one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *table, uint32 surr) {
   if (surr >= table->capacity)
     return 0;
   uint64 slot = table->column[surr];

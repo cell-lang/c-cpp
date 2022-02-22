@@ -135,9 +135,9 @@ void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem
 bool loaded_one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1);
 uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
 bool loaded_one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest);
+uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest, uint32 *data);
 uint32 loaded_one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr);
-uint32 loaded_one_way_bin_table_count(ONE_WAY_BIN_TABLE *table, uint32 surr);
+uint32 loaded_one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *table, uint32 surr);
 
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *mem_pool);
 
