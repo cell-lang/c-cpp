@@ -28,6 +28,11 @@ inline uint64 empty_slot(uint32 next) {
   return slot;
 }
 
+inline uint32 get_next_free(uint64 slot) {
+  assert(get_high_32(slot) == 0xFFFFFFFF);
+  assert(get_low_32(slot) <= 16 * 1024 * 1024);
+  return get_low_32(slot);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -45,7 +50,7 @@ static uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1,
     table->capacity = new_capacity;
   }
 
-  table->first_free = (uint32) slots[first_free];
+  table->first_free = get_next_free(slots[first_free]);
   uint64 args = pack_args(arg1, arg2);
   slots[first_free] = args;
   return first_free;
@@ -411,8 +416,9 @@ uint32 master_bin_table_iter_1_get_surr(MASTER_BIN_TABLE_ITER_1 *iter) {
 
 void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *iter) {
 #ifndef NDEBUG
+  iter->forward = NULL;
   iter->arg1s = NULL;
-  iter->surrs = NULL;
+  iter->arg2 = 0xFFFFFFFF;
 #endif
   iter->left = 0;
 }
@@ -420,22 +426,17 @@ void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *iter) {
 void master_bin_table_iter_2_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_2 *iter, uint32 arg2) {
   uint32 count = master_bin_table_count_2(table, arg2);
   if (count > 0) {
-    uint32 *arg1s;
-    if (2 * count <= BIN_TABLE_ITER_INLINE_SIZE)
-      arg1s = iter->inline_array;
-    else
-      arg1s = new_uint32_array(2 * count);
-    uint32 *surrs = arg1s + count;
+    uint32 *arg1s = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
     master_bin_table_restrict_2(table, arg2, arg1s);
-    for (uint32 i=0 ; i < count ; i++)
-      surrs[i] = master_bin_table_lookup_surrogate(table, arg1s[i], arg2);
+    iter->forward = &table->forward;
     iter->arg1s = arg1s;
-    iter->surrs = surrs;
+    iter->arg2 = arg2;
   }
 #ifndef NDEBUG
   else {
+    iter->forward = NULL;
     iter->arg1s = NULL;
-    iter->surrs = NULL;
+    iter->arg2 = 0xFFFFFFFF;
   }
 #endif
   iter->left = count;
@@ -444,7 +445,6 @@ void master_bin_table_iter_2_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER
 void master_bin_table_iter_2_move_forward(MASTER_BIN_TABLE_ITER_2 *iter) {
   assert(!master_bin_table_iter_2_is_out_of_range(iter));
   iter->arg1s++;
-  iter->surrs++;
   iter->left--;
 }
 
@@ -459,5 +459,7 @@ uint32 master_bin_table_iter_2_get_1(MASTER_BIN_TABLE_ITER_2 *iter) {
 
 uint32 master_bin_table_iter_2_get_surr(MASTER_BIN_TABLE_ITER_2 *iter) {
   assert(!master_bin_table_iter_2_is_out_of_range(iter));
-  return *iter->surrs;
+  uint32 arg1 = *iter->arg1s;
+  uint32 arg2 = iter->arg2;
+  return loaded_one_way_bin_table_payload(iter->forward, arg1, arg2);
 }

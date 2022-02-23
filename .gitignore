@@ -40,3 +40,4 @@ debug/
 src/stats.cpp
 report*.txt
 bin/cellcd
+saved/

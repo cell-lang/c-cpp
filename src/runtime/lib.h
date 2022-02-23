@@ -300,9 +300,11 @@ struct MASTER_BIN_TABLE_ITER_1 {
 
 struct MASTER_BIN_TABLE_ITER_2 {
   uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
+  ONE_WAY_BIN_TABLE *forward;
   uint32 *arg1s;
-  uint32 *surrs;
+  uint32 arg2;
   uint32 left;
+
 };
 
 struct MASTER_BIN_TABLE_AUX {
