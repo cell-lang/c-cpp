@@ -70,79 +70,81 @@ inline uint64 set_high_32(uint64 slot, uint32 high32) {
 uint64 set_low_32(uint64 slot, uint32 low32);
 uint64 set_high_32(uint64 slot, uint32 high32);
 
-void array_mem_pool_init(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool);
+void array_mem_pool_init(ARRAY_MEM_POOL *, bool alloc_parallel_space, STATE_MEM_POOL *);
 
-uint32 array_mem_pool_alloc_16_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL *mem_pool);
-void array_mem_pool_release_16_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
-void array_mem_pool_release_16_block_upper_half(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
+uint32 array_mem_pool_alloc_16_block(ARRAY_MEM_POOL *, STATE_MEM_POOL *);
+void array_mem_pool_release_16_block(ARRAY_MEM_POOL *, uint32 block_idx);
+void array_mem_pool_release_16_block_upper_half(ARRAY_MEM_POOL *, uint32 block_idx);
 
-uint32 array_mem_pool_alloc_8_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL *mem_pool);
-void array_mem_pool_release_8_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
-void array_mem_pool_release_8_block_upper_half(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
+uint32 array_mem_pool_alloc_8_block(ARRAY_MEM_POOL *, STATE_MEM_POOL *);
+void array_mem_pool_release_8_block(ARRAY_MEM_POOL *, uint32 block_idx);
+void array_mem_pool_release_8_block_upper_half(ARRAY_MEM_POOL *, uint32 block_idx);
 
-uint32 array_mem_pool_alloc_4_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL *mem_pool);
-void array_mem_pool_release_4_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
+uint32 array_mem_pool_alloc_4_block(ARRAY_MEM_POOL *, STATE_MEM_POOL *);
+void array_mem_pool_release_4_block(ARRAY_MEM_POOL *, uint32 block_idx);
 
-uint32 array_mem_pool_alloc_2_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL *mem_pool);
-void array_mem_pool_release_2_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx);
+uint32 array_mem_pool_alloc_2_block(ARRAY_MEM_POOL *, STATE_MEM_POOL *);
+void array_mem_pool_release_2_block(ARRAY_MEM_POOL *, uint32 block_idx);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint64 overflow_table_insert(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, STATE_MEM_POOL *mem_pool);
-uint64 overflow_table_insert_unique(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, STATE_MEM_POOL *mem_pool);
-uint64 overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value);
-void overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle);
-bool overflow_table_contains(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value);
-void overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *dest, uint32 offset);
+uint64 overflow_table_insert(ARRAY_MEM_POOL *, uint64 handle, uint32 value, STATE_MEM_POOL *);
+uint64 overflow_table_insert_unique(ARRAY_MEM_POOL *, uint64 handle, uint32 value, STATE_MEM_POOL *);
+uint64 overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle, uint32 value);
+void overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle);
+bool overflow_table_contains(ARRAY_MEM_POOL *, uint64 handle, uint32 value);
+void overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *dest, uint32 offset);
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
-bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1);
-uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest);
-uint32 one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr);
-uint32 one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *table, uint32 surr);
+bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *, uint32 surr1);
+uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint32 *dest);
+uint32 one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *, uint32 surr);
+uint32 one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *, uint32 surr);
 
-bool one_way_bin_table_insert(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool);
-void one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool);
+bool one_way_bin_table_insert(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, STATE_MEM_POOL *);
+void one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, STATE_MEM_POOL *);
 
-uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool);
+uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, STATE_MEM_POOL *);
 
-bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2);
+bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2);
 void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
 
-bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table);
-void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest);
+bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *);
+void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *, uint32 *dest);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 loaded_overflow_table_lookup(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value);
-void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *surrs2, uint32 *data, uint32 offset);
+uint32 loaded_overflow_table_lookup(ARRAY_MEM_POOL *, uint64 handle, uint32 value);
+void loaded_overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *values, uint32 *data, uint32 offset);
 
-uint64 loaded_overflow_table_insert_unique(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool);
+uint64 loaded_overflow_table_create_new_block(ARRAY_MEM_POOL *, uint64 values, uint64 datas, uint32 new_value, uint32 new_data, STATE_MEM_POOL *);
+uint64 loaded_overflow_table_insert_unique(ARRAY_MEM_POOL *, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *);
 
-uint64 loaded_overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 *data);
-void loaded_overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle);
+uint64 loaded_overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle, uint32 value, uint64 *target_size_2_data_slot_ptr);
+void loaded_overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle);
+
+void loaded_overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *values, uint32 *data, uint32 offset);
+
+////////////////////////////////////////////////////////////////////////////////
+
+void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+
+bool loaded_one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *, uint32 surr1);
+uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+bool loaded_one_way_bin_table_contains(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint32 *dest, uint32 *data);
+uint32 loaded_one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *, uint32 surr);
+uint32 loaded_one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *, uint32 surr);
+
+void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *);
+
+uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2, uint32 *data);
 void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
 
-////////////////////////////////////////////////////////////////////////////////
-
-void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool);
-
-bool loaded_one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1);
-uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-bool loaded_one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest, uint32 *data);
-uint32 loaded_one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr);
-uint32 loaded_one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *table, uint32 surr);
-
-void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *mem_pool);
-
-uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2);
-void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2, uint32 *data);
-void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table);
-
-bool loaded_one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table);
+bool loaded_one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *);

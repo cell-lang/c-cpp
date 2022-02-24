@@ -40,7 +40,7 @@ static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_p
 //////////////////////////////////////////////////////////////////////////////
 
 void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  array_mem_pool_init(&table->array_pool, mem_pool);
+  array_mem_pool_init(&table->array_pool, true, mem_pool);
   uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MIN_CAPACITY);
   for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
     slots[i] = EMPTY_SLOT;

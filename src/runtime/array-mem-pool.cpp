@@ -36,8 +36,8 @@ const uint32 AVAILABLE  = 7;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void array_mem_pool_init(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool) {
-  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MIN_SIZE);
+void array_mem_pool_init(ARRAY_MEM_POOL *array, bool alloc_double_space, STATE_MEM_POOL *mem_pool) {
+  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, alloc_double_space ? 2 * MIN_SIZE : MIN_SIZE);
 
   slots[0] = pack(END_LOWER_MARKER, pack_tag_payload(BLOCK_16, 16));
   for (uint32 i=16 ; i < MIN_SIZE - 16 ; i += 16)
@@ -50,6 +50,7 @@ void array_mem_pool_init(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool) {
   array->head4 = EMPTY_MARKER;
   array->head8 = EMPTY_MARKER;
   array->head16 = 0;
+  array->alloc_double_space = alloc_double_space;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -126,7 +127,16 @@ uint32 array_mem_pool_alloc_16_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL 
   if (head16 == EMPTY_MARKER) {
     uint32 size = array_pool->size;
     uint32 new_size = 2 * size;
-    slots = extend_state_mem_uint64_array(mem_pool, slots, size, new_size);
+    if (array_pool->alloc_double_space) {
+      uint64 *new_slots = alloc_state_mem_uint64_array(mem_pool, 2 * new_size);
+      uint32 mem_size = size * sizeof(uint64);
+      memcpy(new_slots, slots, mem_size);
+      memcpy(new_slots + new_size, slots + size, mem_size);
+      release_state_mem_uint64_array(mem_pool, slots, 2 * size);
+      slots = new_slots;
+    }
+    else
+      slots = extend_state_mem_uint64_array(mem_pool, slots, size, new_size);
     for (uint32 i=size ; i < new_size ; i += 16)
       slots[i] = pack(pack_tag_payload(AVAILABLE, i - 16), pack_tag_payload(BLOCK_16, i + 16));
 

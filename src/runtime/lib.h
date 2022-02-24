@@ -226,6 +226,7 @@ struct ARRAY_MEM_POOL {
   uint64 *slots;
   uint32 size;
   uint32 head2, head4, head8, head16;
+  bool alloc_double_space;
 };
 
 struct ONE_WAY_BIN_TABLE {
