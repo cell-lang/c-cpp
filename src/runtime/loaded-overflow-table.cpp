@@ -310,35 +310,39 @@ static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32
   return size_8_block_handle(block_idx, count);
 }
 
-static uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 data_slot, uint64 state, uint32 least_bits) {
+static void copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 data_slot, uint32 least_bits, uint32 &write_idx, uint32 &pending_value, uint32 &pending_data) {
   if (handle == EMPTY_SLOT)
-    return state;
+    return;
 
   uint32 low = get_low_32(handle);
   uint32 tag = get_tag(low);
 
-  uint32 next_idx = get_low_32(state);
-  uint32 leftover = get_high_32(state);
-
   uint64 *slots = array_pool->slots;
+  uint64 *data_slots = slots + array_pool->size;
 
   if (tag == INLINE_SLOT) {
     uint32 high = get_high_32(handle);
 
-    if (leftover != EMPTY_MARKER) {
-      slots[next_idx++] = pack(leftover, low);
-      leftover = EMPTY_MARKER;
+    if (pending_value != EMPTY_MARKER) {
+      slots[write_idx] = pack(pending_value, low);
+      data_slots[write_idx++] = pack(pending_data, get_low_32(data_slot));
+      pending_value = EMPTY_MARKER;
     }
-    else
-      leftover = low;
+    else {
+      pending_value = low;
+      pending_data = get_low_32(data_slot);
+    }
 
     if (high != EMPTY_MARKER)
-      if (leftover != EMPTY_MARKER) {
-        slots[next_idx++] = pack(leftover, high);
-        leftover = EMPTY_MARKER;
+      if (pending_value != EMPTY_MARKER) {
+        slots[write_idx] = pack(pending_value, high);
+        data_slots[write_idx++] = pack(pending_data, get_high_32(data_slot));
+        pending_value = EMPTY_MARKER;
       }
-      else
-        leftover = high;
+      else {
+        pending_value = high;
+        pending_data = get_high_32(data_slot);
+      }
   }
   else {
     uint32 block_idx = get_payload(low);
@@ -346,26 +350,33 @@ static uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, 
 
     for (uint32 i=0 ; i < end ; i++) {
       uint64 slot = slots[block_idx + i];
+      uint64 data_slot = data_slots[block_idx + i];
 
       assert(slot != EMPTY_SLOT);
 
       uint32 slot_low = get_low_32(slot);
       uint32 slot_high = get_high_32(slot);
 
-      if (leftover != EMPTY_MARKER) {
-        slots[next_idx++] = pack(leftover, unclipped(slot_low, least_bits));
-        leftover = EMPTY_MARKER;
+      if (pending_value != EMPTY_MARKER) {
+        slots[write_idx] = pack(pending_value, unclipped(slot_low, least_bits));
+        data_slots[write_idx++] = pack(pending_data, get_low_32(data_slot));
+        pending_value = EMPTY_MARKER;
       }
-      else
-        leftover = unclipped(slot_low, least_bits);
+      else {
+        pending_value = unclipped(slot_low, least_bits);
+        pending_data = get_low_32(data_slot);
+      }
 
       if (slot_high != EMPTY_MARKER) {
-        if (leftover != EMPTY_MARKER) {
-          slots[next_idx++] = pack(leftover, unclipped(slot_high, least_bits));
-          leftover = EMPTY_MARKER;
+        if (pending_value != EMPTY_MARKER) {
+          slots[write_idx] = pack(pending_value, unclipped(slot_high, least_bits));
+          data_slots[write_idx++] = pack(pending_data, get_high_32(data_slot));
+          pending_value = EMPTY_MARKER;
         }
-        else
-          leftover = unclipped(slot_high, least_bits);
+        else {
+          pending_value = unclipped(slot_high, least_bits);
+          pending_data = get_high_32(data_slot);
+        }
       }
     }
 
@@ -376,14 +387,12 @@ static uint64 copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, 
       array_mem_pool_release_4_block(array_pool, block_idx);
     }
     else {
-      // Both 16-slot and hashed blocks contain at least 7 elements, so they cannot appear
-      // here, as the parent hashed block being shrunk has only six elements left
+      // Both 16-slot and hashed blocks contain at least 13 elements, so they cannot appear
+      // here, as the parent hashed block being shrunk has only 12 elements left
       assert(tag == SIZE_8_BLOCK);
       array_mem_pool_release_8_block(array_pool, block_idx);
     }
   }
-
-  return pack(next_idx, leftover);
 }
 
 static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) {
@@ -392,6 +401,8 @@ static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) 
   uint64 *target_slots = array_pool->slots + block_idx;
   uint64 *target_data_slots = target_slots + array_pool->size;
 
+  //## THIS APPROACH DOESN'T MAKE ANY SENSE. JUST ALLOC A NEW BLOCK, IT'S VERY LIKELY FASTER AND IT LEAVES THE MEMORY LESS FRAGMENTED
+
   // Here we've exactly 12 elements left, therefore we need the save the first 6 slots
   uint64 saved_slots[6], saved_data_slots[6];
   for (uint32 i=0 ; i < 6 ; i++) {
@@ -399,15 +410,18 @@ static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) 
     saved_data_slots[i] = target_slots[i];
   }
 
-  uint64 state = pack(block_idx, EMPTY_MARKER);
+  uint32 write_idx = block_idx;
+  uint32 pending_value = EMPTY_MARKER;
+  uint32 pending_data;
+
   for (uint32 i=0 ; i < 6 ; i++)
-    state = copy_and_release_block(array_pool, saved_slots[i], saved_data_slots[i], state, i);
+    copy_and_release_block(array_pool, saved_slots[i], saved_data_slots[i], i, write_idx, pending_value, pending_data);
 
   uint32 end_idx = block_idx + 6;
-  for (uint32 i=6 ; get_low_32(state) < end_idx ; i++)
-    state = copy_and_release_block(array_pool, target_slots[i], target_data_slots[i], state, i);
+  for (uint32 i=6 ; write_idx < end_idx ; i++)
+    copy_and_release_block(array_pool, target_slots[i], target_data_slots[i], i, write_idx, pending_value, pending_data);
 
-  assert(state == pack(block_idx + 6, EMPTY_MARKER));
+  assert(write_idx == end_idx && pending_value == EMPTY_MARKER);
 
   target_slots[6] = EMPTY_SLOT;
   target_slots[7] = EMPTY_SLOT;
