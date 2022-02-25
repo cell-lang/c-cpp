@@ -254,9 +254,9 @@ void bin_table_iter_move_forward(BIN_TABLE_ITER *iter) {
     arg2s = iter->arg2s;
   }
   else {
-    uint32 capacity = 2 * BIN_TABLE_ITER_INLINE_SIZE;
-    while (count1 > capacity)
+    do
       capacity *= 2;
+    while (count1 > capacity);
     iter->capacity = capacity;
     arg2s = new_uint32_array(capacity);
     iter->arg2s = arg2s;
