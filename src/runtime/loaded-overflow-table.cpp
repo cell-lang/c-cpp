@@ -84,23 +84,6 @@ static bool is_even(uint32 value) {
 
 ////////////////////////////////////////////////////////////////////////////
 
-//## WARNING: THIS ONLY WORKS FOR LITTLE-ENDIAM ARCHITECTURES
-//## TRY THE AGNOSTIC VERSION TO SEE IF IT'S ANY SLOWER
-inline void set_high_32(uint64 *ptr, uint32 data) {
-#ifndef NDEBUG
-  uint64 content = *ptr;
-#endif
-  uint32 *high_32_ptr = ((uint32 *) ptr) + 1;
-  *high_32_ptr = data;
-#ifndef NDEBUG
-  uint64 updated_content = *ptr;
-#endif
-  assert(get_low_32(updated_content) == get_low_32(content));
-  assert(get_high_32(updated_content) == data);
-}
-
-////////////////////////////////////////////////////////////////////////////
-
 static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *, uint32, uint32, uint32, uint32, STATE_MEM_POOL *);
 
 static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {

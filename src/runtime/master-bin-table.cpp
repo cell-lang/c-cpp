@@ -86,7 +86,7 @@ uint32 master_bin_table_size(MASTER_BIN_TABLE *table) {
 }
 
 uint32 master_bin_table_count_1(MASTER_BIN_TABLE *table, uint32 arg1) {
-  return loaded_one_way_bin_table_get_count(&table->forward, arg1);
+  return one_way_bin_table_get_count(&table->forward, arg1);
 }
 
 uint32 master_bin_table_count_2(MASTER_BIN_TABLE *table, uint32 arg2) {
@@ -94,11 +94,11 @@ uint32 master_bin_table_count_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 }
 
 bool master_bin_table_contains(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  return loaded_one_way_bin_table_contains(&table->forward, arg1, arg2);
+  return one_way_bin_table_contains(&table->forward, arg1, arg2);
 }
 
 bool master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg1) {
-  return loaded_one_way_bin_table_contains_key(&table->forward, arg1);
+  return one_way_bin_table_contains_key(&table->forward, arg1);
 }
 
 bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2) {
@@ -116,7 +116,7 @@ uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 
 }
 
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1) {
-  return loaded_one_way_bin_table_lookup(&table->forward, arg1);
+  return one_way_bin_table_lookup(&table->forward, arg1);
 }
 
 uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2) {
@@ -215,7 +215,7 @@ bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) 
 }
 
 void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
-  uint32 count = loaded_one_way_bin_table_get_count(&table->forward, arg1);
+  uint32 count = one_way_bin_table_get_count(&table->forward, arg1);
   if (count > 0) {
     uint32 *arg2s = new_uint32_array(count);
     uint32 *surrs = new_uint32_array(count);
@@ -247,7 +247,7 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table) {
-  return loaded_one_way_bin_table_is_map(&table->forward);
+  return one_way_bin_table_is_map(&table->forward);
 }
 
 bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table) {

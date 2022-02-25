@@ -65,6 +65,23 @@ inline uint64 set_high_32(uint64 slot, uint32 high32) {
   return updated_slot;
 }
 
+////////////////////////////////////////////////////////////////////////////
+
+//## WARNING: THIS ONLY WORKS FOR LITTLE-ENDIAM ARCHITECTURES
+//## TRY THE AGNOSTIC VERSION TO SEE IF IT'S ANY SLOWER
+inline void set_high_32(uint64 *ptr, uint32 data) {
+#ifndef NDEBUG
+  uint64 content = *ptr;
+#endif
+  uint32 *high_32_ptr = ((uint32 *) ptr) + 1;
+  *high_32_ptr = data;
+#ifndef NDEBUG
+  uint64 updated_content = *ptr;
+#endif
+  assert(get_low_32(updated_content) == get_low_32(content));
+  assert(get_high_32(updated_content) == data);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint64 set_low_32(uint64 slot, uint32 low32);
@@ -139,6 +156,6 @@ uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint3
 
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *);
 
-uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+bool loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2, uint32 *data);
 void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
