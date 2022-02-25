@@ -85,7 +85,7 @@ void slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *master_table, SLAVE_TERN_T
 
 void slave_tern_table_aux_delete_13(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3) {
   MASTER_BIN_TABLE_ITER_1 iter;
-  master_bin_table_iter_1_init(master_table, &iter, arg1);
+  master_bin_table_iter_1_init_surrs(master_table, &iter, arg1);
   while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
     uint32 surr12 = master_bin_table_iter_1_get_surr(&iter);
     bin_table_aux_delete(&table_aux->slave_table_aux, surr12, arg3);
@@ -105,7 +105,7 @@ void slave_tern_table_aux_delete_23(MASTER_BIN_TABLE *master_table, SLAVE_TERN_T
 
 void slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1) {
   MASTER_BIN_TABLE_ITER_1 iter;
-  master_bin_table_iter_1_init(master_table, &iter, arg1);
+  master_bin_table_iter_1_init_surrs(master_table, &iter, arg1);
   while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
     uint32 surr12 = master_bin_table_iter_1_get_surr(&iter);
     bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);

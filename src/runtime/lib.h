@@ -1440,6 +1440,7 @@ uint32 master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *);
 
 void master_bin_table_iter_1_init_empty(MASTER_BIN_TABLE_ITER_1 *);
 void master_bin_table_iter_1_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER_1 *, uint32 arg1);
+void master_bin_table_iter_1_init_surrs(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER_1 *, uint32 arg1);
 void master_bin_table_iter_1_move_forward(MASTER_BIN_TABLE_ITER_1 *);
 bool master_bin_table_iter_1_is_out_of_range(MASTER_BIN_TABLE_ITER_1 *);
 uint32 master_bin_table_iter_1_get_1(MASTER_BIN_TABLE_ITER_1 *);

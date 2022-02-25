@@ -329,7 +329,7 @@ uint32 slave_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter) {
 
 void slave_tern_table_iter_1_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1) {
   iter->slave_table = slave_table;
-  master_bin_table_iter_1_init(master_table, &iter->master_iter, arg1);
+  master_bin_table_iter_1_init_surrs(master_table, &iter->master_iter, arg1);
   while (!master_bin_table_iter_1_is_out_of_range(&iter->master_iter)) {
     uint32 surr12 = master_bin_table_iter_1_get_surr(&iter->master_iter);
     bin_table_iter_1_init(slave_table, &iter->slave_iter, surr12);

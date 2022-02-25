@@ -372,6 +372,23 @@ void master_bin_table_iter_1_init_empty(MASTER_BIN_TABLE_ITER_1 *iter) {
 void master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_1 *iter, uint32 arg1) {
   uint32 count = master_bin_table_count_1(table, arg1);
   if (count > 0) {
+    uint32 *arg2s = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
+    bin_table_restrict_1((BIN_TABLE *) table, arg1, arg2s); //## DON'T LIKE THIS CAST, REFACTOR ASAP
+    iter->arg2s = arg2s;
+    iter->surrs = NULL; //## NOT STRICTLY NECESSARY, SHOULD ONLY BE DONE FOR DEBUGGING
+  }
+#ifndef NDEBUG
+  else {
+    iter->arg2s = NULL;
+    iter->surrs = NULL;
+  }
+#endif
+  iter->left = count;
+}
+
+void master_bin_table_iter_1_init_surrs(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER_1 *iter, uint32 arg1) {
+  uint32 count = master_bin_table_count_1(table, arg1);
+  if (count > 0) {
     uint32 *arg2s;
     if (2 * count <= BIN_TABLE_ITER_INLINE_SIZE)
       arg2s = iter->inline_array;
