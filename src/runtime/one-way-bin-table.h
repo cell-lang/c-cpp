@@ -134,17 +134,11 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *values,
 
 void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
-bool loaded_one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *, uint32 surr1);
 uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
-bool loaded_one_way_bin_table_contains(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint32 *dest, uint32 *data);
-uint32 loaded_one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *, uint32 surr);
-uint32 loaded_one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *, uint32 surr);
 
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *);
 
 uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2, uint32 *data);
 void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
-
-bool loaded_one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *);

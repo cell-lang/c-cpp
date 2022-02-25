@@ -39,7 +39,7 @@ static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_p
 
 //////////////////////////////////////////////////////////////////////////////
 
-void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   array_mem_pool_init(&table->array_pool, true, mem_pool);
   uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MIN_CAPACITY);
   for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
@@ -51,7 +51,7 @@ void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) 
 
 //////////////////////////////////////////////////////////////////////////////
 
-bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
+uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
   if (surr1 >= table->capacity)
     return false;
 
@@ -69,32 +69,7 @@ bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 s
   return get_high_32(slot) == surr2;
 }
 
-bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1) {
-  return surr1 < table->capacity && !is_empty(table->column[surr1]);
-}
-
-// uint32[] one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr) {
-//   if (surr >= table->capacity)
-//     return Array.emptyIntArray;
-
-//   uint64 slot = table->column[surr];
-
-//   if (is_empty(slot))
-//     return Array.emptyIntArray;
-
-//   if (is_index(slot)) {
-//     uint32 count = get_count(slot);
-//     uint32[] surrs = new uint32[count];
-//     overflow_table_copy(&table->array_pool, slot, surrs);
-//     return surrs;
-//   }
-
-//   uint32 low = get_low_32(slot);
-//   uint32 high = get_high_32(slot);
-//   return high == EMPTY_MARKER ? new uint32[] {low} : new uint32[] {low, high};
-// }
-
-uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest) {
+uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *dest, uint32 *data) {
   if (surr >= table->capacity)
     return 0;
 
@@ -116,63 +91,7 @@ uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 
   return 2;
 }
 
-uint32 one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr) {
-  if (surr >= table->capacity)
-    return -1;
-  uint64 slot = table->column[surr];
-  if (is_empty(slot))
-    return -1;
-  if (is_index(slot) | get_high_32(slot) != EMPTY_MARKER)
-    internal_fail();
-  assert(get_tag(get_low_32(slot)) == INLINE_SLOT);
-  return get_low_32(slot);
-}
-
-uint32 one_way_bin_table_get_count(ONE_WAY_BIN_TABLE *table, uint32 surr) {
-  if (surr >= table->capacity)
-    return 0;
-  uint64 slot = table->column[surr];
-  if (is_empty(slot))
-    return 0;
-  if (is_index(slot))
-    return get_count(slot);
-  return get_high_32(slot) == EMPTY_MARKER ? 1 : 2;
-}
-
-bool one_way_bin_table_insert(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool) {
-  if (surr1 >= table->capacity)
-    resize(table, surr1, mem_pool);
-
-  uint64 *slot_ptr = table->column + surr1;
-  uint64 slot = *slot_ptr;
-
-  if (is_empty(slot)) {
-    *slot_ptr = pack(surr2, EMPTY_MARKER);
-    table->count++;
-    return true;
-  }
-
-  uint32 low = get_low_32(slot);
-  uint32 high = get_high_32(slot);
-
-  if (get_tag(low) == INLINE_SLOT & high == EMPTY_MARKER) {
-    if (surr2 == low)
-      return false;
-    *slot_ptr = pack(low, surr2);
-    table->count++;
-    return true;
-  }
-
-  uint64 updated_slot = overflow_table_insert(&table->array_pool, slot, surr2, mem_pool);
-  if (updated_slot == slot)
-    return false;
-
-  *slot_ptr = updated_slot;
-  table->count++;
-  return true;
-}
-
-void one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool) {
+void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *mem_pool) {
   if (surr1 >= table->capacity)
     resize(table, surr1, mem_pool);
 
@@ -202,32 +121,32 @@ void one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uin
   table->count++;
 }
 
-// Assuming there's at most one entry whose first argument is surr1
-uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool) {
-  if (surr1 >= table->capacity)
-    resize(table, surr1, mem_pool);
+// // Assuming there's at most one entry whose first argument is surr1
+// uint32 loaded_one_way_bin_table_update(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, STATE_MEM_POOL *mem_pool) {
+//   if (surr1 >= table->capacity)
+//     resize(table, surr1, mem_pool);
 
-  uint64 *slot_ptr = table->column + surr1;
-  uint64 slot = *slot_ptr;
+//   uint64 *slot_ptr = table->column + surr1;
+//   uint64 slot = *slot_ptr;
 
-  if (is_empty(slot)) {
-    *slot_ptr = pack(surr2, EMPTY_MARKER);
-    table->count++;
-    return -1;
-  }
+//   if (is_empty(slot)) {
+//     *slot_ptr = pack(surr2, EMPTY_MARKER);
+//     table->count++;
+//     return -1;
+//   }
 
-  uint32 low = get_low_32(slot);
-  uint32 high = get_high_32(slot);
+//   uint32 low = get_low_32(slot);
+//   uint32 high = get_high_32(slot);
 
-  if (get_tag(low) == INLINE_SLOT & high == EMPTY_MARKER) {
-    *slot_ptr = pack(surr2, EMPTY_MARKER);
-    return low;
-  }
+//   if (get_tag(low) == INLINE_SLOT & high == EMPTY_MARKER) {
+//     *slot_ptr = pack(surr2, EMPTY_MARKER);
+//     return low;
+//   }
 
-  internal_fail();
-}
+//   internal_fail();
+// }
 
-bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
+uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
   if (surr1 >= table->capacity)
     return false;
 
@@ -270,7 +189,7 @@ bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 sur
   return false;
 }
 
-void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2) {
+void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2) {
   if (surr1 >= table->capacity)
     return;
 
@@ -301,61 +220,6 @@ void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uin
   }
 }
 
-void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table) {
+void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table) {
   impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table) {
-  uint32 capacity = table->capacity;
-  uint64 *slots = table->column;
-  for (uint32 i=0 ; i < capacity ; i++) {
-    uint64 slot = slots[i];
-    if (!is_empty(slot) & (get_tag(get_low_32(slot)) != INLINE_SLOT | get_high_32(slot) != EMPTY_MARKER))
-      return false;
-  }
-  return true;
-}
-
-// void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *table, uint32 *dest) {
-//   uint32 capacity = table->capacity;
-//   uint64 *slots = table->column;
-
-//   uint32 inline_buffer[1024];
-//   uint32 *buffer = inline_buffer;
-//   uint32 buffer_size = 1024;
-
-//   uint32 next = 0;
-//   for (uint32 i=0 ; i < capacity ; i++) {
-//     uint64 slot = slots[i];
-//     if (!is_empty(slot)) {
-//       if (is_index(slot)) {
-//         uint32 slot_count = get_count(slot);
-//         if (slot_count > buffer_size) {
-//           do
-//             buffer_size *= 2;
-//           while (slot_count > buffer_size);
-//           buffer = new_uint32_array(buffer_size);
-//         }
-//         overflow_table_copy(&table->array_pool, slot, buffer, 0);
-//         for (uint32 j=0 ; j < slot_count ; j++) {
-//           uint32 idx = next + 2 * j;
-//           dest[idx] = i;
-//           dest[idx + 1] = buffer[j];
-//         }
-//         next += 2 * slot_count;
-//       }
-//       else {
-//         dest[next++] = i;
-//         dest[next++] = get_low_32(slot);
-//         uint32 high = get_high_32(slot);
-//         if (high != EMPTY_MARKER) {
-//           dest[next++] = i;
-//           dest[next++] = high;
-//         }
-//       }
-//     }
-//   }
-//   assert(next == 2 * table->count);
-// }
