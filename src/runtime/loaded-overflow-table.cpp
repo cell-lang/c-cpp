@@ -610,21 +610,15 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
     if (low != EMPTY_MARKER) {
       uint32 tag = get_tag(low);
       if (tag == INLINE_SLOT) {
-        uint64 data_slot; // Initialized later if data is non-null
+        uint64 data_slot = *(slot_ptr + distance);
 
         values[target_idx] = (get_payload(low) << shift) + least_bits;
-        if (data != NULL) {
-          data_slot = *(slot_ptr + distance);
-          data[target_idx] = get_low_32(data_slot);
-        }
-        target_idx++;
+        data[target_idx++] = get_low_32(data_slot);
 
         uint32 high = get_high_32(slot);
         if (high != EMPTY_MARKER) {
           values[target_idx] = (get_payload(high) << shift) + least_bits;
-          if (data != NULL)
-            data[target_idx] = get_high_32(data_slot);
-          target_idx++;
+          data[target_idx++] = get_high_32(data_slot);
         }
       }
       else if (tag == HASHED_BLOCK) {
@@ -643,25 +637,20 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
 
           assert(sublow != EMPTY_MARKER & get_tag(sublow) == 0);
 
-          uint64 data_subslot; // Initialized later if data is non-null
+          uint64 data_subslot = *(subslot_ptr + distance);
 
           values[target_idx] = (sublow << subshift) + slot_least_bits;
-          if (data != NULL) {
-            data_subslot = *(subslot_ptr + distance);
-            data[target_idx] = get_low_32(data_subslot);
-          }
-          target_idx++;
+          data[target_idx++] = get_low_32(data_subslot);
 
           if (subhigh != EMPTY_MARKER) {
             values[target_idx] = (subhigh << subshift) + slot_least_bits;
-            if (data != NULL)
-              data[target_idx] = get_high_32(data_subslot);
-            target_idx++;
+            data[target_idx++] = get_high_32(data_subslot);
           }
         }
       }
     }
   }
+
   return target_idx;
 }
 
@@ -773,22 +762,16 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint3
 
       assert(slot_low != EMPTY_MARKER & get_tag(slot_low) == INLINE_SLOT);
 
-      uint64 data_slot; // Initialized later only if data is not null
+      uint64 data_slot = src_slots[i + distance];
 
       values[target_idx] = slot_low;
-      if (data != NULL) {
-        data_slot = src_slots[i + distance];
-        data[target_idx] = get_low_32(data_slot);
-      }
-      target_idx++;
+      data[target_idx++] = get_low_32(data_slot);
 
       if (slot_high != EMPTY_MARKER) {
         assert(get_tag(slot_high) == INLINE_SLOT);
 
         values[target_idx] = slot_high;
-        if (data != NULL)
-          data[target_idx] = get_high_32(data_slot);
-        target_idx++;
+        data[target_idx++] = get_high_32(data_slot);
       }
     }
   }

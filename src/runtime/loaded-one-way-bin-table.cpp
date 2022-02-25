@@ -93,21 +93,17 @@ uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, 
     return get_count(slot);
   }
 
-  uint64 data_slot;
+  uint64 data_slot = *(slot_ptr + capacity);
 
   values[0] = get_low_32(slot);
-  if (data != NULL) {
-    data_slot = *(slot_ptr + capacity);
-    data[0] = get_low_32(data_slot);
-  }
+  data[0] = get_low_32(data_slot);
 
   uint32 high = get_high_32(slot);
   if (high == EMPTY_MARKER)
     return 1;
 
   values[1] = high;
-  if (data != NULL)
-    data[1] = get_high_32(data_slot);
+  data[1] = get_high_32(data_slot);
   return 2;
 }
 
