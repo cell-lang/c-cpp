@@ -58,9 +58,27 @@ static uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1,
 
 static void master_bin_table_release_surr(MASTER_BIN_TABLE *table, uint32 surr) {
   uint64 *slot_ptr = table->slots + surr;
-  *slot_ptr = table->first_free;
+  *slot_ptr = empty_slot(table->first_free);
   table->first_free = surr;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// void master_bin_table_self_check(MASTER_BIN_TABLE *table) {
+//   uint32 capacity = table->capacity;
+//   uint64 *slots = table->slots;
+//   for (uint32 i=0 ; i < capacity ; i++) {
+//     uint64 slot = slots[i];
+//     if (!is_empty(slot)) {
+//       uint32 _arg1 = unpack_arg1(slot);
+//       uint32 _arg2 = unpack_arg2(slot);
+//       assert(one_way_bin_table_contains(&table->forward, _arg1, _arg2));
+//       assert(one_way_bin_table_contains(&table->backward, _arg2, _arg1));
+//       uint32 surr = loaded_one_way_bin_table_payload(&table->forward, _arg1, _arg2);
+//       assert(surr == i);
+//     }
+//   }
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -203,11 +221,9 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
 
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   if (one_way_bin_table_delete(&table->backward, arg2, arg1)) {
-    uint32 surr = loaded_one_way_bin_table_payload(&table->forward, arg1, arg2);
+    uint32 surr = loaded_one_way_bin_table_delete(&table->forward, arg1, arg2);
     assert(surr != 0xFFFFFFFF);
     master_bin_table_release_surr(table, surr);
-    bool found = loaded_one_way_bin_table_delete(&table->forward, arg1, arg2);
-    assert(found);
     return true;
   }
   else
@@ -217,8 +233,9 @@ bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) 
 void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
   uint32 count = one_way_bin_table_get_count(&table->forward, arg1);
   if (count > 0) {
-    uint32 *arg2s = new_uint32_array(count);
-    uint32 *surrs = new_uint32_array(count);
+    uint32 inline_array[256];
+    uint32 *arg2s = count <= 128 ? inline_array : new_uint32_array(2 * count);
+    uint32 *surrs = arg2s + count;
     loaded_one_way_bin_table_delete_by_key(&table->forward, arg1, arg2s, surrs);
 
     for (uint32 i=0 ; i < count ; i++) {
@@ -231,7 +248,8 @@ void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
 void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   uint32 count = one_way_bin_table_get_count(&table->backward, arg2);
   if (count > 0) {
-    uint32 *arg1s = new_uint32_array(count);
+    uint32 inline_array[256];
+    uint32 *arg1s = count <= 256 ? inline_array : new_uint32_array(count);
     one_way_bin_table_delete_by_key(&table->backward, arg2, arg1s);
 
     for (uint32 i=0 ; i < count ; i++) {

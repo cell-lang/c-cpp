@@ -472,13 +472,13 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
       uint32 last, last_data;
       if (is_even(count)) {
         last = last_high;
-        last_data = get_high_32(slot_data);
+        last_data = get_high_32(last_slot_data);
         *last_slot_ptr = pack(last_low, EMPTY_MARKER);
         *last_slot_data_ptr = pack(get_low_32(last_slot_data), 0);
       }
       else {
         last = last_low;
-        last_data = get_low_32(slot_data);
+        last_data = get_low_32(last_slot_data);
         *last_slot_ptr = EMPTY_SLOT;
       }
 
@@ -509,7 +509,7 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
 
   uint32 index = get_index(value);
   uint64 *slot_ptr = slots + block_idx + index;
-  uint64 *data_slot_ptr = slots + array_pool->size;
+  uint64 *data_slot_ptr = slot_ptr + array_pool->size;
   uint64 slot = *slot_ptr;
 
   // If the slot is empty there's nothing to do
@@ -683,6 +683,7 @@ uint64 loaded_overflow_table_insert_unique(ARRAY_MEM_POOL *array_pool, uint64 ha
   return insert_unique_with_linear_block(array_pool, handle, value, data, mem_pool);
 }
 
+//## HERE IT WOULD BE GOOD TO RETURN THE DATA THAT WAS ATTACHED TO THE DELETED VALUE
 uint64 loaded_overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint64 *target_size_2_data_slot_ptr) {
   uint32 low = get_low_32(handle);
   uint32 tag = get_tag(low);
