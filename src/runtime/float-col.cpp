@@ -94,15 +94,17 @@ void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POO
   array[idx] = is_nan(value) ? NORM_NAN : value;
 }
 
-void float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
+bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
   if (idx < column->capacity) {
     double *array = column->array;
     double value = array[idx];
     if (!is_float_col_null(value)) {
       array[idx] = FLOAT_NULL;
       column->count--;
+      return true;
     }
   }
+  return false;
 }
 
 void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool) {

@@ -1661,7 +1661,7 @@ int64 int_col_lookup(INT_COL *column, uint32 idx);
 
 void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
 void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
-void int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool);
 
 void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
@@ -1701,7 +1701,7 @@ double float_col_lookup(FLOAT_COL *column, uint32 idx);
 
 void float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
 void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
-void float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
 
 void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
@@ -1741,7 +1741,7 @@ OBJ    obj_col_lookup(OBJ_COL *column, uint32 idx);
 
 void   obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
 void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
-void   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
+bool   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
 void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
 
 void   obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);

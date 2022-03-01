@@ -70,11 +70,27 @@ static void master_bin_table_release_surr(MASTER_BIN_TABLE *table, uint32 surr) 
 //   for (uint32 i=0 ; i < capacity ; i++) {
 //     uint64 slot = slots[i];
 //     if (!is_empty(slot)) {
-//       uint32 _arg1 = unpack_arg1(slot);
-//       uint32 _arg2 = unpack_arg2(slot);
-//       assert(one_way_bin_table_contains(&table->forward, _arg1, _arg2));
-//       assert(one_way_bin_table_contains(&table->backward, _arg2, _arg1));
-//       uint32 surr = loaded_one_way_bin_table_payload(&table->forward, _arg1, _arg2);
+//       uint32 arg1 = unpack_arg1(slot);
+//       uint32 arg2 = unpack_arg2(slot);
+//       assert(one_way_bin_table_contains(&table->forward, arg1, arg2));
+//       assert(one_way_bin_table_contains(&table->backward, arg2, arg1));
+//       uint32 surr = loaded_one_way_bin_table_payload(&table->forward, arg1, arg2);
+//       assert(surr == i);
+//     }
+//   }
+// }
+
+// void master_bin_table_partial_self_check(MASTER_BIN_TABLE *table) {
+//   uint32 capacity = table->capacity;
+//   uint64 *slots = table->slots;
+//   for (uint32 i=0 ; i < capacity ; i++) {
+//     uint64 slot = slots[i];
+//     if (!is_empty(slot)) {
+//       uint32 arg1 = unpack_arg1(slot);
+//       uint32 arg2 = unpack_arg2(slot);
+//       assert(one_way_bin_table_contains(&table->forward, arg1, arg2));
+//       // assert(one_way_bin_table_contains(&table->backward, arg2, arg1));
+//       uint32 surr = loaded_one_way_bin_table_payload(&table->forward, arg1, arg2);
 //       assert(surr == i);
 //     }
 //   }

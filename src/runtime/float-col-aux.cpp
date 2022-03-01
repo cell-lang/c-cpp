@@ -102,8 +102,8 @@ void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        float_col_delete(col, idx, mem_pool);
-        decr_rc(store, store_aux, idx);
+        if (float_col_delete(col, idx, mem_pool))
+          decr_rc(store, store_aux, idx);
       }
     }
   }

@@ -146,8 +146,8 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void 
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        obj_col_delete(col, idx, mem_pool);
-        decr_rc(store, store_aux, idx);
+        if (obj_col_delete(col, idx, mem_pool))
+          decr_rc(store, store_aux, idx);
       }
     }
   }

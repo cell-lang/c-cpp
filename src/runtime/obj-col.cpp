@@ -69,7 +69,7 @@ void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_
     remove_from_pool(mem_pool, curr_value);
 }
 
-void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
+bool obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
   if (idx < column->capacity) {
     OBJ *array = column->array;
     OBJ obj = array[idx];
@@ -77,8 +77,10 @@ void obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
       array[idx] = make_blank_obj();
       column->count--;
       remove_from_pool(mem_pool, obj);
+      return true;
     }
   }
+  return false;
 }
 
 void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {

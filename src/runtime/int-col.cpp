@@ -112,19 +112,22 @@ void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *me
   }
 }
 
-void int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
+bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
   if (idx < column->capacity) {
     int64 *array = column->array;
     int64 value = array[idx];
     if (value != INT_NULL) {
       array[idx] = INT_NULL;
       column->count--;
+      return true;
     }
     else if (is_collision(column, idx)) {
       column->collisions.erase(idx);
       column->count--;
+      return true;
     }
   }
+  return false;
 }
 
 void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool) {

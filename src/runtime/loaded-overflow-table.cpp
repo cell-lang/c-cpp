@@ -293,7 +293,7 @@ static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32
   return size_8_block_handle(block_idx, count);
 }
 
-static void copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 data_slot, uint32 least_bits, uint32 &write_idx, uint32 &pending_value, uint32 &pending_data) {
+static void copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint64 data_slot, uint32 least_bits, uint32 &write_idx, uint32 &pending_value, uint32 &pending_data) {
   if (handle == EMPTY_SLOT)
     return;
 
@@ -390,7 +390,7 @@ static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) 
   uint64 saved_slots[6], saved_data_slots[6];
   for (uint32 i=0 ; i < 6 ; i++) {
     saved_slots[i] = target_slots[i];
-    saved_data_slots[i] = target_slots[i];
+    saved_data_slots[i] = target_data_slots[i];
   }
 
   uint32 write_idx = block_idx;
