@@ -65,12 +65,12 @@ bool bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL
 }
 
 bool bin_table_delete(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  bool was_there = one_way_bin_table_delete(&table->forward, arg1, arg2);
-  if (was_there) {
-    bool was_there_ = one_way_bin_table_delete(&table->backward, arg2, arg1);
-    assert(was_there_ == was_there);
+  bool found = one_way_bin_table_delete(&table->forward, arg1, arg2);
+  if (found) {
+    bool found_ = one_way_bin_table_delete(&table->backward, arg2, arg1);
+    assert(found_ == found);
   }
-  return was_there;
+  return found;
 }
 
 void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
@@ -86,8 +86,8 @@ void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
     one_way_bin_table_delete_by_key(&table->forward, arg1, args2);
 
     for (uint32 i=0 ; i < count ; i++) {
-      bool was_there = one_way_bin_table_delete(&table->backward, args2[i], arg1);
-      assert(was_there);
+      bool found = one_way_bin_table_delete(&table->backward, args2[i], arg1);
+      assert(found);
     }
   }
   // return count;
@@ -106,8 +106,8 @@ void bin_table_delete_2(BIN_TABLE *table, uint32 arg2) {
     one_way_bin_table_delete_by_key(&table->backward, arg2, args1);
 
     for (uint32 i=0 ; i < count ; i++) {
-      bool was_there = one_way_bin_table_delete(&table->forward, args1[i], arg2);
-      assert(was_there);
+      bool found = one_way_bin_table_delete(&table->forward, args1[i], arg2);
+      assert(found);
     }
   }
   // return count;

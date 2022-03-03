@@ -536,7 +536,7 @@ String native_table_type(Table table) =
   match (arity(table), table.symmetric)
     1,  false   = "UNARY_TABLE",
     2,  false   = "BIN_TABLE",
-    2,  true    = "SYM_BIN_TABLE",
+    2,  true    = "BIN_TABLE",
     3,  false   = "TERN_TABLE",
     3,  true    = "SYM12_TERN_TABLE";
 
@@ -591,8 +591,8 @@ String native_column_method_prefix(ColumnRepr repr, Bool mandatory) =
 String table_it_var_type(TableItVar var) {
   prefix = match (var.table_type)
     unary_table       = "UNARY_TABLE",
-    bin_table         = "BIN_TABLE",
-    sym_bin_table     = "SYM_BIN_TABLE",
+    bin_table         |
+    sym_bin_table     = "BIN_TABLE",
     master_bin_table  = "MASTER_BIN_TABLE",
     tern_table        = "TERN_TABLE",
     sym_12_tern_table = "SYM_12_TERN_TABLE",
@@ -672,6 +672,7 @@ String it_var_method_prefix(SlaveColumnItVar var) =
 String native_table_aux_type(AnyTable table) =
   mandatory_column()  = native_column_type(table.repr) & "_AUX",
   slave_tern_table()  = "SLAVE_TERN_TABLE_AUX",
+  table()             = if arity(table) == 2 and table.symmetric then "SYM_BIN_TABLE_AUX" else native_table_type(table) & "_AUX",
   _                   = native_table_type(table) & "_AUX";
 
 

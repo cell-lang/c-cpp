@@ -276,6 +276,13 @@ struct BIN_TABLE_AUX {
   bool deletions_prepared;
 };
 
+struct SYM_BIN_TABLE_AUX {
+  QUEUE_U64 deletions;
+  QUEUE_U32 deletions_1;
+  QUEUE_U64 insertions;
+  bool clear;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct MASTER_BIN_TABLE {
@@ -1392,6 +1399,50 @@ void bin_table_aux_reset(BIN_TABLE_AUX *);
 
 bool bin_table_aux_arg1_was_deleted(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
 bool bin_table_aux_arg2_was_deleted(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
+
+/////////////////////////////// sym-bin-table.cpp //////////////////////////////
+
+void sym_bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 sym_bin_table_size(BIN_TABLE *);
+bool sym_bin_table_contains(BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool sym_bin_table_contains_1(BIN_TABLE *, uint32 arg);
+uint32 sym_bin_table_count(BIN_TABLE *, uint32 arg);
+uint32 sym_bin_table_restrict(BIN_TABLE *, uint32 arg, uint32 *other_args);
+uint32 sym_bin_table_lookup(BIN_TABLE *, uint32 arg);
+
+bool sym_bin_table_insert(BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+bool sym_bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
+void sym_bin_table_delete_1(BIN_TABLE *, uint32 arg);
+void sym_bin_table_clear(BIN_TABLE *, STATE_MEM_POOL *);
+
+void sym_bin_table_copy_to(BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
+void sym_bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store);
+
+void sym_bin_table_iter_init_empty(BIN_TABLE_ITER *);
+void sym_bin_table_iter_init(BIN_TABLE *, BIN_TABLE_ITER *);
+void sym_bin_table_iter_move_forward(BIN_TABLE_ITER *);
+bool sym_bin_table_iter_is_out_of_range(BIN_TABLE_ITER *);
+uint32 sym_bin_table_iter_get_1(BIN_TABLE_ITER *);
+uint32 sym_bin_table_iter_get_2(BIN_TABLE_ITER *);
+
+void sym_bin_table_iter_1_init_empty(BIN_TABLE_ITER_1 *);
+void sym_bin_table_iter_1_init(BIN_TABLE *, BIN_TABLE_ITER_1 *, uint32 arg);
+void sym_bin_table_iter_1_move_forward(BIN_TABLE_ITER_1 *);
+bool sym_bin_table_iter_1_is_out_of_range(BIN_TABLE_ITER_1 *);
+uint32 sym_bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *);
+
+/////////////////////////////// sym-bin-table.cpp //////////////////////////////
+
+void sym_bin_table_aux_init(SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+void sym_bin_table_aux_reset(SYM_BIN_TABLE_AUX *);
+
+void sym_bin_table_aux_insert(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void sym_bin_table_aux_delete(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void sym_bin_table_aux_delete_1(SYM_BIN_TABLE_AUX *, uint32 arg);
+void sym_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
+
+void sym_bin_table_aux_apply(BIN_TABLE *, SYM_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 

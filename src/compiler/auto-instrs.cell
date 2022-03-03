@@ -140,7 +140,19 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     }
     else if arity == 2 {
       if symmetric {
-        fail;
+        assert applied_perm == [0 -> 0, 1 -> 1];
+        code = ("{ STREAM stream_1, stream_2;", "  init(stream_1);", "  init(stream_2);");
+        for v <- ord_table_vars {
+          value_store = match (tables(v))
+            table() t?  = only([vs : vs <- t.value_stores]),
+            _           = undefined;
+          store_type = prg_data.value_stores(rel_auto_id)(value_store);
+          method_name = native_surr_to_obj_method_name(store_type);
+          args = (v, method_name, value_store, "&stream_1", "&stream_2");
+          code = (code | "  " & native_call(copy_method_name, args));
+        }
+        code = (code | "  " & native_call(res_var, "build_bin_rel", ("stream_1", "stream_2")), "}");
+        return code;
       }
       else {
         assert applied_perm == [0 -> 0, 1 -> 1] or applied_perm == [0 -> 1, 1 -> 0];
@@ -363,8 +375,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     [Bool+ -> String] sym_fn_names_by_args = [
       (true,  true)           -> "delete",
-      (true,  false)          -> "delete",
-      (false, true)           -> "delete",
+      (true,  false)          -> "delete_1",
+      // (false, true)           -> undefined,
       (false, false)          -> "clear",
       (true,  true,  true)    -> "delete",
       (true,  true,  false)   -> "delete_12",
