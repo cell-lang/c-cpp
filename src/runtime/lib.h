@@ -372,6 +372,13 @@ struct SLAVE_TERN_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct TERN_TABLE {
+  MASTER_BIN_TABLE master;
+  BIN_TABLE slave;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_COL {
   OBJ *array;
   uint32 capacity;
@@ -1614,6 +1621,85 @@ bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_B
 
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
+
+//////////////////////////////// tern-table.cpp ////////////////////////////////
+
+bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool tern_table_delete(TERN_TABLE *table, uint32 surr1, uint32 surr2, uint32 arg3);
+void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool);
+
+uint32 tern_table_size(TERN_TABLE *table);
+
+uint32 tern_table_count_1(TERN_TABLE *table, uint32 arg1);
+uint32 tern_table_count_2(TERN_TABLE *table, uint32 arg2);
+uint32 tern_table_count_3(TERN_TABLE *table, uint32 arg3);
+uint32 tern_table_count_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+uint32 tern_table_count_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+uint32 tern_table_count_23(TERN_TABLE *table, uint32 arg2, uint32 arg3);
+
+bool tern_table_contains(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3);
+bool tern_table_contains_1(TERN_TABLE *table, uint32 arg1);
+bool tern_table_contains_2(TERN_TABLE *table, uint32 arg2);
+bool tern_table_contains_3(TERN_TABLE *table, uint32 arg3);
+bool tern_table_contains_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+bool tern_table_contains_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+bool tern_table_contains_23(TERN_TABLE *table, uint32 arg2, uint32 arg3);
+
+uint32 tern_table_lookup_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+uint32 tern_table_lookup_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+uint32 tern_table_lookup_23(TERN_TABLE *table, uint32 arg2, uint32 arg3);
+
+bool tern_table_cols_12_are_key(TERN_TABLE *table);
+bool tern_table_cols_13_are_key(TERN_TABLE *table);
+bool tern_table_cols_23_are_key(TERN_TABLE *table);
+bool tern_table_col_3_is_key(TERN_TABLE *table);
+
+void tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+
+void tern_table_iter_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER *iter);
+void tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
+bool tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
+uint32 tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
+uint32 tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
+uint32 tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
+
+void tern_table_iter_1_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
+void tern_table_iter_1_move_forward(SLAVE_TERN_TABLE_ITER_1 *iter);
+bool tern_table_iter_1_is_out_of_range(SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 tern_table_iter_1_get_1(SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 tern_table_iter_1_get_2(SLAVE_TERN_TABLE_ITER_1 *iter);
+
+void tern_table_iter_2_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_2 *iter, uint32 arg2);
+void tern_table_iter_2_move_forward(SLAVE_TERN_TABLE_ITER_2 *iter);
+bool tern_table_iter_2_is_out_of_range(SLAVE_TERN_TABLE_ITER_2 *iter);
+uint32 tern_table_iter_2_get_1(SLAVE_TERN_TABLE_ITER_2 *iter);
+uint32 tern_table_iter_2_get_2(SLAVE_TERN_TABLE_ITER_2 *iter);
+
+void tern_table_iter_3_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
+void tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
+bool tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
+
+void tern_table_iter_12_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
+void tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
+bool tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
+uint32 tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
+
+void tern_table_iter_13_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
+void tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
+bool tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
+uint32 tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
+
+void tern_table_iter_23_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_23 *iter, uint32 arg2, uint32 arg3);
+void tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
+bool tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
+uint32 tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
+
+////////////////////////////// tern-table-aux.cpp //////////////////////////////
+
+
 
 //////////////////////////////// raw-int-col.cpp ///////////////////////////////
 
