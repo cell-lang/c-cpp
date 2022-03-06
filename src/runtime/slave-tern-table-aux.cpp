@@ -36,14 +36,14 @@ void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 va
 }
 
 void queue_3u32_prepare(QUEUE_U32 *queue) {
-  uint32 count = queue->count % 3;
+  uint32 count = queue->count / 3;
   if (count > 16)
     sort_3u32(queue->array, queue->count);
 }
 
 bool queue_3u32_contains(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
   assert(queue->count % 3 == 0);
-  uint32 count = queue->count % 3;
+  uint32 count = queue->count / 3;
   if (count > 0) {
     uint32 *ptr = queue->array;
     if (count > 16)
@@ -148,7 +148,7 @@ void slave_tern_table_aux_apply(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave
   //## OR MAYBE THERE SHOULD BE 2 VERSIONS OF bin_table_aux_apply()
   bin_table_aux_apply(slave_table, &table_aux->slave_table_aux, null_incr_rc, null_decr_rc, NULL, NULL, incr_rc_3, decr_rc_3, store_3, store_aux_3, mem_pool);
 
-  uint32 count = table_aux->insertions.count % 3;
+  uint32 count = table_aux->insertions.count / 3;
   if (count > 0) {
     uint32 *ptr = table_aux->insertions.array;
     for (uint32 i=0 ; i < count ; i++) {
@@ -184,7 +184,7 @@ static void slave_tern_table_aux_record_cols_12_key_violation(SLAVE_TERN_TABLE_A
 bool slave_tern_table_aux_check_key_3(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux) {
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
-    count %= 3;
+    count /= 3;
 
     queue_3u32_prepare(&table_aux->insertions);
 
@@ -221,7 +221,7 @@ bool slave_tern_table_aux_check_key_3(MASTER_BIN_TABLE *master_table, BIN_TABLE 
 bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, MASTER_BIN_TABLE_AUX *master_table_aux, SLAVE_TERN_TABLE_AUX *table_aux) {
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
-    count %= 3;
+    count /= 3;
 
     queue_3u32_prepare(&table_aux->insertions);
 
