@@ -175,10 +175,30 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       }
     }
     else {
-      assert arity == 3;
+      assert arity == 3 and |applied_perm| == 3;
+      assert [i : i _ <- applied_perm] == [0, 1, 2];
+      assert [i : _ i <- applied_perm] == [0, 1, 2];
       // 3 = if symmetric then ("SYM_12_TERN_TABLE", "sym_12_tern_table_copy") else ("TERN_TABLE", "tern_table_copy");
 
-      fail;
+      unpermutated_stream_args = ("&stream_1", "&stream_2", "&stream_3");
+      streams_args = (unpermutated_stream_args(applied_perm(!, i)) : i < 3);
+      code = (
+        "{ STREAM stream_1, stream_2, stream_3;",
+        "  init(stream_1);", "  init(stream_2);", "  init(stream_3);"
+      );
+      for v <- ord_table_vars {
+        value_stores = match (tables(v))
+          table() t?  = t.value_stores,
+          _           = undefined;
+        assert |value_stores| == 3;
+        store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
+        method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
+        stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
+        args = (v) & stores_args & streams_args;
+        code = (code | "  " & native_call(copy_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_tern_rel", ("stream_1", "stream_2", "stream_3")), "}");
+      return code;
     }
 
     // tables_array_new = "new " & type_name & "[] {" & append(tables_names, ", ") & "}";
