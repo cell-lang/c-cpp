@@ -7,19 +7,19 @@ bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3,
   return bin_table_insert(&table->slave, surr12, arg3, mem_pool);
 }
 
-bool tern_table_delete(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
-  if (surr12 != 0xFFFFFFFF) {
-    if (bin_table_delete(&table->slave, surr12, arg3)) {
-      if (bin_table_count_1(&table->slave, surr12) == 0) {
-        bool found = master_bin_table_delete(&table->master, arg1, arg2); //## MAYBE IT WOULD BE FASTER TO PROVIDE THE SURROGATE INSTEAD?
-        assert(found);
-      }
-      return true;
-    }
-  }
-  return false;
-}
+// bool tern_table_delete(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3) {
+//   uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+//   if (surr12 != 0xFFFFFFFF) {
+//     if (bin_table_delete(&table->slave, surr12, arg3)) {
+//       if (bin_table_count_1(&table->slave, surr12) == 0) {
+//         bool found = master_bin_table_delete(&table->master, arg1, arg2); //## MAYBE IT WOULD BE FASTER TO PROVIDE THE SURROGATE INSTEAD?
+//         assert(found);
+//       }
+//       return true;
+//     }
+//   }
+//   return false;
+// }
 
 void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   master_bin_table_clear(&table->master, mem_pool);

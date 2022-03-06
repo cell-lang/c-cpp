@@ -189,7 +189,7 @@ uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Code to recover the surrogate:
-//   int32 code = master_bin_table_insert_ex(table, arg1, arg2);
+//   int32 code = master_bin_table_insert_ex(table, arg1, arg2, mem_pool);
 //   uint32 surr12 = code >= 0 ? code : -code - 1;
 //   bool was_new = code >= 0;
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *mem_pool) {

@@ -377,6 +377,12 @@ struct TERN_TABLE {
   BIN_TABLE slave;
 };
 
+struct TERN_TABLE_AUX {
+  QUEUE_U32 deletions;
+  QUEUE_U32 insertions;
+  bool clear;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct OBJ_COL {
@@ -1360,8 +1366,6 @@ bool bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
 void bin_table_delete_1(BIN_TABLE *, uint32 arg1);
 void bin_table_delete_2(BIN_TABLE *, uint32 arg2);
 void bin_table_clear(BIN_TABLE *, STATE_MEM_POOL *);
-
-// OBJ bin_table_copy(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped);
 
 bool bin_table_col_1_is_key(BIN_TABLE *);
 bool bin_table_col_2_is_key(BIN_TABLE *);
