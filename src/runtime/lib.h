@@ -1703,7 +1703,27 @@ uint32 tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
 
 ////////////////////////////// tern-table-aux.cpp //////////////////////////////
 
+void tern_table_aux_init(TERN_TABLE_AUX *, STATE_MEM_POOL *);
+void tern_table_aux_reset(TERN_TABLE_AUX *);
 
+void tern_table_aux_insert(TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+
+void tern_table_aux_delete(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+void tern_table_aux_delete_12(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void tern_table_aux_delete_13(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg3);
+void tern_table_aux_delete_23(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg2, uint32 arg3);
+void tern_table_aux_delete_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1);
+void tern_table_aux_delete_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg2);
+void tern_table_aux_delete_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg3);
+
+void tern_table_aux_clear(TERN_TABLE_AUX *);
+
+void tern_table_aux_apply(TERN_TABLE *, TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
+
+bool tern_table_aux_check_key_3(TERN_TABLE *, TERN_TABLE_AUX *);
+bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *);
+bool tern_table_aux_check_key_13(TERN_TABLE *, TERN_TABLE_AUX *);
+bool tern_table_aux_check_key_23(TERN_TABLE *, TERN_TABLE_AUX *);
 
 //////////////////////////////// raw-int-col.cpp ///////////////////////////////
 

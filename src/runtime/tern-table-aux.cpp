@@ -136,32 +136,110 @@ inline void delete_12(TERN_TABLE *table, uint32 arg1, uint32 arg2, void (*decr_r
 }
 
 inline void delete_13(TERN_TABLE *table, uint32 arg1, uint32 arg3, void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 count1 = master_bin_table_count_1(&table->master, arg1);
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  if (count1 > 0 && count3 > 0) {
+    if (count1 < count3) {
+      uint32 master_inline_array[512];
+      uint32 *arg2s = count1 <= 256 ? master_inline_array : new_uint32_array(2 * count1);
+      uint32 *surr12s = arg2s + count1;
+      master_bin_table_restrict_1(&table->master, arg1, arg2s, surr12s);
+      for (uint32 i=0 ; i < count1 ; i++) {
+        uint32 surr12 = surr12s[i];
+        if (bin_table_delete(&table->slave, surr12, arg3)) {
+          decr_rc_3(store_3, store_aux_3, arg3);
+          if (!bin_table_contains_1(&table->slave, surr12)) {
+            uint32 arg2 = arg2s[i];
+            master_bin_table_delete(&table->master, arg1, arg2);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+          }
+        }
+      }
+    }
+    else {
+      uint32 slave_inline_array[256];
+      uint32 *surr12s = count3 <= 256 ? slave_inline_array : new_uint32_array(count3);
+      bin_table_restrict_2(&table->slave, arg3, surr12s);
+      for (uint32 i=0 ; i < count3 ; i++) {
+        uint32 surr12 = surr12s[i];
+        if (master_bin_table_get_arg_1(&table->master, surr12) == arg1) {
+          bin_table_delete(&table->slave, surr12, arg3);
+          decr_rc_3(store_3, store_aux_3, arg3);
+          if (!bin_table_contains_1(&table->slave, surr12)) {
+            uint32 arg2 = master_bin_table_get_arg_2(&table->master, surr12);
+            master_bin_table_delete(&table->master, arg1, arg2);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+          }
+        }
+      }
+    }
+  }
 }
 
 inline void delete_23(TERN_TABLE *table, uint32 arg2, uint32 arg3, void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 count2 = master_bin_table_count_2(&table->master, arg2);
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  if (count2 > 0 && count3 > 0) {
+    if (count2 < count3) {
+      uint32 master_inline_array[256];
+      uint32 *arg1s = count2 <= 256 ? master_inline_array : new_uint32_array(2 * count2);
+      master_bin_table_restrict_2(&table->master, arg2, arg1s);
+      for (uint32 i=0 ; i < count2 ; i++) {
+        uint32 arg1 = arg1s[i];
+        uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+        if (bin_table_delete(&table->slave, surr12, arg3)) {
+          decr_rc_3(store_3, store_aux_3, arg3);
+          if (!bin_table_contains_1(&table->slave, surr12)) {
+            uint32 arg1 = arg1s[i];
+            master_bin_table_delete(&table->master, arg1, arg2);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+          }
+        }
+      }
+    }
+    else {
+      uint32 slave_inline_array[256];
+      uint32 *surr12s = count3 <= 256 ? slave_inline_array : new_uint32_array(count3);
+      bin_table_restrict_2(&table->slave, arg3, surr12s);
+      for (uint32 i=0 ; i < count3 ; i++) {
+        uint32 surr12 = surr12s[i];
+        if (master_bin_table_get_arg_2(&table->master, surr12) == arg2) {
+          bin_table_delete(&table->slave, surr12, arg3);
+          decr_rc_3(store_3, store_aux_3, arg3);
+          if (!bin_table_contains_1(&table->slave, surr12)) {
+            uint32 arg1 = master_bin_table_get_arg_1(&table->master, surr12);
+            master_bin_table_delete(&table->master, arg1, arg2);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+          }
+        }
+      }
+    }
+  }
 }
 
 inline void delete_1(TERN_TABLE *table, uint32 arg1, void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3) {
-  uint32 count1 = master_bin_table_count_1(&table->master, arg1);
-  if (count1 > 0) {
-    uint32 inline_array_1[512];
-    uint32 *arg2s = count1 <= 256 ? inline_array_1 : new_uint32_array(2 * count1);
-    uint32 *surr12s = arg2s + count1;
+  uint32 master_count = master_bin_table_count_1(&table->master, arg1);
+  if (master_count > 0) {
+    uint32 master_inline_array[512];
+    uint32 *arg2s = master_count <= 256 ? master_inline_array : new_uint32_array(2 * master_count);
+    uint32 *surr12s = arg2s + master_count;
     master_bin_table_restrict_1(&table->master, arg1, arg2s, surr12s);
     master_bin_table_delete_1(&table->master, arg1);
-    for (uint32 i=0 ; i < count1 ; i++) {
+    for (uint32 i=0 ; i < master_count ; i++) {
       decr_rc_1(store_1, store_aux_1, arg1); //## WOULD BE BETTER IF WE COULD DO IT IN JUST A SINGLE OPERATION
       decr_rc_2(store_2, store_aux_2, arg2s[i]);
       uint32 surr12 = surr12s[i];
-      uint32 count12 = bin_table_count_1(&table->slave, surr12);
-      assert(count12 > 0);
-      uint32 inline_array_2[256];
-      uint32 *arg3s = count12 <= 256 ? inline_array_2 : new_uint32_array(count12); //## BAD BAD BAD
+      uint32 slave_count = bin_table_count_1(&table->slave, surr12);
+      assert(slave_count > 0);
+      uint32 slave_inline_array[256];
+      uint32 *arg3s = slave_count <= 256 ? slave_inline_array : new_uint32_array(slave_count); //## BAD BAD BAD
       bin_table_restrict_1(&table->slave, surr12, arg3s);
       bin_table_delete_1(&table->slave, surr12);
-      for (uint32 j=0 ; j < count12 ; j++)
+      for (uint32 j=0 ; j < slave_count ; j++)
         decr_rc_3(store_3, store_aux_3, arg3s[j]);
     }
   }
@@ -280,11 +358,11 @@ void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*i
         incr_rc_1(store_1, arg1);
         incr_rc_2(store_2, arg2);
       }
-      else {
+      else
         surr12 = -code - 1;
-        if (bin_table_insert(&table->slave, surr12, arg3, mem_pool))
-          incr_rc_3(store_3, arg3);
-      }
+
+      if (bin_table_insert(&table->slave, surr12, arg3, mem_pool))
+        incr_rc_3(store_3, arg3);
     }
   }
 }
@@ -310,17 +388,17 @@ static void tern_table_aux_record_cols_23_key_violation(TERN_TABLE_AUX *table_au
 ////////////////////////////////////////////////////////////////////////////////
 
 bool tern_table_aux_check_key_3(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool tern_table_aux_check_key_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
