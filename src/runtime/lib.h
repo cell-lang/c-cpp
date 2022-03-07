@@ -1443,7 +1443,7 @@ void sym_bin_table_iter_1_move_forward(BIN_TABLE_ITER_1 *);
 bool sym_bin_table_iter_1_is_out_of_range(BIN_TABLE_ITER_1 *);
 uint32 sym_bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *);
 
-/////////////////////////////// sym-bin-table.cpp //////////////////////////////
+///////////////////////////// sym-bin-table-aux.cpp ////////////////////////////
 
 void sym_bin_table_aux_init(SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 void sym_bin_table_aux_reset(SYM_BIN_TABLE_AUX *);
