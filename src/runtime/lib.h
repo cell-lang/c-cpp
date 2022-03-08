@@ -286,8 +286,7 @@ struct SYM_BIN_TABLE_AUX {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct MASTER_BIN_TABLE {
-  ONE_WAY_BIN_TABLE forward;
-  ONE_WAY_BIN_TABLE backward;
+  BIN_TABLE table;
   uint64 *slots;
   uint32 capacity;
   uint32 first_free;
@@ -322,6 +321,16 @@ struct MASTER_BIN_TABLE_AUX {
   QUEUE_U64 insertions;
   bool clear;
   bool deletions_prepared;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct SYM_MASTER_BIN_TABLE_ITER_1 {
+  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
+  ONE_WAY_BIN_TABLE *forward;
+  uint32 *other_args;
+  uint32 arg;
+  uint32 left;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -678,34 +687,34 @@ inline uint32 null_round_up_8(uint32 mem_size) {
   return mem_size;
 }
 
-OBJ *alloc_state_mem_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
-OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size);
-OBJ *extend_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
-OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size);
-void release_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size);
+OBJ *alloc_state_mem_obj_array(STATE_MEM_POOL *, uint32 size);
+OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *, uint32 size);
+OBJ *extend_state_mem_obj_array(STATE_MEM_POOL *, OBJ *ptr, uint32 size, uint32 new_size);
+OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *, OBJ *ptr, uint32 size, uint32 new_size);
+void release_state_mem_obj_array(STATE_MEM_POOL *, OBJ *ptr, uint32 size);
 
-double *alloc_state_mem_float_array(STATE_MEM_POOL *mem_pool, uint32 size);
-double *extend_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size, uint32 new_size);
-void release_state_mem_float_array(STATE_MEM_POOL *mem_pool, double *ptr, uint32 size);
+double *alloc_state_mem_float_array(STATE_MEM_POOL *, uint32 size);
+double *extend_state_mem_float_array(STATE_MEM_POOL *, double *ptr, uint32 size, uint32 new_size);
+void release_state_mem_float_array(STATE_MEM_POOL *, double *ptr, uint32 size);
 
-uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
-uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint32 size);
-uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size);
-uint64 *extend_state_mem_zeroed_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size, uint32 new_size);
-void release_state_mem_uint64_array(STATE_MEM_POOL *mem_pool, uint64 *ptr, uint32 size);
+uint64 *alloc_state_mem_uint64_array(STATE_MEM_POOL *, uint32 size);
+uint64 *alloc_state_mem_zeroed_uint64_array(STATE_MEM_POOL *, uint32 size);
+uint64 *extend_state_mem_uint64_array(STATE_MEM_POOL *, uint64 *ptr, uint32 size, uint32 new_size);
+uint64 *extend_state_mem_zeroed_uint64_array(STATE_MEM_POOL *, uint64 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_uint64_array(STATE_MEM_POOL *, uint64 *ptr, uint32 size);
 
-int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *mem_pool, uint32 size);
-int64 *extend_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size, uint32 new_size);
-void release_state_mem_int64_array(STATE_MEM_POOL *mem_pool, int64 *ptr, uint32 size);
+int64 *alloc_state_mem_int64_array(STATE_MEM_POOL *, uint32 size);
+int64 *extend_state_mem_int64_array(STATE_MEM_POOL *, int64 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_int64_array(STATE_MEM_POOL *, int64 *ptr, uint32 size);
 
-uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
-uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 size);
-uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size);
-void release_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size);
+uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *, uint32 size);
+uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *, uint32 size);
+uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *, uint32 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_uint32_array(STATE_MEM_POOL *, uint32 *ptr, uint32 size);
 
-uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint32 size);
-uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size, uint32 new_size);
-void release_state_mem_uint8_array(STATE_MEM_POOL *mem_pool, uint8 *ptr, uint32 size);
+uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *, uint32 size);
+uint8 *extend_state_mem_zeroed_uint8_array(STATE_MEM_POOL *, uint8 *ptr, uint32 size, uint32 new_size);
+void release_state_mem_uint8_array(STATE_MEM_POOL *, uint8 *ptr, uint32 size);
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
@@ -1405,7 +1414,7 @@ void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *);
 bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *);
 
-void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
+void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
 bool bin_table_aux_arg1_was_deleted(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg2);
@@ -1457,7 +1466,7 @@ void sym_bin_table_aux_apply(BIN_TABLE *, SYM_BIN_TABLE_AUX *, void (*incr_rc)(v
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 
-void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool);
+void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *);
 
 uint32 master_bin_table_size(MASTER_BIN_TABLE *table);
 uint32 master_bin_table_count_1(MASTER_BIN_TABLE *table, uint32 arg1);
@@ -1478,13 +1487,13 @@ uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, u
 uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr);
 uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr);
 
-void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool);
+void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *);
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
 void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1);
 void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2);
 
-int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *mem_pool);
-bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool);
+int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *);
+bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 
 // bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table);
 // bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table);
@@ -1529,15 +1538,54 @@ void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, u
 // bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 // bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 
-void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool);
+void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
+
+/////////////////////////// sym-master-bin-table.cpp ///////////////////////////
+
+void sym_master_bin_table_init(MASTER_BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 sym_master_bin_table_size(MASTER_BIN_TABLE *);
+bool sym_master_bin_table_contains(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool sym_master_bin_table_contains_1(MASTER_BIN_TABLE *, uint32 arg);
+uint32 sym_master_bin_table_count(MASTER_BIN_TABLE *, uint32 arg);
+uint32 sym_master_bin_table_restrict(MASTER_BIN_TABLE *, uint32 arg, uint32 *other_args);
+uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *, uint32 arg);
+
+int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+bool sym_master_bin_table_insert(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+
+bool sym_master_bin_table_delete(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
+void sym_master_bin_table_delete_1(MASTER_BIN_TABLE *, uint32 arg);
+void sym_master_bin_table_clear(MASTER_BIN_TABLE *, STATE_MEM_POOL *);
+
+void sym_master_bin_table_copy_to(MASTER_BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
+void sym_master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store);
+
+void sym_master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *);
+void sym_master_bin_table_iter_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER *);
+void sym_master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *);
+bool sym_master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *);
+uint32 sym_master_bin_table_iter_get_1(MASTER_BIN_TABLE_ITER *);
+uint32 sym_master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *);
+uint32 sym_master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *);
+
+void sym_master_bin_table_iter_1_init_empty(SYM_MASTER_BIN_TABLE_ITER_1 *);
+void sym_master_bin_table_iter_1_init(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_ITER_1 *, uint32 arg);
+void sym_master_bin_table_iter_1_move_forward(SYM_MASTER_BIN_TABLE_ITER_1 *);
+bool sym_master_bin_table_iter_1_is_out_of_range(SYM_MASTER_BIN_TABLE_ITER_1 *);
+uint32 sym_master_bin_table_iter_1_get_1(SYM_MASTER_BIN_TABLE_ITER_1 *);
+uint32 sym_master_bin_table_iter_1_get_surr(SYM_MASTER_BIN_TABLE_ITER_1 *);
+
+///////////////////////// sym-master-bin-table-aux.cpp /////////////////////////
+
 
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 
-bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
-bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
 bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3);
-void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_pool);
+void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *);
 
 uint32 slave_tern_table_size(BIN_TABLE *slave_table);
 uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
@@ -1623,14 +1671,14 @@ void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg
 bool slave_tern_table_aux_check_key_3(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
 bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_BIN_TABLE_AUX *, SLAVE_TERN_TABLE_AUX *);
 
-void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
+void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
 //////////////////////////////// tern-table.cpp ////////////////////////////////
 
-bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
 bool tern_table_delete(TERN_TABLE *table, uint32 surr1, uint32 surr2, uint32 arg3);
-void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool);
+void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *);
 
 uint32 tern_table_size(TERN_TABLE *table);
 
@@ -1813,17 +1861,17 @@ void raw_obj_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 
-void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool);
+void int_col_init(INT_COL *column, STATE_MEM_POOL *);
 
 uint32 int_col_size(INT_COL*);
 
 bool int_col_contains_1(INT_COL *column, uint32 idx);
 int64 int_col_lookup(INT_COL *column, uint32 idx);
 
-void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
-void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool);
-bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool);
+void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *);
+void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *);
+bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *);
+void int_col_clear(INT_COL *column, STATE_MEM_POOL *);
 
 void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
@@ -1836,34 +1884,34 @@ void int_col_iter_move_forward(INT_COL_ITER *iter);
 
 //////////////////////////////// int-col-aux.cpp ///////////////////////////////
 
-void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *);
 
 void int_col_aux_clear(INT_COL_AUX *col_aux);
 void int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index);
 void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
 void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
 
-void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
+void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void int_col_aux_reset(INT_COL_AUX *col_aux);
 
-bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
 bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
 int64 int_col_aux_lookup(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
-bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
 
 ///////////////////////////////// float-col.cpp ////////////////////////////////
 
-void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
+void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *);
 
 uint32 float_col_size(FLOAT_COL *);
 
 bool float_col_contains_1(FLOAT_COL *column, uint32 idx);
 double float_col_lookup(FLOAT_COL *column, uint32 idx);
 
-void float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
-void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *mem_pool);
-bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool);
+void float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *);
+void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *);
+bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *);
+void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *);
 
 void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void float_col_write(WRITE_FILE_STATE *write_state, FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
@@ -1876,34 +1924,34 @@ void float_col_iter_move_forward(FLOAT_COL_ITER *iter);
 
 /////////////////////////////// float-col-aux.cpp //////////////////////////////
 
-void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
 
 void float_col_aux_clear(FLOAT_COL_AUX *col_aux);
 void float_col_aux_delete_1(FLOAT_COL_AUX *col_aux, uint32 index);
 void float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 
-void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
+void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void float_col_aux_reset(FLOAT_COL_AUX *col_aux);
 
 bool float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 
-bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
-void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
+void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *);
 
 uint32 obj_col_size(OBJ_COL *);
 
 bool   obj_col_contains_1(OBJ_COL *column, uint32 idx);
 OBJ    obj_col_lookup(OBJ_COL *column, uint32 idx);
 
-void   obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
-void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool);
-bool   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool);
-void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool);
+void   obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *);
+void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *);
+bool   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *);
+void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *);
 
 void   obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
@@ -1916,7 +1964,7 @@ void   obj_col_iter_move_forward(OBJ_COL_ITER *iter);
 
 //////////////////////////////// obj-col-aux.cpp ///////////////////////////////
 
-void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool);
+void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *);
 
 void obj_col_aux_clear(OBJ_COL_AUX *col_aux);
 void obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index);
@@ -1925,7 +1973,7 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
 
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
-void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *mem_pool);
+void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
 
 bool obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
@@ -1933,9 +1981,9 @@ OBJ  obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
 
-void int_store_init(INT_STORE *store, STATE_MEM_POOL *mem_pool);
+void int_store_init(INT_STORE *store, STATE_MEM_POOL *);
 
-uint32 int_store_insert_or_add_ref(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value);
+uint32 int_store_insert_or_add_ref(INT_STORE *store, STATE_MEM_POOL *, int64 value);
 
 uint32 int_store_value_to_surr(INT_STORE *store, int64 value);
 int64 int_store_surr_to_value(INT_STORE *store, uint32 surr);
@@ -1951,20 +1999,20 @@ void int_store_mark_for_batch_deferred_release(INT_STORE *store, INT_STORE_AUX *
 
 void int_store_apply_deferred_releases(INT_STORE *store, INT_STORE_AUX *store_aux);
 
-void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
+void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *);
 void int_store_reset_aux(INT_STORE_AUX *store_aux);
 
 uint32 int_store_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, OBJ value);
-uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, int64 value);
+uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *, int64 value);
 
 void int_store_incr_rc(void *store, uint32 surr);
 void int_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
-void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool);
+void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *);
 
-uint32 obj_store_insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value);
+uint32 obj_store_insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *, OBJ value);
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value);
 OBJ obj_store_surr_to_value(OBJ_STORE *store, uint32 surr);
@@ -1980,11 +2028,11 @@ void obj_store_mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *
 
 void obj_store_apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
 
-void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool);
+void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *);
 void obj_store_reset_aux(OBJ_STORE_AUX *store_aux);
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
-uint32 obj_store_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value);
+uint32 obj_store_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *, OBJ value);
 
 void obj_store_incr_rc(void *store, uint32 surr);
 void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
