@@ -1579,6 +1579,16 @@ uint32 sym_master_bin_table_iter_1_get_surr(SYM_MASTER_BIN_TABLE_ITER_1 *);
 
 ///////////////////////// sym-master-bin-table-aux.cpp /////////////////////////
 
+void sym_master_bin_table_aux_init(SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+void sym_master_bin_table_aux_reset(SYM_BIN_TABLE_AUX *);
+
+void sym_master_bin_table_aux_insert(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+
+void sym_master_bin_table_aux_delete(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void sym_master_bin_table_aux_delete_1(SYM_BIN_TABLE_AUX *, uint32 arg);
+void sym_master_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
+
+void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
 
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 
