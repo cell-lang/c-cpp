@@ -381,6 +381,14 @@ struct SLAVE_TERN_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct SEMISYM_SLAVE_TERN_TABLE_ITER_1 {
+  SYM_MASTER_BIN_TABLE_ITER_1 master_iter;
+  BIN_TABLE_ITER_1 slave_iter;
+  BIN_TABLE *slave_table;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct TERN_TABLE {
   MASTER_BIN_TABLE master;
   BIN_TABLE slave;
@@ -1551,6 +1559,9 @@ bool sym_master_bin_table_contains_1(MASTER_BIN_TABLE *, uint32 arg);
 uint32 sym_master_bin_table_count(MASTER_BIN_TABLE *, uint32 arg);
 uint32 sym_master_bin_table_restrict(MASTER_BIN_TABLE *, uint32 arg, uint32 *other_args);
 uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *, uint32 arg);
+uint32 sym_master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
+uint32 sym_master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr);
+uint32 sym_master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr);
 
 int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool sym_master_bin_table_insert(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
@@ -1683,6 +1694,67 @@ bool slave_tern_table_aux_check_key_12(MASTER_BIN_TABLE *, BIN_TABLE *, MASTER_B
 
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
+
+///////////////////////// semisym-slave-tern-table.cpp /////////////////////////
+
+bool semisym_slave_tern_table_insert(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+bool semisym_slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
+
+bool semisym_slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
+void semisym_slave_tern_table_clear(BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 semisym_slave_tern_table_size(BIN_TABLE *);
+
+bool semisym_slave_tern_table_contains(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3);
+bool semisym_slave_tern_table_contains_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool semisym_slave_tern_table_contains_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12, uint32 arg3);
+bool semisym_slave_tern_table_contains_1(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg);
+bool semisym_slave_tern_table_contains_3(BIN_TABLE *, uint32 arg3);
+
+uint32 semisym_slave_tern_table_lookup_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+uint32 semisym_slave_tern_table_lookup_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12, uint32 arg3);
+
+uint32 semisym_slave_tern_table_count_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+uint32 semisym_slave_tern_table_count_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12, uint32 arg3);
+uint32 semisym_slave_tern_table_count_1(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12);
+uint32 semisym_slave_tern_table_count_3(BIN_TABLE *, uint32 arg3);
+
+bool semisym_slave_tern_table_cols_12_are_key(BIN_TABLE *);
+bool semisym_slave_tern_table_col_3_is_key(BIN_TABLE *);
+
+void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_12)(void *, uint32), void *store_12, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *, STREAM *, STREAM *);
+void semisym_slave_tern_table_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_12)(void *, uint32), void *store_12, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+
+void semisym_slave_tern_table_iter_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER *);
+void semisym_slave_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *);
+bool semisym_slave_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *);
+uint32 semisym_slave_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *);
+uint32 semisym_slave_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *);
+uint32 semisym_slave_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *);
+
+void semisym_slave_tern_table_iter_1_init(MASTER_BIN_TABLE *, BIN_TABLE *, SEMISYM_SLAVE_TERN_TABLE_ITER_1 *, uint32 arg1);
+void semisym_slave_tern_table_iter_1_move_forward(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
+bool semisym_slave_tern_table_iter_1_is_out_of_range(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
+uint32 semisym_slave_tern_table_iter_1_get_1(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
+uint32 semisym_slave_tern_table_iter_1_get_2(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
+
+void semisym_slave_tern_table_iter_3_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_3 *, uint32 arg3);
+void semisym_slave_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *);
+bool semisym_slave_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *);
+uint32 semisym_slave_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *);
+uint32 semisym_slave_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *);
+
+void semisym_slave_tern_table_iter_12_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_12 *, uint32 arg1, uint32 arg2);
+void semisym_slave_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *);
+bool semisym_slave_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *);
+uint32 semisym_slave_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *);
+
+void semisym_slave_tern_table_iter_13_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_13 *, uint32 arg1, uint32 arg3);
+void semisym_slave_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *);
+bool semisym_slave_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *);
+uint32 semisym_slave_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *);
+
+/////////////////////// semisym-slave-tern-table-aux.cpp ///////////////////////
 
 //////////////////////////////// tern-table.cpp ////////////////////////////////
 

@@ -47,6 +47,19 @@ uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *table, uint32 arg) {
   return sym_bin_table_lookup(&table->table, arg);
 }
 
+uint32 sym_master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  sort_args(arg1, arg2);
+  return master_bin_table_lookup_surrogate(table, arg1, arg2);
+}
+
+uint32 sym_master_bin_table_get_arg_1(MASTER_BIN_TABLE *table, uint32 surr) {
+  return master_bin_table_get_arg_1(table, surr);
+}
+
+uint32 sym_master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
+  return master_bin_table_get_arg_2(table, surr);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Code to recover the surrogate:
@@ -190,8 +203,6 @@ void sym_master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TA
   else
     sym_master_bin_table_iter_1_init_empty(iter);
 }
-
-bool sym_master_bin_table_iter_1_is_out_of_range(SYM_MASTER_BIN_TABLE_ITER_1 *iter); //## REMOVE WHEN DONE
 
 void sym_master_bin_table_iter_1_move_forward(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
   assert(!sym_master_bin_table_iter_1_is_out_of_range(iter));
