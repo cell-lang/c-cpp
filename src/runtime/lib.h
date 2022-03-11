@@ -1872,6 +1872,85 @@ bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_13(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_23(TERN_TABLE *, TERN_TABLE_AUX *);
 
+//////////////////////////// semisym-tern-table.cpp ////////////////////////////
+
+bool semisym_tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
+
+void semisym_tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool);
+
+uint32 semisym_tern_table_size(TERN_TABLE *table);
+
+uint32 semisym_tern_table_count_1(TERN_TABLE *table, uint32 arg1);
+uint32 semisym_tern_table_count_3(TERN_TABLE *table, uint32 arg3);
+uint32 semisym_tern_table_count_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+uint32 semisym_tern_table_count_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+
+bool semisym_tern_table_contains(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3);
+bool semisym_tern_table_contains_1(TERN_TABLE *table, uint32 arg1);
+bool semisym_tern_table_contains_3(TERN_TABLE *table, uint32 arg3);
+bool semisym_tern_table_contains_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+bool semisym_tern_table_contains_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+
+uint32 semisym_tern_table_lookup_12(TERN_TABLE *table, uint32 arg1, uint32 arg2);
+uint32 semisym_tern_table_lookup_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
+
+bool semisym_tern_table_cols_12_are_key(TERN_TABLE *table);
+bool semisym_tern_table_cols_13_are_key(TERN_TABLE *table);
+bool semisym_tern_table_col_3_is_key(TERN_TABLE *table);
+
+void semisym_tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void semisym_tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+
+void semisym_tern_table_iter_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER *iter);
+void semisym_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
+bool semisym_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
+uint32 semisym_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
+uint32 semisym_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
+uint32 semisym_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
+
+void semisym_tern_table_iter_1_init(TERN_TABLE *table, SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
+void semisym_tern_table_iter_1_move_forward(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
+bool semisym_tern_table_iter_1_is_out_of_range(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 semisym_tern_table_iter_1_get_1(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
+uint32 semisym_tern_table_iter_1_get_2(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
+
+void semisym_tern_table_iter_3_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
+void semisym_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
+bool semisym_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 semisym_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
+uint32 semisym_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
+
+void semisym_tern_table_iter_12_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
+void semisym_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
+bool semisym_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
+uint32 semisym_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
+
+void semisym_tern_table_iter_13_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
+void semisym_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
+bool semisym_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
+uint32 semisym_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
+
+////////////////////////// semisym-tern-table-aux.cpp //////////////////////////
+
+void semisym_tern_table_aux_init(TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool);
+void semisym_tern_table_aux_reset(TERN_TABLE_AUX *table_aux);
+
+void semisym_tern_table_aux_insert(TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3);
+
+void semisym_tern_table_aux_delete(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3);
+void semisym_tern_table_aux_delete_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
+void semisym_tern_table_aux_delete_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3);
+void semisym_tern_table_aux_delete_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1);
+void semisym_tern_table_aux_delete_3(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg3);
+void semisym_tern_table_aux_clear(TERN_TABLE_AUX *table_aux);
+
+void semisym_tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*incr_rc_1_2)(void *, uint32), void (*decr_rc_1_2)(void *, void *, uint32), void *store_1_2, void *store_aux_1_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool);
+
+bool semisym_tern_table_aux_check_key_3(TERN_TABLE *table, TERN_TABLE_AUX *table_aux);
+bool semisym_tern_table_aux_check_key_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux);
+bool semisym_tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux);
+bool semisym_tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux);
+
 //////////////////////////////// raw-int-col.cpp ///////////////////////////////
 
 void raw_int_col_init(UNARY_TABLE *, RAW_INT_COL *, STATE_MEM_POOL *);
