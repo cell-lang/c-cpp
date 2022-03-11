@@ -276,7 +276,6 @@ inline void delete_3(TERN_TABLE *table, uint32 arg3, void (*decr_rc_1)(void *, v
     uint32 *surr12s = slave_count <= 256 ? slave_inline_array : new_uint32_array(slave_count);
     bin_table_restrict_2(&table->slave, arg3, surr12s);
     bin_table_delete_2(&table->slave, arg3);
-    for (uint32 i=0 ; i < slave_count ; i++)
     for (uint32 i=0 ; i < slave_count ; i++) {
       uint32 surr12 = surr12s[i];
       if (!bin_table_contains_1(&table->slave, surr12)) {
@@ -302,7 +301,7 @@ void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*i
       uint32 tag = word1 >> 29;
       word1 = word1 & TAG_CLEAR_MASK;
 
-      if (tag <= DELETE_2_TAG) {
+      if (tag <= DELETE_23_TAG) {
         assert(tag == 0 | tag == DELETE_12_TAG | tag == DELETE_13_TAG | tag == DELETE_23_TAG);
         uint32 word2 = ptr[i++];
 
