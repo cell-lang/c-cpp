@@ -407,7 +407,7 @@ void master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER
   uint32 count = master_bin_table_count_1(table, arg1);
   if (count > 0) {
     uint32 *arg2s = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
-    bin_table_restrict_1((BIN_TABLE *) table, arg1, arg2s); //## DON'T LIKE THIS CAST, REFACTOR ASAP
+    bin_table_restrict_1(&table->table, arg1, arg2s);
     iter->arg2s = arg2s;
     iter->surrs = NULL; //## NOT STRICTLY NECESSARY, SHOULD ONLY BE DONE FOR DEBUGGING
   }
