@@ -157,12 +157,12 @@ bool semisym_slave_tern_table_col_3_is_key(BIN_TABLE *slave_table) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_12)(void *, uint32), void *store_12, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3) {
-  slave_tern_table_copy_to(master_table, slave_table, surr_to_obj_12, store_12, surr_to_obj_12, store_12, surr_to_obj_3, store_3, strm_1, strm_2, strm_3);
+void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3) {
+  slave_tern_table_copy_to(master_table, slave_table, surr_to_obj_1_2, store_1_2, surr_to_obj_1_2, store_1_2, surr_to_obj_3, store_3, strm_1, strm_2, strm_3);
 }
 
-void semisym_slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3) {
-  slave_tern_table_write(write_state, master_table, slave_table, surr_to_obj_12, store_12, surr_to_obj_12, store_12, surr_to_obj_3, store_3, idx1, idx2, idx3);
+void semisym_slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3) {
+  slave_tern_table_write(write_state, master_table, slave_table, surr_to_obj_1_2, store_1_2, surr_to_obj_1_2, store_1_2, surr_to_obj_3, store_3, idx1, idx2, idx3);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

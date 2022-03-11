@@ -1722,8 +1722,8 @@ uint32 semisym_slave_tern_table_count_3(BIN_TABLE *, uint32 arg3);
 bool semisym_slave_tern_table_cols_12_are_key(BIN_TABLE *);
 bool semisym_slave_tern_table_col_3_is_key(BIN_TABLE *);
 
-void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_12)(void *, uint32), void *store_12, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *, STREAM *, STREAM *);
-void semisym_slave_tern_table_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_12)(void *, uint32), void *store_12, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *, STREAM *, STREAM *);
+void semisym_slave_tern_table_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
 
 void semisym_slave_tern_table_iter_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER *);
 void semisym_slave_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *);
