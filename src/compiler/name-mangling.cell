@@ -285,7 +285,7 @@ implicit context : NativeContext {
     return match (var)
       table_var(v?)             = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & native_name(v),
       qual_table_var()          = "&" & native_var_name(var.db_var, add_prefix) & "->" & native_var_name(var.table_var, false),
-      capt_table_var(v?)        = { assert add_prefix; return "this.capt_auto." & native_var_name(v, false);};
+      capt_table_var(v?)        = { assert add_prefix; return "&" & auto_or_db_arg_name & "->" & native_var_name(v, false);};
 
     String native_name(PhysRelVar) =
       phys_rel_var(s?)      = _print_(s) & "_B",
@@ -300,7 +300,7 @@ implicit context : NativeContext {
                                   return "&" & db_var_str & "->" & native_var_name(v.store_id, false);
                                 },
     capt_value_store_id(id?)  = { assert add_prefix;
-                                  return "this.capt_auto." & native_var_name(id, false);
+                                  return "&" & auto_or_db_arg_name & "->" & native_var_name(id, false);
                                 };
 
   //////////////////////////////////////////////////////////////////////////////

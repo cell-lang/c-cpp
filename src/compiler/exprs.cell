@@ -340,15 +340,15 @@ implicit context : NativeContext {
     return match (expr)
       bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
       get_size(e?)            = "get_size(" & native_expr(e) & ")",
-      get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, expr.symmetric),
+      get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args),
       table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args, expr.symmetric),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_unknown_arg()       = native_get_unknown_arg_expr(expr.iter, expr.arg),
-      get_arg_by_assoc_surr() = native_var_ref_name(expr.table) & ".arg" & _print_(expr.arg + 1) & "(" & native_expr(expr.surr, false) & ")",
-      get_assoc_surr()        = native_var_ref_name(expr.table) & ".surrogate(" & append((native_expr(v, false) : v <- expr.args), ", ") & ")",
-
+      get_arg_by_assoc_surr() = native_get_arg_by_assoc_surr_expr(expr.table_var, expr.table_type, expr.arg, expr.surr),
+      get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surrogate", (expr.table_var) & expr.args),
+      get_aux_assoc_surr()    = native_get_aux_assoc_surr_expr(expr.table_var, expr.table, expr.args),
       get_capacity()          = native_call_expr(native_table_method_prefix(expr.table) & "_capacity", (expr.table_var)),
       surr_set_size           = "surr_set_size(&surr_set)";
 
@@ -356,6 +356,16 @@ implicit context : NativeContext {
       //                           then native_var_ref_name(expr.iter) & ".Get()"
       //                           else native_var_ref_name(expr.iter) & ".Get" & printed(expr.arg+1) & "()",
       // get_col_index()       = native_var_ref_name(expr.iter) & ".GetIdx()";
+
+    String native_get_aux_assoc_surr_expr(TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) args) {
+      method_name = native_table_method_prefix(table) & "_aux_lookup_surr";
+      return native_call_expr(method_name, (table_var, pending_updates_var_ref_name(table_var)) & args);
+    }
+
+    String native_get_arg_by_assoc_surr_expr(AnyTableVar table_var, MasterBinTable table, <0..1> arg, Int32Var surr) {
+      method_name = native_table_method_prefix(table) & "_get_arg_" & _print_(arg + 1);
+      return native_call_expr(method_name, (table_var, surr));
+    }
 
     String native_get_unknown_arg_expr(TableItVar iter, <0..2> arg) {
       method_name = it_var_method_prefix(iter) & "_get";
@@ -396,11 +406,11 @@ implicit context : NativeContext {
   }
 
 
-  String native_get_count_expr(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ args, Bool symmetric) =
+  String native_get_count_expr(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ args) =
     native_call_expr("unary_table_size", (column.master));
 
-  String native_get_count_expr(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ args, Bool symmetric) {
-    fn_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
+  String native_get_count_expr(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ args) {
+    fn_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
     fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
     call_args = (table_var) & values(args);
     return native_call_expr(fn_name, call_args);

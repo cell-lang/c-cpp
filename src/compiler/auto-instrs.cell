@@ -83,7 +83,22 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       return code;
     }
     else if is_slave_column {
-      fail;
+      assert applied_perm == [0 -> 0, 1 -> 1, 2 -> 2];
+      copy_method_name = "slave_" & copy_method_name;
+      unpermutated_stream_args = ("&stream_1", "&stream_2", "&stream_3");
+      streams_args = (unpermutated_stream_args(applied_perm(!, i)) : i < 3);
+      code = ("{ STREAM stream_1, stream_2, stream_3;", "  init(stream_1);", "  init(stream_2);", "  init(stream_3);");
+      for v @ i <- ord_table_vars {
+        table = tables(v);
+        value_stores, master = match (table)
+          slave_column()  = (table.value_stores, table.master),
+          _               = undefined;
+        stores_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
+        args = (master, v) & join(((native_surr_to_obj_method_name(t), value_stores(j)) : t @ j <- stores_types)) & streams_args;
+        code = (code | "  " & native_call(copy_method_name, args));
+      }
+      code = (code | "  " & native_call(res_var, "build_tern_rel", ("stream_1", "stream_2", "stream_3")), "}");
+      return code;
     }
     else if is_master_bin_table {
       assert applied_perm == [0 -> 0, 1 -> 1];
@@ -112,14 +127,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  init(stream_1);", "  init(stream_2);", "  init(stream_3);"
       );
       for v <- ord_table_vars {
-        value_stores, master = match (tables(v))
-          slave_tern_table() t? = (t.value_stores, t.master),
+        value_stores = match (tables(v))
+          slave_tern_table() t? = t.value_stores,
           _                     = undefined;
         assert |value_stores| == 3;
         store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
         method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
         stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
-        args = (master, v) & stores_args & streams_args;
+        args = (v) & stores_args & streams_args;
         code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_tern_rel", ("stream_1", "stream_2", "stream_3")), "}");
@@ -259,7 +274,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value, instr.forced),
-    ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.surrs, instr.value, instr.forced),
+    // ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
@@ -298,11 +313,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_ternary_slave_column_insert_deferred_code(TableVar table_var, (Int32Var, Int32Var) surrs, AnyTypeExpr value, Bool forced) {
-    updater = pending_updates_var_ref_name(table_var);
-    method_name = if forced then "update" else "insert";
-    return (native_call(method_name, (updater) & (surrs | value)));
-  }
+  // String* native_ternary_slave_column_insert_deferred_code(TableVar table_var, ColumnRepr col_repr, (Int32Var, Int32Var) surrs, AnyTypeExpr value, Bool forced) {
+  //   updater = pending_updates_var_ref_name(table_var);
+  //   method_name = native_column_method_prefix(col_repr) & if forced then "_aux_update" else "_aux_insert";
+  //   return (native_call(method_name, (updater) & (surrs | value)));
+  // }
 
 
   String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, ValueStoreType store_type, <AtomicExpr, IntExpr> value) =
@@ -419,7 +434,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String native_get_slave_col_iter_code(SlaveColumnItVar it_var, AnyTableVar table_var, SlaveColumn column, Maybe[Int32Var]+ args) {
     method_name = it_var_method_prefix(it_var) & "_init";
-    return native_call(method_name, (column.master, table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
+    return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
   }
 
 

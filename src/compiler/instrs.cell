@@ -491,7 +491,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       else
         code = (code | name & ".capt_cls = 0;");
 
-      capt_auto_str = if lambda.capt_auto != nothing then "?????" else "0";
+      capt_auto_str = if lambda.capt_auto != nothing then auto_or_db_arg_name else "0";
       code = (code | name & ".capt_auto = " & capt_auto_str & ";");
 
       return (code, var);

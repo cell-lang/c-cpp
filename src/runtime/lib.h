@@ -1500,7 +1500,7 @@ bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
 void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1);
 void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2);
 
-int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, int arg1, int arg2, STATE_MEM_POOL *);
+int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 
 // bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table);
@@ -1542,6 +1542,8 @@ void master_bin_table_aux_delete(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, u
 void master_bin_table_aux_delete_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1);
 void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2);
 void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
+
+uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 // bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 // bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
@@ -1598,6 +1600,8 @@ void sym_master_bin_table_aux_insert(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 ar
 void sym_master_bin_table_aux_delete(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 void sym_master_bin_table_aux_delete_1(SYM_BIN_TABLE_AUX *, uint32 arg);
 void sym_master_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
+
+uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
 
@@ -2054,6 +2058,9 @@ void int_col_clear(INT_COL *column, STATE_MEM_POOL *);
 void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
 
+void slave_int_col_copy_to(MASTER_BIN_TABLE *, INT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void slave_int_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, INT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, uint32 idx1, uint32 idx2, uint32 idx3);
+
 void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter);
 bool int_col_iter_is_out_of_range(INT_COL_ITER *iter);
 uint32 int_col_iter_get_idx(INT_COL_ITER *iter);
@@ -2063,6 +2070,7 @@ void int_col_iter_move_forward(INT_COL_ITER *iter);
 //////////////////////////////// int-col-aux.cpp ///////////////////////////////
 
 void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *);
+void int_col_aux_reset(INT_COL_AUX *col_aux);
 
 void int_col_aux_clear(INT_COL_AUX *col_aux);
 void int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index);
@@ -2070,7 +2078,8 @@ void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
 void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
 
 void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
-void int_col_aux_reset(INT_COL_AUX *col_aux);
+//## WHAT ABOUT THE SYMMETRIC VERSION?
+void slave_int_col_aux_apply(MASTER_BIN_TABLE *, INT_COL *, INT_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
 
 bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
 bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
@@ -2091,8 +2100,11 @@ void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POO
 bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *);
 void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *);
 
-void float_col_copy_to(FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
-void float_col_write(WRITE_FILE_STATE *write_state, FLOAT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+void float_col_copy_to(FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
+void float_col_write(WRITE_FILE_STATE *, FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
+
+void slave_float_col_copy_to(MASTER_BIN_TABLE *, FLOAT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void slave_float_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, FLOAT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, uint32 idx1, uint32 idx2, uint32 idx3);
 
 void float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter);
 bool float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter);
@@ -2103,6 +2115,7 @@ void float_col_iter_move_forward(FLOAT_COL_ITER *iter);
 /////////////////////////////// float-col-aux.cpp //////////////////////////////
 
 void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
+void float_col_aux_reset(FLOAT_COL_AUX *col_aux);
 
 void float_col_aux_clear(FLOAT_COL_AUX *col_aux);
 void float_col_aux_delete_1(FLOAT_COL_AUX *col_aux, uint32 index);
@@ -2110,7 +2123,8 @@ void float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 
 void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
-void float_col_aux_reset(FLOAT_COL_AUX *col_aux);
+//## WHAT ABOUT THE SYMMETRIC VERSION?
+void slave_float_col_aux_apply(MASTER_BIN_TABLE *, FLOAT_COL *, FLOAT_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
 
 bool float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
@@ -2134,6 +2148,9 @@ void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *);
 void   obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
 
+void   slave_obj_col_copy_to(MASTER_BIN_TABLE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void   slave_obj_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, uint32 idx1, uint32 idx2, uint32 idx3);
+
 void   obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter);
 bool   obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);
 uint32 obj_col_iter_get_idx(OBJ_COL_ITER *iter);
@@ -2143,6 +2160,7 @@ void   obj_col_iter_move_forward(OBJ_COL_ITER *iter);
 //////////////////////////////// obj-col-aux.cpp ///////////////////////////////
 
 void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *);
+void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
 
 void obj_col_aux_clear(OBJ_COL_AUX *col_aux);
 void obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index);
@@ -2152,7 +2170,8 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
-void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
+//## WHAT ABOUT THE SYMMETRIC VERSION?
+void slave_obj_col_aux_apply(MASTER_BIN_TABLE *, OBJ_COL *, OBJ_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
 
 bool obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
 OBJ  obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);

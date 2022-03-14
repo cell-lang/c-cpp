@@ -80,14 +80,10 @@ type PrgData =  prg_data(
     gen_content = gen_content & decl;
   }
 
-  // Automaton structures predeclarations
-  if ord_static_blocks != () {
-    gen_content = (gen_content | ("", ""));
-    for b <- ord_static_blocks
-      gen_content = (gen_content | "struct " & native_name(b.name) & ";");
-    gen_content = (gen_content | (""));
-    for b <- ord_static_blocks
-      gen_content = (gen_content | "struct " & native_auxiliary_name(b.name) & ";");
+  // Static block declarations (in topological order)
+  for block <- ord_static_blocks {
+    def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
+    gen_content = (gen_content | ("", "")) & def;
   }
 
   // Procedure declarations
@@ -120,9 +116,9 @@ type PrgData =  prg_data(
     gen_content = gen_content & def;
   }
 
-  // Static blocks (in topological order)
+  // Static blocks' implementations (in topological order)
   for block <- ord_static_blocks {
-    def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
+    def = native_static_block_impl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
     gen_content = (gen_content | ("", "")) & def;
   }
 
@@ -369,8 +365,19 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
   String* native_code(LambdaExpr lambda, Nat id, Bool decl_only) {
     body = remove_dead_code(lambda.cls.body); ## BAD BAD BAD: THIS OUGHT TO BE DONE IN DEAD CODE REMOVAL, NOT HERE
     vars_decls = gen_vars_decls(body, []);
+    full_body = vars_decls;
+
+    if lambda.capt_auto != nothing {
+      capt_auto = value(lambda.capt_auto);
+      rel_auto_type_str = native_name(capt_auto);
+      rel_auto_cast = rel_auto_type_str & " *target = (" & rel_auto_type_str & " *) capt_auto;";
+      full_body = (full_body | "") if full_body != ();
+      full_body = (full_body | rel_auto_cast);
+    }
+
     comp_body = native_code(body, nothing, break_target = nothing);
-    full_body = vars_decls & ("" if vars_decls != ()) & comp_body;
+    full_body = (full_body | "") if full_body != ();
+    full_body = full_body & comp_body;
 
     std_args  = ("OBJ " & native_var_decl_name(fn_arg(n)) : n < lambda.cls.arity);
     extra_args = ("const OBJ *capt_vars", "const CLS *capt_cls", "const void *capt_auto", "ENV &env"); ## BAD

@@ -10,6 +10,56 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
+    // ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.value_stores, block.tables, block.init_code);
+    // cleanup_code = native_cleanup_function_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
+
+    // // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
+    // // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
+
+    // copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
+    // write_state_code = native_write_state_code(block);
+    // set_state_code = native_set_state_code(block.name, block.set_state_code);
+    // load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
+
+    // set_state_entry_point_code  = native_set_state_entry_point_code(block.name, block.links);
+    // load_state_entry_point_code = native_load_state_entry_point_code(block.name, block.links);
+    // save_state_entry_point_code = native_save_state_entry_point_code(block.name);
+
+    // update_entry_point_code = if block.updates(main_handler, _)
+    //   then update_entry_point(block.name)
+    //   else ();
+
+    // full_check_code = full_check_method_code(block);
+
+    // methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
+    // updates_code = native_updates_code(block);
+
+    methods_decls = (native_user_method_decl(block.name, id, block.methods(id)) : id <- isort(keys(block.methods)));
+
+    block_name = native_name(block.name);
+
+    return join((
+      ("", "", "struct " & block_name & " {"),
+      ("  STATE_MEM_POOL mem_pool;"),
+      indent_lines(memb_decls),
+      ("};"),
+      (""), auxiliary_decl(block),
+      (""), methods_decls
+    ));
+  }
+
+
+  String* native_static_block_impl(StaticBlock block) {
+    // links_decls = (native_name(l) & " *" & native_dependee_name(l, i) & ";" : l @ i <- block.links);
+    // state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
+    // value_store_decls = [{
+    //   type = native_name(t);
+    //   return type & " " & native_var_decl_name(v) & ";";
+    // } : v t <- block.value_stores];
+    // table_decls = [native_table_type(t) & " " & native_var_decl_name(v) & ";" : v t <- block.tables];
+
+    // memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
+
     ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.value_stores, block.tables, block.init_code);
     cleanup_code = native_cleanup_function_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
 
@@ -37,11 +87,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     block_name = native_name(block.name);
 
     return join((
-      ("", "", "struct " & block_name & " {"),
-      ("  STATE_MEM_POOL mem_pool;"),
-      indent_lines(memb_decls),
-      ("};"),
-      (""), auxiliary_decl(block),
+      // ("", "", "struct " & block_name & " {"),
+      // ("  STATE_MEM_POOL mem_pool;"),
+      // indent_lines(memb_decls),
+      // ("};"),
+      // (""), auxiliary_decl(block),
       (""), ctor_code,
       (""), cleanup_code,
       (""), full_check_code,
@@ -478,24 +528,24 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           2   = if perm == [0 -> 1, 1 -> 0] then ("true") else ("false"),
           3   = (_print_(perm(j)) : j < 3);
 
-      are_slave_columns = only([
-        match (block.tables(tv))
-          slave_column()  = true,
-          _               = false
-        : tv <- tvs
-      ]);
+      // are_slave_columns = only([
+      //   match (block.tables(tv))
+      //     slave_column()  = true,
+      //     _               = false
+      //   : tv <- tvs
+      // ]);
 
-      if are_slave_columns {
-        masters = (
-          match (block.tables(v))
-            slave_column() c? = c.master,
-            _                 = undefined
-          : v <- ord_table_vars
-        );
-        masters_array = ", new MasterBinaryTable[] {" & append((native_var_ref_name(v) : v <- masters), ", ") & "}";
-      }
-      else
-        masters_array = "";
+      // if are_slave_columns {
+      //   masters = (
+      //     match (block.tables(v))
+      //       slave_column() c? = c.master,
+      //       _                 = undefined
+      //     : v <- ord_table_vars
+      //   );
+      //   masters_array = ", new MasterBinaryTable[] {" & append((native_var_ref_name(v) : v <- masters), ", ") & "}";
+      // }
+      // else
+      //   masters_array = "";
 
 
       code = (code | "  " & write_str_proc_name & "(write_state, \"  \");") if not first;
@@ -507,6 +557,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       for tv @ j <- ord_table_vars {
         table = block.tables(tv);
         method_name = native_table_method_prefix(table) & "_write";
+        method_name = match (table)
+          slave_column()  = "slave_" & method_name,
+          _               = method_name;
         value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
         ad_hoc_args = match (table)
           mandatory_column()  |
@@ -517,13 +570,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
         if j > 0 {
           exprs = ({
-            ptv = ord_table_vars(k);
-            size_method_name = native_table_method_prefix(block.tables(ptv)) & "_size";
-            return native_call_expr(size_method_name, (ptv)) & " > 0";
+            prev_table_var = ord_table_vars(k);
+            prev_table = block.tables(prev_table_var);
+            get_count_expr = native_get_count_expr(prev_table_var, prev_table, (nothing : _ < arity(prev_table)));
+            return get_count_expr & " > 0";
           } : k < j);
+          get_count_expr = native_get_count_expr(tv, table, (nothing : _ < arity(table)));
           sep = if arity(table) == 1 then "," else ";";
           code = (code |
-            "  if (" & native_call_expr(native_table_method_prefix(table) & "_size", (tv)) & " > 0) {",
+            "  if (" & get_count_expr & " > 0) {",
             "    if (" & append(exprs, " || ") & ")",
             "      write_str(write_state, \"" & sep & "\");",
             "    " & instr,
@@ -683,7 +738,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       var2_str = native_var_ref_name(var2);
 
       entry_code_text = indent_lines(native_code(entry_code, nothing, break_target = nothing), 2);
-      loop_code_text = indent_lines(native_code(loop_code, nothing, break_target = nothing), 4);
+      loop_code_text_1 = indent_lines(native_code(loop_code, nothing, break_target = nothing), 4);
+      loop_code_text_2 = indent_lines(native_code(loop_code, nothing, break_target = nothing), 4);
       exit_code_text = indent_lines(native_code(exit_code, nothing, break_target = nothing), 1);
 
       return (
@@ -700,7 +756,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;",
         "      for ( ; ; ) {"
         // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-      ) & loop_code_text & (
+      ) & loop_code_text_1 & (
         "        if (!consume_non_ws_char(&parser, ',') || next_non_ws_char_is(&parser, ']'))",
         "          break;",
         "",
@@ -720,7 +776,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "        return false;",
         "      for ( ; ; ) {"
         // "        parser.failAtBookmark();" ## IMPLEMENT IMPLEMENT IMPLEMENT
-      ) & loop_code_text & (
+      ) & loop_code_text_2 & (
         "        if (!consume_non_ws_char(&parser, ';') || next_non_ws_char_is(&parser, ']'))",
         "          break;",
         // "        parser.bookmark();",
@@ -1019,6 +1075,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
+  String native_user_method_decl(DBSymbol block_name, MethodId method_id, OptCompMethod method) {
+    args_str = append((native_var_type(a) & ", " : a <- method.args));
+    return native_type(method.ret_val_repr) & " " & user_def_method_name(block_name, method_id) & "(" & target_arg_decl(block_name) & ", " & args_str & "ENV &env);";
+  }
+
   String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, OptCompMethod method) {
     args_str = append((native_var_type(a) & " " & native_var_decl_name(a) & ", " : a <- method.args));
     sgn = native_type(method.ret_val_repr) & " " & user_def_method_name(block_name, method_id) & "(" & target_arg_decl(block_name) & ", " & args_str & "ENV &env) {";
@@ -1028,14 +1089,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, Maybe[StdVar]* args, Instr* body) {
-    final_args = (if a != nothing then value(a) else fn_arg(i) : a @ i <- args);
-    args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- final_args));
-    sgn = "OBJ " & user_def_method_name(block_name, method_id) & "(" & args_str & "ENV &env) {";
-    vars_decls = gen_vars_decls(body, [value(a) : a <- args, a != nothing]);
-    body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
-    return (sgn) & indent_lines(body_text) & ("}");
-  }
+  // String* native_user_def_method_code(DBSymbol block_name, MethodId method_id, Maybe[StdVar]* args, Instr* body) {
+  //   final_args = (if a != nothing then value(a) else fn_arg(i) : a @ i <- args);
+  //   args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- final_args));
+  //   sgn = "OBJ " & user_def_method_name(block_name, method_id) & "(" & args_str & "ENV &env) {";
+  //   vars_decls = gen_vars_decls(body, [value(a) : a <- args, a != nothing]);
+  //   body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
+  //   return (sgn) & indent_lines(body_text) & ("}");
+  // }
 
 
   String** native_updates_code(StaticBlock b) {
@@ -1211,7 +1272,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           slave_column()      = (table.master, t, pending_updates_var_ref_name(t)) & value_store_args;
         args = (args | :mem_pool);
 
-        apply_instr = native_call(native_table_method_prefix(tables(t)) & "_aux_apply", args);
+        method_name = native_table_method_prefix(tables(t)) & "_aux_apply";
+        method_name = match (table)
+          slave_column()  = "slave_" & method_name,
+          _               = method_name;
+
+        apply_instr = native_call(method_name, args);
 
         masters_raw_columns = prg_data.masters_raw_columns(block.name);
         if arity(table) == 1 and masters_raw_columns(t, _) {
@@ -1308,7 +1374,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
         mandatory_column()  = native_table_method_prefix(table_type) & "_aux_check_key_1",
         column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
-        slave_column()      = undefined;
+        slave_column()      = native_column_method_prefix(table_type.repr) & "_aux_check_key_1";
       aux_var = pending_updates_var_ref_name(var);
       args = match (table_type)
         column()            = (var, aux_var, :mem_pool),
@@ -1316,7 +1382,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
         table()             |
         master_bin_table()  = (var, aux_var),
-        slave_column()      = undefined;
+        slave_column()      = (var, aux_var, :mem_pool);
       return native_call_expr(method_name, args) & ";";
     }
 
@@ -1393,4 +1459,4 @@ ValueStoreId* table_value_stores(AnyTable table) =
   slave_tern_table()  = {assert not table.symmetric; return table.value_stores;},
   mandatory_column()  |
   column()            = (table.value_store),
-  slave_column()      = undefined;
+  slave_column()      = table.value_stores;
