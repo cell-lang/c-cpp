@@ -2078,8 +2078,7 @@ void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
 void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
 
 void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
-//## WHAT ABOUT THE SYMMETRIC VERSION?
-void slave_int_col_aux_apply(MASTER_BIN_TABLE *, INT_COL *, INT_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
+void int_col_aux_slave_apply(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
 bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
 bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
@@ -2123,8 +2122,7 @@ void float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 
 void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
-//## WHAT ABOUT THE SYMMETRIC VERSION?
-void slave_float_col_aux_apply(MASTER_BIN_TABLE *, FLOAT_COL *, FLOAT_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
+void float_col_aux_slave_apply(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 bool float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
@@ -2170,8 +2168,7 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
-//## WHAT ABOUT THE SYMMETRIC VERSION?
-void slave_obj_col_aux_apply(MASTER_BIN_TABLE *, OBJ_COL *, OBJ_COL_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
+void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 bool obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
 OBJ  obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);

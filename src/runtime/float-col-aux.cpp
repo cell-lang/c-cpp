@@ -133,6 +133,12 @@ void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+void float_col_aux_slave_apply(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *) {
+
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 void float_col_aux_reset(FLOAT_COL_AUX *col_aux) {

@@ -180,6 +180,12 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void 
 
 //////////////////////////////////////////////////////////////////////////////
 
+void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *) {
+
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 void obj_col_aux_reset(OBJ_COL_AUX *col_aux) {
   queue_u32_reset(&col_aux->deletions);
   queue_u32_obj_reset(&col_aux->insertions);

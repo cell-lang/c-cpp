@@ -243,6 +243,15 @@ void slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_t
 }
 
 void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3) {
+    assert(
+      (idx1 == 0 && idx2 == 1 && idx3 == 2) ||
+      (idx1 == 0 && idx2 == 2 && idx3 == 1) ||
+      (idx1 == 1 && idx2 == 0 && idx3 == 2) ||
+      (idx1 == 1 && idx2 == 2 && idx3 == 0) ||
+      (idx1 == 2 && idx2 == 0 && idx3 == 1) ||
+      (idx1 == 2 && idx2 == 1 && idx3 == 0)
+    );
+
   uint32 count = bin_table_size(slave_table);
   uint32 idx = 0;
   BIN_TABLE_ITER iter;
@@ -256,22 +265,13 @@ void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *mas
     OBJ obj2 = surr_to_obj_2(store_2, arg2);
     OBJ obj3 = surr_to_obj_3(store_3, arg3);
 
-    assert(
-      (idx1 == 0 && idx2 == 1 && idx3 == 2) ||
-      (idx1 == 0 && idx2 == 2 && idx3 == 1) ||
-      (idx1 == 1 && idx2 == 0 && idx3 == 2) ||
-      (idx1 == 1 && idx2 == 2 && idx3 == 0) ||
-      (idx1 == 2 && idx2 == 0 && idx3 == 1) ||
-      (idx1 == 2 && idx2 == 1 && idx3 == 0)
-    );
-
     write_str(write_state, "\n    ");
     write_obj(write_state, idx1 == 0 ? obj1 : (idx2 == 0 ? obj2 : obj3));
     write_str(write_state, ", ");
     write_obj(write_state, idx1 == 1 ? obj1 : (idx2 == 1 ? obj2 : obj3));
     write_str(write_state, ", ");
     write_obj(write_state, idx1 == 2 ? obj1 : (idx2 == 2 ? obj2 : obj3));
-    if (++idx != count)
+    if (++idx != count) //## BUG BUG BUG: THIS DOESN'T WORK IF count == 1
       write_str(write_state, ";");
 
     bin_table_iter_move_forward(&iter);

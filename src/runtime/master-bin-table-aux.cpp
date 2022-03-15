@@ -68,6 +68,12 @@ void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, u
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static void master_bin_table_aux_prepare_deletions(MASTER_BIN_TABLE_AUX *table_aux) {
   assert(!table_aux->deletions_prepared);
   queue_u64_prepare(&table_aux->deletions);

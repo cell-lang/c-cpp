@@ -189,6 +189,67 @@ void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_ob
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void slave_int_col_copy_to(MASTER_BIN_TABLE *master, INT_COL *column, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3) {
+  uint32 capacity = column->capacity;
+  uint32 remaining = column->count;
+  int64 *array = column->array;
+  for (uint32 i=0 ; remaining > 0 ; i++) {
+    assert(i < capacity);
+    int64 value = array[i];
+    if (is_set_at(column, i, value)) {
+      uint32 arg1 = master_bin_table_get_arg_1(master, i);
+      uint32 arg2 = master_bin_table_get_arg_2(master, i);
+      OBJ obj1 = surr_to_obj_1(store_1, arg1);
+      OBJ obj2 = surr_to_obj_2(store_2, arg2);
+      OBJ obj3 = make_int(value);
+      append(*strm_1, obj1);
+      append(*strm_2, obj2);
+      append(*strm_3, obj3);
+      remaining--;
+    }
+  }
+}
+
+void slave_int_col_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master, INT_COL *column, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, uint32 idx1, uint32 idx2, uint32 idx3) {
+    assert(
+      (idx1 == 0 && idx2 == 1 && idx3 == 2) ||
+      (idx1 == 0 && idx2 == 2 && idx3 == 1) ||
+      (idx1 == 1 && idx2 == 0 && idx3 == 2) ||
+      (idx1 == 1 && idx2 == 2 && idx3 == 0) ||
+      (idx1 == 2 && idx2 == 0 && idx3 == 1) ||
+      (idx1 == 2 && idx2 == 1 && idx3 == 0)
+    );
+
+  uint32 capacity = column->capacity;
+  uint32 count = column->count;
+  uint32 remaining = count;
+  int64 *array = column->array;
+  for (uint32 i=0 ; remaining > 0 ; i++) {
+    assert(i < capacity);
+    int64 value = array[i];
+    if (is_set_at(column, i, value)) {
+      uint32 arg1 = master_bin_table_get_arg_1(master, i);
+      uint32 arg2 = master_bin_table_get_arg_2(master, i);
+      OBJ obj1 = surr_to_obj_1(store_1, arg1);
+      OBJ obj2 = surr_to_obj_2(store_2, arg2);
+      OBJ obj3 = make_int(value);
+
+      remaining--;
+
+      write_str(write_state, "\n    ");
+      write_obj(write_state, idx1 == 0 ? obj1 : (idx2 == 0 ? obj2 : obj3));
+      write_str(write_state, ", ");
+      write_obj(write_state, idx1 == 1 ? obj1 : (idx2 == 1 ? obj2 : obj3));
+      write_str(write_state, ", ");
+      write_obj(write_state, idx1 == 2 ? obj1 : (idx2 == 2 ? obj2 : obj3));
+      if (remaining > 0 | count == 1)
+        write_str(write_state, ";");
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter) {
   int64 *array = column->array;
   uint32 count = column->count;

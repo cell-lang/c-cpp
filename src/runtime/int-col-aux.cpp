@@ -135,6 +135,12 @@ void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void 
 
 //////////////////////////////////////////////////////////////////////////////
 
+void int_col_aux_slave_apply(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *) {
+
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 void int_col_aux_reset(INT_COL_AUX *col_aux) {
   queue_u32_reset(&col_aux->deletions);
   queue_u32_i64_reset(&col_aux->insertions);

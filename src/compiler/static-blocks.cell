@@ -1268,14 +1268,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           master_bin_table()  |
           column()            = (t, pending_updates_var_ref_name(t)) & value_store_args,
           mandatory_column()  = (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t)),
-          slave_tern_table()  |
-          slave_column()      = (table.master, t, pending_updates_var_ref_name(t)) & value_store_args;
+          slave_tern_table()  = (table.master, t, pending_updates_var_ref_name(t)) & value_store_args,
+          slave_column()      = (t, pending_updates_var_ref_name(t));
         args = (args | :mem_pool);
 
-        method_name = native_table_method_prefix(tables(t)) & "_aux_apply";
-        method_name = match (table)
-          slave_column()  = "slave_" & method_name,
-          _               = method_name;
+        suffix = match (table)
+          slave_column()  = "_aux_slave_apply",
+          _               = "_aux_apply";
+        method_name = native_table_method_prefix(tables(t)) & suffix;
 
         apply_instr = native_call(method_name, args);
 
