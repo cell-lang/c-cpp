@@ -153,3 +153,9 @@ inline uint64 pack(uint32 low, uint32 high) {
   assert(get_high_32(word) == high);
   return word;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+//## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
+void null_incr_rc(void *, uint32);
+void null_decr_rc(void *, void *, uint32);

@@ -18,3 +18,13 @@ bool _assert_(int expr, const char *expr_text, const char *file, int line) {
 
   return true;
 }
+
+//## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
+
+void null_incr_rc(void *, uint32) {
+
+}
+
+void null_decr_rc(void *, void *, uint32) {
+
+}

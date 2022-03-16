@@ -80,9 +80,6 @@ void semisym_slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *table_aux, uint32
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void null_incr_rc(void *, uint32);
-void null_decr_rc(void *, void *, uint32);
-
 void semisym_slave_tern_table_aux_apply(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool) {
   //## MAYBE bin_table_aux_apply() SHOULD JUST CHECK THAT incr_rc_1() AND decr_rc_1() ARE NOT NULL
   //## OR MAYBE THERE SHOULD BE 2 VERSIONS OF bin_table_aux_apply()

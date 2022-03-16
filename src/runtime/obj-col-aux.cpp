@@ -180,8 +180,8 @@ void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void 
 
 //////////////////////////////////////////////////////////////////////////////
 
-void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *) {
-
+void obj_col_aux_slave_apply(OBJ_COL *column, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  obj_col_aux_apply(column, col_aux, null_incr_rc, null_decr_rc, NULL, NULL, mem_pool);
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -135,8 +135,8 @@ void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void 
 
 //////////////////////////////////////////////////////////////////////////////
 
-void int_col_aux_slave_apply(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *) {
-
+void int_col_aux_slave_apply(INT_COL *column, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  int_col_aux_apply(column, col_aux, null_incr_rc, null_decr_rc, NULL, NULL, mem_pool);
 }
 
 //////////////////////////////////////////////////////////////////////////////
