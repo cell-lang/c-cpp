@@ -34,9 +34,25 @@ inline uint32 get_next_free(uint64 slot) {
   return get_low_32(slot);
 }
 
+inline bool is_locked(uint64 slot) {
+  assert(!is_empty(slot));
+  return (slot >> 63) == 1;
+}
+
+inline uint64 lock_slot(uint64 slot) {
+  assert(!is_empty(slot) && !is_locked(slot));
+  uint64 locked_slot = slot | (1ULL << 63);
+  assert(is_locked(locked_slot));
+  return locked_slot;
+}
+
+// inline uint64 unlock_slot(uint64 slot) {
+//
+// }
+
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
+uint32 master_bin_table_alloc_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
   uint32 capacity = table->capacity;
   uint32 first_free = table->first_free;
   uint64 *slots = table->slots;
@@ -56,10 +72,57 @@ uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *table, uint32 arg1, uint32
   return first_free;
 }
 
+void master_bin_table_claim_reserved_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool) {
+  //## MAYBE HERE WE COULD CHECK THAT THE SURROGATE HAS ALREADY BEEN REMOVED FROM THE AVAILABLE POOL
+
+  uint32 capacity = table->capacity;
+  uint64 *slots = table->slots;
+
+  if (surr >= capacity) {
+    uint32 new_capacity = 2 * capacity;
+    while (surr >= new_capacity)
+      new_capacity *= 2;
+    slots = extend_state_mem_uint64_array(mem_pool, slots, capacity, new_capacity);
+    for (uint32 i=capacity ; i < new_capacity ; i++)
+      slots[i] = empty_slot(i + 1);
+    table->slots = slots;
+    table->capacity = new_capacity;
+  }
+
+  slots[surr] = pack_args(arg1, arg2);
+}
+
 void master_bin_table_release_surr(MASTER_BIN_TABLE *table, uint32 surr) {
   uint64 *slot_ptr = table->slots + surr;
-  *slot_ptr = empty_slot(table->first_free);
-  table->first_free = surr;
+  uint64 slot = *slot_ptr;
+  if (!is_locked(slot)) {
+    *slot_ptr = empty_slot(table->first_free);
+    table->first_free = surr;
+  }
+}
+
+bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr) {
+  assert(surr <= table->capacity && !is_empty(table->slots[surr]));
+  uint64 *slot_ptr = table->slots + surr;
+  uint64 slot = *slot_ptr;
+  if (!is_locked(slot)) {
+    *slot_ptr = lock_slot(slot);
+    return true;
+  }
+  else
+    return false;
+}
+
+uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_surr) {
+  if (last_surr == 0xFFFFFFFF)
+    return table->first_free;
+  if (last_surr >= table->capacity)
+    return last_surr + 1;
+  return get_next_free(table->slots[last_surr]);
+}
+
+void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free) {
+  table->first_free = next_free;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -202,7 +265,7 @@ int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 ar
   assert(!one_way_bin_table_contains(&table->table.forward, arg1, arg2));
   assert(!one_way_bin_table_contains(&table->table.backward, arg2, arg1));
 
-  uint32 idx = master_bin_table_alloc_index(table, arg1, arg2, mem_pool);
+  uint32 idx = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
   loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, idx, mem_pool);
   one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
   return idx;
@@ -211,6 +274,19 @@ int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 ar
 bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
   int32 code = master_bin_table_insert_ex(table, arg1, arg2, mem_pool);
   return code >= 0;
+}
+
+bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool) {
+  if (!master_bin_table_contains(table, arg1, arg2)) {
+    master_bin_table_claim_reserved_surr(table, arg1, arg2, surr, mem_pool);
+    loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
+    one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
+    return true;
+  }
+  else {
+    assert(master_bin_table_lookup_surrogate(table, arg1, arg2) == surr);
+    return false;
+  }
 }
 
 void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {

@@ -318,7 +318,9 @@ struct MASTER_BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
-  QUEUE_U64 insertions;
+  QUEUE_U32 insertions;
+  QUEUE_U32 reinsertions;
+  uint32 last_surr;
   bool clear;
   bool deletions_prepared;
 };
@@ -1541,7 +1543,8 @@ void master_bin_table_aux_clear(MASTER_BIN_TABLE_AUX *table_aux);
 void master_bin_table_aux_delete(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
 void master_bin_table_aux_delete_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1);
 void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2);
-void master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2);
+
+void master_bin_table_aux_insert(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 

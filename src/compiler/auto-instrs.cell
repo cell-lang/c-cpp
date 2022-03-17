@@ -332,7 +332,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String native_queue_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
-    return native_call(native_table_method_prefix(table) & "_aux_insert", (updater) & (native_expr(v) : v <- tuple));
+    args = match (table)
+      master_bin_table()  = (table_var, updater),
+      _                   = (updater);
+    args = args & tuple;
+    return native_call(native_table_method_prefix(table) & "_aux_insert", args);
   }
 
 

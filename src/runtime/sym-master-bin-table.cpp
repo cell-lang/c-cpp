@@ -2,7 +2,7 @@
 #include "one-way-bin-table.h"
 
 
-uint32 master_bin_table_alloc_index(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+uint32 master_bin_table_alloc_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 void master_bin_table_release_surr(MASTER_BIN_TABLE *, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -78,7 +78,7 @@ int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint3
   assert(!one_way_bin_table_contains(&table->table.forward, arg1, arg2));
   assert(arg1 == arg2 || !one_way_bin_table_contains(&table->table.backward, arg2, arg1));
 
-  uint32 surr = master_bin_table_alloc_index(table, arg1, arg2, mem_pool);
+  uint32 surr = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
   loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
   if (arg1 != arg2)
     one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
