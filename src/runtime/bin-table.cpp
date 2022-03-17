@@ -175,16 +175,24 @@ void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr
 void bin_table_iter_init_empty(BIN_TABLE_ITER *iter) {
   iter->left = 0;
   //## THESE ARE ALL UNNECESSARY
+#ifndef NDEBUG
   iter->table = NULL;
   iter->arg2s = NULL;
   iter->capacity = 0;
   iter->idx_last = 0;
   iter->arg1 = 0xFFFFFFFFU;
+  memset(iter->inline_array, 0, BIN_TABLE_ITER_INLINE_SIZE * sizeof(uint32));
+#endif
 }
 
 void bin_table_iter_init(BIN_TABLE *table, BIN_TABLE_ITER *iter) {
+#ifndef NDEBUG
+  memset(iter->inline_array, 0, BIN_TABLE_ITER_INLINE_SIZE * sizeof(uint32));
+#endif
+
   uint32 count = bin_table_size(table);
   if (count > 0) {
+    iter->table = table;
     iter->left = count;
 
     uint32 arg1 = 0;
@@ -213,8 +221,8 @@ void bin_table_iter_init(BIN_TABLE *table, BIN_TABLE_ITER *iter) {
     }
     iter->arg2s = arg2s;
 
-    uint32 count_ = bin_table_restrict_1(table, arg1, arg2s);
-    assert(count_ == count);
+    uint32 count1_ = bin_table_restrict_1(table, arg1, arg2s);
+    assert(count1_ == count1);
   }
   else
     bin_table_iter_init_empty(iter);

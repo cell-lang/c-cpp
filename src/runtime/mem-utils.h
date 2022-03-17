@@ -540,27 +540,27 @@ inline bool is_signed(OBJ seq) {
 }
 
 inline bool is_u8_array(OBJ seq) {
-  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ | get_obj_type(seq) == TYPE_NE_SEQ_UINT8_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT16_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT32_INLINE);
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == 0;
 }
 
 inline bool is_i8_array(OBJ seq) {
-  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ | get_obj_type(seq) == TYPE_NE_SEQ_UINT8_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT16_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT32_INLINE);
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_8 << 1) | 1);
 }
 
 inline bool is_i16_array(OBJ seq) {
-  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ | get_obj_type(seq) == TYPE_NE_SEQ_UINT8_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT16_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT32_INLINE);
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_16 << 1) | 1);
 }
 
 inline bool is_i32_array(OBJ seq) {
-  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ | get_obj_type(seq) == TYPE_NE_SEQ_UINT8_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT16_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT32_INLINE);
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_32 << 1) | 1);
 }
 
 inline bool is_i64_array(OBJ seq) {
-  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ);
+  assert(get_obj_type(seq) == TYPE_NE_INT_SEQ | get_obj_type(seq) == TYPE_NE_SEQ_UINT8_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT16_INLINE | get_obj_type(seq) == TYPE_NE_SEQ_INT32_INLINE);
   return (seq.extra_data >> SIGNED_BIT_SHIFT) == ((INT_BITS_TAG_64 << 1) | 1);
 }
 

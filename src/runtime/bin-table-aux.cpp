@@ -146,8 +146,6 @@ static void record_col_1_key_violation(BIN_TABLE *col, BIN_TABLE_AUX *table_aux,
 ////////////////////////////////////////////////////////////////////////////////
 
 bool bin_table_aux_check_key_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
-  assert(table_aux->insertions.count > 0);
-
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
     queue_u64_prepare(&table_aux->insertions);
@@ -182,8 +180,6 @@ bool bin_table_aux_check_key_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
 }
 
 bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
-  assert(table_aux->insertions.count > 0);
-
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
     queue_u64_flip_words(&table_aux->insertions);
