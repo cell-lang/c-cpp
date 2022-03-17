@@ -158,6 +158,82 @@ std_alg:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// The array mustn't contain duplicates
+// The lower 32 bits contain either the index of the value or the insertion point if there's no such value
+// The upper 32 bits are zero if the value was found, non-zero otherwise
+uint64 encoded_index_or_insertion_point_in_unique_sorted_array(OBJ *sorted_array, uint32 len, OBJ obj) {
+  for (uint32 i=1 ; i < len ; i++)
+    assert(comp_objs(sorted_array[i-1], sorted_array[i]) > 0);
+
+  if (len > 0) {
+    if (is_inline_obj(obj)) {
+      if (len <= 12) {
+        for (uint32 i=0 ; i < len ; i++) {
+          int cr = shallow_cmp(sorted_array[i], obj);
+          if (cr == 0)
+            return i;
+          if (cr < 0) // sorted_array[i] > obj
+            return ((uint64) i) | (1ULL << 32);
+        }
+        return ((uint64) len) | (1ULL << 32);
+      }
+
+      OBJ last_obj = sorted_array[len - 1];
+      if (!is_inline_obj(last_obj))
+        goto std_alg;
+
+      int64 low_idx = 0;
+      int64 high_idx = len - 1;
+
+      while (low_idx <= high_idx) {
+        int64 middle_idx = (low_idx + high_idx) / 2;
+        OBJ middle_obj = sorted_array[middle_idx];
+
+        int cr = shallow_cmp(obj, middle_obj);
+
+        if (cr == 0)
+          return middle_idx;
+
+        if (cr > 0) // obj < middle_obj
+          high_idx = middle_idx - 1;
+        else
+          low_idx = middle_idx + 1;
+      }
+
+      assert(low_idx == high_idx + 1);
+      assert(low_idx >= 0);
+
+      return ((uint64) low_idx) | (1ULL << 32);
+    }
+  }
+
+std_alg:
+  int64 low_idx = 0;
+  int64 high_idx = len - 1;
+
+  while (low_idx <= high_idx) {
+    int64 middle_idx = (low_idx + high_idx) / 2;
+    OBJ middle_obj = sorted_array[middle_idx];
+
+    int cr = comp_objs(obj, middle_obj);
+
+    if (cr == 0)
+      return middle_idx;
+
+    if (cr > 0)
+      high_idx = middle_idx - 1;
+    else
+      low_idx = middle_idx + 1;
+  }
+
+  assert(low_idx == high_idx + 1);
+  assert(low_idx >= 0);
+
+  return ((uint64) low_idx) | (1ULL << 32);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 uint32 count_at_start(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ obj) {
   //## IMPLEMENT FOR REAL...
   int c = 0;

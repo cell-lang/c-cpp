@@ -1085,6 +1085,8 @@ uint32 sort_unique(OBJ* objs, uint32 size);
 uint32 sort_and_check_no_dups(OBJ* keys, OBJ* values, uint32 size);
 void sort_obj_array(OBJ* objs, uint32 len);
 
+uint64 encoded_index_or_insertion_point_in_unique_sorted_array(OBJ *sorted_array, uint32 len, OBJ obj);
+
 uint32 find_obj(OBJ* sorted_array, uint32 len, OBJ obj, bool &found); //## WHAT SHOULD THIS RETURN? ANY VALUE IN THE [0, 2^32-1] IS A VALID SEQUENCE INDEX, SO WHAT COULD BE USED TO REPRESENT "NOT FOUND"?
 uint32 find_objs_range(OBJ *sorted_array, uint32 len, OBJ obj, uint32 &count);
 uint32 find_idxs_range(uint32 *sorted_idx_array, OBJ *values, uint32 len, OBJ obj, uint32 &count);
