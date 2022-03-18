@@ -689,16 +689,20 @@ static bool read_string(PARSER *parser, OBJ *value) {
       else if (next_char == 't') {
         next_char = '\t';
       }
+      else if (next_char == 'r') {
+        next_char = '\r';
+      }
       else if (is_hex(next_char)) {
         next_char = hex_digit_value(next_char) << 12;
         for (int shift=8 ; shift >= 0 ; shift -= 4) {
-          if (!read_char_no_eof(parser, &next_char))
+          int32 ch;
+          if (!read_char_no_eof(parser, &ch))
             return false;
-          if (!is_hex(next_char)) {
+          if (!is_hex(ch)) {
             //## SAVE ERROR INFORMATION
             return false;
           }
-          next_char += hex_digit_value(next_char) << shift;
+          next_char += hex_digit_value(ch) << shift;
         }
       }
       else {
