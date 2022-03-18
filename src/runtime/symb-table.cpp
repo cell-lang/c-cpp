@@ -292,6 +292,19 @@ static void init_symb_hashtable(SYMBOL_TABLE *symbol_table) {
     assert(symbol_hashtable_lookup(&symbol_table->hashtable, enc_symb, enc_len) == NULL);
     symbol_hashtable_insert(&symbol_table->hashtable, i, enc_symb, enc_len);
     assert(symbol_hashtable_lookup(&symbol_table->hashtable, enc_symb, enc_len)->id == i);
+
+#ifndef NDEBUG
+    for (uint32 j=0 ; j <= i ; j++) {
+      uint64 enc_symb_[4096];
+      const char *symb_str_ = symb_repr(j);
+      uint32 len_ = strlen(symb_str_);
+      uint32 enc_len_ = encode_symb((const uint8 *) symb_str_, len_, enc_symb_);
+
+      SYMBOL_HASHTABLE_ENTRY *entry_ = symbol_hashtable_lookup(&symbol_table->hashtable, enc_symb_, enc_len_);
+      assert(entry_ != NULL);
+      assert(entry_->id == j);
+    }
+#endif
   }
 }
 
@@ -349,8 +362,8 @@ const char *symb_to_raw_str(uint16 symb_id) {
 }
 
 uint16 lookup_enc_symb_id(const uint64 *enc_symb, uint32 enc_len) {
-  char str[16384];
-  decode_symb(enc_symb, enc_len, (uint8 *) str);
+  // char str[16384];
+  // decode_symb(enc_symb, enc_len, (uint8 *) str);
   return internal_lookup_enc_symb_id(&STATIC__symbol_table, enc_symb, enc_len);
 }
 

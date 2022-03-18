@@ -144,7 +144,7 @@ void sym_master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj)(vo
 }
 
 void sym_master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj)(void *, uint32), void *store) {
-  bin_table_write(write_state, &table->table, surr_to_obj, store, surr_to_obj, store, false);
+  bin_table_write(write_state, &table->table, surr_to_obj, store, surr_to_obj, store, false, false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

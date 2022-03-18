@@ -367,43 +367,11 @@ bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *table) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2) {
-  MASTER_BIN_TABLE_ITER iter;
-  master_bin_table_iter_init(table, &iter);
-  while (!master_bin_table_iter_is_out_of_range(&iter)) {
-    uint32 arg1 = master_bin_table_iter_get_1(&iter);
-    uint32 arg2 = master_bin_table_iter_get_2(&iter);
-    OBJ obj1 = surr_to_obj_1(store_1, arg1);
-    OBJ obj2 = surr_to_obj_2(store_2, arg2);
-    append(*strm_1, obj1);
-    append(*strm_2, obj2);
-    master_bin_table_iter_move_forward(&iter);
-  }
+  bin_table_copy_to(&table->table, surr_to_obj_1, store_1, surr_to_obj_2, store_2, strm_1, strm_2);
 }
 
 void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped) {
-  uint32 count = master_bin_table_size(table);
-  bool is_map = flipped ? master_bin_table_col_2_is_key(table) : master_bin_table_col_1_is_key(table);
-
-  uint32 idx = 0;
-
-  MASTER_BIN_TABLE_ITER iter;
-  master_bin_table_iter_init(table, &iter);
-
-  while (!master_bin_table_iter_is_out_of_range(&iter)) {
-    uint32 arg1 = master_bin_table_iter_get_1(&iter);
-    uint32 arg2 = master_bin_table_iter_get_2(&iter);
-    OBJ obj1 = surr_to_obj_1(store_1, arg1);
-    OBJ obj2 = surr_to_obj_2(store_2, arg2);
-
-    write_str(write_state, "\n    ");
-    write_obj(write_state, flipped ? obj2 : obj1);
-    write_str(write_state, is_map ? " -> " : ", ");
-    write_obj(write_state, flipped ? obj1 : obj2);
-    if (++idx != count)
-      write_str(write_state, is_map ? "," : ";");
-
-    master_bin_table_iter_move_forward(&iter);
-  }
+  bin_table_write(write_state, &table->table, surr_to_obj_1, store_1, surr_to_obj_2, store_2, false, flipped);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

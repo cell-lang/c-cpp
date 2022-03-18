@@ -144,10 +144,8 @@ void bin_table_copy_to(BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), v
   }
 }
 
-void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped) {
+void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool as_map, bool flipped) {
   uint32 count = bin_table_size(table);
-  bool is_map = flipped ? bin_table_col_2_is_key(table) : bin_table_col_1_is_key(table);
-
   uint32 idx = 0;
 
   BIN_TABLE_ITER iter;
@@ -161,10 +159,10 @@ void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr
 
     write_str(write_state, "\n    ");
     write_obj(write_state, flipped ? obj2 : obj1);
-    write_str(write_state, is_map ? " -> " : ", ");
+    write_str(write_state, as_map ? " -> " : ", ");
     write_obj(write_state, flipped ? obj1 : obj2);
     if (++idx != count)
-      write_str(write_state, is_map ? "," : ";");
+      write_str(write_state, as_map ? "," : ";");
 
     bin_table_iter_move_forward(&iter);
   }

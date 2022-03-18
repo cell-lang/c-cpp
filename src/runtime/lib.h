@@ -196,7 +196,9 @@ struct QUEUE_U32_OBJ {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct SURR_SET {
-
+  uint64 *bitmap;
+  uint32 capacity;
+  uint32 count;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1392,7 +1394,7 @@ bool bin_table_col_1_is_key(BIN_TABLE *);
 bool bin_table_col_2_is_key(BIN_TABLE *);
 
 void bin_table_copy_to(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
-void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool flipped);
+void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
 
 void bin_table_iter_init_empty(BIN_TABLE_ITER *);
 void bin_table_iter_init(BIN_TABLE *, BIN_TABLE_ITER *);

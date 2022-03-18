@@ -625,8 +625,9 @@ static int32 read_enc_symb_words(PARSER *parser, uint64 *enc_word, uint32 size) 
         part_enc_word = (part_enc_word << 6) + code;
       }
       else {
-        enc_word[i] = part_enc_word;
-        return i + 1;
+        if (j > 0)
+          enc_word[i++] = part_enc_word;
+        return i;
       }
     }
 

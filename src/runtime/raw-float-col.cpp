@@ -95,7 +95,7 @@ void raw_float_col_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *master_tabl
   while (!unary_table_iter_is_out_of_range(&iter)) {
     uint32 key_surr = unary_table_iter_get(&iter);
     OBJ key = surr_to_obj(store, key_surr);
-    OBJ value = make_int(column->array[key_surr]); //## NO NEED TO CONVERT THIS TO OBJ
+    OBJ value = make_float(column->array[key_surr]); //## NO NEED TO CONVERT THIS TO OBJ
 
     write_str(write_state, "\n    ");
     write_obj(write_state, flip ? value : key);

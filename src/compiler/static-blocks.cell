@@ -502,8 +502,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       first = false;
     }
 
-    tables_by_relvar = isort(group_by(keys(block.tables), logical_rel_var(original_rel_var($))));
-    for rv, tvs @ i <- tables_by_relvar {
+    tables_by_relvar = group_by(keys(block.tables), logical_rel_var(original_rel_var($)));
+
+    relvar_arity = [logical_rel_var(original_rel_var(v)) -> arity(t) : v t <- block.tables];
+    ord_relvars = sort_by_key(keys(relvar_arity), relvar_arity($));
+
+    for rv @ i <- ord_relvars {
+      tvs = tables_by_relvar(rv);
+
       symb = symb_id_name(bare_id(rv));
       ord_table_vars = isort(tvs);
       tables = append((native_var_ref_name(tv) : tv <- ord_table_vars), ", ");
@@ -561,12 +567,33 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           slave_column()  = "slave_" & method_name,
           _               = method_name;
         value_store_args = join(((native_surr_to_obj_method_name(block.value_stores(v)), v) : v <- table_value_stores(table)));
-        ad_hoc_args = match (table)
+
+        comma_sep = match (table)
+          table()             = { arity = arity(table);
+                                  return true if arity == 1;
+                                  return false if arity == 3;
+                                  return false if table.symmetric;
+                                  assert perm == [0 -> 0, 1 -> 1] or perm == [0 -> 1, 1 -> 0];
+                                  key = if perm == [0 -> 0, 1 -> 1] then [0] else [1];
+                                  return table.keys(key);
+                                },
+          master_bin_table()  = false,
+          slave_tern_table()  = false,
+          column()            |
+          mandatory_column()  |
+          slave_column()      = true;
+
+        ad_hoc_args_1 = match (table)
           mandatory_column()  |
           slave_column()      |
           slave_tern_table()  = (table.master),
           _                   = ();
-        instr = native_call(method_name, ("write_state") & ad_hoc_args & (tv) & value_store_args & perm_args);
+
+        ad_hoc_args_2 = match (table)
+          table()             = (comma_sep if arity(table) == 2 and not table.symmetric),
+          _                   = ();
+
+        instr = native_call(method_name, ("write_state") & ad_hoc_args_1 & (tv) & value_store_args & ad_hoc_args_2 & perm_args);
 
         if j > 0 {
           exprs = ({
@@ -576,7 +603,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
             return get_count_expr & " > 0";
           } : k < j);
           get_count_expr = native_get_count_expr(tv, table, (nothing : _ < arity(table)));
-          sep = if arity(table) == 1 then "," else ";";
+          sep = if comma_sep then "," else ";";
           code = (code |
             "  if (" & get_count_expr & " > 0) {",
             "    if (" & append(exprs, " || ") & ")",
