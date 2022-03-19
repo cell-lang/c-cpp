@@ -47,6 +47,8 @@ uint32 sym_bin_table_lookup(BIN_TABLE *table, uint32 arg) {
   assert(other_arg == 0xFFFFFFFF || one_way_bin_table_lookup(&table->backward, other_arg) == 0xFFFFFFFF);
   if (other_arg == 0xFFFFFFFF)
     other_arg = one_way_bin_table_lookup(&table->backward, arg);
+  else if (one_way_bin_table_lookup(&table->backward, arg) != 0xFFFFFFFF)
+    internal_fail();
   return other_arg;
 }
 
@@ -89,7 +91,7 @@ void sym_bin_table_delete_1(BIN_TABLE *table, uint32 arg) {
 
   count = one_way_bin_table_get_count(&table->backward, arg);
   if (count > 0) {
-    uint32 *other_args = count <= 1024 ? inline_array : new_uint32_array(count);
+    uint32 *other_args = count <= 1024 ? inline_array : new_uint32_array(count); //## BAD BAD BAD: NOT REUSING PREVIOUSLY ALLOCATED ARRAY
     one_way_bin_table_delete_by_key(&table->backward, arg, other_args);
 
     for (uint32 i=0 ; i < count ; i++) {

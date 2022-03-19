@@ -77,12 +77,7 @@ void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
   uint32 count = bin_table_count_1(table, arg1);
   if (count > 0) {
     uint32 inline_array[1024];
-    uint32 *args2;
-    if (count <= 1024)
-      args2 = inline_array;
-    else
-      args2 = new_uint32_array(count);
-
+    uint32 *args2 = count <= 1024 ? inline_array : new_uint32_array(count);
     one_way_bin_table_delete_by_key(&table->forward, arg1, args2);
 
     for (uint32 i=0 ; i < count ; i++) {
@@ -172,7 +167,6 @@ void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr
 
 void bin_table_iter_init_empty(BIN_TABLE_ITER *iter) {
   iter->left = 0;
-  //## THESE ARE ALL UNNECESSARY
 #ifndef NDEBUG
   iter->table = NULL;
   iter->arg2s = NULL;
@@ -289,18 +283,16 @@ uint32 bin_table_iter_get_2(BIN_TABLE_ITER *iter) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void bin_table_iter_1_init_empty(BIN_TABLE_ITER_1 *iter) {
-  iter->args = NULL; //## UNNECESSARY
+#ifndef NDEBUG
+  iter->args = NULL;
+#endif
   iter->left = 0;
 }
 
 void bin_table_iter_1_init(BIN_TABLE *table, BIN_TABLE_ITER_1 *iter, uint32 arg1) {
   uint32 count = bin_table_count_1(table, arg1);
   if (count > 0) {
-    uint32 *arg2s;
-    if (count <= BIN_TABLE_ITER_INLINE_SIZE)
-      arg2s = iter->inline_array;
-    else
-      arg2s = new_uint32_array(count);
+    uint32 *arg2s = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
 
     uint32 count_ = bin_table_restrict_1(table, arg1, arg2s);
     assert(count_ == count);
@@ -309,7 +301,9 @@ void bin_table_iter_1_init(BIN_TABLE *table, BIN_TABLE_ITER_1 *iter, uint32 arg1
     iter->left = count;
   }
   else {
-    iter->args = NULL; //## UNNECESSARY
+#ifndef NDEBUG
+    iter->args = NULL;
+#endif
     iter->left = 0;
   }
 }
@@ -332,18 +326,16 @@ uint32 bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *iter) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void bin_table_iter_2_init_empty(BIN_TABLE_ITER_2 *iter) {
-  iter->args = NULL; //## UNNECESSARY
+#ifndef NDEBUG
+  iter->args = NULL;
+#endif
   iter->left = 0;
 }
 
 void bin_table_iter_2_init(BIN_TABLE *table, BIN_TABLE_ITER_2 *iter, uint32 arg2) {
   uint32 count = bin_table_count_2(table, arg2);
   if (count > 0) {
-    uint32 *arg1s;
-    if (count <= BIN_TABLE_ITER_INLINE_SIZE)
-      arg1s = iter->inline_array;
-    else
-      arg1s = new_uint32_array(count);
+    uint32 *arg1s = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
 
     uint32 count_ = bin_table_restrict_2(table, arg2, arg1s);
     assert(count_ == count);
@@ -352,7 +344,9 @@ void bin_table_iter_2_init(BIN_TABLE *table, BIN_TABLE_ITER_2 *iter, uint32 arg2
     iter->left = count;
   }
   else {
-    iter->args = NULL; //## UNNECESSARY
+#ifndef NDEBUG
+    iter->args = NULL;
+#endif
     iter->left = 0;
   }
 }
