@@ -337,6 +337,15 @@ struct SYM_MASTER_BIN_TABLE_ITER_1 {
   uint32 left;
 };
 
+struct SYM_MASTER_BIN_TABLE_AUX {
+  QUEUE_U64 deletions;
+  QUEUE_U32 deletions_1;
+  QUEUE_U32 insertions;
+  QUEUE_U32 reinsertions;
+  uint32 last_surr;
+  bool clear;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct SLAVE_TERN_TABLE_ITER {
@@ -1599,18 +1608,18 @@ uint32 sym_master_bin_table_iter_1_get_surr(SYM_MASTER_BIN_TABLE_ITER_1 *);
 
 ///////////////////////// sym-master-bin-table-aux.cpp /////////////////////////
 
-void sym_master_bin_table_aux_init(SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
-void sym_master_bin_table_aux_reset(SYM_BIN_TABLE_AUX *);
+void sym_master_bin_table_aux_init(SYM_MASTER_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *);
 
-void sym_master_bin_table_aux_insert(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void sym_master_bin_table_aux_insert(MASTER_BIN_TABLE_AUX *, SYM_MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
-void sym_master_bin_table_aux_delete(SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-void sym_master_bin_table_aux_delete_1(SYM_BIN_TABLE_AUX *, uint32 arg);
-void sym_master_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
+void sym_master_bin_table_aux_delete(SYM_MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *, uint32 arg);
+void sym_master_bin_table_aux_clear(SYM_MASTER_BIN_TABLE_AUX *);
 
-uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
-void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
+void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool);
 
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 

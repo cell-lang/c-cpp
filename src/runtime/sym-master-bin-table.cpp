@@ -3,6 +3,7 @@
 
 
 uint32 master_bin_table_alloc_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+void master_bin_table_claim_reserved_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *);
 void master_bin_table_release_surr(MASTER_BIN_TABLE *, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +90,22 @@ int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint3
 bool sym_master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
   int32 code = sym_master_bin_table_insert_ex(table, arg1, arg2, mem_pool);
   return code >= 0;
+}
+
+bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool) {
+  sort_args(arg1, arg2);
+
+  if (!one_way_bin_table_contains(&table->table.forward, arg1, arg2)) {
+    master_bin_table_claim_reserved_surr(table, arg1, arg2, surr, mem_pool);
+    loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
+    if (arg1 != arg2)
+      one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
+    return true;
+  }
+  else {
+    assert(master_bin_table_lookup_surrogate(table, arg1, arg2) == surr);
+    return false;
+  }
 }
 
 bool sym_master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
