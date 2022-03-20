@@ -39,6 +39,10 @@ uint64 set_obj_mem_size(uint64 size) {
   return sizeof(SET_OBJ) + (size - 1) * sizeof(OBJ);
 }
 
+uint64 bin_tree_set_obj_mem_size() {
+  return sizeof(BIN_TREE_SET_OBJ);
+}
+
 uint64 bin_rel_obj_mem_size(uint64 size) {
   assert(size > 0);
   //## IF THE MAP HAS ONLY ONE ENTRY, THERE WOULD BE NO NEED FOR THE RIGHT-TO-LEFT INDEX
@@ -211,6 +215,10 @@ SEQ_OBJ *new_int64_seq(uint32 length, uint32 capacity) {
 
 SET_OBJ *new_set(uint32 size) {
   return (SET_OBJ *) new_obj(set_obj_mem_size(size));
+}
+
+BIN_TREE_SET_OBJ *new_bin_tree_set() {
+  return (BIN_TREE_SET_OBJ *) new_obj(bin_tree_set_obj_mem_size());
 }
 
 BIN_REL_OBJ *new_map(uint32 size) {

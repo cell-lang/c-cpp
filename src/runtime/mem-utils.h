@@ -70,6 +70,17 @@ const uint64 INT64_ARRAY_MASK     = MAKE(INT_BITS_TAG_64, INT_WIDTH_SHIFT) | SIG
 
 const uint64 SEQ_INFO_MASK        = TYPE_MASK | SEQ_TYPE_MASK | SIGNED_BIT_MASK | INT_WIDTH_MASK;
 
+/////////////////////// Physical representation of sets ////////////////////////
+
+const uint32 SET_TYPE_SHIFT       = REPR_INFO_SHIFT;
+const uint32 SET_TYPE_WIDTH       = 1;
+
+const uint32 ARRAY_SET_TAG        = 0; // Sorted array
+const uint32 BIN_TREE_SET_TAG     = 1; // Binary tree
+
+const uint64 ARRAY_SET_MASK       = MAKE(ARRAY_SET_TAG,    SET_TYPE_SHIFT);
+const uint64 BIN_TREE_SET_MASK    = MAKE(BIN_TREE_SET_TAG, SET_TYPE_SHIFT);
+
 /////////////////////// Physical representation of maps ////////////////////////
 
 const int MAP_TYPE_SHIFT          = REPR_INFO_SHIFT;
@@ -161,6 +172,19 @@ inline INT_BITS_TAG get_int_bits_tag(OBJ seq) {
   assert((seq.extra_data >> INT_WIDTH_SHIFT) < 4);
 
   return (INT_BITS_TAG) (seq.extra_data >> INT_WIDTH_SHIFT);
+}
+
+inline int get_set_type(OBJ set) {
+  assert(get_obj_type(set) == TYPE_NE_SET);
+  return GET(set.extra_data, SEQ_TYPE_SHIFT, SEQ_TYPE_WIDTH);
+}
+
+inline bool is_array_set(OBJ set) {
+  return get_set_type(set) == ARRAY_SET_TAG;
+}
+
+inline bool is_bin_tree_set(OBJ set) {
+  return get_set_type(set) == BIN_TREE_SET_TAG;
 }
 
 inline int get_map_type(OBJ map) {
@@ -422,7 +446,16 @@ inline OBJ make_set(SET_OBJ *ptr, uint32 size) {
 
   OBJ obj;
   obj.core_data.ptr = ptr;
-  obj.extra_data = MAKE_LENGTH(size) | NE_SET_BASE_MASK;
+  obj.extra_data = MAKE_LENGTH(size) | NE_SET_BASE_MASK | ARRAY_SET_MASK;
+  return obj;
+}
+
+inline OBJ make_tree_set(BIN_TREE_SET_OBJ *ptr, uint32 size) {
+  assert(ptr != NULL & size > 8);
+
+  OBJ obj;
+  obj.core_data.ptr = ptr;
+  obj.extra_data = MAKE_LENGTH(size) | NE_SET_BASE_MASK | BIN_TREE_SET_MASK;
   return obj;
 }
 
@@ -635,8 +668,13 @@ inline OBJ *get_seq_elts_ptr(OBJ seq) {
 ////////////////////////////////////////////////////////////////////////////////
 
 inline OBJ *get_set_elts_ptr(OBJ set) {
-  assert(is_ne_set(set));
+  assert(is_ne_set(set) && is_array_set(set));
   return (OBJ *) set.core_data.ptr;
+}
+
+inline BIN_TREE_SET_OBJ *get_tree_set_ptr(OBJ set) {
+  assert(is_ne_set(set) && is_bin_tree_set(set));
+  return (BIN_TREE_SET_OBJ *) set.core_data.ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

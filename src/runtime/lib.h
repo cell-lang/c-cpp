@@ -97,6 +97,13 @@ struct BOXED_OBJ {
   OBJ obj;
 };
 
+struct BIN_TREE_SET_OBJ {
+  OBJ value;
+  OBJ left_subtree;
+  OBJ right_subtree;
+  uint32 priority;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct SEQ_ITER {
@@ -767,11 +774,12 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel, uint32 size);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, uint32 size, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount);
 
-SET_OBJ      *new_set(uint32 size);
-BIN_REL_OBJ  *new_map(uint32 size); // Clears rev_idxs
-BIN_REL_OBJ  *new_bin_rel(uint32 size);
-TERN_REL_OBJ *new_tern_rel(uint32 size);
-BOXED_OBJ    *new_boxed_obj();
+SET_OBJ           *new_set(uint32 size);
+BIN_TREE_SET_OBJ  *new_bin_tree_set();
+BIN_REL_OBJ       *new_map(uint32 size); // Clears rev_idxs
+BIN_REL_OBJ       *new_bin_rel(uint32 size);
+TERN_REL_OBJ      *new_tern_rel(uint32 size);
+BOXED_OBJ         *new_boxed_obj();
 
 // Set used and capacity fields
 SEQ_OBJ *new_obj_seq(uint32 length);
