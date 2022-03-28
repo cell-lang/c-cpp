@@ -104,6 +104,25 @@ struct BIN_TREE_SET_OBJ {
   uint32 priority;
 };
 
+struct BIN_TREE_MAP_OBJ;
+
+struct FAT_MAP_PTR {
+  union {
+    OBJ *array;
+    BIN_TREE_MAP_OBJ *tree;
+  } ptr;
+  uint32 size;
+  uint32 offset; // Zero if ptr points to a BIN_TREE_MAP_OBJ
+};
+
+struct BIN_TREE_MAP_OBJ {
+  OBJ key;
+  OBJ value;
+  FAT_MAP_PTR left;
+  FAT_MAP_PTR right;
+  uint32 priority;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 struct SEQ_ITER {
@@ -778,6 +797,7 @@ SET_OBJ           *new_set(uint32 size);
 BIN_TREE_SET_OBJ  *new_bin_tree_set();
 BIN_REL_OBJ       *new_map(uint32 size); // Clears rev_idxs
 BIN_REL_OBJ       *new_bin_rel(uint32 size);
+BIN_TREE_MAP_OBJ  *new_bin_tree_map();
 TERN_REL_OBJ      *new_tern_rel(uint32 size);
 BOXED_OBJ         *new_boxed_obj();
 

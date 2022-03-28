@@ -19,6 +19,13 @@ bool _assert_(int expr, const char *expr_text, const char *file, int line) {
   return true;
 }
 
+int32 cast_int32(int64 val64) {
+  int32 val32 = (int32) val64;
+  if (val32 != val64)
+    soft_fail("Invalid 64 to 32 bit integer conversion");
+  return val32;
+}
+
 //## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
 
 void null_incr_rc(void *, uint32) {

@@ -470,6 +470,16 @@ inline OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
   return obj;
 }
 
+inline OBJ make_tree_map(BIN_TREE_MAP_OBJ *ptr, uint32 size) {
+  assert(ptr != NULL);
+
+  OBJ obj;
+  obj.core_data.ptr = ptr;
+  obj.extra_data = MAKE_LENGTH(size) | NE_MAP_BASE_MASK | BIN_TREE_MAP_MASK;
+  assert(is_bin_tree_map(obj));
+  return obj;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 inline OBJ make_bin_rel(BIN_REL_OBJ *ptr, uint32 size) {
@@ -693,6 +703,11 @@ inline BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
   assert(get_obj_type(obj) == TYPE_NE_MAP | get_obj_type(obj) == TYPE_NE_BIN_REL);
   assert(obj.core_data.ptr != NULL);
   return (BIN_REL_OBJ *) obj.core_data.ptr;
+}
+
+inline BIN_TREE_MAP_OBJ *get_tree_map_ptr(OBJ map) {
+  assert(is_ne_map(map) && is_bin_tree_map(map));
+  return (BIN_TREE_MAP_OBJ *) map.core_data.ptr;
 }
 
 inline TERN_REL_OBJ *get_tern_rel_ptr(OBJ obj) {

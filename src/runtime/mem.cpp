@@ -43,6 +43,10 @@ uint64 bin_tree_set_obj_mem_size() {
   return sizeof(BIN_TREE_SET_OBJ);
 }
 
+uint64 bin_tree_map_obj_mem_size() {
+  return sizeof(BIN_TREE_MAP_OBJ);
+}
+
 uint64 bin_rel_obj_mem_size(uint64 size) {
   assert(size > 0);
   //## IF THE MAP HAS ONLY ONE ENTRY, THERE WOULD BE NO NEED FOR THE RIGHT-TO-LEFT INDEX
@@ -234,6 +238,10 @@ BIN_REL_OBJ *new_map(uint32 size) {
     rev_idxs[1] = 0;
 
   return map;
+}
+
+BIN_TREE_MAP_OBJ *new_bin_tree_map() {
+  return (BIN_TREE_MAP_OBJ *) new_obj(bin_tree_map_obj_mem_size());
 }
 
 BIN_REL_OBJ *new_bin_rel(uint32 size) {
