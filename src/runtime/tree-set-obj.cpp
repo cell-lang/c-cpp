@@ -163,7 +163,7 @@ OBJ set_insert(OBJ set, OBJ elt) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ remove_min_value(OBJ set, OBJ *value_ptr) {
+static OBJ remove_min_value(OBJ set, OBJ *value_ptr) {
   uint32 size = read_size_field(set);
   assert(size > 0);
 
@@ -215,7 +215,7 @@ OBJ remove_min_value(OBJ set, OBJ *value_ptr) {
   }
 }
 
-OBJ remove_max_value(OBJ set, OBJ *value_ptr) {
+static OBJ remove_max_value(OBJ set, OBJ *value_ptr) {
   uint32 size = read_size_field(set);
   assert(size > 0);
 
@@ -269,7 +269,7 @@ OBJ remove_max_value(OBJ set, OBJ *value_ptr) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ array_set_remove(OBJ set, OBJ elt) {
+static OBJ array_set_remove(OBJ set, OBJ elt) {
   uint32 size = read_size_field(set);
   OBJ *elts = get_set_elts_ptr(set);
 
@@ -290,7 +290,7 @@ OBJ array_set_remove(OBJ set, OBJ elt) {
     return make_set((SET_OBJ *) elts, size - 1);
 
   if (size <= 9) {
-    SET_OBJ *new_ptr = new_set(size);
+    SET_OBJ *new_ptr = new_set(size - 1);
     OBJ *new_elts = new_ptr->buffer;
 
     if (index > 0)
@@ -332,7 +332,7 @@ OBJ array_set_remove(OBJ set, OBJ elt) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
+static OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
   BIN_TREE_SET_OBJ *ptr = get_tree_set_ptr(set);
   OBJ value = ptr->value;
   int cr = comp_objs(elt, value);
@@ -420,7 +420,7 @@ OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
     uint32 new_left_size = read_size_field(updated_left_subtree);
 
     assert(new_size >= 8);
-    assert(new_left_size == read_size_field(left_subtree) -1);
+    assert(new_left_size == read_size_field(left_subtree) - 1);
 
     if (new_size == 8) {
       SET_OBJ *new_ptr = new_set(8);
@@ -434,7 +434,7 @@ OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
     new_ptr->left_subtree = updated_left_subtree;
     new_ptr->right_subtree = ptr->right_subtree;
     new_ptr->priority = ptr->priority;
-    return make_tree_set(new_ptr, size + 1);
+    return make_tree_set(new_ptr, size + 1); //## BUG BUG BUG: WHY THE +1 INSTEAD OF THE -1?
   }
   else { // elt > ptr->value
     // Removing the element from the right subtree
@@ -467,7 +467,7 @@ OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
     new_ptr->left_subtree = left_subtree;
     new_ptr->right_subtree = updated_right_subtree;
     new_ptr->priority = ptr->priority;
-    return make_tree_set(new_ptr, size + 1);
+    return make_tree_set(new_ptr, size + 1); //## BUG BUG BUG: WHY THE +1 INSTEAD OF THE -1?
   }
 }
 
