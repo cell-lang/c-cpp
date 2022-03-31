@@ -254,6 +254,28 @@ static uint32 ne_set_mem_size(OBJ obj) {
   return round_up(set_obj_mem_size(size)) + objs_mem_size(ptr->buffer, size);
 }
 
+static uint32 tree_map_args_mem_size(BIN_TREE_MAP_OBJ *);
+
+static uint32 map_args_mem_size(FAT_MAP_PTR fat_ptr) {
+  if (fat_ptr.size == 0)
+    return 0;
+
+  if (fat_ptr.offset != 0) {
+    OBJ *keys = fat_ptr.ptr.array;
+    OBJ *values = keys + fat_ptr.offset;
+    uint32 mem_size = 0;
+    for (uint32 i=0 ; i < fat_ptr.size ; i++)
+      mem_size += obj_mem_size(keys[i]) + obj_mem_size(values[i]);
+    return mem_size;
+  }
+
+  return tree_map_args_mem_size(fat_ptr.ptr.tree);
+}
+
+static uint32 tree_map_args_mem_size(BIN_TREE_MAP_OBJ *ptr) {
+  return obj_mem_size(ptr->key) + obj_mem_size(ptr->value) + map_args_mem_size(ptr->left) + map_args_mem_size(ptr->right);
+}
+
 static uint32 ne_map_mem_size(OBJ obj) {
   if (is_opt_rec(obj)) {
     internal_fail();
@@ -263,8 +285,11 @@ static uint32 ne_map_mem_size(OBJ obj) {
     uint32 size = read_size_field_unchecked(obj);
     return round_up(bin_rel_obj_mem_size(size)) + objs_mem_size(ptr->buffer, 2 * size);
   }
-  else if (is_bin_tree_map(obj)) {
-    internal_fail();
+  else {
+    assert(is_bin_tree_map(obj));
+    BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
+    uint32 size = read_size_field_unchecked(obj);
+    return round_up(bin_rel_obj_mem_size(size)) + tree_map_args_mem_size(ptr);
   }
 }
 
@@ -541,6 +566,62 @@ static OBJ copy_ne_set_to(OBJ obj, void **dest_var) {
   return repoint_to_copy(obj, copy_ptr);
 }
 
+static void map_copy(FAT_MAP_PTR fat_ptr, OBJ *dest_keys, uint32 offset) {
+  if (fat_ptr.size > 0) {
+    OBJ *dest_values = dest_keys + offset;
+
+    if (fat_ptr.offset != 0) {
+      OBJ *src_keys = fat_ptr.ptr.array;
+      OBJ *src_values = src_keys + fat_ptr.offset;
+      memcpy(dest_keys, src_keys, fat_ptr.size * sizeof(OBJ));
+      memcpy(dest_values, src_values, fat_ptr.size * sizeof(OBJ));
+    }
+    else {
+      BIN_TREE_MAP_OBJ *ptr = fat_ptr.ptr.tree;
+      FAT_MAP_PTR left_ptr = ptr->left;
+      map_copy(left_ptr, dest_keys, offset);
+      dest_keys[left_ptr.size] = ptr->key;
+      dest_values[left_ptr.size] = ptr->value;
+      map_copy(ptr->right, dest_keys + left_ptr.size + 1, offset);
+    }
+  }
+}
+
+static void copy_ne_tree_map(BIN_TREE_MAP_OBJ *ptr, OBJ *dest_keys, uint32 offset) {
+  OBJ *dest_values = dest_keys + offset;
+  FAT_MAP_PTR left_ptr = ptr->left;
+  map_copy(left_ptr, dest_keys, offset);
+  dest_keys[left_ptr.size] = ptr->key;
+  dest_values[left_ptr.size] = ptr->value;
+  map_copy(ptr->right, dest_keys + left_ptr.size + 1, offset);
+}
+
+static void copy_tree_map_args_to(BIN_TREE_MAP_OBJ *, OBJ *dest_keys, OBJ *dest_values, void **dest_var);
+
+static void copy_map_args_to(FAT_MAP_PTR fat_ptr, OBJ *dest_keys, OBJ *dest_values, void **dest_var) {
+  if (fat_ptr.size != 0) {
+    if (fat_ptr.offset != 0) {
+      OBJ *keys = fat_ptr.ptr.array;
+      for (uint32 i=0 ; i < fat_ptr.size ; i++)
+        dest_keys[i] = copy_obj_to(keys[i], dest_var);
+      OBJ *values = keys + fat_ptr.offset;
+      for (uint32 i=0 ; i < fat_ptr.size ; i++)
+        dest_values[i] = copy_obj_to(values[i], dest_var);
+    }
+    else
+      copy_tree_map_args_to(fat_ptr.ptr.tree, dest_keys, dest_values, dest_var);
+  }
+}
+
+static void copy_tree_map_args_to(BIN_TREE_MAP_OBJ *ptr, OBJ *dest_keys, OBJ *dest_values, void **dest_var) {
+  FAT_MAP_PTR left_ptr = ptr->left;
+  copy_map_args_to(left_ptr, dest_keys, dest_values, dest_var);
+  dest_keys[left_ptr.size] = copy_obj_to(ptr->key, dest_var);
+  dest_values[left_ptr.size] = copy_obj_to(ptr->value, dest_var);
+  uint32 offset = left_ptr.size + 1;
+  copy_map_args_to(ptr->right, dest_keys + offset, dest_values + offset, dest_var);
+}
+
 static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
   if (is_opt_rec(obj)) {
     // void *ptr = get_opt_repr_ptr(obj);
@@ -549,13 +630,13 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
     // return repoint_to_copy(obj, copy_ptr);
     internal_fail();
   }
-  else if (is_array_map(obj)) {
+
+  uint32 size = read_size_field_unchecked(obj);
+  uint32 mem_size = round_up(bin_rel_obj_mem_size(size));
+  BIN_REL_OBJ *copy_ptr = (BIN_REL_OBJ *) grab_mem(dest_var, mem_size);
+
+  if (is_array_map(obj)) {
     BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
-    uint32 size = read_size_field_unchecked(obj);
-
-    uint32 mem_size = round_up(bin_rel_obj_mem_size(size));
-    BIN_REL_OBJ *copy_ptr = (BIN_REL_OBJ *) grab_mem(dest_var, mem_size);
-
     copy_objs_to(ptr->buffer, 2 * size, copy_ptr->buffer, dest_var);
 
     uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
@@ -575,8 +656,21 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
 
     return repoint_to_copy(obj, copy_ptr);
   }
-  else if (is_bin_tree_map(obj)) {
-    internal_fail();
+  else {
+    assert(is_bin_tree_map(obj));
+
+    BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
+    copy_tree_map_args_to(ptr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);
+    OBJ copy = repoint_to_array_map_copy(obj, copy_ptr);
+
+    uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
+    copy_r2l_index[0] = 0;
+    if (size > 1) {
+      copy_r2l_index[1] = 0;
+      build_map_right_to_left_sorted_idx_array(copy);
+    }
+
+    return copy;
   }
 }
 

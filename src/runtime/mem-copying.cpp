@@ -77,12 +77,42 @@ OBJ copy_ne_set(OBJ obj) {
   return repoint_to_copy(obj, copy_ptr);
 }
 
+static void copy_tree_map_args(BIN_TREE_MAP_OBJ *, OBJ *, OBJ *);
+
+static void copy_map_args(FAT_MAP_PTR fat_ptr, OBJ *dest_keys, OBJ *dest_values) {
+  if (fat_ptr.size > 0)
+    return;
+
+  if (fat_ptr.offset != 0) {
+    OBJ *src_keys = fat_ptr.ptr.array;
+    OBJ *src_values = src_keys + fat_ptr.offset;
+    for (uint32 i=0 ; i < fat_ptr.size ; i++) {
+      dest_keys[i] = copy_obj(src_keys[i]);
+      dest_values[i] = copy_obj(src_values[i]);
+    }
+    return;
+  }
+
+  copy_tree_map_args(fat_ptr.ptr.tree, dest_keys, dest_values);
+}
+
+static void copy_tree_map_args(BIN_TREE_MAP_OBJ *ptr, OBJ *dest_keys, OBJ *dest_values) {
+  FAT_MAP_PTR left_ptr = ptr->left;
+  copy_map_args(left_ptr, dest_keys, dest_values);
+  dest_keys[left_ptr.size] = copy_obj(ptr->key);
+  dest_values[left_ptr.size] = copy_obj(ptr->value);
+  uint32 offset = left_ptr.size + 1;
+  copy_map_args(ptr->right, dest_keys + offset, dest_values + offset);
+}
+
 OBJ copy_ne_map(OBJ obj) {
   if (is_opt_rec(obj)) {
-    void *ptr = get_opt_repr_ptr(obj);
-    uint16 repr_id = get_opt_repr_id(obj);
-    void *copy_ptr = opt_repr_copy(ptr, repr_id);
-    return repoint_to_copy(obj, copy_ptr);
+    //## THIS IS NOT SUPPOSED TO HAPPEN, RIGHT?
+    // void *ptr = get_opt_repr_ptr(obj);
+    // uint16 repr_id = get_opt_repr_id(obj);
+    // void *copy_ptr = opt_repr_copy(ptr, repr_id);
+    // return repoint_to_copy(obj, copy_ptr);
+    internal_fail();
   }
   else if (is_array_map(obj)) {
     BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
@@ -97,8 +127,12 @@ OBJ copy_ne_map(OBJ obj) {
     }
     return repoint_to_copy(obj, copy_ptr);
   }
-  else if (is_bin_tree_map(obj)) {
-    internal_fail();
+  else {
+    assert(is_bin_tree_map(obj));
+    uint32 size = read_size_field_unchecked(obj);
+    BIN_REL_OBJ *copy_ptr = new_map(size);
+    copy_tree_map_args(get_tree_map_ptr(obj), copy_ptr->buffer, copy_ptr->buffer + size);
+    return repoint_to_array_map_copy(obj, copy_ptr);
   }
 }
 

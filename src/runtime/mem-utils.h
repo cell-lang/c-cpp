@@ -83,12 +83,14 @@ const uint64 BIN_TREE_SET_MASK    = MAKE(BIN_TREE_SET_TAG, SET_TYPE_SHIFT);
 
 /////////////////////// Physical representation of maps ////////////////////////
 
-const int MAP_TYPE_SHIFT          = REPR_INFO_SHIFT;
-const int MAP_TYPE_WIDTH          = 2;
+const uint32 MAP_TYPE_SHIFT       = REPR_INFO_SHIFT;
+const uint32 MAP_TYPE_WIDTH       = 2;
 
-const int ARRAY_MAP_TAG           = 0;  // Sorted array
-const int BIN_TREE_MAP_TAG        = 1;  // Binary tree
-const int AD_HOC_RECORD_TAG       = 2;  // Ad-hoc record
+const uint64 MAP_TYPE_MASK        = MASK(MAP_TYPE_SHIFT, MAP_TYPE_WIDTH);
+
+const uint64 ARRAY_MAP_TAG        = 0;  // Sorted array
+const uint64 BIN_TREE_MAP_TAG     = 1;  // Binary tree
+const uint64 AD_HOC_RECORD_TAG    = 2;  // Ad-hoc record
 
 const uint64 ARRAY_MAP_MASK       = MAKE(ARRAY_MAP_TAG,     MAP_TYPE_SHIFT);
 const uint64 BIN_TREE_MAP_MASK    = MAKE(BIN_TREE_MAP_TAG,  MAP_TYPE_SHIFT);
@@ -983,6 +985,15 @@ inline OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
 
   obj.core_data.ptr = new_ptr;
   return obj;
+}
+
+inline OBJ repoint_to_array_map_copy(OBJ obj, BIN_REL_OBJ *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, MAP_TYPE_MASK) | ARRAY_MAP_MASK;
+  return new_obj;
 }
 
 inline OBJ repoint_to_sliced_copy(OBJ obj, void *new_ptr) {
