@@ -915,7 +915,7 @@ OBJ make_slice_int64(int64 *ptr, uint32 length);
 bool is_inline_obj(OBJ);
 
 bool is_array_map(OBJ);
-bool is_bin_tree_map(OBJ);
+bool is_tree_map(OBJ);
 bool is_opt_rec(OBJ);
 
 bool is_opt_rec_or_tag_rec(OBJ);

@@ -128,7 +128,7 @@ OBJ copy_ne_map(OBJ obj) {
     return repoint_to_copy(obj, copy_ptr);
   }
   else {
-    assert(is_bin_tree_map(obj));
+    assert(is_tree_map(obj));
     uint32 size = read_size_field_unchecked(obj);
     BIN_REL_OBJ *copy_ptr = new_map(size);
     copy_tree_map_args(get_tree_map_ptr(obj), copy_ptr->buffer, copy_ptr->buffer + size);

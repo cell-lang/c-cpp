@@ -286,7 +286,7 @@ static uint32 ne_map_mem_size(OBJ obj) {
     return round_up(bin_rel_obj_mem_size(size)) + objs_mem_size(ptr->buffer, 2 * size);
   }
   else {
-    assert(is_bin_tree_map(obj));
+    assert(is_tree_map(obj));
     BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
     uint32 size = read_size_field_unchecked(obj);
     return round_up(bin_rel_obj_mem_size(size)) + tree_map_args_mem_size(ptr);
@@ -657,7 +657,7 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
     return repoint_to_copy(obj, copy_ptr);
   }
   else {
-    assert(is_bin_tree_map(obj));
+    assert(is_tree_map(obj));
 
     BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
     copy_tree_map_args_to(ptr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);

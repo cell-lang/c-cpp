@@ -9,7 +9,7 @@ static void set_obj_copy(OBJ set, OBJ *dest) {
       memcpy(dest, elts, size * sizeof(OBJ));
     }
     else {
-      assert(is_bin_tree_set(set));
+      assert(is_tree_set(set));
       BIN_TREE_SET_OBJ *ptr = get_tree_set_ptr(set);
       OBJ left_subtree = ptr->left_subtree;
       set_obj_copy(left_subtree, dest);
@@ -76,7 +76,7 @@ static OBJ bin_tree_set_insert(OBJ set, OBJ elt) {
     if (are_shallow_eq(updated_left_subtree, left_subtree))
       return set;
 
-    if (is_bin_tree_set(updated_left_subtree)) {
+    if (is_tree_set(updated_left_subtree)) {
       // The updated left subset is actually a tree, so we need to make sure the heap property is maintained
       BIN_TREE_SET_OBJ *updated_left_subtree_ptr = get_tree_set_ptr(updated_left_subtree);
       if (updated_left_subtree_ptr->priority > ptr->priority) {
@@ -113,7 +113,7 @@ static OBJ bin_tree_set_insert(OBJ set, OBJ elt) {
     if (are_shallow_eq(updated_right_subtree, right_subtree))
       return set;
 
-    if (is_bin_tree_set(updated_right_subtree)) {
+    if (is_tree_set(updated_right_subtree)) {
       // The updated right subset is actually a tree, so we need to make sure the heap property is maintained
       BIN_TREE_SET_OBJ *updated_right_subtree_ptr = get_tree_set_ptr(updated_right_subtree);
       if (updated_right_subtree_ptr->priority > ptr->priority) {
@@ -156,7 +156,7 @@ OBJ set_insert(OBJ set, OBJ elt) {
   if (is_array_set(set))
     return array_set_insert(set, elt);
 
-  assert(is_bin_tree_set(set));
+  assert(is_tree_set(set));
   return bin_tree_set_insert(set, elt);
 }
 
@@ -173,7 +173,7 @@ static OBJ remove_min_value(OBJ set, OBJ *value_ptr) {
     return size > 1 ? make_set((SET_OBJ *) (elts + 1), size - 1) : make_empty_rel();
   }
   else {
-    assert(is_bin_tree_set(set));
+    assert(is_tree_set(set));
     assert(size > 8);
 
     BIN_TREE_SET_OBJ *ptr = get_tree_set_ptr(set);
@@ -225,7 +225,7 @@ static OBJ remove_max_value(OBJ set, OBJ *value_ptr) {
     return size > 1 ? make_set((SET_OBJ *) elts, size - 1) : make_empty_rel();
   }
   else {
-    assert(is_bin_tree_set(set));
+    assert(is_tree_set(set));
     assert(size > 8);
 
     BIN_TREE_SET_OBJ *ptr = get_tree_set_ptr(set);
@@ -414,7 +414,7 @@ static OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
       return set;
 
     // The priority of the updated subtree is not supposed to have changed
-    assert(!is_bin_tree_set(updated_left_subtree) || get_tree_set_ptr(updated_left_subtree)->priority <= ptr->priority);
+    assert(!is_tree_set(updated_left_subtree) || get_tree_set_ptr(updated_left_subtree)->priority <= ptr->priority);
 
     uint32 new_size = size - 1;
     uint32 new_left_size = read_size_field(updated_left_subtree);
@@ -446,7 +446,7 @@ static OBJ bin_tree_set_remove(OBJ set, OBJ elt) {
       return set;
 
     // The priority of the updated subtree is not supposed to have changed
-    assert(!is_bin_tree_set(updated_right_subtree) || get_tree_set_ptr(updated_right_subtree)->priority <= ptr->priority);
+    assert(!is_tree_set(updated_right_subtree) || get_tree_set_ptr(updated_right_subtree)->priority <= ptr->priority);
 
     OBJ left_subtree = ptr->left_subtree;
 
@@ -480,6 +480,6 @@ OBJ set_remove(OBJ set, OBJ elt) {
   if (is_array_set(set))
     return array_set_remove(set, elt);
 
-  assert(is_bin_tree_set(set));
+  assert(is_tree_set(set));
   return bin_tree_set_remove(set, elt);
 }

@@ -185,7 +185,7 @@ inline bool is_array_set(OBJ set) {
   return get_set_type(set) == ARRAY_SET_TAG;
 }
 
-inline bool is_bin_tree_set(OBJ set) {
+inline bool is_tree_set(OBJ set) {
   return get_set_type(set) == BIN_TREE_SET_TAG;
 }
 
@@ -198,7 +198,7 @@ inline bool is_array_map(OBJ obj) {
   return get_map_type(obj) == ARRAY_MAP_TAG;
 }
 
-inline bool is_bin_tree_map(OBJ obj) {
+inline bool is_tree_map(OBJ obj) {
   return get_map_type(obj) == BIN_TREE_MAP_TAG;
 }
 
@@ -478,7 +478,7 @@ inline OBJ make_tree_map(BIN_TREE_MAP_OBJ *ptr, uint32 size) {
   OBJ obj;
   obj.core_data.ptr = ptr;
   obj.extra_data = MAKE_LENGTH(size) | NE_MAP_BASE_MASK | BIN_TREE_MAP_MASK;
-  assert(is_bin_tree_map(obj));
+  assert(is_tree_map(obj));
   return obj;
 }
 
@@ -685,7 +685,7 @@ inline OBJ *get_set_elts_ptr(OBJ set) {
 }
 
 inline BIN_TREE_SET_OBJ *get_tree_set_ptr(OBJ set) {
-  assert(is_ne_set(set) && is_bin_tree_set(set));
+  assert(is_ne_set(set) && is_tree_set(set));
   return (BIN_TREE_SET_OBJ *) set.core_data.ptr;
 }
 
@@ -708,7 +708,7 @@ inline BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
 }
 
 inline BIN_TREE_MAP_OBJ *get_tree_map_ptr(OBJ map) {
-  assert(is_ne_map(map) && is_bin_tree_map(map));
+  assert(is_ne_map(map) && is_tree_map(map));
   return (BIN_TREE_MAP_OBJ *) map.core_data.ptr;
 }
 
