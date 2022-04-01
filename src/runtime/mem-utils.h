@@ -75,6 +75,8 @@ const uint64 SEQ_INFO_MASK        = TYPE_MASK | SEQ_TYPE_MASK | SIGNED_BIT_MASK 
 const uint32 SET_TYPE_SHIFT       = REPR_INFO_SHIFT;
 const uint32 SET_TYPE_WIDTH       = 1;
 
+const uint64 SET_TYPE_MASK        = MASK(SET_TYPE_SHIFT, SEQ_TYPE_WIDTH);
+
 const uint32 ARRAY_SET_TAG        = 0; // Sorted array
 const uint32 BIN_TREE_SET_TAG     = 1; // Binary tree
 
@@ -985,6 +987,15 @@ inline OBJ repoint_to_copy(OBJ obj, void *new_ptr) {
 
   obj.core_data.ptr = new_ptr;
   return obj;
+}
+
+inline OBJ repoint_to_array_set_copy(OBJ obj, SET_OBJ *new_ptr) {
+  assert(!is_inline_obj(obj));
+
+  OBJ new_obj;
+  new_obj.core_data.ptr = new_ptr;
+  new_obj.extra_data = CLEAR(obj.extra_data, SET_TYPE_MASK) | ARRAY_SET_MASK;
+  return new_obj;
 }
 
 inline OBJ repoint_to_array_map_copy(OBJ obj, BIN_REL_OBJ *new_ptr) {

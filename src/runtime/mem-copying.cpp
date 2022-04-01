@@ -68,13 +68,47 @@ OBJ copy_ne_seq(OBJ obj) {
   return repoint_to_sliced_copy(obj, copy_elts);
 }
 
-OBJ copy_ne_set(OBJ obj) {
-  SET_OBJ *ptr = (SET_OBJ *) obj.core_data.ptr;
-  uint32 size = read_size_field_unchecked(obj);
+static void copy_tree_set_elts(BIN_TREE_SET_OBJ *, OBJ *);
 
+static void copy_set_elts(OBJ set, OBJ *dest) {
+  if (is_empty_rel(set))
+    return;
+
+  if (is_array_set(set)) {
+    uint32 size = read_size_field(set);
+    OBJ *src_elts = get_set_elts_ptr(set);
+    for (uint32 i=0 ; i < size ; i++)
+      dest[i] = copy_obj(src_elts[i]);
+    return;
+  }
+
+  copy_tree_set_elts((BIN_TREE_SET_OBJ *) set.core_data.ptr, dest);
+}
+
+static void copy_tree_set_elts(BIN_TREE_SET_OBJ *ptr, OBJ *dest) {
+  OBJ left_subtree = ptr->left_subtree;
+  uint32 left_size = read_size_field(left_subtree);
+  copy_set_elts(left_subtree, dest);
+  dest[left_size] = copy_obj(ptr->value);
+  copy_set_elts(ptr->right_subtree, dest + left_size + 1);
+}
+
+OBJ copy_ne_set(OBJ obj) {
+  uint32 size = read_size_field_unchecked(obj);
   SET_OBJ *copy_ptr = new_set(size);
-  copy_objs(copy_ptr->buffer, ptr->buffer, size);
-  return repoint_to_copy(obj, copy_ptr);
+
+  if (is_array_set(obj)) {
+    SET_OBJ *ptr = (SET_OBJ *) obj.core_data.ptr;
+    copy_objs(copy_ptr->buffer, ptr->buffer, size);
+    return repoint_to_copy(obj, copy_ptr);
+  }
+  else {
+    assert(is_tree_set(obj));
+
+    BIN_TREE_SET_OBJ *ptr = (BIN_TREE_SET_OBJ *) obj.core_data.ptr;
+    copy_tree_set_elts(ptr, copy_ptr->buffer);
+    return repoint_to_array_set_copy(obj, copy_ptr);
+  }
 }
 
 static void copy_tree_map_args(BIN_TREE_MAP_OBJ *, OBJ *, OBJ *);
