@@ -260,6 +260,11 @@ OBJ lookup(OBJ rel, OBJ key) {
   else if (is_empty_rel(rel)) {
     soft_fail("Map is empty. Lookup failed");
   }
+  else if (is_tree_map(rel)) {
+    OBJ value;
+    if (tree_map_lookup(get_tree_map_ptr(rel), key, &value))
+      return value;
+  }
   else {
     assert(is_array_map(rel)); //## CAN'T IT JUST BE A BINARY RELATION?
 

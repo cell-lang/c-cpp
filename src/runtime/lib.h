@@ -1314,6 +1314,8 @@ OBJ set_key_value(OBJ, OBJ, OBJ);
 OBJ drop_key(OBJ, OBJ);
 OBJ make_tag_int(uint16, int64);
 
+bool tree_map_lookup(BIN_TREE_MAP_OBJ *, OBJ key, OBJ *value);
+
 uint8 as_byte(int64);
 int16 as_short(int64);
 int32 as_int(int64);

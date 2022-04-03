@@ -160,6 +160,10 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(BIN_TREE_MAP_OBJ *ptr, uint32 size
 
       if (updated_left_ptr.size == left_size)
         return make_tree_map_ptr(ptr, size);
+
+      //## ISN'T THERE A BUG HERE? THE UPDATED LEFT SUBTREE COULD HAVE BECOME A TREE, REQUIRING A ROTATION
+      //## THE BUG MAY BE REPEATED ELSEWHERE. I EXPECT THE ASSERTION BELOW TO FAIL
+      assert(updated_left_ptr.offset != 0);
     }
     else {
       // The left branch is a tree
@@ -215,6 +219,10 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(BIN_TREE_MAP_OBJ *ptr, uint32 size
 
       if (updated_right_ptr.size == right_size)
         return make_tree_map_ptr(ptr, size);
+
+      //## ISN'T THERE A BUG HERE? THE UPDATED LEFT SUBTREE COULD HAVE BECOME A TREE, REQUIRING A ROTATION
+      //## THE BUG MAY BE REPEATED ELSEWHERE. I EXPECT THE ASSERTION BELOW TO FAIL
+      assert(updated_right_ptr.offset != 0);
     }
     else {
       BIN_TREE_MAP_OBJ *right_ptr = ptr->right.ptr.tree;
@@ -692,4 +700,45 @@ OBJ drop_key(OBJ map, OBJ key) {
     return make_tree_map(updated_ptr.ptr.tree, updated_ptr.size);
   else
     return make_map((BIN_REL_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+bool tree_map_lookup(BIN_TREE_MAP_OBJ *, OBJ, OBJ *);
+
+bool map_lookup(FAT_MAP_PTR fat_ptr, OBJ key, OBJ *value) {
+  if (fat_ptr.size == 0)
+    return false;
+
+  if (fat_ptr.offset == 0)
+    return tree_map_lookup(fat_ptr.ptr.tree, key, value);
+
+  OBJ *keys = fat_ptr.ptr.array;
+
+  uint64 code = encoded_index_or_insertion_point_in_unique_sorted_array(keys, fat_ptr.size, key);
+  uint32 index = (uint32) code;
+  bool found = (code >> 32) == 0;
+
+  if (found) {
+    OBJ *values = keys + fat_ptr.offset;
+    *value = values[index];
+    return true;
+  }
+
+  return false;
+}
+
+bool tree_map_lookup(BIN_TREE_MAP_OBJ *ptr, OBJ key, OBJ *value) {
+  int cr = comp_objs(key, ptr->key);
+
+  if (cr == 0) {
+    *value = ptr->value;
+    return true;
+  }
+
+  if (cr > 0) // key < ptr->key
+    return map_lookup(ptr->left, key, value);
+  else // key > ptr->key
+    return map_lookup(ptr->right, key, value);
 }
