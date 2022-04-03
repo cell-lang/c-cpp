@@ -110,19 +110,98 @@ static uint32 compute_ne_seq_hashcode(OBJ obj) {
   return compute_obj_array_hashcode((OBJ *) obj.core_data.ptr, read_size_field_unchecked(obj), extra_data_hashcode(obj));
 }
 
-static uint32 compute_ne_set_hashcode(OBJ obj) {
-  return compute_obj_array_hashcode((OBJ *) obj.core_data.ptr, read_size_field_unchecked(obj), extra_data_hashcode(obj));
+////////////////////////////////////////////////////////////////////////////////
+
+static uint64 compute_tree_set_hashcode(BIN_TREE_SET_OBJ *, uint64 hashcode);
+
+static uint64 compute_set_hashcode(FAT_SET_PTR fat_ptr, uint64 hashcode) {
+  if (fat_ptr.size == 0)
+    return hashcode;
+
+  if (!fat_ptr.is_array)
+    return compute_obj_array_hashcode(fat_ptr.ptr.array, fat_ptr.size, hashcode);
+  else
+    return compute_tree_set_hashcode(fat_ptr.ptr.tree, hashcode);
 }
 
-static uint32 compute_ne_bin_rel_hashcode(OBJ obj) {
-  return compute_obj_array_hashcode(((BIN_REL_OBJ *) obj.core_data.ptr)->buffer, 2ULL * read_size_field_unchecked(obj), extra_data_hashcode(obj));
+static uint64 compute_tree_set_hashcode(BIN_TREE_SET_OBJ *ptr, uint64 hashcode) {
+  hashcode = compute_set_hashcode(ptr->left, hashcode);
+  hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->value));
+  return compute_set_hashcode(ptr->right, hashcode);
+}
+
+static uint32 compute_ne_set_hashcode(OBJ obj) {
+  if (is_array_set(obj))
+    return compute_obj_array_hashcode((OBJ *) obj.core_data.ptr, read_size_field_unchecked(obj), extra_data_hashcode(obj));
+
+  //## TODO: CHECK THAT THE HASHCODES OF ARRAY-BASED AND TREE-BASED MAPS MATCH
+
+  assert(is_tree_set(obj));
+  return compute_tree_set_hashcode(get_tree_set_ptr(obj), extra_data_hashcode(obj));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static uint64 compute_tree_map_keys_partial_hashcode(BIN_TREE_MAP_OBJ *, uint64 hashcode);
+
+static uint64 compute_map_keys_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 hashcode) {
+  if (fat_ptr.size == 0)
+    return hashcode;
+
+  if (fat_ptr.offset == 0)
+    return compute_tree_map_keys_partial_hashcode(fat_ptr.ptr.tree, hashcode);
+
+  OBJ *keys = fat_ptr.ptr.array;
+  for (uint32 i=0 ; i < fat_ptr.size ; i++)
+    hashcode = 31 * hashcode + hashcode_64(compute_hashcode(keys[i]));
+  return hashcode;
+}
+
+static uint64 compute_tree_map_keys_partial_hashcode(BIN_TREE_MAP_OBJ *ptr, uint64 hashcode) {
+  hashcode = compute_map_keys_partial_hashcode(ptr->left, hashcode);
+  hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->key));
+  return compute_map_keys_partial_hashcode(ptr->right, hashcode);
+}
+
+static uint64 compute_tree_map_values_partial_hashcode(BIN_TREE_MAP_OBJ *, uint64 hashcode);
+
+static uint64 compute_map_values_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 hashcode) {
+  if (fat_ptr.size == 0)
+    return hashcode;
+
+  if (fat_ptr.offset == 0)
+    return compute_tree_map_values_partial_hashcode(fat_ptr.ptr.tree, hashcode);
+
+  OBJ *values = fat_ptr.ptr.array + fat_ptr.offset;
+  for (uint32 i=0 ; i < fat_ptr.size ; i++)
+    hashcode = 31 * hashcode + hashcode_64(compute_hashcode(values[i]));
+  return hashcode;
+}
+
+static uint64 compute_tree_map_values_partial_hashcode(BIN_TREE_MAP_OBJ *ptr, uint64 hashcode) {
+  hashcode = compute_map_keys_partial_hashcode(ptr->left, hashcode);
+  hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->key));
+  return compute_map_keys_partial_hashcode(ptr->right, hashcode);
 }
 
 static uint32 compute_ne_map_hashcode(OBJ obj) {
   if (is_array_map(obj))
     return compute_obj_array_hashcode(((BIN_REL_OBJ *) obj.core_data.ptr)->buffer, 2ULL * read_size_field_unchecked(obj), extra_data_hashcode(obj));
 
-  internal_fail();
+  //## TODO: CHECK THAT THE HASHCODES OF ARRAY-BASED AND TREE-BASED MAPS MATCH
+
+  assert(is_tree_map(obj));
+  BIN_TREE_MAP_OBJ *ptr = get_tree_map_ptr(obj);
+  uint64 hashcode = extra_data_hashcode(obj);
+  hashcode = compute_tree_map_keys_partial_hashcode(ptr, hashcode);
+  hashcode = compute_tree_map_values_partial_hashcode(ptr, hashcode);
+  return hashcode_64(hashcode);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static uint32 compute_ne_bin_rel_hashcode(OBJ obj) {
+  return compute_obj_array_hashcode(((BIN_REL_OBJ *) obj.core_data.ptr)->buffer, 2ULL * read_size_field_unchecked(obj), extra_data_hashcode(obj));
 }
 
 static uint32 compute_ne_tern_rel_hashcode(OBJ obj) {
