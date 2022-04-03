@@ -70,27 +70,22 @@ OBJ copy_ne_seq(OBJ obj) {
 
 static void copy_tree_set_elts(BIN_TREE_SET_OBJ *, OBJ *);
 
-static void copy_set_elts(OBJ set, OBJ *dest) {
-  if (is_empty_rel(set))
-    return;
-
-  if (is_array_set(set)) {
-    uint32 size = read_size_field(set);
-    OBJ *src_elts = get_set_elts_ptr(set);
-    for (uint32 i=0 ; i < size ; i++)
-      dest[i] = copy_obj(src_elts[i]);
-    return;
+static void copy_set_elts(FAT_SET_PTR fat_ptr, OBJ *dest) {
+  if (fat_ptr.size > 0) {
+    if (fat_ptr.is_array) {
+      for (uint32 i=0 ; i < fat_ptr.size ; i++)
+        dest[i] = copy_obj(fat_ptr.ptr.array[i]);
+    }
+    else
+      copy_tree_set_elts(fat_ptr.ptr.tree, dest);
   }
-
-  copy_tree_set_elts((BIN_TREE_SET_OBJ *) set.core_data.ptr, dest);
 }
 
 static void copy_tree_set_elts(BIN_TREE_SET_OBJ *ptr, OBJ *dest) {
-  OBJ left_subtree = ptr->left_subtree;
-  uint32 left_size = read_size_field(left_subtree);
-  copy_set_elts(left_subtree, dest);
-  dest[left_size] = copy_obj(ptr->value);
-  copy_set_elts(ptr->right_subtree, dest + left_size + 1);
+  FAT_SET_PTR left_ptr = ptr->left;
+  copy_set_elts(left_ptr, dest);
+  dest[left_ptr.size] = copy_obj(ptr->value);
+  copy_set_elts(ptr->right, dest + left_ptr.size + 1);
 }
 
 OBJ copy_ne_set(OBJ obj) {
