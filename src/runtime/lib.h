@@ -97,10 +97,21 @@ struct BOXED_OBJ {
   OBJ obj;
 };
 
+struct BIN_TREE_SET_OBJ;
+
+struct FAT_SET_PTR {
+  union {
+    OBJ *array;
+    BIN_TREE_SET_OBJ *tree;
+  } ptr;
+  uint32 size;
+  bool is_array;
+};
+
 struct BIN_TREE_SET_OBJ {
   OBJ value;
-  OBJ left_subtree;
-  OBJ right_subtree;
+  FAT_SET_PTR left;
+  FAT_SET_PTR right;
   uint32 priority;
 };
 
