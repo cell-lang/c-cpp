@@ -248,7 +248,7 @@ obj_seq:
   return round_up(len * sizeof(OBJ)) + objs_mem_size(elts, len);
 }
 
-static uint32 tree_set_elts_mem_size(BIN_TREE_SET_OBJ *);
+static uint32 tree_set_elts_mem_size(TREE_SET_NODE *);
 
 static uint32 set_elts_mem_size(FAT_SET_PTR fat_ptr) {
   if (fat_ptr.size == 0)
@@ -264,7 +264,7 @@ static uint32 set_elts_mem_size(FAT_SET_PTR fat_ptr) {
   return tree_set_elts_mem_size(fat_ptr.ptr.tree);
 }
 
-static uint32 tree_set_elts_mem_size(BIN_TREE_SET_OBJ *ptr) {
+static uint32 tree_set_elts_mem_size(TREE_SET_NODE *ptr) {
   return obj_mem_size(ptr->value) + set_elts_mem_size(ptr->left) + set_elts_mem_size(ptr->right);
 }
 
@@ -277,12 +277,12 @@ static uint32 ne_set_mem_size(OBJ set) {
   }
   else {
     assert(is_tree_set(set));
-    BIN_TREE_SET_OBJ *ptr = (BIN_TREE_SET_OBJ *) set.core_data.ptr;
+    TREE_SET_NODE *ptr = (TREE_SET_NODE *) set.core_data.ptr;
     return round_up(set_obj_mem_size(size)) + tree_set_elts_mem_size(ptr);
   }
 }
 
-static uint32 tree_map_args_mem_size(BIN_TREE_MAP_OBJ *);
+static uint32 tree_map_args_mem_size(TREE_MAP_NODE *);
 
 static uint32 map_args_mem_size(FAT_MAP_PTR fat_ptr) {
   if (fat_ptr.size == 0)
@@ -300,7 +300,7 @@ static uint32 map_args_mem_size(FAT_MAP_PTR fat_ptr) {
   return tree_map_args_mem_size(fat_ptr.ptr.tree);
 }
 
-static uint32 tree_map_args_mem_size(BIN_TREE_MAP_OBJ *ptr) {
+static uint32 tree_map_args_mem_size(TREE_MAP_NODE *ptr) {
   return obj_mem_size(ptr->key) + obj_mem_size(ptr->value) + map_args_mem_size(ptr->left) + map_args_mem_size(ptr->right);
 }
 
@@ -315,7 +315,7 @@ static uint32 ne_map_mem_size(OBJ obj) {
   }
   else {
     assert(is_tree_map(obj));
-    BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
+    TREE_MAP_NODE *ptr = (TREE_MAP_NODE *) obj.core_data.ptr;
     uint32 size = read_size_field_unchecked(obj);
     return round_up(bin_rel_obj_mem_size(size)) + tree_map_args_mem_size(ptr);
   }
@@ -584,7 +584,7 @@ static OBJ copy_ne_seq_to(OBJ seq, void **dest_var) {
   return repoint_to_sliced_copy(seq, dest);
 }
 
-static void copy_tree_set_elts_to(BIN_TREE_SET_OBJ *, OBJ *dest, void **dest_var);
+static void copy_tree_set_elts_to(TREE_SET_NODE *, OBJ *dest, void **dest_var);
 
 static void copy_set_elts_to(FAT_SET_PTR fat_ptr, OBJ *dest, void **dest_var) {
   if (fat_ptr.size > 0) {
@@ -596,7 +596,7 @@ static void copy_set_elts_to(FAT_SET_PTR fat_ptr, OBJ *dest, void **dest_var) {
   }
 }
 
-static void copy_tree_set_elts_to(BIN_TREE_SET_OBJ *ptr, OBJ *dest, void **dest_var) {
+static void copy_tree_set_elts_to(TREE_SET_NODE *ptr, OBJ *dest, void **dest_var) {
   FAT_SET_PTR left_ptr = ptr->left;
   copy_set_elts_to(left_ptr, dest, dest_var);
   dest[left_ptr.size] = copy_obj_to(ptr->value, dest_var);
@@ -617,13 +617,13 @@ static OBJ copy_ne_set_to(OBJ set, void **dest_var) {
   else {
     assert(is_tree_set(set));
 
-    BIN_TREE_SET_OBJ *ptr = (BIN_TREE_SET_OBJ *) set.core_data.ptr;
+    TREE_SET_NODE *ptr = (TREE_SET_NODE *) set.core_data.ptr;
     copy_tree_set_elts_to(ptr, copy_ptr->buffer, dest_var);
     return repoint_to_array_set_copy(set, copy_ptr);
   }
 }
 
-static void copy_tree_map_args_to(BIN_TREE_MAP_OBJ *, OBJ *dest_keys, OBJ *dest_values, void **dest_var);
+static void copy_tree_map_args_to(TREE_MAP_NODE *, OBJ *dest_keys, OBJ *dest_values, void **dest_var);
 
 static void copy_map_args_to(FAT_MAP_PTR fat_ptr, OBJ *dest_keys, OBJ *dest_values, void **dest_var) {
   if (fat_ptr.size != 0) {
@@ -640,7 +640,7 @@ static void copy_map_args_to(FAT_MAP_PTR fat_ptr, OBJ *dest_keys, OBJ *dest_valu
   }
 }
 
-static void copy_tree_map_args_to(BIN_TREE_MAP_OBJ *ptr, OBJ *dest_keys, OBJ *dest_values, void **dest_var) {
+static void copy_tree_map_args_to(TREE_MAP_NODE *ptr, OBJ *dest_keys, OBJ *dest_values, void **dest_var) {
   FAT_MAP_PTR left_ptr = ptr->left;
   copy_map_args_to(left_ptr, dest_keys, dest_values, dest_var);
   dest_keys[left_ptr.size] = copy_obj_to(ptr->key, dest_var);
@@ -686,7 +686,7 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
   else {
     assert(is_tree_map(obj));
 
-    BIN_TREE_MAP_OBJ *ptr = (BIN_TREE_MAP_OBJ *) obj.core_data.ptr;
+    TREE_MAP_NODE *ptr = (TREE_MAP_NODE *) obj.core_data.ptr;
     copy_tree_map_args_to(ptr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);
     OBJ copy = repoint_to_array_map_copy(obj, copy_ptr);
 

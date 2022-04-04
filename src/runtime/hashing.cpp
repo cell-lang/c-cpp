@@ -112,7 +112,7 @@ static uint32 compute_ne_seq_hashcode(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint64 compute_tree_set_hashcode(BIN_TREE_SET_OBJ *, uint64 hashcode);
+static uint64 compute_tree_set_hashcode(TREE_SET_NODE *, uint64 hashcode);
 
 static uint64 compute_set_hashcode(FAT_SET_PTR fat_ptr, uint64 hashcode) {
   if (fat_ptr.size == 0)
@@ -124,7 +124,7 @@ static uint64 compute_set_hashcode(FAT_SET_PTR fat_ptr, uint64 hashcode) {
     return compute_tree_set_hashcode(fat_ptr.ptr.tree, hashcode);
 }
 
-static uint64 compute_tree_set_hashcode(BIN_TREE_SET_OBJ *ptr, uint64 hashcode) {
+static uint64 compute_tree_set_hashcode(TREE_SET_NODE *ptr, uint64 hashcode) {
   hashcode = compute_set_hashcode(ptr->left, hashcode);
   hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->value));
   return compute_set_hashcode(ptr->right, hashcode);
@@ -142,7 +142,7 @@ static uint32 compute_ne_set_hashcode(OBJ obj) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint64 compute_tree_map_keys_partial_hashcode(BIN_TREE_MAP_OBJ *, uint64 hashcode);
+static uint64 compute_tree_map_keys_partial_hashcode(TREE_MAP_NODE *, uint64 hashcode);
 
 static uint64 compute_map_keys_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 hashcode) {
   if (fat_ptr.size == 0)
@@ -157,13 +157,13 @@ static uint64 compute_map_keys_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 hash
   return hashcode;
 }
 
-static uint64 compute_tree_map_keys_partial_hashcode(BIN_TREE_MAP_OBJ *ptr, uint64 hashcode) {
+static uint64 compute_tree_map_keys_partial_hashcode(TREE_MAP_NODE *ptr, uint64 hashcode) {
   hashcode = compute_map_keys_partial_hashcode(ptr->left, hashcode);
   hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->key));
   return compute_map_keys_partial_hashcode(ptr->right, hashcode);
 }
 
-static uint64 compute_tree_map_values_partial_hashcode(BIN_TREE_MAP_OBJ *, uint64 hashcode);
+static uint64 compute_tree_map_values_partial_hashcode(TREE_MAP_NODE *, uint64 hashcode);
 
 static uint64 compute_map_values_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 hashcode) {
   if (fat_ptr.size == 0)
@@ -178,7 +178,7 @@ static uint64 compute_map_values_partial_hashcode(FAT_MAP_PTR fat_ptr, uint64 ha
   return hashcode;
 }
 
-static uint64 compute_tree_map_values_partial_hashcode(BIN_TREE_MAP_OBJ *ptr, uint64 hashcode) {
+static uint64 compute_tree_map_values_partial_hashcode(TREE_MAP_NODE *ptr, uint64 hashcode) {
   hashcode = compute_map_keys_partial_hashcode(ptr->left, hashcode);
   hashcode = 31 * hashcode + hashcode_64(compute_hashcode(ptr->key));
   return compute_map_keys_partial_hashcode(ptr->right, hashcode);
@@ -191,7 +191,7 @@ static uint32 compute_ne_map_hashcode(OBJ obj) {
   //## TODO: CHECK THAT THE HASHCODES OF ARRAY-BASED AND TREE-BASED MAPS MATCH
 
   assert(is_tree_map(obj));
-  BIN_TREE_MAP_OBJ *ptr = get_tree_map_ptr(obj);
+  TREE_MAP_NODE *ptr = get_tree_map_ptr(obj);
   uint64 hashcode = extra_data_hashcode(obj);
   hashcode = compute_tree_map_keys_partial_hashcode(ptr, hashcode);
   hashcode = compute_tree_map_values_partial_hashcode(ptr, hashcode);

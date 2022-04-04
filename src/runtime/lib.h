@@ -97,36 +97,36 @@ struct BOXED_OBJ {
   OBJ obj;
 };
 
-struct BIN_TREE_SET_OBJ;
+struct TREE_SET_NODE;
 
 struct FAT_SET_PTR {
   union {
     OBJ *array;
-    BIN_TREE_SET_OBJ *tree;
+    TREE_SET_NODE *tree;
   } ptr;
   uint32 size;
   bool is_array;
 };
 
-struct BIN_TREE_SET_OBJ {
+struct TREE_SET_NODE {
   OBJ value;
   FAT_SET_PTR left;
   FAT_SET_PTR right;
   uint32 priority;
 };
 
-struct BIN_TREE_MAP_OBJ;
+struct TREE_MAP_NODE;
 
 struct FAT_MAP_PTR {
   union {
     OBJ *array;
-    BIN_TREE_MAP_OBJ *tree;
+    TREE_MAP_NODE *tree;
   } ptr;
   uint32 size;
-  uint32 offset; // Zero if ptr points to a BIN_TREE_MAP_OBJ
+  uint32 offset; // Zero if ptr points to a TREE_MAP_NODE
 };
 
-struct BIN_TREE_MAP_OBJ {
+struct TREE_MAP_NODE {
   OBJ key;
   OBJ value;
   FAT_MAP_PTR left;
@@ -804,13 +804,13 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel, uint32 size);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, uint32 size, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount);
 
-SET_OBJ           *new_set(uint32 size);
-BIN_TREE_SET_OBJ  *new_bin_tree_set();
-BIN_REL_OBJ       *new_map(uint32 size); // Clears rev_idxs
-BIN_REL_OBJ       *new_bin_rel(uint32 size);
-BIN_TREE_MAP_OBJ  *new_bin_tree_map();
-TERN_REL_OBJ      *new_tern_rel(uint32 size);
-BOXED_OBJ         *new_boxed_obj();
+SET_OBJ       *new_set(uint32 size);
+TREE_SET_NODE *new_bin_tree_set();
+BIN_REL_OBJ   *new_map(uint32 size); // Clears rev_idxs
+BIN_REL_OBJ   *new_bin_rel(uint32 size);
+TREE_MAP_NODE *new_bin_tree_map();
+TERN_REL_OBJ  *new_tern_rel(uint32 size);
+BOXED_OBJ     *new_boxed_obj();
 
 // Set used and capacity fields
 SEQ_OBJ *new_obj_seq(uint32 length);
@@ -1314,7 +1314,7 @@ OBJ set_key_value(OBJ, OBJ, OBJ);
 OBJ drop_key(OBJ, OBJ);
 OBJ make_tag_int(uint16, int64);
 
-bool tree_map_lookup(BIN_TREE_MAP_OBJ *, OBJ key, OBJ *value);
+bool tree_map_lookup(TREE_MAP_NODE *, OBJ key, OBJ *value);
 
 uint8 as_byte(int64);
 int16 as_short(int64);
