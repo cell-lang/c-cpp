@@ -268,18 +268,21 @@ static uint32 tree_set_elts_mem_size(TREE_SET_NODE *ptr) {
   return obj_mem_size(ptr->value) + set_elts_mem_size(ptr->left) + set_elts_mem_size(ptr->right);
 }
 
-static uint32 ne_set_mem_size(OBJ set) {
-  uint32 size = read_size_field_unchecked(set);
+static uint32 ne_set_mem_size(OBJ obj) {
+  uint32 size = read_size_field_unchecked(obj);
 
-  if (is_array_set(set)) {
-    SET_OBJ *ptr = (SET_OBJ *) set.core_data.ptr;
+  if (is_array_set(obj)) {
+    SET_OBJ *ptr = (SET_OBJ *) obj.core_data.ptr;
     return round_up(set_obj_mem_size(size)) + objs_mem_size(ptr->buffer, size);
   }
-  else {
-    assert(is_tree_set(set));
-    TREE_SET_NODE *ptr = (TREE_SET_NODE *) set.core_data.ptr;
-    return round_up(set_obj_mem_size(size)) + tree_set_elts_mem_size(ptr);
-  }
+
+  assert(is_mixed_repr_set(obj));
+
+  MIXED_REPR_SET_OBJ *ptr = (MIXED_REPR_SET_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL)
+    return round_up(set_obj_mem_size(size)) + objs_mem_size(ptr->array_repr->buffer, size);
+  else
+    return round_up(set_obj_mem_size(size)) + tree_set_elts_mem_size(ptr->tree_repr);
 }
 
 static uint32 tree_map_args_mem_size(TREE_MAP_NODE *);
@@ -305,20 +308,24 @@ static uint32 tree_map_args_mem_size(TREE_MAP_NODE *ptr) {
 }
 
 static uint32 ne_map_mem_size(OBJ obj) {
+  uint32 size = read_size_field_unchecked(obj);
+
   if (is_opt_rec(obj)) {
     internal_fail();
   }
-  else if (is_array_map(obj)) {
+
+  if (is_array_map(obj)) {
     BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
-    uint32 size = read_size_field_unchecked(obj);
     return round_up(bin_rel_obj_mem_size(size)) + objs_mem_size(ptr->buffer, 2 * size);
   }
-  else {
-    assert(is_tree_map(obj));
-    TREE_MAP_NODE *ptr = (TREE_MAP_NODE *) obj.core_data.ptr;
-    uint32 size = read_size_field_unchecked(obj);
-    return round_up(bin_rel_obj_mem_size(size)) + tree_map_args_mem_size(ptr);
-  }
+
+  assert(is_mixed_repr_map(obj));
+
+  MIXED_REPR_MAP_OBJ *ptr = (MIXED_REPR_MAP_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL)
+    return round_up(bin_rel_obj_mem_size(size)) + objs_mem_size(ptr->array_repr->buffer, 2 * size);
+  else
+    return round_up(bin_rel_obj_mem_size(size)) + tree_map_args_mem_size(ptr->tree_repr);
 }
 
 static uint32 ne_bin_rel_mem_size(OBJ obj) {
@@ -603,23 +610,27 @@ static void copy_tree_set_elts_to(TREE_SET_NODE *ptr, OBJ *dest, void **dest_var
   copy_set_elts_to(ptr->right, dest + left_ptr.size + 1, dest_var);
 }
 
-static OBJ copy_ne_set_to(OBJ set, void **dest_var) {
-  uint32 size = read_size_field_unchecked(set);
+static OBJ copy_ne_set_to(OBJ obj, void **dest_var) {
+  uint32 size = read_size_field_unchecked(obj);
   uint32 mem_size = round_up(set_obj_mem_size(size));
   SET_OBJ *copy_ptr = (SET_OBJ *) grab_mem(dest_var, mem_size);
 
-  if (is_array_set(set)) {
-    SET_OBJ *ptr = (SET_OBJ *) set.core_data.ptr;
-
+  if (is_array_set(obj)) {
+    SET_OBJ *ptr = (SET_OBJ *) obj.core_data.ptr;
     copy_objs_to(ptr->buffer, size, copy_ptr->buffer, dest_var);
-    return repoint_to_copy(set, copy_ptr);
+    return repoint_to_copy(obj, copy_ptr);
+  }
+
+  assert(is_mixed_repr_set(obj));
+
+  MIXED_REPR_SET_OBJ *ptr = (MIXED_REPR_SET_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL) {
+    copy_objs_to(ptr->array_repr->buffer, size, copy_ptr->buffer, dest_var);
+    return repoint_to_array_set_copy(obj, copy_ptr);
   }
   else {
-    assert(is_tree_set(set));
-
-    TREE_SET_NODE *ptr = (TREE_SET_NODE *) set.core_data.ptr;
-    copy_tree_set_elts_to(ptr, copy_ptr->buffer, dest_var);
-    return repoint_to_array_set_copy(set, copy_ptr);
+    copy_tree_set_elts_to(ptr->tree_repr, copy_ptr->buffer, dest_var);
+    return repoint_to_array_set_copy(obj, copy_ptr);
   }
 }
 
@@ -683,22 +694,24 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
 
     return repoint_to_copy(obj, copy_ptr);
   }
-  else {
-    assert(is_tree_map(obj));
 
-    TREE_MAP_NODE *ptr = (TREE_MAP_NODE *) obj.core_data.ptr;
-    copy_tree_map_args_to(ptr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);
-    OBJ copy = repoint_to_array_map_copy(obj, copy_ptr);
+  assert(is_mixed_repr_map(obj));
 
-    uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
-    copy_r2l_index[0] = 0;
-    if (size > 1) {
-      copy_r2l_index[1] = 0;
-      build_map_right_to_left_sorted_idx_array(copy);
-    }
+  MIXED_REPR_MAP_OBJ *ptr = (MIXED_REPR_MAP_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL)
+    copy_objs_to(ptr->array_repr->buffer, 2 * size, copy_ptr->buffer, dest_var);
+  else
+    copy_tree_map_args_to(ptr->tree_repr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);
+  OBJ copy = repoint_to_array_map_copy(obj, copy_ptr);
 
-    return copy;
+  uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
+  copy_r2l_index[0] = 0;
+  if (size > 1) {
+    copy_r2l_index[1] = 0;
+    build_map_right_to_left_sorted_idx_array(copy);
   }
+
+  return copy;
 }
 
 static OBJ copy_ne_bin_rel_to(OBJ obj, void **dest_var) {

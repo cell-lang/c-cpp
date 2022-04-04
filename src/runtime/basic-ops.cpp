@@ -260,10 +260,22 @@ OBJ lookup(OBJ rel, OBJ key) {
   else if (is_empty_rel(rel)) {
     soft_fail("Map is empty. Lookup failed");
   }
-  else if (is_tree_map(rel)) {
-    OBJ value;
-    if (tree_map_lookup(get_tree_map_ptr(rel), key, &value))
-      return value;
+  else if (is_mixed_repr_map(rel)) {
+    MIXED_REPR_MAP_OBJ *ptr = get_mixed_repr_map_ptr(rel);
+    if (ptr->array_repr != NULL) {
+      uint32 size = read_size_field(rel);
+      bool found;
+      uint32 idx = find_obj(ptr->array_repr->buffer, size, key, found);
+      if (found) {
+        OBJ *values = ptr->array_repr->buffer + size;
+        return values[idx];
+      }
+    }
+    else {
+      OBJ value;
+      if (tree_map_lookup(ptr->tree_repr, key, &value))
+        return value;
+    }
   }
   else {
     assert(is_array_map(rel)); //## CAN'T IT JUST BE A BINARY RELATION?

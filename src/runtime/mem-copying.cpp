@@ -97,13 +97,15 @@ OBJ copy_ne_set(OBJ obj) {
     copy_objs(copy_ptr->buffer, ptr->buffer, size);
     return repoint_to_copy(obj, copy_ptr);
   }
-  else {
-    assert(is_tree_set(obj));
 
-    TREE_SET_NODE *ptr = (TREE_SET_NODE *) obj.core_data.ptr;
-    copy_tree_set_elts(ptr, copy_ptr->buffer);
-    return repoint_to_array_set_copy(obj, copy_ptr);
-  }
+  assert(is_mixed_repr_set(obj));
+
+  MIXED_REPR_SET_OBJ *ptr = (MIXED_REPR_SET_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL)
+    copy_objs(copy_ptr->buffer, ptr->array_repr->buffer, size);
+  else
+    copy_tree_set_elts(ptr->tree_repr, copy_ptr->buffer);
+  return repoint_to_array_set_copy(obj, copy_ptr);
 }
 
 static void copy_tree_map_args(TREE_MAP_NODE *, OBJ *, OBJ *);
@@ -143,11 +145,13 @@ OBJ copy_ne_map(OBJ obj) {
     // return repoint_to_copy(obj, copy_ptr);
     internal_fail();
   }
-  else if (is_array_map(obj)) {
-    BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
-    uint32 size = read_size_field_unchecked(obj);
 
-    BIN_REL_OBJ *copy_ptr = new_map(size);
+  uint32 size = read_size_field_unchecked(obj);
+  BIN_REL_OBJ *copy_ptr = new_map(size);
+
+  if (is_array_map(obj)) {
+    BIN_REL_OBJ *ptr = (BIN_REL_OBJ *) obj.core_data.ptr;
+
     copy_objs(copy_ptr->buffer, ptr->buffer, 2 * size);
     if (index_has_been_built(ptr, size)) {
       uint32 *r2l_index = get_right_to_left_indexes(copy_ptr, size);
@@ -156,13 +160,15 @@ OBJ copy_ne_map(OBJ obj) {
     }
     return repoint_to_copy(obj, copy_ptr);
   }
-  else {
-    assert(is_tree_map(obj));
-    uint32 size = read_size_field_unchecked(obj);
-    BIN_REL_OBJ *copy_ptr = new_map(size);
-    copy_tree_map_args(get_tree_map_ptr(obj), copy_ptr->buffer, copy_ptr->buffer + size);
-    return repoint_to_array_map_copy(obj, copy_ptr);
-  }
+
+  assert(is_mixed_repr_map(obj));
+
+  MIXED_REPR_MAP_OBJ *ptr = (MIXED_REPR_MAP_OBJ *) obj.core_data.ptr;
+  if (ptr->array_repr != NULL)
+    copy_objs(copy_ptr->buffer, ptr->array_repr->buffer, 2 * size);
+  else
+    copy_tree_map_args(ptr->tree_repr, copy_ptr->buffer, copy_ptr->buffer + size);
+  return repoint_to_array_map_copy(obj, copy_ptr);
 }
 
 OBJ copy_ne_bin_rel(OBJ obj) {

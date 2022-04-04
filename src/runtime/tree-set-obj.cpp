@@ -71,7 +71,7 @@ static FAT_SET_PTR array_set_insert(OBJ *elts, uint32 size, OBJ elt) {
     return make_array_set_ptr(new_elts, size + 1);
   }
   else {
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = elt;
     new_ptr->left = index > 0 ? make_array_set_ptr(elts, index) : make_empty_set_ptr();
     new_ptr->right = index < size ? make_array_set_ptr(elts + index, size - index) : make_empty_set_ptr();
@@ -113,7 +113,7 @@ static FAT_SET_PTR bin_tree_set_insert(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
         FAT_SET_PTR right_ptr = ptr->right;
         FAT_SET_PTR updated_left_ptr_right_ptr = updated_left_ptr.ptr.tree->right;
 
-        TREE_SET_NODE *new_ptr = new_bin_tree_set();
+        TREE_SET_NODE *new_ptr = new_tree_set_node();
         new_ptr->value = ptr->value;
         new_ptr->left = updated_left_ptr_right_ptr;
         new_ptr->right = right_ptr;
@@ -126,7 +126,7 @@ static FAT_SET_PTR bin_tree_set_insert(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     }
 
     // Either the updated left subset is an array, or its priority is lower than the root's, so no need for rotations
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = value;
     new_ptr->left = updated_left_ptr;
     new_ptr->right = ptr->right;
@@ -158,7 +158,7 @@ static FAT_SET_PTR bin_tree_set_insert(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
         FAT_SET_PTR left_ptr = ptr->left;
         FAT_SET_PTR updated_right_ptr_left_ptr = updated_right_ptr.ptr.tree->left;
 
-        TREE_SET_NODE *new_ptr = new_bin_tree_set();
+        TREE_SET_NODE *new_ptr = new_tree_set_node();
         new_ptr->value = ptr->value;
         new_ptr->left = left_ptr;
         new_ptr->right = updated_right_ptr_left_ptr;
@@ -171,7 +171,7 @@ static FAT_SET_PTR bin_tree_set_insert(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     }
 
     // Either the right subset is an array, or its priority if lower than the root's, so no need to perform a rotation
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = value;
     new_ptr->left = ptr->left;
     new_ptr->right = updated_right_ptr;
@@ -199,14 +199,20 @@ OBJ set_insert(OBJ set, OBJ elt) {
     updated_ptr = array_set_insert(elts, size, elt);
   }
   else {
-    assert(is_tree_set(set));
-    updated_ptr = bin_tree_set_insert(get_tree_set_ptr(set), size, elt);
+    MIXED_REPR_SET_OBJ *ptr = get_mixed_repr_set_ptr(set);
+    if (ptr->array_repr != NULL)
+      updated_ptr = array_set_insert(ptr->array_repr->buffer, size, elt);
+    else
+      updated_ptr = bin_tree_set_insert(ptr->tree_repr, size, elt);
   }
 
   if (updated_ptr.is_array)
     return make_set((SET_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
-  else
-    return make_tree_set(updated_ptr.ptr.tree, updated_ptr.size);
+
+  MIXED_REPR_SET_OBJ *new_ptr = new_mixed_repr_set();
+  new_ptr->array_repr = NULL;
+  new_ptr->tree_repr = updated_ptr.ptr.tree;
+  return make_mixed_repr_set(new_ptr, updated_ptr.size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,7 +239,7 @@ static FAT_SET_PTR remove_min_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
 
     if (size > MIN_TREE_SIZE) {
       FAT_SET_PTR updated_left_ptr = remove_min_value(left_ptr, value_ptr);
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = ptr->value;
       new_ptr->left = updated_left_ptr;
       new_ptr->right = ptr->right;
@@ -281,7 +287,7 @@ static FAT_SET_PTR remove_max_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
 
     if (size > MIN_TREE_SIZE) {
       FAT_SET_PTR updated_right_ptr = remove_max_value(right_ptr, value_ptr);
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = ptr->value;
       new_ptr->left = ptr->left;
       new_ptr->right = updated_right_ptr;
@@ -339,7 +345,7 @@ static FAT_SET_PTR array_set_remove(OBJ *elts, uint32 size, OBJ elt) {
     return make_array_set_ptr(new_ptr->buffer, size - 1);
   }
   else {
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->priority = rand();
 
     if (index == 1) {
@@ -395,7 +401,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     }
 
     if (left_ptr.size == 1) {
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = left_ptr.ptr.array[0];
       new_ptr->left = make_empty_set_ptr();
       new_ptr->right = right_ptr;
@@ -404,7 +410,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     }
 
     if (right_ptr.size == 1) {
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = right_ptr.ptr.array[0];
       new_ptr->left = left_ptr;
       new_ptr->right = make_empty_set_ptr();
@@ -415,7 +421,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     if (left_ptr.size > right_ptr.size) {
       OBJ max_value;
       FAT_SET_PTR updated_left_ptr = remove_max_value(left_ptr, &max_value);
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = max_value;
       new_ptr->left = updated_left_ptr;
       new_ptr->right = right_ptr;
@@ -425,7 +431,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     else {
       OBJ max_value;
       FAT_SET_PTR updated_right_ptr = remove_min_value(right_ptr, &max_value);
-      TREE_SET_NODE *new_ptr = new_bin_tree_set();
+      TREE_SET_NODE *new_ptr = new_tree_set_node();
       new_ptr->value = max_value;
       new_ptr->left = left_ptr;
       new_ptr->right = updated_right_ptr;
@@ -461,7 +467,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
         FAT_SET_PTR right_ptr = ptr->right;
         FAT_SET_PTR updated_left_ptr_right_ptr = updated_left_ptr.ptr.tree->right;
 
-        TREE_SET_NODE *new_ptr = new_bin_tree_set();
+        TREE_SET_NODE *new_ptr = new_tree_set_node();
         new_ptr->value = ptr->value;
         new_ptr->left = updated_left_ptr_right_ptr;
         new_ptr->right = right_ptr;
@@ -480,7 +486,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
       return make_array_set_ptr(new_ptr->buffer, size - 1);
     }
 
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = value;
     new_ptr->left = updated_left_ptr;
     new_ptr->right = ptr->right;
@@ -514,7 +520,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
         FAT_SET_PTR left_ptr = ptr->left;
         FAT_SET_PTR updated_right_ptr_left_ptr = updated_right_ptr.ptr.tree->left;
 
-        TREE_SET_NODE *new_ptr = new_bin_tree_set();
+        TREE_SET_NODE *new_ptr = new_tree_set_node();
         new_ptr->value = ptr->value;
         new_ptr->left = left_ptr;
         new_ptr->right = updated_right_ptr_left_ptr;
@@ -535,7 +541,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
       return make_array_set_ptr(new_ptr->buffer, size - 1);
     }
 
-    TREE_SET_NODE *new_ptr = new_bin_tree_set();
+    TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = value;
     new_ptr->left = left_ptr;
     new_ptr->right = updated_right_ptr;
@@ -559,13 +565,18 @@ OBJ set_remove(OBJ set, OBJ elt) {
     updated_ptr = array_set_remove(elts, size, elt);
   }
   else {
-    assert(is_tree_set(set));
-    TREE_SET_NODE *ptr = get_tree_set_ptr(set);
-    updated_ptr = bin_tree_set_remove(ptr, size, elt);
+    MIXED_REPR_SET_OBJ *ptr = get_mixed_repr_set_ptr(set);
+    if (ptr->array_repr != NULL)
+      updated_ptr = array_set_remove(ptr->array_repr->buffer, size, elt);
+    else
+      updated_ptr = bin_tree_set_remove(ptr->tree_repr, size, elt);
   }
 
   if (updated_ptr.is_array)
     return make_set((SET_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
-  else
-    return make_tree_set(updated_ptr.ptr.tree, updated_ptr.size);
+
+  MIXED_REPR_SET_OBJ *new_ptr = new_mixed_repr_set();
+  new_ptr->array_repr = NULL;
+  new_ptr->tree_repr = updated_ptr.ptr.tree;
+  return make_mixed_repr_set(new_ptr, updated_ptr.size);
 }

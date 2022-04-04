@@ -82,7 +82,7 @@ static FAT_MAP_PTR array_map_set_key_value(OBJ *keys, uint32 size, OBJ key, OBJ 
       return make_array_map_ptr(new_ptr->buffer, size, size);
     }
     else {
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = key;
       new_ptr->value = value;
       new_ptr->left = make_array_map_ptr(keys, index, size);
@@ -115,7 +115,7 @@ static FAT_MAP_PTR array_map_set_key_value(OBJ *keys, uint32 size, OBJ key, OBJ 
     else {
       assert(size + 1 == MIN_TREE_SIZE);
 
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = key;
       new_ptr->value = value;
       new_ptr->left = make_array_map_ptr(keys, index, size);
@@ -135,7 +135,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     if (are_eq(ptr->value, value))
       return make_tree_map_ptr(ptr, size);
 
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->key = ptr->key;
     new_ptr->value = ptr->value;
     new_ptr->left = ptr->left;
@@ -178,7 +178,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       if (updated_left_ptr.ptr.tree->priority > ptr->priority) {
         // The updated left subtree has a higher priority, we need to perform a rotation
 
-        TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+        TREE_MAP_NODE *new_ptr = new_tree_map_node();
         new_ptr->key = ptr->key;
         new_ptr->value = ptr->value;
         new_ptr->left = updated_left_ptr.ptr.tree->right;
@@ -194,7 +194,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       }
     }
 
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->key = node_key;
     new_ptr->value = ptr->value;
     new_ptr->left = updated_left_ptr;
@@ -239,7 +239,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       if (updated_right_ptr.ptr.tree->priority > ptr->priority) {
         // The updated right subtree has a higher priority, we need to perform a rotation
 
-        TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+        TREE_MAP_NODE *new_ptr = new_tree_map_node();
         new_ptr->key = ptr->key;
         new_ptr->value = ptr->value;
         new_ptr->left = ptr->right;
@@ -255,7 +255,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       }
     }
 
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->key = node_key;
     new_ptr->value = ptr->value;
     new_ptr->left = ptr->left;
@@ -286,16 +286,22 @@ OBJ set_key_value(OBJ map, OBJ key, OBJ value) {
     updated_ptr = array_map_set_key_value(array, size, key, value);
   }
   else {
-    TREE_MAP_NODE *node_ptr = get_tree_map_ptr(map);
-    updated_ptr = bin_tree_map_set_key_value(node_ptr, size, key, value);
+    MIXED_REPR_MAP_OBJ *ptr = get_mixed_repr_map_ptr(map);
+    if (ptr->array_repr != NULL)
+      updated_ptr = array_map_set_key_value(ptr->array_repr->buffer, size, key, value);
+    else
+      updated_ptr = bin_tree_map_set_key_value(ptr->tree_repr, size, key, value);
   }
 
   assert(updated_ptr.offset == 0 || updated_ptr.offset == updated_ptr.size);
 
   if (updated_ptr.offset == 0)
-    return make_tree_map(updated_ptr.ptr.tree, updated_ptr.size);
-  else
     return make_map((BIN_REL_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
+
+  MIXED_REPR_MAP_OBJ *new_ptr = new_mixed_repr_map();
+  new_ptr->array_repr = NULL;
+  new_ptr->tree_repr = updated_ptr.ptr.tree;
+  return make_mixed_repr_map(new_ptr, updated_ptr.size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -332,7 +338,7 @@ static FAT_MAP_PTR remove_min_key(FAT_MAP_PTR fat_ptr, OBJ *rem_entry_ptr) {
 
     if (new_size >= MIN_TREE_SIZE) {
       FAT_MAP_PTR updated_left_ptr = remove_min_key(left_ptr, rem_entry_ptr);
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = ptr->key;
       new_ptr->value = ptr->value;
       new_ptr->left = updated_left_ptr;
@@ -406,7 +412,7 @@ static FAT_MAP_PTR remove_max_key(FAT_MAP_PTR fat_ptr, OBJ *rem_entry_ptr) {
 
     if (new_size >= MIN_TREE_SIZE) {
       FAT_MAP_PTR updated_right_ptr = remove_min_key(right_ptr, rem_entry_ptr);
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = ptr->key;
       new_ptr->value = ptr->value;
       new_ptr->left = ptr->left;
@@ -482,7 +488,7 @@ static FAT_MAP_PTR array_map_drop_key(OBJ *keys, uint32 size, OBJ key) {
     return make_array_map_ptr(new_ptr->buffer, size - 1, size);
   }
   else {
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->priority = rand();
 
     if (index == 0) {
@@ -558,7 +564,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
       assert(ptr->left.offset != 0);
       OBJ *key_ptr = ptr->left.ptr.array;
       OBJ *value_ptr = key_ptr + ptr->left.offset;
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = *key_ptr;
       new_ptr->value = *value_ptr;
       new_ptr->left = make_empty_map_ptr();
@@ -571,7 +577,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
       assert(ptr->left.offset != 0);
       OBJ *key_ptr = ptr->right.ptr.array;
       OBJ *value_ptr = key_ptr + ptr->right.offset;
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = *key_ptr;
       new_ptr->value = *value_ptr;
       new_ptr->left = ptr->left;
@@ -583,7 +589,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
     if (left_size > right_size) {
       OBJ rem_entry[2];
       FAT_MAP_PTR updated_left_ptr = remove_max_key(ptr->left, rem_entry);
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = rem_entry[0];
       new_ptr->value = rem_entry[1];
       new_ptr->left = updated_left_ptr;
@@ -594,7 +600,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
     else {
       OBJ rem_entry[2];
       FAT_MAP_PTR updated_right_ptr = remove_min_key(ptr->right, rem_entry);
-      TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+      TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = rem_entry[0];
       new_ptr->value = rem_entry[1];
       new_ptr->left = ptr->left;
@@ -631,7 +637,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
       return make_array_map_ptr(new_ptr->buffer, new_size, new_size);
     }
 
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->key = ptr->key; //## USE node_key INSTEAD, HERE AND IN THE CODE ABOVE
     new_ptr->value = ptr->value;
     new_ptr->left = updated_left_ptr;
@@ -665,7 +671,7 @@ static FAT_MAP_PTR bin_tree_map_drop_key(TREE_MAP_NODE *ptr, uint32 size, OBJ ke
       return make_array_map_ptr(new_ptr->buffer, new_size, new_size);
     }
 
-    TREE_MAP_NODE *new_ptr = new_bin_tree_map();
+    TREE_MAP_NODE *new_ptr = new_tree_map_node();
     new_ptr->key = ptr->key; //## USE node_key INSTEAD, HERE AND ELSEWHERE
     new_ptr->value = ptr->value;
     new_ptr->left = ptr->left;
@@ -690,16 +696,22 @@ OBJ drop_key(OBJ map, OBJ key) {
     updated_ptr = array_map_drop_key(array, size, key);
   }
   else {
-    TREE_MAP_NODE *node_ptr = get_tree_map_ptr(map);
-    updated_ptr = bin_tree_map_drop_key(node_ptr, size, key);
+    MIXED_REPR_MAP_OBJ *ptr = get_mixed_repr_map_ptr(map);
+    if (ptr->array_repr != NULL)
+      updated_ptr = array_map_drop_key(ptr->array_repr->buffer, size, key);
+    else
+      updated_ptr = bin_tree_map_drop_key(ptr->tree_repr, size, key);
   }
 
   assert(updated_ptr.offset == 0 || updated_ptr.offset == updated_ptr.size);
 
   if (updated_ptr.offset == 0)
-    return make_tree_map(updated_ptr.ptr.tree, updated_ptr.size);
-  else
     return make_map((BIN_REL_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
+
+  MIXED_REPR_MAP_OBJ *new_ptr = new_mixed_repr_map();
+  new_ptr->array_repr = NULL;
+  new_ptr->tree_repr = updated_ptr.ptr.tree;
+  return make_mixed_repr_map(new_ptr, updated_ptr.size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

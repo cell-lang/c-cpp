@@ -187,7 +187,7 @@ inline bool is_array_set(OBJ set) {
   return get_set_type(set) == ARRAY_SET_TAG;
 }
 
-inline bool is_tree_set(OBJ set) {
+inline bool is_mixed_repr_set(OBJ set) {
   return get_set_type(set) == BIN_TREE_SET_TAG;
 }
 
@@ -200,7 +200,7 @@ inline bool is_array_map(OBJ obj) {
   return get_map_type(obj) == ARRAY_MAP_TAG;
 }
 
-inline bool is_tree_map(OBJ obj) {
+inline bool is_mixed_repr_map(OBJ obj) {
   return get_map_type(obj) == BIN_TREE_MAP_TAG;
 }
 
@@ -454,7 +454,7 @@ inline OBJ make_set(SET_OBJ *ptr, uint32 size) {
   return obj;
 }
 
-inline OBJ make_tree_set(TREE_SET_NODE *ptr, uint32 size) {
+inline OBJ make_mixed_repr_set(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
   assert(ptr != NULL & size > 8);
 
   OBJ obj;
@@ -474,13 +474,13 @@ inline OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
   return obj;
 }
 
-inline OBJ make_tree_map(TREE_MAP_NODE *ptr, uint32 size) {
+inline OBJ make_mixed_repr_map(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
   assert(ptr != NULL);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
   obj.extra_data = MAKE_LENGTH(size) | NE_MAP_BASE_MASK | BIN_TREE_MAP_MASK;
-  assert(is_tree_map(obj));
+  assert(is_mixed_repr_map(obj));
   return obj;
 }
 
@@ -686,9 +686,9 @@ inline OBJ *get_set_elts_ptr(OBJ set) {
   return (OBJ *) set.core_data.ptr;
 }
 
-inline TREE_SET_NODE *get_tree_set_ptr(OBJ set) {
-  assert(is_ne_set(set) && is_tree_set(set));
-  return (TREE_SET_NODE *) set.core_data.ptr;
+inline MIXED_REPR_SET_OBJ *get_mixed_repr_set_ptr(OBJ set) {
+  assert(is_ne_set(set) && is_mixed_repr_set(set));
+  return (MIXED_REPR_SET_OBJ *) set.core_data.ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -709,9 +709,9 @@ inline BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
   return (BIN_REL_OBJ *) obj.core_data.ptr;
 }
 
-inline TREE_MAP_NODE *get_tree_map_ptr(OBJ map) {
-  assert(is_ne_map(map) && is_tree_map(map));
-  return (TREE_MAP_NODE *) map.core_data.ptr;
+inline MIXED_REPR_MAP_OBJ *get_mixed_repr_map_ptr(OBJ map) {
+  assert(is_ne_map(map) && is_mixed_repr_map(map));
+  return (MIXED_REPR_MAP_OBJ *) map.core_data.ptr;
 }
 
 inline TERN_REL_OBJ *get_tern_rel_ptr(OBJ obj) {

@@ -115,6 +115,11 @@ struct TREE_SET_NODE {
   uint32 priority;
 };
 
+struct MIXED_REPR_SET_OBJ {
+  SET_OBJ *array_repr;
+  TREE_SET_NODE *tree_repr;
+};
+
 struct TREE_MAP_NODE;
 
 struct FAT_MAP_PTR {
@@ -132,6 +137,11 @@ struct TREE_MAP_NODE {
   FAT_MAP_PTR left;
   FAT_MAP_PTR right;
   uint32 priority;
+};
+
+struct MIXED_REPR_MAP_OBJ {
+  BIN_REL_OBJ *array_repr;
+  TREE_MAP_NODE *tree_repr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -804,13 +814,16 @@ uint32 *get_right_to_left_indexes(BIN_REL_OBJ *rel, uint32 size);
 OBJ *get_col_array_ptr(TERN_REL_OBJ *rel, uint32 size, int idx);
 uint32 *get_rotated_index(TERN_REL_OBJ *rel, uint32 size, int amount);
 
-SET_OBJ       *new_set(uint32 size);
-TREE_SET_NODE *new_bin_tree_set();
-BIN_REL_OBJ   *new_map(uint32 size); // Clears rev_idxs
-BIN_REL_OBJ   *new_bin_rel(uint32 size);
-TREE_MAP_NODE *new_bin_tree_map();
-TERN_REL_OBJ  *new_tern_rel(uint32 size);
-BOXED_OBJ     *new_boxed_obj();
+SET_OBJ             *new_set(uint32 size);
+TREE_SET_NODE       *new_tree_set_node();
+MIXED_REPR_SET_OBJ  *new_mixed_repr_set();
+BIN_REL_OBJ         *new_map(uint32 size); // Clears rev_idxs
+TREE_MAP_NODE       *new_tree_map_node();
+MIXED_REPR_MAP_OBJ  *new_mixed_repr_map();
+BIN_REL_OBJ         *new_bin_rel(uint32 size);
+TREE_MAP_NODE       *new_bin_tree_map();
+TERN_REL_OBJ        *new_tern_rel(uint32 size);
+BOXED_OBJ           *new_boxed_obj();
 
 // Set used and capacity fields
 SEQ_OBJ *new_obj_seq(uint32 length);
@@ -925,8 +938,6 @@ OBJ make_slice_int64(int64 *ptr, uint32 length);
 
 bool is_inline_obj(OBJ);
 
-bool is_array_map(OBJ);
-bool is_tree_map(OBJ);
 bool is_opt_rec(OBJ);
 
 bool is_opt_rec_or_tag_rec(OBJ);

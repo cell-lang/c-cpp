@@ -39,12 +39,20 @@ uint64 set_obj_mem_size(uint64 size) {
   return sizeof(SET_OBJ) + (size - 1) * sizeof(OBJ);
 }
 
-uint64 bin_tree_set_obj_mem_size() {
+uint64 tree_set_node_mem_size() {
   return sizeof(TREE_SET_NODE);
 }
 
-uint64 bin_tree_map_obj_mem_size() {
+uint64 mixed_repr_set_mem_size() {
+  return sizeof(MIXED_REPR_SET_OBJ);
+}
+
+uint64 tree_map_node_mem_size() {
   return sizeof(TREE_MAP_NODE);
+}
+
+uint64 mixed_repr_map_mem_size() {
+  return sizeof(MIXED_REPR_MAP_OBJ);
 }
 
 uint64 bin_rel_obj_mem_size(uint64 size) {
@@ -221,8 +229,12 @@ SET_OBJ *new_set(uint32 size) {
   return (SET_OBJ *) new_obj(set_obj_mem_size(size));
 }
 
-TREE_SET_NODE *new_bin_tree_set() {
-  return (TREE_SET_NODE *) new_obj(bin_tree_set_obj_mem_size());
+TREE_SET_NODE *new_tree_set_node() {
+  return (TREE_SET_NODE *) new_obj(tree_set_node_mem_size());
+}
+
+MIXED_REPR_SET_OBJ *new_mixed_repr_set() {
+  return (MIXED_REPR_SET_OBJ *) new_obj(mixed_repr_set_mem_size());
 }
 
 BIN_REL_OBJ *new_map(uint32 size) {
@@ -240,8 +252,12 @@ BIN_REL_OBJ *new_map(uint32 size) {
   return map;
 }
 
-TREE_MAP_NODE *new_bin_tree_map() {
-  return (TREE_MAP_NODE *) new_obj(bin_tree_map_obj_mem_size());
+TREE_MAP_NODE *new_tree_map_node() {
+  return (TREE_MAP_NODE *) new_obj(tree_map_node_mem_size());
+}
+
+MIXED_REPR_MAP_OBJ *new_mixed_repr_map() {
+  return (MIXED_REPR_MAP_OBJ *) new_obj(mixed_repr_map_mem_size());
 }
 
 BIN_REL_OBJ *new_bin_rel(uint32 size) {
