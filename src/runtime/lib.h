@@ -1327,6 +1327,9 @@ OBJ make_tag_int(uint16, int64);
 
 bool tree_map_lookup(TREE_MAP_NODE *, OBJ key, OBJ *value);
 
+void rearrange_set_as_array(MIXED_REPR_SET_OBJ *, uint32 size);
+void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *, uint32 size);
+
 uint8 as_byte(int64);
 int16 as_short(int64);
 int32 as_int(int64);

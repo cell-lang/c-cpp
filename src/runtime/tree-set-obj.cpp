@@ -580,3 +580,16 @@ OBJ set_remove(OBJ set, OBJ elt) {
   new_ptr->tree_repr = updated_ptr.ptr.tree;
   return make_mixed_repr_set(new_ptr, updated_ptr.size);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void rearrange_set_as_array(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
+  assert(ptr->array_repr == NULL);
+
+  SET_OBJ *new_ptr = new_set(size);
+  FAT_SET_PTR fat_ptr = make_tree_set_ptr(ptr->tree_repr, size);
+  set_copy(fat_ptr, new_ptr->buffer);
+  ptr->array_repr = new_ptr;
+  //## WOULD CLEARING THE TREE REPRESENTATION MAKE ANY SENSE? THE MEMORY WOULD NOT BE RELEASED ANYWAY...
+}

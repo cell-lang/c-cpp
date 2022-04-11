@@ -754,3 +754,16 @@ bool tree_map_lookup(TREE_MAP_NODE *ptr, OBJ key, OBJ *value) {
   else // key > ptr->key
     return map_lookup(ptr->right, key, value);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
+  assert(ptr->array_repr == NULL);
+
+  BIN_REL_OBJ *new_ptr = new_map(size);
+  FAT_MAP_PTR fat_ptr = make_tree_map_ptr(ptr->tree_repr, size);
+  map_copy(fat_ptr, new_ptr->buffer, size);
+  ptr->array_repr = new_ptr;
+  //## WOULD CLEARING THE TREE REPRESENTATION MAKE ANY SENSE? THE MEMORY WOULD NOT BE RELEASED ANYWAY...
+}
