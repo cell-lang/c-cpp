@@ -57,7 +57,8 @@ __attribute__ ((noinline)) int intrl_cmp_ne_sets(OBJ obj1, OBJ obj2) {
   }
   else {
     MIXED_REPR_SET_OBJ *ptr = (MIXED_REPR_SET_OBJ *) obj1.core_data.ptr;
-    rearrange_set_as_array(ptr, size);
+    if (ptr->array_repr == NULL)
+      rearrange_set_as_array(ptr, size);
     elts1 = ptr->array_repr->buffer;
   }
 
@@ -66,7 +67,8 @@ __attribute__ ((noinline)) int intrl_cmp_ne_sets(OBJ obj1, OBJ obj2) {
   }
   else {
     MIXED_REPR_SET_OBJ *ptr = (MIXED_REPR_SET_OBJ *) obj2.core_data.ptr;
-    rearrange_set_as_array(ptr, size);
+    if (ptr->array_repr == NULL)
+      rearrange_set_as_array(ptr, size);
     OBJ *elts2 = ptr->array_repr->buffer;
   }
 
@@ -143,7 +145,8 @@ __attribute__ ((noinline)) int intrl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
   }
   else {
     MIXED_REPR_MAP_OBJ *ptr = (MIXED_REPR_MAP_OBJ *) obj1.core_data.ptr;
-    rearrange_map_as_array(ptr, size);
+    if (ptr->array_repr == NULL)
+      rearrange_map_as_array(ptr, size);
     args1 = ptr->array_repr->buffer;
   }
 
@@ -152,7 +155,8 @@ __attribute__ ((noinline)) int intrl_cmp_ne_maps(OBJ obj1, OBJ obj2) {
   }
   else {
     MIXED_REPR_MAP_OBJ *ptr = (MIXED_REPR_MAP_OBJ *) obj2.core_data.ptr;
-    rearrange_map_as_array(ptr, size);
+    if (ptr->array_repr == NULL)
+      rearrange_map_as_array(ptr, size);
     OBJ *args2 = ptr->array_repr->buffer;
   }
 

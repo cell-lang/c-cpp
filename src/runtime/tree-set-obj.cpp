@@ -591,5 +591,6 @@ void rearrange_set_as_array(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
   FAT_SET_PTR fat_ptr = make_tree_set_ptr(ptr->tree_repr, size);
   set_copy(fat_ptr, new_ptr->buffer);
   ptr->array_repr = new_ptr;
-  //## WOULD CLEARING THE TREE REPRESENTATION MAKE ANY SENSE? THE MEMORY WOULD NOT BE RELEASED ANYWAY...
+  //## THE TREE REPRESENTATION IS CLEARED FOR DEBUGGING ONLY. THE MEMORY IS NOT RELEASED ANYWAY...
+  ptr->tree_repr = NULL;
 }

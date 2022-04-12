@@ -765,5 +765,6 @@ void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
   FAT_MAP_PTR fat_ptr = make_tree_map_ptr(ptr->tree_repr, size);
   map_copy(fat_ptr, new_ptr->buffer, size);
   ptr->array_repr = new_ptr;
-  //## WOULD CLEARING THE TREE REPRESENTATION MAKE ANY SENSE? THE MEMORY WOULD NOT BE RELEASED ANYWAY...
+  //## THE TREE REPRESENTATION IS CLEARED FOR DEBUGGING ONLY. THE MEMORY IS NOT RELEASED ANYWAY...
+  ptr->tree_repr = NULL;
 }

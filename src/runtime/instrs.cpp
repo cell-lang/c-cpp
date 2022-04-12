@@ -274,15 +274,25 @@ OBJ parse_value(OBJ str_obj) {
 }
 
 void get_set_iter(SET_ITER &it, OBJ set) {
+  uint32 size = read_size_field(set);
   it.idx = 0;
-  if (!is_empty_rel(set)) {
-    it.buffer = get_set_elts_ptr(set);
-    it.size = read_size_field(set);
+  it.size = size;
+
+  if (size != 0) {
+    if (is_array_set(set)) {
+      it.buffer = get_set_elts_ptr(set);
+    }
+    else {
+      MIXED_REPR_SET_OBJ *ptr = get_mixed_repr_set_ptr(set);
+      if (ptr->array_repr == NULL)
+        rearrange_set_as_array(ptr, size);
+      it.buffer = ptr->array_repr->buffer;
+    }
   }
-  else {
-    it.buffer = 0;  //## NOT STRICTLY NECESSARY
-    it.size = 0;
-  }
+#ifndef NDEBUG
+  else
+    it.buffer = 0;
+#endif
 }
 
 void move_forward(SET_ITER &it) {
