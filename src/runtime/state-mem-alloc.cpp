@@ -686,9 +686,8 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
       copy_r2l_index[0] = 0;
       if (size > 1) {
         copy_r2l_index[1] = 0;
-        OBJ copy = repoint_to_copy(obj, copy_ptr);
-        build_map_right_to_left_sorted_idx_array(copy);
-        return copy;
+        build_map_right_to_left_sorted_idx_array(copy_ptr, size);
+        return repoint_to_copy(obj, copy_ptr);
       }
     }
 
@@ -702,16 +701,15 @@ static OBJ copy_ne_map_to(OBJ obj, void **dest_var) {
     copy_objs_to(ptr->array_repr->buffer, 2 * size, copy_ptr->buffer, dest_var);
   else
     copy_tree_map_args_to(ptr->tree_repr, copy_ptr->buffer, copy_ptr->buffer + size, dest_var);
-  OBJ copy = repoint_to_array_map_copy(obj, copy_ptr);
 
   uint32 *copy_r2l_index = get_right_to_left_indexes(copy_ptr, size);
   copy_r2l_index[0] = 0;
   if (size > 1) {
     copy_r2l_index[1] = 0;
-    build_map_right_to_left_sorted_idx_array(copy);
+    build_map_right_to_left_sorted_idx_array(copy_ptr, size);
   }
 
-  return copy;
+  return repoint_to_array_map_copy(obj, copy_ptr);
 }
 
 static OBJ copy_ne_bin_rel_to(OBJ obj, void **dest_var) {

@@ -38,7 +38,7 @@ bool is_record(OBJ obj) {
   if (is_opt_rec(obj))
     return true;
 
-  BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
+  BIN_REL_OBJ *map = rearrange_if_needed_and_get_bin_rel_ptr(obj);
   uint32 size = read_size_field(obj);
   OBJ *keys = get_left_col_array_ptr(map);
 
@@ -133,7 +133,7 @@ void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *d
   emit(data, "[", TEXT);
   if (!is_empty_rel(obj)) {
     uint32 size = read_size_field(obj);
-    OBJ *elems = get_set_elts_ptr(obj);
+    OBJ *elems = rearrange_if_needed_and_get_set_elts_ptr(obj);
     for (uint32 i=0 ; i < size ; i++) {
       if (i > 0)
         emit(data, ", ", TEXT);
@@ -146,7 +146,7 @@ void print_set(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *d
 void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   emit(data, "[", TEXT);
 
-  BIN_REL_OBJ *rel = get_bin_rel_ptr(obj);
+  BIN_REL_OBJ *rel = rearrange_if_needed_and_get_bin_rel_ptr(obj);
   uint32 size = read_size_field(obj);
   OBJ *left_col = get_left_col_array_ptr(rel);
   OBJ *right_col = get_right_col_array_ptr(rel, size);
@@ -168,8 +168,9 @@ void print_ne_bin_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), 
 }
 
 void print_ne_map(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
-  BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
   uint32 size = read_size_field(obj);
+  BIN_REL_OBJ *map = rearrange_if_needed_and_get_bin_rel_ptr(obj);
+
   OBJ *keys = get_left_col_array_ptr(map);
   OBJ *values = get_right_col_array_ptr(map, size);
 
@@ -217,7 +218,7 @@ void print_record(OBJ obj, bool print_parentheses, void (*emit)(void *, const vo
     }
   }
   else {
-    BIN_REL_OBJ *map = get_bin_rel_ptr(obj);
+    BIN_REL_OBJ *map = rearrange_if_needed_and_get_bin_rel_ptr(obj);
     uint32 size = read_size_field(obj);
     OBJ *keys = get_left_col_array_ptr(map);
     OBJ *values = get_right_col_array_ptr(map, size);

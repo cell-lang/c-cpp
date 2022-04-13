@@ -205,7 +205,7 @@ OBJ internal_sort(OBJ set) {
     return make_empty_seq();
 
   uint32 size = read_size_field(set);
-  OBJ *src = get_set_elts_ptr(set);
+  OBJ *src = rearrange_if_needed_and_get_set_elts_ptr(set);
 
   if (is_int(src[0]) & is_int(src[size-1])) {
     int64 min = 0;
@@ -278,17 +278,8 @@ void get_set_iter(SET_ITER &it, OBJ set) {
   it.idx = 0;
   it.size = size;
 
-  if (size != 0) {
-    if (is_array_set(set)) {
-      it.buffer = get_set_elts_ptr(set);
-    }
-    else {
-      MIXED_REPR_SET_OBJ *ptr = get_mixed_repr_set_ptr(set);
-      if (ptr->array_repr == NULL)
-        rearrange_set_as_array(ptr, size);
-      it.buffer = ptr->array_repr->buffer;
-    }
-  }
+  if (size != 0)
+    it.buffer = rearrange_if_needed_and_get_set_elts_ptr(set);
 #ifndef NDEBUG
   else
     it.buffer = 0;

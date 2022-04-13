@@ -1,13 +1,25 @@
 #include "lib.h"
 
 
-bool contains(OBJ set, OBJ elem) {
+bool contains(OBJ set, OBJ elt) {
   if (is_empty_rel(set))
     return false;
+
   uint32 size = read_size_field(set);
-  OBJ *elts = get_set_elts_ptr(set);
+
   bool found;
-  find_obj(elts, size, elem, found);
+  if (is_array_set(set)) {
+    OBJ *elts = get_set_elts_ptr(set);
+    find_obj(elts, size, elt, found);
+  }
+  else {
+    MIXED_REPR_SET_OBJ *mixed_repr_ptr = get_mixed_repr_set_ptr(set);
+    SET_OBJ *ptr = mixed_repr_ptr->array_repr;
+    if (ptr != NULL)
+      find_obj(ptr->buffer, size, elt, found);
+    else
+      found = tree_set_contains(mixed_repr_ptr->tree_repr, elt);
+  }
   return found;
 }
 
@@ -33,7 +45,7 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
     return are_eq(arg1, value);
   }
 
-  BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
+  BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
   uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
   OBJ *right_col = get_right_col_array_ptr(ptr, size);
@@ -66,7 +78,7 @@ bool contains_br_1(OBJ rel, OBJ arg1) {
       return false;
   }
 
-  BIN_REL_OBJ *ptr = get_bin_rel_ptr(rel);
+  BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
   uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
 
@@ -182,7 +194,7 @@ bool has_field(OBJ rec_or_tag_rec, uint16 field_id) {
   OBJ rec = is_tag_obj(rec_or_tag_rec) ? get_inner_obj(rec_or_tag_rec) : rec_or_tag_rec;
 
   if (!is_empty_rel(rec)) {
-    BIN_REL_OBJ *ptr = get_bin_rel_ptr(rec);
+    BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rec);
     uint32 size = read_size_field(rec);
     OBJ *keys = ptr->buffer;
     for (uint32 i=0 ; i < size ; i++)
@@ -240,11 +252,9 @@ OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it) {
   return it.col3[idx];
 }
 
-OBJ rand_set_elem(OBJ set) {
-  uint32 size = read_size_field(set);
-  OBJ *elts = get_set_elts_ptr(set);
-  uint32 idx = rand() % size;
-  return elts[idx];
+OBJ set_only_elt(OBJ set) {
+  assert(read_size_field(set) == 1 && is_array_set(set));
+  return *get_set_elts_ptr(set);
 }
 
 OBJ lookup(OBJ rel, OBJ key) {

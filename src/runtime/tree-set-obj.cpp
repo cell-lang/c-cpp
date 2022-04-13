@@ -584,6 +584,37 @@ OBJ set_remove(OBJ set, OBJ elt) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+bool tree_set_contains(TREE_SET_NODE *, OBJ);
+
+bool set_contains(FAT_SET_PTR fat_ptr, OBJ elt) {
+  if (fat_ptr.size == 0)
+    return false;
+
+  if (!fat_ptr.is_array)
+    return tree_set_contains(fat_ptr.ptr.tree, elt);
+
+  OBJ *elts = fat_ptr.ptr.array;
+
+  uint64 code = encoded_index_or_insertion_point_in_unique_sorted_array(elts, fat_ptr.size, elt);
+  bool found = (code >> 32) == 0;
+  return found;
+}
+
+bool tree_set_contains(TREE_SET_NODE *ptr, OBJ value) {
+  int cr = comp_objs(value, ptr->value);
+
+  if (cr == 0)
+    return true;
+
+  if (cr > 0) // value < ptr->value
+    return set_contains(ptr->left, value);
+  else // value > ptr->value
+    return set_contains(ptr->right, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 void rearrange_set_as_array(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
   assert(ptr->array_repr == NULL);
 
@@ -593,4 +624,16 @@ void rearrange_set_as_array(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
   ptr->array_repr = new_ptr;
   //## THE TREE REPRESENTATION IS CLEARED FOR DEBUGGING ONLY. THE MEMORY IS NOT RELEASED ANYWAY...
   ptr->tree_repr = NULL;
+}
+
+OBJ *rearrange_if_needed_and_get_set_elts_ptr(OBJ set) {
+  assert(is_ne_set(set));
+
+  if (is_array_set(set))
+    return get_set_elts_ptr(set);
+
+  MIXED_REPR_SET_OBJ *ptr = get_mixed_repr_set_ptr(set);
+  if (ptr->array_repr == NULL)
+    rearrange_set_as_array(ptr, read_size_field(set));
+  return ptr->array_repr->buffer;
 }

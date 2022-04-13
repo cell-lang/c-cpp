@@ -45,14 +45,6 @@ void build_map_right_to_left_sorted_idx_array(BIN_REL_OBJ *ptr, uint32 size) {
 #endif
 }
 
-void build_map_right_to_left_sorted_idx_array(OBJ map) {
-  assert(get_obj_type(map) == TYPE_NE_MAP);
-
-  uint32 size = read_size_field_unchecked(map);
-  BIN_REL_OBJ *ptr = get_bin_rel_ptr(map);
-  build_map_right_to_left_sorted_idx_array(ptr, size);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ build_bin_rel(OBJ *vals1, OBJ *vals2, uint32 size) {
@@ -215,17 +207,7 @@ void get_bin_rel_iter(BIN_REL_ITER &it, OBJ rel) {
   }
   else if (!is_empty_rel(rel)) {
     uint32 size = read_size_field(rel);
-
-    BIN_REL_OBJ *ptr;
-    if (is_array_map(rel)) {
-      ptr = get_bin_rel_ptr(rel);
-    }
-    else {
-      MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
-      if (mixed_repr_ptr->array_repr == NULL)
-        rearrange_map_as_array(mixed_repr_ptr, size);
-      ptr = mixed_repr_ptr->array_repr;
-    }
+    BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
 
     it.iter.bin_rel.left_col = get_left_col_array_ptr(ptr);
     it.iter.bin_rel.right_col = get_right_col_array_ptr(ptr, size);
@@ -265,17 +247,7 @@ void get_bin_rel_iter_1(BIN_REL_ITER &it, OBJ rel, OBJ arg1) {
   }
   else if (is_ne_bin_rel(rel)) {
     uint32 size = read_size_field(rel);
-
-    BIN_REL_OBJ *ptr;
-    if (is_array_map(rel)) {
-      ptr = get_bin_rel_ptr(rel);
-    }
-    else {
-      MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
-      if (mixed_repr_ptr->array_repr == NULL)
-        rearrange_map_as_array(mixed_repr_ptr, size);
-      ptr = mixed_repr_ptr->array_repr;
-    }
+    BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
 
     OBJ *left_col = get_left_col_array_ptr(ptr);
 
@@ -338,20 +310,10 @@ void get_bin_rel_iter_2(BIN_REL_ITER &it, OBJ rel, OBJ arg2) {
   }
   else if (is_ne_bin_rel(rel)) {
     uint32 size = read_size_field(rel);
+    BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
 
-    BIN_REL_OBJ *ptr;
-    if (is_array_map(rel)) {
-      ptr = get_bin_rel_ptr(rel);
-      if (get_obj_type(rel) == TYPE_NE_MAP)
-        build_map_right_to_left_sorted_idx_array(ptr, size);
-    }
-    else {
-      MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
-      if (mixed_repr_ptr->array_repr == NULL)
-        rearrange_map_as_array(mixed_repr_ptr, size);
-      ptr = mixed_repr_ptr->array_repr;
+    if (get_obj_type(rel) == TYPE_NE_MAP)
       build_map_right_to_left_sorted_idx_array(ptr, size);
-    }
 
     OBJ *right_col = get_right_col_array_ptr(ptr, size);
     uint32 *rev_idxs = get_right_to_left_indexes(ptr, size);

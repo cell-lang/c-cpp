@@ -28,7 +28,7 @@ implicit context : NativeContext {
     surr_to_value()     = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_surr_to_value", (expr.store, expr.surrogate)),
     column_lookup()     = native_column_lookup_expr(expr.var, expr.column, expr.key),
     get_value()         = undefined, //native_var_ref_name(expr.var) & ".GetValue()",
-    rand_elem(e?)       = "rand_set_elem(" & native_expr(e) & ")";
+    only_elt(e?)        = "set_only_elt(" & native_expr(e) & ")";
 
 
   String native_column_lookup_expr(AnyTableVar var, AnyColumn column, Int32Var key) {

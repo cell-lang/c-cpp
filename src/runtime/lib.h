@@ -1023,7 +1023,7 @@ OBJ get_curr_right_arg(BIN_REL_ITER &it);
 OBJ tern_rel_it_get_left_arg(TERN_REL_ITER &it);
 OBJ tern_rel_it_get_mid_arg(TERN_REL_ITER &it);
 OBJ tern_rel_it_get_right_arg(TERN_REL_ITER &it);
-OBJ rand_set_elem(OBJ set);   // Non-deterministic
+OBJ set_only_elt(OBJ set);
 
 OBJ lookup(OBJ rel, OBJ key);
 OBJ lookup_field(OBJ rec, uint16 field_symb_id);
@@ -1085,7 +1085,7 @@ uint64 inline_int16_concat(uint64 left, uint32 left_len, uint64 right, uint32 ri
 //////////////////////////////// bin-rel-obj.cpp ///////////////////////////////
 
 bool index_has_been_built(BIN_REL_OBJ *rel, uint32 size);
-void build_map_right_to_left_sorted_idx_array(OBJ map); //## CHANGE THE TYPE OF map TO BIN_REL_OBJ*
+void build_map_right_to_left_sorted_idx_array(BIN_REL_OBJ *, uint32 size);
 
 OBJ build_bin_rel(OBJ *col1, OBJ *col2, uint32 size);
 OBJ build_bin_rel(STREAM &strm1, STREAM &strm2);
@@ -1325,10 +1325,14 @@ OBJ set_key_value(OBJ, OBJ, OBJ);
 OBJ drop_key(OBJ, OBJ);
 OBJ make_tag_int(uint16, int64);
 
+bool tree_set_contains(TREE_SET_NODE *ptr, OBJ value);
 bool tree_map_lookup(TREE_MAP_NODE *, OBJ key, OBJ *value);
 
 void rearrange_set_as_array(MIXED_REPR_SET_OBJ *, uint32 size);
 void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *, uint32 size);
+
+OBJ *rearrange_if_needed_and_get_set_elts_ptr(OBJ);
+BIN_REL_OBJ *rearrange_if_needed_and_get_bin_rel_ptr(OBJ);
 
 uint8 as_byte(int64);
 int16 as_short(int64);

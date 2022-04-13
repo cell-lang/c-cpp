@@ -768,3 +768,15 @@ void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
   //## THE TREE REPRESENTATION IS CLEARED FOR DEBUGGING ONLY. THE MEMORY IS NOT RELEASED ANYWAY...
   ptr->tree_repr = NULL;
 }
+
+BIN_REL_OBJ *rearrange_if_needed_and_get_bin_rel_ptr(OBJ map) {
+  assert(is_ne_map(map));
+
+  if (is_array_map(map))
+    return get_bin_rel_ptr(map);
+
+  MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(map);
+  if (mixed_repr_ptr->array_repr == NULL)
+    rearrange_map_as_array(mixed_repr_ptr, read_size_field(map));
+  return mixed_repr_ptr->array_repr;
+}
