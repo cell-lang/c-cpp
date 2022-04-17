@@ -72,7 +72,7 @@ static void copy_tree_set_elts(TREE_SET_NODE *, OBJ *);
 
 static void copy_set_elts(FAT_SET_PTR fat_ptr, OBJ *dest) {
   if (fat_ptr.size > 0) {
-    if (fat_ptr.is_array) {
+    if (fat_ptr.is_array_or_empty) {
       for (uint32 i=0 ; i < fat_ptr.size ; i++)
         dest[i] = copy_obj(fat_ptr.ptr.array[i]);
     }

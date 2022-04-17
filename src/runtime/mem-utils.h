@@ -455,7 +455,7 @@ inline OBJ make_set(SET_OBJ *ptr, uint32 size) {
 }
 
 inline OBJ make_mixed_repr_set(MIXED_REPR_SET_OBJ *ptr, uint32 size) {
-  assert(ptr != NULL & size > 8);
+  assert(ptr != NULL && size > 8);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -475,7 +475,7 @@ inline OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
 }
 
 inline OBJ make_mixed_repr_map(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
-  assert(ptr != NULL);
+  assert(ptr != NULL && size > 8);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
@@ -704,7 +704,7 @@ inline SEQ_OBJ* get_seq_ptr(OBJ seq) {
 // }
 
 inline BIN_REL_OBJ *get_bin_rel_ptr(OBJ obj) {
-  assert(get_obj_type(obj) == TYPE_NE_MAP | get_obj_type(obj) == TYPE_NE_BIN_REL);
+  assert(get_obj_type(obj) == TYPE_NE_BIN_REL || (get_obj_type(obj) == TYPE_NE_MAP && is_array_map(obj)));
   assert(obj.core_data.ptr != NULL);
   return (BIN_REL_OBJ *) obj.core_data.ptr;
 }

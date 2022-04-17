@@ -105,7 +105,7 @@ struct FAT_SET_PTR {
     TREE_SET_NODE *tree;
   } ptr;
   uint32 size;
-  bool is_array;
+  bool is_array_or_empty;
 };
 
 struct TREE_SET_NODE {

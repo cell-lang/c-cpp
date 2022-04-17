@@ -254,7 +254,7 @@ static uint32 set_elts_mem_size(FAT_SET_PTR fat_ptr) {
   if (fat_ptr.size == 0)
     return 0;
 
-  if (fat_ptr.is_array) {
+  if (fat_ptr.is_array_or_empty) {
     uint32 mem_size = 0;
     for (uint32 i=0 ; i < fat_ptr.size ; i++)
       mem_size += obj_mem_size(fat_ptr.ptr.array[i]);
@@ -595,7 +595,7 @@ static void copy_tree_set_elts_to(TREE_SET_NODE *, OBJ *dest, void **dest_var);
 
 static void copy_set_elts_to(FAT_SET_PTR fat_ptr, OBJ *dest, void **dest_var) {
   if (fat_ptr.size > 0) {
-    if (fat_ptr.is_array)
+    if (fat_ptr.is_array_or_empty)
       for (uint32 i=0 ; i < fat_ptr.size ; i++)
         dest[i] = copy_obj_to(fat_ptr.ptr.array[i], dest_var);
     else

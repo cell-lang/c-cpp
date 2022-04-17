@@ -209,7 +209,7 @@ uint64 encoded_index_or_insertion_point_in_unique_sorted_array(OBJ *sorted_array
 
 std_alg:
   int64 low_idx = 0;
-  int64 high_idx = len - 1;
+  int64 high_idx = ((int64) len) - 1;
 
   while (low_idx <= high_idx) {
     int64 middle_idx = (low_idx + high_idx) / 2;

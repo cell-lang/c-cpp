@@ -118,7 +118,7 @@ static uint64 compute_set_hashcode(FAT_SET_PTR fat_ptr, uint64 hashcode) {
   if (fat_ptr.size == 0)
     return hashcode;
 
-  if (!fat_ptr.is_array)
+  if (!fat_ptr.is_array_or_empty)
     return compute_obj_array_hashcode(fat_ptr.ptr.array, fat_ptr.size, hashcode);
   else
     return compute_tree_set_hashcode(fat_ptr.ptr.tree, hashcode);

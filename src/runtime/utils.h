@@ -102,7 +102,11 @@ static int32 hex_digit_value(int32 ch) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static int32 min32(int32 x, int32 y) {
+static int32 min_i32(int32 x, int32 y) {
+  return x < y ? x : y;
+}
+
+inline uint32 min_u32(uint32 x, uint32 y) {
   return x < y ? x : y;
 }
 

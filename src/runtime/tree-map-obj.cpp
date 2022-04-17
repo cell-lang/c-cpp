@@ -13,6 +13,8 @@ inline FAT_MAP_PTR make_empty_map_ptr() {
 }
 
 inline FAT_MAP_PTR make_array_map_ptr(OBJ *ptr, uint32 size, uint32 offset) {
+  assert(offset > 0);
+
   FAT_MAP_PTR fat_ptr;
   fat_ptr.ptr.array = size != 0 ? ptr : NULL;
   fat_ptr.size = size;
@@ -113,8 +115,6 @@ static FAT_MAP_PTR array_map_set_key_value(OBJ *keys, uint32 size, OBJ key, OBJ 
       return make_array_map_ptr(new_ptr->buffer, size + 1, size + 1);
     }
     else {
-      assert(size + 1 == MIN_TREE_SIZE);
-
       TREE_MAP_NODE *new_ptr = new_tree_map_node();
       new_ptr->key = key;
       new_ptr->value = value;
@@ -150,7 +150,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     uint32 left_size = ptr->left.size;
     FAT_MAP_PTR updated_left_ptr;
 
-    if (ptr->left.offset == 0) {
+    if (ptr->left.offset == 0) { //## ISN'T THIS A BUG? SHOULD BE THE OPPOSITE, SHOULDN'T IT?
       // The left branch is an array
       OBJ *left_ptr = ptr->left.ptr.array;
       updated_left_ptr = array_map_set_key_value(left_ptr, left_size, key, value);
@@ -209,7 +209,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     uint32 right_size = ptr->right.size;
     FAT_MAP_PTR updated_right_ptr;
 
-    if (ptr->right.offset == 0) {
+    if (ptr->right.offset == 0) { //## ISN'T THIS A BUG? SHOULD BE THE OPPOSITE, SHOULDN'T IT?
       // The right subtree is an array
       OBJ *right_ptr = ptr->right.ptr.array;
       updated_right_ptr = array_map_set_key_value(right_ptr, right_size, key, value);
@@ -295,7 +295,7 @@ OBJ set_key_value(OBJ map, OBJ key, OBJ value) {
 
   assert(updated_ptr.offset == 0 || updated_ptr.offset == updated_ptr.size);
 
-  if (updated_ptr.offset == 0)
+  if (updated_ptr.offset != 0)
     return make_map((BIN_REL_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
 
   MIXED_REPR_MAP_OBJ *new_ptr = new_mixed_repr_map();
@@ -473,7 +473,7 @@ static FAT_MAP_PTR array_map_drop_key(OBJ *keys, uint32 size, OBJ key) {
   if (size <= MIN_TREE_SIZE) {
     BIN_REL_OBJ *new_ptr = new_bin_rel(size - 1);
     OBJ *new_keys = new_ptr->buffer;
-    OBJ *new_values = new_keys + size;
+    OBJ *new_values = new_keys + size - 1;
 
     if (index > 0) {
       memcpy(new_keys, keys, index * sizeof(OBJ));
@@ -703,9 +703,12 @@ OBJ drop_key(OBJ map, OBJ key) {
       updated_ptr = bin_tree_map_drop_key(ptr->tree_repr, size, key);
   }
 
-  assert(updated_ptr.offset == 0 || updated_ptr.offset == updated_ptr.size);
+  // assert(updated_ptr.offset == 0 || updated_ptr.offset == updated_ptr.size); //## WHY WAS THIS HERE IN THE FIRST PLACE?
 
-  if (updated_ptr.offset == 0)
+  if (updated_ptr.size == 0)
+    return make_empty_rel();
+
+  if (updated_ptr.offset != 0)
     return make_map((BIN_REL_OBJ *) updated_ptr.ptr.array, updated_ptr.size);
 
   MIXED_REPR_MAP_OBJ *new_ptr = new_mixed_repr_map();
@@ -770,9 +773,9 @@ void rearrange_map_as_array(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
 }
 
 BIN_REL_OBJ *rearrange_if_needed_and_get_bin_rel_ptr(OBJ map) {
-  assert(is_ne_map(map));
+  assert(is_ne_bin_rel(map));
 
-  if (is_array_map(map))
+  if (!is_ne_map(map) || is_array_map(map))
     return get_bin_rel_ptr(map);
 
   MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(map);
