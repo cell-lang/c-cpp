@@ -1279,6 +1279,9 @@ uint32 hashcode_64(uint64);
 
 bool no_sum32_overflow(uint64 x, uint64 y);
 
+OBJ concat_ints(OBJ, OBJ);
+OBJ concat_floats(OBJ, OBJ);
+
 OBJ concat(OBJ left, OBJ right);
 OBJ append(OBJ seq, OBJ obj);
 

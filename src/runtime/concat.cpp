@@ -281,56 +281,46 @@ INT_RANGE get_actual_int_range(OBJ seq) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) OBJ concat_ne_seq(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
-  assert(get_obj_type(left) == TYPE_NE_SEQ);
+__attribute__ ((noinline)) OBJ concat_ne_seqs(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
+  assert(get_obj_type(left) == TYPE_NE_SEQ && get_obj_type(right) == TYPE_NE_SEQ);
 
-  OBJ_TYPE typer = get_obj_type(right);
-
-  if (typer == TYPE_NE_SEQ) {
-    if (is_array_obj(left)) {
-      SEQ_OBJ *ptrl = adjust_obj_seq(get_seq_ptr(left), lenl, lenr);
-      memcpy(ptrl->buffer.obj + lenl, get_seq_elts_ptr(right), lenr * sizeof(OBJ));
-      return make_seq(ptrl, lenl + lenr);
-    }
-    else {
-      uint32 len = lenl + lenr;
-      OBJ *eltsl = get_seq_elts_ptr(left);
-      OBJ *eltsr = get_seq_elts_ptr(right);
-
-      SEQ_OBJ *new_seq_ptr = new_obj_seq(len, next_capacity(16, len));
-      memcpy(new_seq_ptr->buffer.obj, eltsl, lenl * sizeof(OBJ));
-      memcpy(new_seq_ptr->buffer.obj + lenl, eltsr, lenr * sizeof(OBJ));
-      return make_seq(new_seq_ptr, lenl + lenr);
-    }
+  if (is_array_obj(left)) {
+    SEQ_OBJ *ptrl = adjust_obj_seq(get_seq_ptr(left), lenl, lenr);
+    memcpy(ptrl->buffer.obj + lenl, get_seq_elts_ptr(right), lenr * sizeof(OBJ));
+    return make_seq(ptrl, lenl + lenr);
   }
+  else {
+    uint32 len = lenl + lenr;
+    OBJ *eltsl = get_seq_elts_ptr(left);
+    OBJ *eltsr = get_seq_elts_ptr(right);
 
-  return concat_slow(left, right);
+    SEQ_OBJ *new_seq_ptr = new_obj_seq(len, next_capacity(16, len));
+    memcpy(new_seq_ptr->buffer.obj, eltsl, lenl * sizeof(OBJ));
+    memcpy(new_seq_ptr->buffer.obj + lenl, eltsr, lenr * sizeof(OBJ));
+    return make_seq(new_seq_ptr, lenl + lenr);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-__attribute__ ((noinline)) OBJ concat_ne_float_seq(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
-  assert(get_obj_type(left) == TYPE_NE_FLOAT_SEQ);
+__attribute__ ((noinline)) OBJ concat_ne_float_seqs(OBJ left, uint32 lenl, OBJ right, uint32 lenr) {
+  assert(get_obj_type(left) == TYPE_NE_FLOAT_SEQ && get_obj_type(right) == TYPE_NE_FLOAT_SEQ);
 
-  if (get_obj_type(right) == TYPE_NE_FLOAT_SEQ) {
-    if (is_array_obj(left)) {
-      SEQ_OBJ *ptrl = adjust_float_seq(get_seq_ptr(left), lenl, lenr);
-      memcpy(ptrl->buffer.float_ + lenl, get_seq_elts_ptr(right), lenr * sizeof(double));
-      return make_seq(ptrl, lenl + lenr);
-    }
-    else {
-      uint32 len = lenl + lenr;
-      double *eltsl = get_seq_elts_ptr_float(left);
-      double *eltsr = get_seq_elts_ptr_float(right);
-
-      SEQ_OBJ *new_seq_ptr = new_float_seq(len, next_capacity(16, len));
-      memcpy(new_seq_ptr->buffer.float_, eltsl, lenl * sizeof(double));
-      memcpy(new_seq_ptr->buffer.float_ + lenl, eltsr, lenr * sizeof(double));
-      return make_seq_float(new_seq_ptr, lenl + lenr);
-    }
+  if (is_array_obj(left)) {
+    SEQ_OBJ *ptrl = adjust_float_seq(get_seq_ptr(left), lenl, lenr);
+    memcpy(ptrl->buffer.float_ + lenl, get_seq_elts_ptr_float(right), lenr * sizeof(double));
+    return make_seq_float(ptrl, lenl + lenr);
   }
+  else {
+    uint32 len = lenl + lenr;
+    double *eltsl = get_seq_elts_ptr_float(left);
+    double *eltsr = get_seq_elts_ptr_float(right);
 
-  return concat_slow(left, right);
+    SEQ_OBJ *new_seq_ptr = new_float_seq(len, next_capacity(16, len));
+    memcpy(new_seq_ptr->buffer.float_, eltsl, lenl * sizeof(double));
+    memcpy(new_seq_ptr->buffer.float_ + lenl, eltsr, lenr * sizeof(double));
+    return make_seq_float(new_seq_ptr, lenl + lenr);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -364,10 +354,13 @@ __attribute__ ((noinline)) OBJ concat_ne_int_seq_new(OBJ left, uint32 lenl, OBJ 
     }
 
     case INT_BITS_TAG_32: {
-      SEQ_OBJ *seq_ptr = new_int32_seq(len, next_capacity(8, len));
-      copy_int32_range_unchecked(left, 0, lenl, seq_ptr->buffer.int32_);
-      copy_int32_range_unchecked(right, 0, lenr, seq_ptr->buffer.int32_ + lenl);
-      return make_seq_int32(seq_ptr, len);
+      if (len > 2) {
+        SEQ_OBJ *seq_ptr = new_int32_seq(len, next_capacity(8, len));
+        copy_int32_range_unchecked(left, 0, lenl, seq_ptr->buffer.int32_);
+        copy_int32_range_unchecked(right, 0, lenr, seq_ptr->buffer.int32_ + lenl);
+        return make_seq_int32(seq_ptr, len);
+
+      }
     }
 
     case INT_BITS_TAG_64: {
@@ -458,6 +451,7 @@ __attribute__ ((noinline)) OBJ concat_ne_uint8_inline_seq(OBJ left, uint32 lenl,
 
   if (len <= 8) {
     INT_RANGE range = get_actual_int_range(right);
+
     if (is_uint8_range(range.min, range.max)) {
       uint8 buffer[8];
       copy_uint8_range_unchecked(right, 0, lenr, buffer);
@@ -465,6 +459,29 @@ __attribute__ ((noinline)) OBJ concat_ne_uint8_inline_seq(OBJ left, uint32 lenl,
       for (int i=0 ; i < lenr ; i++)
         data = inline_uint8_init_at(data, i + lenl, buffer[i]);
       return make_seq_uint8_inline(data, len);
+    }
+
+    if (len <= 4 & is_int16_range(range.min, range.max)) {
+      assert(get_obj_type(right) == TYPE_NE_SEQ_INT16_INLINE);
+      uint64 data = 0;
+      for (int i=0 ; i < lenl ; i++)
+        data = inline_int16_init_at(data, i, inline_uint8_at(left.core_data.int_, i));
+      for (int i=0 ; i < lenr ; i++)
+        data = inline_int16_init_at(data, i + lenl, inline_int16_at(right.core_data.int_, i));
+      OBJ result = make_seq_int16_inline(data, len);
+      for (int i=0 ; i < len ; i++)
+        assert(get_int_at(result, i) == (i < lenl ? get_int_at(left, i) : get_int_at(right, i - lenl)));
+      return result;
+    }
+
+    if (len <= 2 & is_int32_range(range.min, range.max)) {
+      assert(lenl == 1 && lenr == 1);
+      assert(get_obj_type(right) == TYPE_NE_SEQ_INT32_INLINE);
+      uint64 data = inline_int32_init_at(0, 0, inline_uint8_at(left.core_data.int_, 0));
+      data = inline_int32_init_at(data, 1, inline_int32_at(right.core_data.int_, 0));
+      OBJ result = make_seq_int32_inline(data, 2);
+      assert(get_int_at(result, 0) == get_int_at(left, 0) && get_int_at(result, 1) == get_int_at(right, 0));
+      return result;
     }
   }
 
@@ -476,13 +493,27 @@ __attribute__ ((noinline)) OBJ concat_ne_int16_inline_seq(OBJ left, uint32 lenl,
 
   if (len <= 4) {
     INT_RANGE range = get_actual_int_range(right);
+
     if (is_int16_range(range.min, range.max)) {
       int16 buffer[4];
       copy_int16_range_unchecked(right, 0, lenr, buffer);
       uint64 data = left.core_data.int_;
       for (int i=0 ; i < lenr ; i++)
         data = inline_int16_init_at(data, i + lenl, buffer[i]);
-      return make_seq_int16_inline(data, len);
+      OBJ result = make_seq_int16_inline(data, len);
+      for (int i=0 ; i < len ; i++)
+        assert(get_int_at(result, i) == (i < lenl ? get_int_at(left, i) : get_int_at(right, i - lenl)));
+      return result;
+    }
+
+    if (len <= 2 & is_int32_range(range.min, range.max)) {
+      assert(lenl == 1 && lenr == 1);
+      assert(get_obj_type(right) == TYPE_NE_SEQ_INT32_INLINE);
+      int64 data = inline_int32_init_at(0, 0, inline_int16_at(left.core_data.int_, 0));
+      data = inline_int32_init_at(data, 1, inline_int32_at(right.core_data.int_, 0));
+      OBJ result = make_seq_int32_inline(data, 2);
+      assert(get_int_at(result, 0) == get_int_at(left, 0) && get_int_at(result, 1) == get_int_at(right, 0));
+      return result;
     }
   }
 
@@ -507,7 +538,7 @@ __attribute__ ((noinline)) OBJ concat_ne_int32_inline_seq(OBJ left, uint32 lenl,
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ concat(OBJ left, OBJ right) {
+OBJ concat_ints(OBJ left, OBJ right) {
   uint64 lenr = read_size_field(right);
   if (lenr == 0)
     return left;
@@ -532,18 +563,53 @@ OBJ concat(OBJ left, OBJ right) {
     case TYPE_NE_INT_SEQ:
       return concat_ne_int_seq(left, lenl, right, lenr);
 
-    case TYPE_NE_FLOAT_SEQ:
-      return concat_ne_float_seq(left, lenl, right, lenr);
-
-    case TYPE_NE_BOOL_SEQ:
-      internal_fail();
-
-    case TYPE_NE_SEQ:
-      return concat_ne_seq(left, lenl, right, lenr);
-
     default:
       internal_fail();
   }
+}
+
+OBJ concat_floats(OBJ left, OBJ right) {
+  uint64 lenr = read_size_field(right);
+  if (lenr == 0)
+    return left;
+
+  uint64 lenl = read_size_field(left);
+  if (lenl == 0)
+    return right;
+
+  if (lenl + lenr > 0xFFFFFFFF)
+    impl_fail("_cat_(): Resulting sequence is too large");
+
+  assert(get_obj_type(left) == TYPE_NE_FLOAT_SEQ && get_obj_type(right) == TYPE_NE_FLOAT_SEQ);
+
+  return concat_ne_float_seqs(left, lenl, right, lenr);
+}
+
+OBJ concat(OBJ left, OBJ right) {
+  uint64 lenr = read_size_field(right);
+  if (lenr == 0)
+    return left;
+
+  uint64 lenl = read_size_field(left);
+  if (lenl == 0)
+    return right;
+
+  if (lenl + lenr > 0xFFFFFFFF)
+    impl_fail("_cat_(): Resulting sequence is too large");
+
+  OBJ_TYPE left_obj_type = get_obj_type(left);
+  OBJ_TYPE right_obj_type = get_obj_type(right);
+
+  if (left_obj_type == TYPE_NE_SEQ && right_obj_type == TYPE_NE_SEQ)
+    return concat_ne_seqs(left, lenl, right, lenr);
+
+  if (is_ne_int_seq(left), is_ne_int_seq(right))
+    return concat_ints(left, right);
+
+  if (left_obj_type == TYPE_NE_FLOAT_SEQ && right_obj_type == TYPE_NE_FLOAT_SEQ)
+    return concat_ne_float_seqs(left, lenl, right, lenr);
+
+  return concat_slow(left, right);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -923,7 +989,7 @@ OBJ append(OBJ seq, OBJ obj) {
 
       if (is_int32(value)) {
         assert(get_int_at(make_seq_int32_inline(value, 1), 0) == value);
-        assert(read_size_field(make_seq_int16_inline(value, 1)) == 1);
+        assert(read_size_field(make_seq_int32_inline(value, 1)) == 1);
 
         return make_seq_int32_inline(value, 1);
       }
