@@ -903,7 +903,7 @@ inline OBJ append_ne_seq_uint8_inline(OBJ seq, uint32 len, OBJ obj) {
       if (len < 4) {
         uint64 packed_array = 0;
         for (int i=0 ; i < len ; i++)
-          packed_array = inline_int16_init_at(packed_array, i, inline_uint8_at(obj.core_data.int_, i));
+          packed_array = inline_int16_init_at(packed_array, i, inline_uint8_at(seq.core_data.int_, i));
         packed_array = inline_int16_init_at(packed_array, len, (int16) value);
         return make_seq_int16_inline(packed_array, len + 1);
       }

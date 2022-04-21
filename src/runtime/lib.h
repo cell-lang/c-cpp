@@ -1328,7 +1328,9 @@ OBJ set_key_value(OBJ, OBJ, OBJ);
 OBJ drop_key(OBJ, OBJ);
 OBJ make_tag_int(uint16, int64);
 
-bool tree_set_contains(TREE_SET_NODE *ptr, OBJ value);
+bool tree_set_contains(TREE_SET_NODE *, OBJ);
+bool tree_map_contains(TREE_MAP_NODE *, OBJ key, OBJ value);
+bool tree_map_contains_key(TREE_MAP_NODE *, OBJ);
 bool tree_map_lookup(TREE_MAP_NODE *, OBJ key, OBJ *value);
 
 void rearrange_set_as_array(MIXED_REPR_SET_OBJ *, uint32 size);

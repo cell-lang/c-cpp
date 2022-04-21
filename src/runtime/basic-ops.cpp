@@ -45,7 +45,16 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
     return are_eq(arg1, value);
   }
 
-  BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
+  BIN_REL_OBJ *ptr;
+  if (is_mixed_repr_map(rel)) {
+    MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
+    ptr = mixed_repr_ptr->array_repr;
+    if (ptr == NULL)
+      return tree_map_contains(mixed_repr_ptr->tree_repr, arg0, arg1);
+  }
+  else
+    ptr = get_bin_rel_ptr(rel);
+
   uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
   OBJ *right_col = get_right_col_array_ptr(ptr, size);
@@ -78,7 +87,16 @@ bool contains_br_1(OBJ rel, OBJ arg1) {
       return false;
   }
 
-  BIN_REL_OBJ *ptr = rearrange_if_needed_and_get_bin_rel_ptr(rel);
+  BIN_REL_OBJ *ptr;
+  if (is_mixed_repr_map(rel)) {
+    MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
+    ptr = mixed_repr_ptr->array_repr;
+    if (ptr == NULL)
+      return tree_map_contains_key(mixed_repr_ptr->tree_repr, arg1);
+  }
+  else
+    ptr = get_bin_rel_ptr(rel);
+
   uint32 size = read_size_field(rel);
   OBJ *left_col = get_left_col_array_ptr(ptr);
 

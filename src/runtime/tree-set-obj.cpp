@@ -288,7 +288,8 @@ static FAT_SET_PTR remove_min_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return make_tree_set_ptr(new_ptr, size - 1);
   }
 
-  set_copy_range(fat_ptr, 0, 1, value_ptr);
+  set_copy_range(left_ptr, 0, 1, value_ptr);
+
   SET_OBJ *new_ptr = new_set(size - 1);
   set_copy_range(fat_ptr, 1, size - 1, new_ptr->buffer);
   return make_array_set_ptr(new_ptr->buffer, size - 1);
@@ -329,7 +330,8 @@ static FAT_SET_PTR remove_max_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return make_tree_set_ptr(new_ptr, size - 1);
   }
 
-  set_copy_range(fat_ptr, size - 1, 1, value_ptr);
+  set_copy_range(right_ptr, right_ptr.size - 1, 1, value_ptr);
+
   SET_OBJ *new_ptr = new_set(size - 1);
   set_copy_range(fat_ptr, 0, size - 1, new_ptr->buffer);
   return make_array_set_ptr(new_ptr->buffer, size - 1);
@@ -423,7 +425,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
 
     if (left_ptr.size == 1) {
       TREE_SET_NODE *new_ptr = new_tree_set_node();
-      new_ptr->value = left_ptr.ptr.array[0];
+      new_ptr->value = left_ptr.is_array_or_empty ? left_ptr.ptr.array[0] : left_ptr.ptr.tree->value;
       new_ptr->left = make_empty_set_ptr();
       new_ptr->right = right_ptr;
       new_ptr->priority = ptr->priority;
@@ -432,7 +434,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
 
     if (right_ptr.size == 1) {
       TREE_SET_NODE *new_ptr = new_tree_set_node();
-      new_ptr->value = right_ptr.ptr.array[0];
+      new_ptr->value = right_ptr.is_array_or_empty ? right_ptr.ptr.array[0] : right_ptr.ptr.tree->value;
       new_ptr->left = left_ptr;
       new_ptr->right = make_empty_set_ptr();
       new_ptr->priority = ptr->priority;
@@ -450,10 +452,10 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
       return make_tree_set_ptr(new_ptr, size - 1);
     }
     else {
-      OBJ max_value;
-      FAT_SET_PTR updated_right_ptr = remove_min_value(right_ptr, &max_value);
+      OBJ min_value;
+      FAT_SET_PTR updated_right_ptr = remove_min_value(right_ptr, &min_value);
       TREE_SET_NODE *new_ptr = new_tree_set_node();
-      new_ptr->value = max_value;
+      new_ptr->value = min_value;
       new_ptr->left = left_ptr;
       new_ptr->right = updated_right_ptr;
       new_ptr->priority = ptr->priority;
