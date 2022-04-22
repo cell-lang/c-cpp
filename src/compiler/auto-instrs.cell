@@ -127,14 +127,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  init(stream_1);", "  init(stream_2);", "  init(stream_3);"
       );
       for v <- ord_table_vars {
-        value_stores = match (tables(v))
-          slave_tern_table() t? = t.value_stores,
+        master, value_stores = match (tables(v))
+          slave_tern_table() t? = (t.master, t.value_stores),
           _                     = undefined;
         assert |value_stores| == 3;
         store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
         method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
         stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));
-        args = (v) & stores_args & streams_args;
+        args = (master, v) & stores_args & streams_args;
         code = (code | "  " & native_call(copy_method_name, args));
       }
       code = (code | "  " & native_call(res_var, "build_tern_rel", ("stream_1", "stream_2", "stream_3")), "}");

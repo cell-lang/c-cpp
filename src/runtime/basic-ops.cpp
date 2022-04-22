@@ -46,7 +46,7 @@ bool contains_br(OBJ rel, OBJ arg0, OBJ arg1) {
   }
 
   BIN_REL_OBJ *ptr;
-  if (is_mixed_repr_map(rel)) {
+  if (is_ne_map(rel) && is_mixed_repr_map(rel)) {
     MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
     ptr = mixed_repr_ptr->array_repr;
     if (ptr == NULL)
@@ -88,7 +88,7 @@ bool contains_br_1(OBJ rel, OBJ arg1) {
   }
 
   BIN_REL_OBJ *ptr;
-  if (is_mixed_repr_map(rel)) {
+  if (is_ne_map(rel) && is_mixed_repr_map(rel)) {
     MIXED_REPR_MAP_OBJ *mixed_repr_ptr = get_mixed_repr_map_ptr(rel);
     ptr = mixed_repr_ptr->array_repr;
     if (ptr == NULL)

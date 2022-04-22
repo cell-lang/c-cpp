@@ -581,9 +581,12 @@ static uint32 hashed_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
   uint32 low = get_low_32(slot);
   uint32 tag = get_tag(low);
 
-  if (tag == INLINE_SLOT & (value == low | value == get_high_32(slot))) {
-    uint64 data_slot = *(slot_ptr + array_pool->size);
-    return value == low ? get_low_32(data_slot) : get_high_32(data_slot);
+  if (tag == INLINE_SLOT) {
+    if (value == low | value == get_high_32(slot)) {
+      uint64 data_slot = *(slot_ptr + array_pool->size);
+      return value == low ? get_low_32(data_slot) : get_high_32(data_slot);
+    }
+    return 0xFFFFFFFF;
   }
 
   if (tag == HASHED_BLOCK)

@@ -10,7 +10,7 @@ inline uint32 unpack_arg2(uint64 args) {
   return (uint32) args;
 }
 
-inline bool is_empty(uint64 slot) {
+inline bool master_bin_table_slot_is_empty(uint64 slot) {
   return get_high_32(slot) == 0xFFFFFFFF;
 }
 
@@ -18,13 +18,13 @@ inline uint64 pack_args(uint32 arg1, uint32 arg2) {
   uint64 args = (((uint64) arg1) << 32) | arg2;
   assert(unpack_arg1(args) == arg1);
   assert(unpack_arg2(args) == arg2);
-  assert(!is_empty(args));
+  assert(!master_bin_table_slot_is_empty(args));
   return args;
 }
 
 inline uint64 empty_slot(uint32 next) {
   uint64 slot = pack(next, 0xFFFFFFFF);
-  assert(is_empty(slot));
+  assert(master_bin_table_slot_is_empty(slot));
   return slot;
 }
 
@@ -35,12 +35,12 @@ inline uint32 get_next_free(uint64 slot) {
 }
 
 inline bool is_locked(uint64 slot) {
-  assert(!is_empty(slot));
+  assert(!master_bin_table_slot_is_empty(slot));
   return (slot >> 63) == 1;
 }
 
 inline uint64 lock_slot(uint64 slot) {
-  assert(!is_empty(slot) && !is_locked(slot));
+  assert(!master_bin_table_slot_is_empty(slot) && !is_locked(slot));
   uint64 locked_slot = slot | (1ULL << 63);
   assert(is_locked(locked_slot));
   return locked_slot;
@@ -102,7 +102,7 @@ void master_bin_table_release_surr(MASTER_BIN_TABLE *table, uint32 surr) {
 }
 
 bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr) {
-  assert(surr <= table->capacity && !is_empty(table->slots[surr]));
+  assert(surr <= table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]));
   uint64 *slot_ptr = table->slots + surr;
   uint64 slot = *slot_ptr;
   if (!is_locked(slot)) {
@@ -132,7 +132,7 @@ void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_fr
 //   uint64 *slots = table->slots;
 //   for (uint32 i=0 ; i < capacity ; i++) {
 //     uint64 slot = slots[i];
-//     if (!is_empty(slot)) {
+//     if (!master_bin_table_slot_is_empty(slot)) {
 //       uint32 arg1 = unpack_arg1(slot);
 //       uint32 arg2 = unpack_arg2(slot);
 //       assert(one_way_bin_table_contains(&table->table.forward, arg1, arg2));
@@ -148,7 +148,7 @@ void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_fr
 //   uint64 *slots = table->slots;
 //   for (uint32 i=0 ; i < capacity ; i++) {
 //     uint64 slot = slots[i];
-//     if (!is_empty(slot)) {
+//     if (!master_bin_table_slot_is_empty(slot)) {
 //       uint32 arg1 = unpack_arg1(slot);
 //       uint32 arg2 = unpack_arg2(slot);
 //       assert(one_way_bin_table_contains(&table->table.forward, arg1, arg2));
@@ -389,7 +389,7 @@ void master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *
   if (count > 0) {
     uint64 *slots = table->slots;
     uint32 index = 0;
-    while (is_empty(*slots)) {
+    while (master_bin_table_slot_is_empty(*slots)) {
       slots++;
       index++;
     }
@@ -409,7 +409,7 @@ void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
   assert(!master_bin_table_iter_is_out_of_range(iter));
   uint64 *slots = iter->slots + 1;
   uint32 index = iter->index + 1;
-  while (is_empty(*slots)) {
+  while (master_bin_table_slot_is_empty(*slots)) {
     slots++;
     index++;
   }
