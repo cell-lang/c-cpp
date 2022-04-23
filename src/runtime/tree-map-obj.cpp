@@ -27,11 +27,18 @@ inline FAT_MAP_PTR make_array_map_ptr(OBJ *ptr, uint32 size, uint32 offset) {
 }
 
 inline FAT_MAP_PTR make_tree_map_ptr(TREE_MAP_NODE *ptr, uint32 size) {
+  assert(size == 1 + ptr->left.size + ptr->right.size);
   FAT_MAP_PTR fat_ptr;
   fat_ptr.ptr.tree = ptr;
   fat_ptr.size = size;
   fat_ptr.offset = 0;
   return fat_ptr;
+}
+
+inline bool fat_map_ptr_eq(FAT_MAP_PTR fat_ptr_1, FAT_MAP_PTR fat_ptr_2) {
+  bool eq = fat_ptr_1.ptr.array == fat_ptr_2.ptr.array & fat_ptr_1.size == fat_ptr_2.size;
+  assert(!eq | fat_ptr_1.offset == fat_ptr_2.offset);
+  return eq;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +176,8 @@ static FAT_MAP_PTR array_map_set_key_value(OBJ *keys, uint32 size, uint32 offset
 ////////////////////////////////////////////////////////////////////////////////
 
 static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, OBJ key, OBJ value) {
+  assert(size == 1 + ptr->left.size + ptr->right.size);
+
   OBJ node_key = ptr->key;
   int cr = comp_objs(key, node_key);
   if (cr == 0) {
@@ -176,35 +185,32 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       return make_tree_map_ptr(ptr, size);
 
     TREE_MAP_NODE *new_ptr = new_tree_map_node();
-    new_ptr->key = ptr->key;
-    new_ptr->value = ptr->value;
+    new_ptr->key = key;
+    new_ptr->value = value;
     new_ptr->left = ptr->left;
     new_ptr->right = ptr->right;
     new_ptr->priority = ptr->priority;
-    return make_tree_map_ptr(new_ptr, size + 1);
+    return make_tree_map_ptr(new_ptr, size);
   }
 
   if (cr > 0) { // key < ptr->key
     // Inserting into the left subtree
 
-    uint32 left_size = ptr->left.size;
+    FAT_MAP_PTR left_ptr = ptr->left;
     FAT_MAP_PTR updated_left_ptr;
 
-    if (left_size == 0) {
+    if (left_ptr.size == 0) {
       BIN_REL_OBJ *new_ptr = new_map(1); //## SHOULD THIS ACTUALLY BE A MAP OR JUST AN OBJ ARRAY?
       new_ptr->buffer[0] = key;
       new_ptr->buffer[1] = value;
       updated_left_ptr = make_array_map_ptr(new_ptr->buffer, 1, 1);
     }
-    else if (ptr->left.offset != 0) {
+    else if (left_ptr.offset != 0) {
       // The left branch is an array
-      OBJ *left_ptr = ptr->left.ptr.array;
-      updated_left_ptr = array_map_set_key_value(left_ptr, left_size, ptr->left.offset, key, value);
+      updated_left_ptr = array_map_set_key_value(left_ptr.ptr.array, left_ptr.size, left_ptr.offset, key, value);
+      assert(updated_left_ptr.size == left_ptr.size || updated_left_ptr.size == left_ptr.size + 1);
 
-      assert((updated_left_ptr.ptr.array == left_ptr) == (updated_left_ptr.size == left_size));
-      assert(updated_left_ptr.size == left_size || updated_left_ptr.size == left_size + 1);
-
-      if (updated_left_ptr.size == left_size)
+      if (fat_map_ptr_eq(updated_left_ptr, left_ptr))
         return make_tree_map_ptr(ptr, size);
 
       //## ISN'T THERE A BUG HERE? THE UPDATED LEFT SUBTREE COULD HAVE BECOME A TREE, REQUIRING A ROTATION
@@ -213,15 +219,12 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     }
     else {
       // The left branch is a tree
-      TREE_MAP_NODE *left_ptr = ptr->left.ptr.tree;
-      FAT_MAP_PTR updated_left_ptr = bin_tree_map_set_key_value(left_ptr, left_size, key, value);
-      assert((updated_left_ptr.ptr.tree == left_ptr) == (updated_left_ptr.size == left_size));
-      assert(updated_left_ptr.size == left_size || updated_left_ptr.size == left_size + 1);
+      FAT_MAP_PTR updated_left_ptr = bin_tree_map_set_key_value(left_ptr.ptr.tree, left_ptr.size, key, value);
+      assert(updated_left_ptr.size == left_ptr.size || updated_left_ptr.size == left_ptr.size + 1);
 
-      if (updated_left_ptr.size == left_size)
+      if (fat_map_ptr_eq(updated_left_ptr, left_ptr))
         return make_tree_map_ptr(ptr, size);
 
-      assert(updated_left_ptr.size == left_size + 1);
       // assert(updated_left_ptr.size > MIN_TREE_SIZE); //## TRY AGAIN LATER
     }
 
@@ -235,11 +238,9 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       new_ptr->right = ptr->right;
       new_ptr->priority = ptr->priority;
 
-      updated_left_ptr.size = size + 1;
       updated_left_ptr.ptr.tree->right = make_tree_map_ptr(new_ptr, 1 + new_ptr->left.size + new_ptr->right.size);
-      // updated_left_ptr.ptr.tree->right.ptr.tree = new_ptr;
-      // updated_left_ptr.ptr.tree->right.size = 1 + new_ptr->left.size + new_ptr->right.size;
-      // updated_left_ptr.ptr.tree->right.offset = 0;
+      updated_left_ptr.size = 1 + updated_left_ptr.ptr.tree->left.size + updated_left_ptr.ptr.tree->right.size;
+      assert(updated_left_ptr.size == size + 1); //## I EXPECTED THIS TO FAIL SOMETIMES. WHY DIDN'T THAT HAPPEN?
 
       return updated_left_ptr;
     }
@@ -250,30 +251,26 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     new_ptr->left = updated_left_ptr;
     new_ptr->right = ptr->right;
     new_ptr->priority = ptr->priority;
-    assert(new_ptr->left.size + new_ptr->right.size == size);
-    return make_tree_map_ptr(new_ptr, size + 1);
+    return make_tree_map_ptr(new_ptr, 1 + updated_left_ptr.size + new_ptr->right.size);
   }
   else { // key > ptr->key
     // Inserting into the right subtree
 
-    uint32 right_size = ptr->right.size;
+    FAT_MAP_PTR right_ptr = ptr->right;
     FAT_MAP_PTR updated_right_ptr;
 
-    if (ptr->right.size == 0) {
+    if (right_ptr.size == 0) {
       BIN_REL_OBJ *new_ptr = new_map(1); //## SHOULD THIS ACTUALLY BE A MAP OR JUST AN OBJ ARRAY?
       new_ptr->buffer[0] = key;
       new_ptr->buffer[1] = value;
       updated_right_ptr = make_array_map_ptr(new_ptr->buffer, 1, 1);
     }
-    else if (ptr->right.offset != 0) {
+    else if (right_ptr.offset != 0) {
       // The right subtree is an array
-      OBJ *right_ptr = ptr->right.ptr.array;
-      updated_right_ptr = array_map_set_key_value(right_ptr, right_size, ptr->right.offset, key, value);
+      updated_right_ptr = array_map_set_key_value(right_ptr.ptr.array, right_ptr.size, right_ptr.offset, key, value);
+      assert(updated_right_ptr.size == right_ptr.size || updated_right_ptr.size == right_ptr.size + 1);
 
-      assert((updated_right_ptr.ptr.array == right_ptr) == (updated_right_ptr.size == right_size));
-      assert(updated_right_ptr.size == right_size || updated_right_ptr.size == right_size + 1);
-
-      if (updated_right_ptr.size == right_size)
+      if (fat_map_ptr_eq(updated_right_ptr, right_ptr))
         return make_tree_map_ptr(ptr, size);
 
       //## ISN'T THERE A BUG HERE? THE UPDATED LEFT SUBTREE COULD HAVE BECOME A TREE, REQUIRING A ROTATION
@@ -281,15 +278,11 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       // assert(updated_right_ptr.offset != 0);
     }
     else {
-      TREE_MAP_NODE *right_ptr = ptr->right.ptr.tree;
-      uint32 right_size = ptr->right.size;
-      updated_right_ptr = bin_tree_map_set_key_value(right_ptr, right_size, key, value);
-
-      assert((updated_right_ptr.ptr.tree == right_ptr) == (updated_right_ptr.size == right_size));
-      assert(updated_right_ptr.size == right_size || updated_right_ptr.size == right_size + 1);
+      updated_right_ptr = bin_tree_map_set_key_value(right_ptr.ptr.tree, right_ptr.size, key, value);
+      assert(updated_right_ptr.size == right_ptr.size || updated_right_ptr.size == right_ptr.size + 1);
       // assert(updated_right_ptr.size > MIN_TREE_SIZE);
 
-      if (updated_right_ptr.size == right_size)
+      if (fat_map_ptr_eq(updated_right_ptr, right_ptr))
         return make_tree_map_ptr(ptr, size);
     }
 
@@ -303,11 +296,9 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
       new_ptr->right = updated_right_ptr.ptr.tree->left;
       new_ptr->priority = ptr->priority;
 
-      updated_right_ptr.size = size + 1;
       updated_right_ptr.ptr.tree->left = make_tree_map_ptr(new_ptr, 1 + new_ptr->left.size + new_ptr->right.size);
-      // updated_right_ptr.ptr.tree->left.ptr.tree = new_ptr;
-      // updated_right_ptr.ptr.tree->left.size = 1 + new_ptr->left.size + new_ptr->right.size;
-      // updated_right_ptr.ptr.tree->left.offset = 0;
+      updated_right_ptr.size = 1 + updated_right_ptr.ptr.tree->left.size + updated_right_ptr.ptr.tree->right.size;
+      assert(updated_right_ptr.size == size + 1); //## I EXPECTED THIS TO FAIL SOMETIMES. WHY DIDN'T THAT HAPPEN?
 
       return updated_right_ptr;
     }
@@ -318,8 +309,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     new_ptr->left = ptr->left;
     new_ptr->right = updated_right_ptr;
     new_ptr->priority = ptr->priority;
-    assert(new_ptr->left.size + new_ptr->right.size == size);
-    return make_tree_map_ptr(new_ptr, size + 1);
+    return make_tree_map_ptr(new_ptr, 1 + new_ptr->left.size + updated_right_ptr.size);
   }
 }
 
