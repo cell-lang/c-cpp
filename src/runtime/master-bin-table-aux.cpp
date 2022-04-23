@@ -22,7 +22,10 @@ uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
 
 bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool);
+
 bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr);
+bool master_bin_table_unlock_surr(MASTER_BIN_TABLE *table, uint32 surr);
+bool master_bin_table_slot_is_locked(MASTER_BIN_TABLE *table, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -87,7 +90,7 @@ void master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *
   uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF) {
-    queue_3u32_insert(&table_aux->reinsertions, arg1, arg2, surr);
+    queue_u32_insert(&table_aux->reinsertions, surr);
     return;
   }
 
@@ -137,116 +140,195 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool) {
-  uint32 reins_count_times_3 = table_aux->reinsertions.count;
-  uint32 ins_count_times_3 = table_aux->insertions.count;
-
-  uint32 locked_surrs_count = 0;
-  int32 max_locked_surr = -1;
-
-  // Locking the surrogates for the tuples that are reinserted, so that they aren't added back
-  // to the list of free ones. Otherwise we would have to do a linear search to find them.
-  if (reins_count_times_3 > 0) {
-    uint32 *array = table_aux->reinsertions.array;
-    for (uint32 i=2 ; i < reins_count_times_3 ; i += 3) {
-      uint32 surr = array[i];
-      if (master_bin_table_lock_surr(table, surr)) {
-        locked_surrs_count++;
-        assert(((uint32)((int32) surr)) == surr);
-        if (surr > max_locked_surr)
-          max_locked_surr = surr;
-      }
-    }
-  }
-
   // Removing from the surrogates already reserved for newly inserted tuples
   // from the list of free ones, so we can append to that list while deleting
-  if (ins_count_times_3 != 0) {
+  uint32 ins_count = table_aux->insertions.count / 3;
+  if (ins_count != 0) {
     assert(table_aux->last_surr != 0xFFFFFFFF);
     uint32 next_surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
     master_bin_table_set_next_free_surr(table, next_surr);
   }
 
-  if (table_aux->clear) {
-    MASTER_BIN_TABLE_ITER iter;
-    master_bin_table_iter_init(table, &iter);
-    while (!master_bin_table_iter_is_out_of_range(&iter)) {
-      uint32 arg1 = master_bin_table_iter_get_1(&iter);
-      uint32 arg2 = master_bin_table_iter_get_2(&iter);
-      decr_rc_1(store_1, store_aux_1, arg1);
-      decr_rc_2(store_2, store_aux_2, arg2);
-      master_bin_table_iter_move_forward(&iter);
+  // Locking the surrogates for the tuples that are reinserted, so that they aren't added back
+  // to the list of free ones. Otherwise we would have to do a linear search to find them.
+  uint32 reins_count = table_aux->reinsertions.count;
+  if (reins_count > 0) {
+    //## THIS IS PROBABLY TOTALLY USELESS. REMOVE AFTER TESTING
+    for (uint32 i=0 ; i < reins_count ; i++) {
+      uint32 surr = table_aux->reinsertions.array[i];
+      assert(((uint32)((int32) surr)) == surr);
     }
-    master_bin_table_clear(table, mem_pool);
+
+    if (table_aux->clear) {
+      //## FOR MAXIMUM EFFICIENCY, THIS SHOULD BE HANDLED DIFFERENTLY
+
+      // Locking all tuples that are supposed to be reinserted, so as to avoid deleting them in the first place
+      uint32 *surrs = table_aux->reinsertions.array;
+      for (uint32 i=0 ; i < reins_count ; i++)
+        master_bin_table_lock_surr(table, surrs[i]);
+
+      MASTER_BIN_TABLE_ITER iter;
+      master_bin_table_iter_init(table, &iter);
+      while (!master_bin_table_iter_is_out_of_range(&iter)) {
+        uint32 surr = master_bin_table_iter_get_surr(&iter);
+        if (!master_bin_table_slot_is_locked(table, surr)) {
+          uint32 arg1 = master_bin_table_iter_get_1(&iter);
+          uint32 arg2 = master_bin_table_iter_get_2(&iter);
+          master_bin_table_delete(table, arg1, arg2);
+          decr_rc_1(store_1, store_aux_1, arg1);
+          decr_rc_2(store_2, store_aux_2, arg2);
+        }
+        master_bin_table_iter_move_forward(&iter);
+      }
+
+      // Unlocking all reinserted tuples
+      for (uint32 i=0 ; i < reins_count ; i++)
+        master_bin_table_unlock_surr(table, surrs[i]);
+    }
+    else {
+      uint32 dels_count = table_aux->deletions.count;
+      uint32 dels_1_count = table_aux->deletions_1.count;
+      uint32 dels_2_count = table_aux->deletions_2.count;
+
+      if (dels_count != 0 | dels_1_count != 0 | dels_2_count != 0) {
+        // Locking all tuples that are supposed to be reinserted, so as to avoid deleting them in the first place
+        uint32 *surrs = table_aux->reinsertions.array;
+        for (uint32 i=0 ; i < reins_count ; i++)
+          master_bin_table_lock_surr(table, surrs[i]);
+
+        if (dels_count > 0) {
+          uint64 *array = table_aux->deletions.array;
+          for (uint32 i=0 ; i < dels_count ; i++) {
+            uint64 args = array[i];
+            uint32 arg1 = unpack_arg1(args);
+            uint32 arg2 = unpack_arg2(args);
+            uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+            if (surr != 0xFFFFFFFF && !master_bin_table_slot_is_locked(table, surr)) {
+              bool found = master_bin_table_delete(table, arg1, arg2);
+              assert(found);
+              decr_rc_1(store_1, store_aux_1, arg1);
+              decr_rc_2(store_2, store_aux_2, arg2);
+            }
+          }
+        }
+
+        if (dels_1_count > 0) {
+          uint32 *array = table_aux->deletions_1.array;
+          for (uint32 i=0 ; i < dels_1_count ; i++) {
+            uint32 arg1 = array[i];
+            MASTER_BIN_TABLE_ITER_1 iter;
+            master_bin_table_iter_1_init(table, &iter, arg1);
+            while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
+              uint32 surr = master_bin_table_iter_1_get_surr(&iter);
+              if (!master_bin_table_slot_is_locked(table, surr)) {
+                uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
+                bool found = master_bin_table_delete(table, arg1, arg2);
+                assert(found);
+                decr_rc_1(store_1, store_aux_1, arg1);
+                decr_rc_2(store_2, store_aux_2, arg2);
+              }
+              master_bin_table_iter_1_move_forward(&iter);
+            }
+          }
+        }
+
+        if (dels_2_count > 0) {
+          uint32 *array = table_aux->deletions_2.array;
+          for (uint32 i=0 ; i < dels_2_count ; i++) {
+            uint32 arg2 = array[i];
+            MASTER_BIN_TABLE_ITER_2 iter;
+            master_bin_table_iter_2_init(table, &iter, arg2);
+            while (!master_bin_table_iter_2_is_out_of_range(&iter)) {
+              uint32 surr = master_bin_table_iter_2_get_surr(&iter);
+              if (!master_bin_table_slot_is_locked(table, surr)) {
+                uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
+                bool found = master_bin_table_delete(table, arg1, arg2);
+                assert(found);
+                decr_rc_1(store_1, store_aux_1, arg1);
+                decr_rc_2(store_2, store_aux_2, arg2);
+              }
+              master_bin_table_iter_2_move_forward(&iter);
+            }
+          }
+        }
+
+        // Unlocking all reinserted tuples
+        for (uint32 i=0 ; i < reins_count ; i++)
+          master_bin_table_unlock_surr(table, surrs[i]);
+      }
+    }
   }
   else {
-    uint32 count = table_aux->deletions.count;
-    if (count > 0) {
-      uint64 *array = table_aux->deletions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint64 args = array[i];
-        uint32 arg1 = unpack_arg1(args);
-        uint32 arg2 = unpack_arg2(args);
-        if (master_bin_table_delete(table, arg1, arg2)) {
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
+    if (table_aux->clear) {
+      MASTER_BIN_TABLE_ITER iter;
+      master_bin_table_iter_init(table, &iter);
+      while (!master_bin_table_iter_is_out_of_range(&iter)) {
+        uint32 arg1 = master_bin_table_iter_get_1(&iter);
+        uint32 arg2 = master_bin_table_iter_get_2(&iter);
+        decr_rc_1(store_1, store_aux_1, arg1);
+        decr_rc_2(store_2, store_aux_2, arg2);
+        master_bin_table_iter_move_forward(&iter);
+      }
+      master_bin_table_clear(table, mem_pool);
+    }
+    else {
+      uint32 count = table_aux->deletions.count;
+      if (count > 0) {
+        uint64 *array = table_aux->deletions.array;
+        for (uint32 i=0 ; i < count ; i++) {
+          uint64 args = array[i];
+          uint32 arg1 = unpack_arg1(args);
+          uint32 arg2 = unpack_arg2(args);
+          if (master_bin_table_delete(table, arg1, arg2)) {
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+          }
         }
       }
-    }
 
-    count = table_aux->deletions_1.count;
-    if (count > 0) {
-      uint32 *array = table_aux->deletions_1.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg1 = array[i];
-        MASTER_BIN_TABLE_ITER_1 iter;
-        master_bin_table_iter_1_init(table, &iter, arg1);
-        while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
-          uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
-          master_bin_table_iter_1_move_forward(&iter);
+      count = table_aux->deletions_1.count;
+      if (count > 0) {
+        uint32 *array = table_aux->deletions_1.array;
+        for (uint32 i=0 ; i < count ; i++) {
+          uint32 arg1 = array[i];
+          MASTER_BIN_TABLE_ITER_1 iter;
+          master_bin_table_iter_1_init(table, &iter, arg1);
+          while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
+            uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+            master_bin_table_iter_1_move_forward(&iter);
+          }
+          master_bin_table_delete_1(table, arg1);
         }
-        master_bin_table_delete_1(table, arg1);
       }
-    }
 
-    count = table_aux->deletions_2.count;
-    if (count > 0) {
-      uint32 *array = table_aux->deletions_2.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg2 = array[i];
-        MASTER_BIN_TABLE_ITER_2 iter;
-        master_bin_table_iter_2_init(table, &iter, arg2);
-        while (!master_bin_table_iter_2_is_out_of_range(&iter)) {
-          uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
-          master_bin_table_iter_2_move_forward(&iter);
+      count = table_aux->deletions_2.count;
+      if (count > 0) {
+        uint32 *array = table_aux->deletions_2.array;
+        for (uint32 i=0 ; i < count ; i++) {
+          uint32 arg2 = array[i];
+          MASTER_BIN_TABLE_ITER_2 iter;
+          master_bin_table_iter_2_init(table, &iter, arg2);
+          while (!master_bin_table_iter_2_is_out_of_range(&iter)) {
+            uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+            master_bin_table_iter_2_move_forward(&iter);
+          }
+          master_bin_table_delete_2(table, arg2);
         }
-        master_bin_table_delete_2(table, arg2);
       }
     }
   }
 
-  if (reins_count_times_3 > 0) {
-    uint32 *array = table_aux->reinsertions.array;
-    for (uint32 i=0 ; i < ins_count_times_3 ; ) {
-      uint32 arg1 = array[i++];
-      uint32 arg2 = array[i++];
-      uint32 surr = array[i++];
-      if (master_bin_table_insert_with_surr(table, arg1, arg2, surr, mem_pool)) {
-        incr_rc_1(store_1, arg1);
-        incr_rc_2(store_2, arg2);
-      }
-    }
-  }
-
-  if (ins_count_times_3 > 0) {
+  if (ins_count > 0) {
     uint32 *array = table_aux->insertions.array;
-    for (uint32 i=0 ; i < ins_count_times_3 ; ) {
-      uint32 arg1 = array[i++];
-      uint32 arg2 = array[i++];
-      uint32 surr = array[i++];
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 idx = 3 * i;
+      uint32 arg1 = array[idx];
+      uint32 arg2 = array[idx + 1];
+      uint32 surr = array[idx + 2];
       if (master_bin_table_insert_with_surr(table, arg1, arg2, surr, mem_pool)) {
         incr_rc_1(store_1, arg1);
         incr_rc_2(store_2, arg2);

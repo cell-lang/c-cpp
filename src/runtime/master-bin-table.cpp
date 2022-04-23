@@ -46,9 +46,12 @@ inline uint64 lock_slot(uint64 slot) {
   return locked_slot;
 }
 
-// inline uint64 unlock_slot(uint64 slot) {
-//
-// }
+inline uint64 unlock_slot(uint64 slot) {
+  assert(!master_bin_table_slot_is_empty(slot) && is_locked(slot));
+  uint64 unlocked_slot = slot & ~(1ULL << 63);
+  assert(!is_locked(unlocked_slot));
+  return unlocked_slot;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -102,7 +105,7 @@ void master_bin_table_release_surr(MASTER_BIN_TABLE *table, uint32 surr) {
 }
 
 bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr) {
-  assert(surr <= table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]));
+  assert(surr < table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]));
   uint64 *slot_ptr = table->slots + surr;
   uint64 slot = *slot_ptr;
   if (!is_locked(slot)) {
@@ -111,6 +114,23 @@ bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr) {
   }
   else
     return false;
+}
+
+bool master_bin_table_unlock_surr(MASTER_BIN_TABLE *table, uint32 surr) {
+  assert(surr < table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]));
+  uint64 *slot_ptr = table->slots + surr;
+  uint64 slot = *slot_ptr;
+  if (is_locked(slot)) {
+    *slot_ptr = unlock_slot(slot);
+    return true;
+  }
+  else
+    return false;
+}
+
+bool master_bin_table_slot_is_locked(MASTER_BIN_TABLE *table, uint32 surr) {
+  assert(surr < table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]));
+  return is_locked(table->slots[surr]);
 }
 
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_surr) {
