@@ -28,6 +28,7 @@ inline FAT_MAP_PTR make_array_map_ptr(OBJ *ptr, uint32 size, uint32 offset) {
 
 inline FAT_MAP_PTR make_tree_map_ptr(TREE_MAP_NODE *ptr, uint32 size) {
   assert(size == 1 + ptr->left.size + ptr->right.size);
+
   FAT_MAP_PTR fat_ptr;
   fat_ptr.ptr.tree = ptr;
   fat_ptr.size = size;
@@ -219,7 +220,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     }
     else {
       // The left branch is a tree
-      FAT_MAP_PTR updated_left_ptr = bin_tree_map_set_key_value(left_ptr.ptr.tree, left_ptr.size, key, value);
+      updated_left_ptr = bin_tree_map_set_key_value(left_ptr.ptr.tree, left_ptr.size, key, value);
       assert(updated_left_ptr.size == left_ptr.size || updated_left_ptr.size == left_ptr.size + 1);
 
       if (fat_map_ptr_eq(updated_left_ptr, left_ptr))
@@ -240,6 +241,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
 
       updated_left_ptr.ptr.tree->right = make_tree_map_ptr(new_ptr, 1 + new_ptr->left.size + new_ptr->right.size);
       updated_left_ptr.size = 1 + updated_left_ptr.ptr.tree->left.size + updated_left_ptr.ptr.tree->right.size;
+
       assert(updated_left_ptr.size == size + 1); //## I EXPECTED THIS TO FAIL SOMETIMES. WHY DIDN'T THAT HAPPEN?
 
       return updated_left_ptr;
@@ -279,6 +281,7 @@ static FAT_MAP_PTR bin_tree_map_set_key_value(TREE_MAP_NODE *ptr, uint32 size, O
     }
     else {
       updated_right_ptr = bin_tree_map_set_key_value(right_ptr.ptr.tree, right_ptr.size, key, value);
+
       assert(updated_right_ptr.size == right_ptr.size || updated_right_ptr.size == right_ptr.size + 1);
       // assert(updated_right_ptr.size > MIN_TREE_SIZE);
 
