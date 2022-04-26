@@ -1,7 +1,11 @@
 #include "lib.h"
 
+//## THERE'S STILL THE PROBLEM WITH new_map(..) TO FIX...
+//## ALSO FIX THIS:
+//##   {ptr = {array = 0x0, tree = 0x0}, size = 0, offset = 8}
 
-const uint32 MIN_TREE_SIZE = 9;
+
+const uint32 MIN_TREE_SIZE = 7;
 
 
 inline FAT_MAP_PTR make_empty_map_ptr() {

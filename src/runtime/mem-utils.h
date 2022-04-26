@@ -475,7 +475,7 @@ inline OBJ make_map(BIN_REL_OBJ *ptr, uint32 size) {
 }
 
 inline OBJ make_mixed_repr_map(MIXED_REPR_MAP_OBJ *ptr, uint32 size) {
-  assert(ptr != NULL && size > 8);
+  assert(ptr != NULL && size > 6);
 
   OBJ obj;
   obj.core_data.ptr = ptr;
