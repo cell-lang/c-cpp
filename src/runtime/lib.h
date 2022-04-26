@@ -287,6 +287,16 @@ struct ONE_WAY_BIN_TABLE {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct COL_UPDATE_BIT_MAP {
+  uint32 inline_dirty[32];
+  uint64 *bits;
+  uint32 *more_dirty;
+  uint32 num_bits_words;
+  uint32 num_dirty;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct BIN_TABLE {
   ONE_WAY_BIN_TABLE forward;
   ONE_WAY_BIN_TABLE backward;
@@ -317,6 +327,7 @@ struct BIN_TABLE_ITER_2 {
 };
 
 struct BIN_TABLE_AUX {
+  COL_UPDATE_BIT_MAP bit_map;
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
@@ -1408,6 +1419,14 @@ void clear_unused_mem();
 void switch_to_static_allocator();
 void switch_to_twin_stacks_allocator();
 
+//////////////////////////// key-checking-utils.cpp ////////////////////////////
+
+bool col_update_bit_map_init(COL_UPDATE_BIT_MAP *bit_map);
+bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
+void col_update_bit_map_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
+void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map);
+bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index);
+
 /////////////////////////////// unary-table.cpp ////////////////////////////////
 
 void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
@@ -1429,7 +1448,7 @@ void unary_table_iter_move_forward(UNARY_TABLE_ITER *);
 bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
 uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
 
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////// unary-table-aux.cpp //////////////////////////////
 
 void   unary_table_aux_init(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 

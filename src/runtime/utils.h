@@ -110,6 +110,26 @@ inline uint32 min_u32(uint32 x, uint32 y) {
   return x < y ? x : y;
 }
 
+inline uint32 max_u32(uint32 x, uint32 y) {
+  return x > y ? x : y;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline bool is_pow_2(uint32 x) {
+  //## CHECK CHECK CHECK
+  // (!(x & (x - 1)) && x)
+  // (i & -i) == i
+  return (x != 0) && ((x & (x - 1)) == 0);
+}
+
+// inline uint8 popcount(uint32 x) {
+//   uint8 count = 0;
+//   for ( ; x != 0; x &= (x - 1))
+//     count++;
+//   return count;
+// }
+
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool is_nan(double value) {
@@ -140,6 +160,25 @@ inline double bits_cast_uint64_double(uint64 value) {
 #define halt (void)(_assert_(0, "Halt reached", __FILE__, __LINE__))
 
 bool _assert_(int exp, const char *exp_text, const char *file, int line);
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline uint32 pow_2_ceiling(uint32 x) {
+  //## IS THERE A MORE EFFICIENT IMPLEMENTATION?
+  uint32 ceiling = 1;
+  while (ceiling < x)
+    ceiling *= 2;
+  return ceiling;
+}
+
+inline uint32 pow_2_ceiling(uint32 x, uint32 min) {
+  //## IS THERE A MORE EFFICIENT IMPLEMENTATION?
+  assert(is_pow_2(min));
+  uint32 ceiling = min;
+  while (ceiling < x)
+    ceiling *= 2;
+  return ceiling;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
