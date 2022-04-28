@@ -1518,8 +1518,8 @@ void bin_table_aux_delete_1(BIN_TABLE_AUX *, uint32 arg1);
 void bin_table_aux_delete_2(BIN_TABLE_AUX *, uint32 arg2);
 void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
-bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *);
-bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *);
+bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
+bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
