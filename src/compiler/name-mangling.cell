@@ -722,7 +722,6 @@ String native_name(<AutoSymbol, DBSymbol> auto_or_db_type, MethodId meth_id) {
 
 String native_name(DBSymbol db_type, UpdateId id) {
   base_name = match (id)
-    main_handler    = "msg_handler",
     handler_id(n?)  = "msg_handler_" & uppercase_encoding(n),
     update_id()     = { id_str = if id.id? then uppercase_encoding(id.id) else "";
                         return _print_(bare_id(id.symbol)) & "_U" & printed(id.arity) & id_str;
@@ -730,9 +729,8 @@ String native_name(DBSymbol db_type, UpdateId id) {
   return qualified_name(db_type, base_name);
 }
 
-String native_apply_method_name(DBSymbol db_type, <main_handler>) = qualified_name(db_type,"msg_handler_apply");
-
 String native_apply_method_name(DBSymbol db_type, <handler_id(Nat)> id) = qualified_name(db_type, "msg_handler_apply_" & uppercase_encoding(_untag_(id)));
+String native_reset_method_name(DBSymbol db_type, <handler_id(Nat)> id) = qualified_name(db_type, "msg_handler_reset_" & uppercase_encoding(_untag_(id)));
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -752,10 +750,14 @@ String updates_apply_proc_name    (DBSymbol db_type) = qualified_name(db_type, "
 String updates_finish_proc_name   (DBSymbol db_type) = qualified_name(db_type, "finish");
 String updates_check_proc_name    (DBSymbol db_type) = qualified_name(db_type, "check");
 String full_check_proc_name       (DBSymbol db_type) = qualified_name(db_type, "full_check");
-String update_entry_point_name    (DBSymbol db_type) = qualified_name(db_type, "update_entry_point");
 String set_state_entry_point_name (DBSymbol db_type) = qualified_name(db_type, "set_state_entry_point");
 String load_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "load_state_entry_point");
 String save_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "save_state_entry_point");
+
+String msg_handler_entry_point_array(DBSymbol db_type) = qualified_name(db_type, "msg_handlers_entry_points");
+
+String msg_handler_entry_point_name(DBSymbol db_type, <handler_id(Nat)> id) =
+  qualified_name(db_type, "msg_handler_" & uppercase_encoding(_untag_(id)) & "_entry_point");
 
 String state_is_def_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "state_is_def");
 
@@ -770,6 +772,8 @@ String clear_timer_method_name  (AutoSymbol auto_type) = qualified_name(auto_typ
 
 String update_name(DBSymbol db, UpdateId id) = native_name(db, id);
 String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = native_name(type, method);
+
+String handler_dispatch_resolver_name(DBSymbol db_type) = qualified_name(db_type, "msg_handler_dispatch_id");
 
 String input_set_method_name(AutoSymbol auto, Atom input) = _print_(input) & "_S_set";
 

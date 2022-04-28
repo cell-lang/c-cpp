@@ -25,10 +25,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // load_state_entry_point_code = native_load_state_entry_point_code(block.name, block.links);
     // save_state_entry_point_code = native_save_state_entry_point_code(block.name);
 
-    // update_entry_point_code = if block.updates(main_handler, _)
-    //   then update_entry_point(block.name)
-    //   else ();
-
     // full_check_code = full_check_method_code(block);
 
     // methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
@@ -75,16 +71,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     load_state_entry_point_code = native_load_state_entry_point_code(block.name, block.links);
     save_state_entry_point_code = native_save_state_entry_point_code(block.name);
 
-    update_entry_point_code = if block.updates(main_handler, _)
-      then update_entry_point(block.name)
-      else ();
-
     full_check_code = full_check_method_code(block);
 
     methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
     updates_code = native_updates_code(block);
 
-    block_name = native_name(block.name);
+    handler_methods_arrays = handler_methods_arrays(block);
+
+    handler_resol_code = handler_resolution_code(block);
 
     return join((
       // ("", "", "struct " & block_name & " {"),
@@ -101,12 +95,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       (""), write_state_code,
       (""), set_state_code,
       (""), load_state_code,
-      join((("") & c : c <- isort(methods_code))),
-      join((("") & c : c <- updates_code)),
       (""), set_state_entry_point_code,
       (""), load_state_entry_point_code,
       (""), save_state_entry_point_code,
-      (""), update_entry_point_code
+      join((("") & c : c <- isort(methods_code))),
+      join((("") & c : c <- updates_code)),
+      (""), handler_methods_arrays,
+      (""), handler_resol_code
+      // (""), update_entry_point_code,
       // ("", ""), updater_creation_code(block),
       // (""), auxiliary_reset_code(block),
     ));
@@ -871,41 +867,41 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* update_entry_point(DBSymbol block_name) {
-    target_name = auto_or_db_arg_name;
-    aux_name = db_auxiliary_arg_name;
-    main_handler_args = (target_name, aux_name, "msg", "env");
-    apply_method_args = (target_name, aux_name, "code");
-    body = (
-      // "int depth = get_call_stack_depth();",
-      "  switch_mem_stacks();",
-      "",
-      "try {",
-      "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
-      "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
-      "  //## RESET TRANSACTION FLAG",
-      "  " & native_apply_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
-      "  //## CLEAR THE ERROR MESSAGE",
-      "  unswitch_mem_stacks();",
-      "  clear_unused_mem();",
-      "  return true;",
-      "}",
-      "catch (...) {",
-      "  //## RESET TRANSACTION FLAG",
-      "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
-      "  //## CLEAR THE ERROR MESSAGE",
-      "  unswitch_mem_stacks();",
-      "  clear_unused_mem();",
-      "  return false;",
-      "}"
-    );
+  // String* update_entry_point(DBSymbol block_name) {
+  //   target_name = auto_or_db_arg_name;
+  //   aux_name = db_auxiliary_arg_name;
+  //   main_handler_args = (target_name, aux_name, "msg", "env");
+  //   apply_method_args = (target_name, aux_name, "code");
+  //   body = (
+  //     // "int depth = get_call_stack_depth();",
+  //     "  switch_mem_stacks();",
+  //     "",
+  //     "try {",
+  //     "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
+  //     "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
+  //     "  //## RESET TRANSACTION FLAG",
+  //     "  " & native_apply_and_reset_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
+  //     "  //## CLEAR THE ERROR MESSAGE",
+  //     "  unswitch_mem_stacks();",
+  //     "  clear_unused_mem();",
+  //     "  return true;",
+  //     "}",
+  //     "catch (...) {",
+  //     "  //## RESET TRANSACTION FLAG",
+  //     "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
+  //     "  //## CLEAR THE ERROR MESSAGE",
+  //     "  unswitch_mem_stacks();",
+  //     "  clear_unused_mem();",
+  //     "  return false;",
+  //     "}"
+  //   );
 
-    name = update_entry_point_name(block_name);
-    updater_type = native_auxiliary_name(block_name);
-    formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
-    sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
-    return (sgn) & indent_lines(body) & ("}");
-  }
+  //   name = update_entry_point_name(block_name);
+  //   updater_type = native_auxiliary_name(block_name);
+  //   formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
+  //   sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
+  //   return (sgn) & indent_lines(body) & ("}");
+  // }
 
 
   String* full_check_method_code(StaticBlock block) {
@@ -1125,13 +1121,39 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //   return (sgn) & indent_lines(body_text) & ("}");
   // }
 
+  String *handler_methods_arrays(StaticBlock block) {
+    num_msg_handlers = |[id : id _ <- block.updates, id :: <handler_id(Nat)>]|;
+    array_name = msg_handler_entry_point_array(block.name);
+    rel_auto_type = native_name(block.name);
+    rel_auto_aux_type = native_auxiliary_name(block.name);
+    defs = ("", "bool (*" & array_name & "[" & _print_(num_msg_handlers) & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
+    for i < num_msg_handlers {
+      line = msg_handler_entry_point_name(block.name, handler_id(i));
+      line = line & "," if i != num_msg_handlers - 1;
+      defs = (defs | "  " & line);
+    }
+    defs = (defs | "};");
+    return defs;
+  }
+
+  String* handler_resolution_code(StaticBlock block) {
+    if block.handler_dispatch_resolver != nothing {
+      dispatch_resolver = value(block.handler_dispatch_resolver);
+      assert |dispatch_resolver.args_vars| == 1;
+      arg = dispatch_resolver.args_vars(0);
+      sgn = "uint32 " & handler_dispatch_resolver_name(block.name) & "(OBJ " & native_var_decl_name(arg) & ") {";
+      return (sgn) & indent_lines(native_code(dispatch_resolver.body, nothing, break_target = nothing)) & ("}");
+    }
+    else
+      return ();
+  }
+
 
   String** native_updates_code(StaticBlock b) {
     sorted_updates = sort_by_key([k : k _ <- b.updates],
       match ($)
         update_id()   = 0,
-        handler_id()  = 1,
-        main_handler  = 2
+        handler_id()  = 1
     );
     let block = b
       code = (native_update_code(b.name, id, b.updates(id).args_vars, b.updates(id).body) : id <- sorted_updates);
@@ -1145,8 +1167,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name)) & (obj_type_name & " " & native_var_decl_name(a) : a <- args) & ("ENV &env");
     args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- args));
     ret_type = match (update_id)
-      main_handler  = "int",
-      handler_id()  = "void",
+      handler_id()  = "bool",
       update_id()   = "void";
     sgn = ret_type & " " & update_name(block_name, update_id) & "(" & append(args_decls, ", ") & ") {";
     vars_decls = gen_vars_decls(body, [a : a <- args, a :: StdVar]);
@@ -1154,16 +1175,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     body_text = body_text & match (update_id)
       handler_id()  = run_and_check_dependees_and_check_code(update_id),
-      main_handler  = (),
       update_id()   = ();
 
     main_method = (sgn) & indent_lines(body_text) & ("}");
-    apply_method = match (update_id)
-      main_handler    = main_handler_apply_method(block_name),
-      handler_id(i?)  = handler_apply_method(update_id),
+    apply_and_reset_methods = match (update_id)
+      handler_id(i?)  = handler_apply_and_reset_methods(update_id),
       update_id()     = ();
 
-    return main_method & apply_method;
+    entry_point_method = match (update_id)
+      handler_id()  = handler_entry_point_method(update_id),
+      update_id()   = ();
+
+    return main_method & apply_and_reset_methods & entry_point_method;
 
 
     String* run_and_check_dependees_and_check_code(UpdateId update_id) {
@@ -1177,47 +1200,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return dependees_code & check_code;
     }
 
-    String* main_handler_apply_method(DBSymbol block_name) {
-      ids = [i : id _ <- block.updates, handler_id(i?) ?= id];
-      return () if ids == [];
-      assert max(ids) == |ids| - 1 and min(ids) == 0;
 
-      args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), "int apply_code");
-      sgn = "void " & native_apply_method_name(block_name, :main_handler) & "(" & append(args, ", ") & ") {";
-
-      code = (
-        "",
-        sgn,
-        " switch (apply_code) {"
-      );
-
-      for i < |ids| {
-        code = (code | "") if i > 0;
-        code = (code |
-          "    case " & _print_(i) & ":",
-          "      " & native_apply_method_name(block_name, handler_id(i)) & "(" & auto_or_db_arg_name & ", " & db_auxiliary_arg_name & ");",
-          "      break;"
-        );
-      }
-
-      code = (code |
-        "",
-        "    default:",
-        "      internal_fail();",
-        "  }",
-        "}"
-      );
-
-      return code;
-    }
-
-
-    String* handler_apply_method(<handler_id(Nat)> update_id) {
-      memb_vars = [v : v <- updated_memb_vars(update_id, ?)];
-      value_stores = [v : v <- value_stores_with_insertions(update_id, ?)];
-      dependees = [a : a <- updated_dependees(update_id, ?)];
-      insertion_tables = [t : t <- table_vars_with_insertions(update_id, ?)];
-      deletion_tables = [t : t <- table_vars_with_deletions(update_id, ?)];
+    String* handler_apply_and_reset_methods(<handler_id(Nat)> handler_id) {
+      memb_vars = [v : v <- updated_memb_vars(handler_id, ?)];
+      value_stores = [v : v <- value_stores_with_insertions(handler_id, ?)];
+      dependees = [a : a <- updated_dependees(handler_id, ?)];
+      insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+      deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
       table_vars = insertion_tables & deletion_tables;
       tables = [t -> block.tables(t) : t <- table_vars];
 
@@ -1228,9 +1217,77 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       reset_code = updates_reset_code(memb_vars, value_stores, tables, dependees);
 
       args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name));
-      sgn = "void " & native_apply_method_name(block.name, update_id) & "(" & append(args, ", ") & ") {";
-      body = dependees_code & apply_code & finish_code & reset_code;
-      return ("", sgn) & indent_lines(body) & ("}");
+      apply_sgn = "void " & native_apply_method_name(block.name, handler_id) & "(" & append(args, ", ") & ") {";
+      body = dependees_code & apply_code & finish_code;
+      apply_method_text = ("", apply_sgn) & indent_lines(body) & ("}");
+
+      reset_sgn = "void " & native_reset_method_name(block.name, handler_id) & "(" & auxiliary_arg_decl(block.name) & ") {";
+      reset_method_text = ("", reset_sgn) & indent_lines(reset_code) & ("}");
+
+      return apply_method_text & reset_method_text;
+    }
+
+
+    String* handler_entry_point_method(<handler_id(Nat)> handler_id) {
+      target_name = auto_or_db_arg_name;
+      aux_name = db_auxiliary_arg_name;
+
+      method_name = msg_handler_entry_point_name(block.name, handler_id);
+      formal_args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name), obj_type_name & " msg", env_arg_decl);
+
+      run_and_check_method_name = native_name(block.name, handler_id);
+      apply_method_name = native_apply_method_name(block.name, handler_id);
+      reset_method_name = native_reset_method_name(block.name, handler_id);
+
+      return (
+        "",
+        "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
+        "  try {",
+        "    bool ok = " & run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+        "    if (ok)",
+        "      " & apply_method_name & "(" & target_name & ", " & aux_name & ");",
+        "    " & reset_method_name & "(" & aux_name & ");",
+        "    return ok;",
+        "  }",
+        "  catch (...) {",
+        "    " & reset_method_name & "(" & aux_name & ");",
+        "    return false;",
+        "  }",
+        "}"
+      );
+
+      // main_handler_args = (target_name, aux_name, "msg", "env");
+      // apply_method_args = (target_name, aux_name, "code");
+      // body = (
+      //   // "int depth = get_call_stack_depth();",
+      //   "  switch_mem_stacks();",
+      //   "",
+      //   "try {",
+      //   "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
+      //   "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
+      //   "  //## RESET TRANSACTION FLAG",
+      //   "  " & native_apply_and_reset_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
+      //   "  //## CLEAR THE ERROR MESSAGE",
+      //   "  unswitch_mem_stacks();",
+      //   "  clear_unused_mem();",
+      //   "  return true;",
+      //   "}",
+      //   "catch (...) {",
+      //   "  //## RESET TRANSACTION FLAG",
+      //   "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
+      //   "  //## CLEAR THE ERROR MESSAGE",
+      //   "  unswitch_mem_stacks();",
+      //   "  clear_unused_mem();",
+      //   "  return false;",
+      //   "}"
+      // );
+      // formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
+      // sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
+      // return (sgn) & indent_lines(body) & ("}");
+
+      // name = update_entry_point_name(block_name);
+
+
     }
   }
 
@@ -1339,33 +1396,37 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
   String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar -> DBSymbol] vars) {
-    code = ();
-    for v <- isort(keys(vars)) {
-      msg_var_name = dependee_msg_var_ref_name(v);
-      args = (v, updater_var_ref_name(v), msg_var_name, "env");
-      instr = native_call(dependee_apply_code_var_ref_name(v), native_name(vars(v), main_handler), args);
-      code = (code | "if (!is_blank(" & msg_var_name & "))", "  " & instr);
-    }
-    return code;
+    return (); //## IMPLEMENT IMPLEMENT IMPLEMENT
+
+    // code = ();
+    // for v <- isort(keys(vars)) {
+    //   msg_var_name = dependee_msg_var_ref_name(v);
+    //   args = (v, updater_var_ref_name(v), msg_var_name, "env");
+    //   instr = native_call(dependee_apply_code_var_ref_name(v), native_name(vars(v), main_handler), args);
+    //   code = (code | "if (!is_blank(" & msg_var_name & "))", "  " & instr);
+    // }
+    // return code;
   }
 
 
   String* dependees_apply_code([LinkedDBVar -> DBSymbol] vars) {
-    code = ();
-    for v <- isort(keys(vars)) {
-      msg_var_name = dependee_msg_var_ref_name(v);
-      apply_code_var_name = dependee_apply_code_var_ref_name(v);
-      args = (v, updater_var_ref_name(v), dependee_apply_code_var_ref_name(v));
-      instr = native_call(native_apply_method_name(vars(v), main_handler), args);
-      code = (code |
-        "if (!is_blank(" & msg_var_name & ")) {",
-        "  " & instr,
-        "  " & msg_var_name & " = make_blank_obj();",
-        "  " & apply_code_var_name & " = -1;",
-        "}"
-      );
-    }
-    return code;
+    return (); //## IMPLEMENT IMPLEMENT IMPLEMENT
+
+    // code = ();
+    // for v <- isort(keys(vars)) {
+    //   msg_var_name = dependee_msg_var_ref_name(v);
+    //   apply_code_var_name = dependee_apply_code_var_ref_name(v);
+    //   args = (v, updater_var_ref_name(v), dependee_apply_code_var_ref_name(v));
+    //   instr = native_call(native_apply_and_reset_method_name(vars(v), main_handler), args);
+    //   code = (code |
+    //     "if (!is_blank(" & msg_var_name & ")) {",
+    //     "  " & instr,
+    //     "  " & msg_var_name & " = make_blank_obj();",
+    //     "  " & apply_code_var_name & " = -1;",
+    //     "}"
+    //   );
+    // }
+    // return code;
   }
 
 
@@ -1381,8 +1442,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
     keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
-    keys_check_code = (check_stmt(v, a, k, block) : v, a, k <- sort_by_key(keys, order));
-    keys_check_code = ("") & keys_check_code if keys != [];
+    return () if keys == [];
+
+    keys_check_code = ("");
+    for v, a, k <- sort_by_key(keys, order) {
+      fn_call = check_call(v, a, k, block);
+      keys_check_code = (keys_check_code | "if (!" & fn_call & ")", " return false;");
+    }
 
     // foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
     //                 [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
@@ -1390,10 +1456,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
     // foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
 
+    keys_check_code = (keys_check_code | "return true;");
     return keys_check_code; // & foreign_keys_check_code;
 
 
-    String check_stmt(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
+    String check_call(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
       table_type = block.tables(var);
       method_name = match (table_type)
         table()             = table_key_check_method_names(arity, key, !),
@@ -1407,10 +1474,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         column()            = (var, aux_var, :mem_pool),
         mandatory_column()  = (table_type.master, var, aux_var, :mem_pool),
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
-        table()             |
+        table()             = (var, aux_var, :mem_pool if arity == 2),
         master_bin_table()  = (var, aux_var),
         slave_column()      = (var, aux_var, :mem_pool);
-      return native_call_expr(method_name, args) & ";";
+      return native_call_expr(method_name, args);
     }
 
 
