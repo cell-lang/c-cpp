@@ -74,7 +74,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     full_check_code = full_check_method_code(block);
 
     methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
-    updates_code = native_updates_code(block);
+    handlers_code = native_handlers_code(block);
 
     handler_methods_arrays = handler_methods_arrays(block);
 
@@ -99,7 +99,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       (""), load_state_entry_point_code,
       (""), save_state_entry_point_code,
       join((("") & c : c <- isort(methods_code))),
-      join((("") & c : c <- updates_code)),
+      join((("") & c : c <- handlers_code)),
       (""), handler_methods_arrays,
       (""), handler_resol_code
       // (""), update_entry_point_code,
@@ -1122,7 +1122,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   // }
 
   String *handler_methods_arrays(StaticBlock block) {
-    num_msg_handlers = |[id : id _ <- block.updates, id :: <handler_id(Nat)>]|;
+    num_msg_handlers = |block.handlers|;
     array_name = msg_handler_entry_point_array(block.name);
     rel_auto_type = native_name(block.name);
     rel_auto_aux_type = native_auxiliary_name(block.name);
@@ -1138,70 +1138,53 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* handler_resolution_code(StaticBlock block) {
     if block.handler_dispatch_resolver != nothing {
-      dispatch_resolver = value(block.handler_dispatch_resolver);
-      assert |dispatch_resolver.args_vars| == 1;
-      arg = dispatch_resolver.args_vars(0);
+      arg, body = value(block.handler_dispatch_resolver);
       sgn = "uint32 " & handler_dispatch_resolver_name(block.name) & "(OBJ " & native_var_decl_name(arg) & ") {";
-      return (sgn) & indent_lines(native_code(dispatch_resolver.body, nothing, break_target = nothing)) & ("}");
+      return (sgn) & indent_lines(native_code(body, nothing, break_target = nothing)) & ("}");
     }
     else
       return ();
   }
 
 
-  String** native_updates_code(StaticBlock b) {
-    sorted_updates = sort_by_key([k : k _ <- b.updates],
-      match ($)
-        update_id()   = 0,
-        handler_id()  = 1
-    );
+  String** native_handlers_code(StaticBlock b) {
+    sorted_handlers = _isort_([k : k _ <- b.handlers]);
     let block = b
-      code = (native_update_code(b.name, id, b.updates(id).args_vars, b.updates(id).body) : id <- sorted_updates);
+      code = (native_handler_code(b.name, id, b.handlers(id).args_vars, b.handlers(id).body) : id <- sorted_handlers);
     return code;
   }
 }
 
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool {
-  String* native_update_code(DBSymbol block_name, UpdateId update_id, <StdVar, FnArg>* args, Instr* body) {
+  String* native_handler_code(DBSymbol block_name, HandlerId handler_id, <StdVar, FnArg>* args, Instr* body) {
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name)) & (obj_type_name & " " & native_var_decl_name(a) : a <- args) & ("ENV &env");
     args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- args));
-    ret_type = match (update_id)
-      handler_id()  = "bool",
-      update_id()   = "void";
-    sgn = ret_type & " " & update_name(block_name, update_id) & "(" & append(args_decls, ", ") & ") {";
+    sgn = "bool " & handler_name(block_name, handler_id) & "(" & append(args_decls, ", ") & ") {";
     vars_decls = gen_vars_decls(body, [a : a <- args, a :: StdVar]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
-
-    body_text = body_text & match (update_id)
-      handler_id()  = run_and_check_dependees_and_check_code(update_id),
-      update_id()   = ();
+    body_text = body_text & run_and_check_dependees_and_check_code(handler_id);
 
     main_method = (sgn) & indent_lines(body_text) & ("}");
-    apply_and_reset_methods = match (update_id)
-      handler_id(i?)  = handler_apply_and_reset_methods(update_id),
-      update_id()     = ();
-
-    entry_point_method = match (update_id)
-      handler_id()  = handler_entry_point_method(update_id),
-      update_id()   = ();
+    apply_and_reset_methods = handler_apply_and_reset_methods(handler_id);
+    entry_point_method = handler_entry_point_method(handler_id);
 
     return main_method & apply_and_reset_methods & entry_point_method;
 
 
-    String* run_and_check_dependees_and_check_code(UpdateId update_id) {
-      dependees = [a -> linked_db_var_type(block, a) : a <- updated_dependees(update_id, ?)];
+    String* run_and_check_dependees_and_check_code(HandlerId handler_id) {
+      dependees = [a -> linked_db_var_type(block, a) : a <- updated_dependees(handler_id, ?)];
       dependees_code = dependees_run_and_check_code(block.name, dependees);
 
-      insertion_tables = [t : t <- table_vars_with_insertions(update_id, ?)];
-      deletion_tables = [t : t <- table_vars_with_deletions(update_id, ?)];
+      insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+      deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
       check_code = updates_check_code(block, insertion_tables, deletion_tables);
 
       return dependees_code & check_code;
     }
 
 
-    String* handler_apply_and_reset_methods(<handler_id(Nat)> handler_id) {
+    String* handler_apply_and_reset_methods(HandlerId handler_id) {
       memb_vars = [v : v <- updated_memb_vars(handler_id, ?)];
       value_stores = [v : v <- value_stores_with_insertions(handler_id, ?)];
       dependees = [a : a <- updated_dependees(handler_id, ?)];
@@ -1228,7 +1211,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* handler_entry_point_method(<handler_id(Nat)> handler_id) {
+    String* handler_entry_point_method(HandlerId handler_id) {
       target_name = auto_or_db_arg_name;
       aux_name = db_auxiliary_arg_name;
 

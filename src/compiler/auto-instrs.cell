@@ -254,8 +254,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     init_db()             = native_init_db_code(instr.db_var, instr.links, instr.type),
     cleanup_db()          = (), //(native_method_call(instr.db_var, cleanup_method_name(instr.type), ())),
 
-    send_msg()            = native_send_msg_code(instr.db_var, instr.type, instr.msg, instr.is_root, if instr.res_var? then just(instr.res_var) else nothing),
-    try_update()          = (native_call(update_name(instr.type, instr.update_id), (auto_or_db_arg_name, db_auxiliary_arg_name) &  instr.args & ("env"))),
+    send_external_msg()   = native_send_external_msg_code(instr.db_var, instr.type, instr.msg, instr.res_var),
+    send_internal_msg()   = native_send_internal_msg_code(instr.db_var, instr.type, instr.msg),
 
     set_state()           = native_set_state_code(instr.state, instr.db_var, instr.type, instr.res_var),
     invoke_auto_method()  = (native_method_call(instr.res_var, if instr.auto_var? then instr.auto_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),
@@ -448,37 +448,29 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     return native_call(method_name, (column.master if is_mandatory_column(column), col_var, it_var));
   }
 
+  String* native_send_external_msg_code(LocDBVar db_var, DBSymbol db_type, AtomicExpr msg, BoolVar res_var) {
+    methods_array_name = msg_handler_entry_point_array(db_type);
+    resolver_name = handler_dispatch_resolver_name(db_type);
+    method_pointer_lookup_expr = methods_array_name & "[" & resolver_name & "(" & native_expr(msg) & ")]";
+    db_var_name = native_var_ref_name(db_var);
+    aux_var_name = aux_var_decl_name(db_var);
+    args = (db_var_name, aux_var_name, msg, "env");
+    line = native_call(res_var, method_pointer_lookup_expr, args);
+    return (line);
+  }
 
-  String* native_send_msg_code(AnyDBVar db_var, DBSymbol db_type, AtomicExpr msg, Bool is_root, Maybe[BoolVar] maybe_res_var) {
-    if is_root {
-      fail if not db_var :: LocDBVar;
 
-      methods_array_name = msg_handler_entry_point_array(db_type);
-      resolver_name = handler_dispatch_resolver_name(db_type);
-      method_pointer_lookup_expr = methods_array_name & "[" & resolver_name & "(" & native_expr(msg) & ")]";
+  String* native_send_internal_msg_code(LinkedDBVar db_var, DBSymbol db_type, AtomicExpr msg) {
+    fail; //## IMPLEMENT IMPLEMENT IMPLEMENT
 
-      db_var_name = native_var_ref_name(db_var);
-      aux_var_name = aux_var_decl_name(db_var);
-      args = (db_var_name, aux_var_name, msg, "env");
-      line = if maybe_res_var == nothing
-        then native_call(method_pointer_lookup_expr, args)
-        else native_call(value(maybe_res_var), method_pointer_lookup_expr, args);
-      return (line);
-    }
-    else {
-      fail; //## IMPLEMENT IMPLEMENT IMPLEMENT
-
-      // assert db_var :: LinkedDBVar;
-      // fail if not db_var :: LinkedDBVar;
-      // method_name = update_name(db_type, main_handler);
-      // aux_db_var_name = updater_var_ref_name(db_var);
-      // msg_var_name = dependee_msg_var_ref_name(db_var);
-      // return (
-      //   "if (!is_blank(" & msg_var_name & "))",
-      //   "  soft_fail(NULL);",
-      //   msg_var_name & " = " & native_expr(msg) & ";"
-      // );
-    }
+    // method_name = update_name(db_type, main_handler);
+    // aux_db_var_name = updater_var_ref_name(db_var);
+    // msg_var_name = dependee_msg_var_ref_name(db_var);
+    // return (
+    //   "if (!is_blank(" & msg_var_name & "))",
+    //   "  soft_fail(NULL);",
+    //   msg_var_name & " = " & native_expr(msg) & ";"
+    // );
   }
 
 
