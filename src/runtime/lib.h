@@ -516,16 +516,10 @@ struct INT_COL_ITER {
 };
 
 struct INT_COL_AUX {
+  COL_UPDATE_STATUS_MAP status_map;
   QUEUE_U32 deletions;
   QUEUE_U32_I64 insertions;
   QUEUE_U32_I64 updates;
-
-  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
-  uint32 bitmap_size;
-
-  uint32 max_idx_plus_one;
-  bool dirty;
-
   bool clear;
 };
 
@@ -544,16 +538,10 @@ struct FLOAT_COL_ITER {
 };
 
 struct FLOAT_COL_AUX {
+  COL_UPDATE_STATUS_MAP status_map;
   QUEUE_U32 deletions;
   QUEUE_U32_FLOAT insertions;
   QUEUE_U32_FLOAT updates;
-
-  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
-  uint32 bitmap_size;
-
-  uint32 max_idx_plus_one;
-  bool dirty;
-
   bool clear;
 };
 
@@ -2346,6 +2334,14 @@ bool queue_u32_contains(QUEUE_U32 *, uint32);
 void queue_u32_obj_init(QUEUE_U32_OBJ *);
 void queue_u32_obj_insert(QUEUE_U32_OBJ *, uint32, OBJ);
 void queue_u32_obj_reset(QUEUE_U32_OBJ *);
+
+void queue_u32_double_init(QUEUE_U32_FLOAT *);
+void queue_u32_double_insert(QUEUE_U32_FLOAT *, uint32, double);
+void queue_u32_double_reset(QUEUE_U32_FLOAT *);
+
+void queue_u32_i64_init(QUEUE_U32_I64 *);
+void queue_u32_i64_insert(QUEUE_U32_I64 *, uint32, int64);
+void queue_u32_i64_reset(QUEUE_U32_I64 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

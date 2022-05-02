@@ -50,6 +50,8 @@ static void raw_obj_col_aux_record_col_1_key_violation(RAW_OBJ_COL *col, OBJ_COL
 
 //## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
 bool raw_obj_col_aux_check_key_1(UNARY_TABLE *master, RAW_OBJ_COL *, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  assert(col_aux->status_map.bit_map.num_dirty == 0);
+
   uint32 num_insertions = col_aux->insertions.count;
   uint32 num_updates = col_aux->updates.count;
 

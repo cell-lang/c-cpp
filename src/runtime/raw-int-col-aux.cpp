@@ -21,100 +21,81 @@ void raw_int_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void record_col_1_key_violation(RAW_INT_COL *col, INT_COL_AUX *col_aux, uint32 idx, int64 value, bool between_new) {
+static void raw_int_col_aux_record_col_1_key_violation(RAW_INT_COL *col, INT_COL_AUX *col_aux, uint32 idx, int64 value, bool between_new) {
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool obj_col_aux_build_bitmap_and_check_key(UNARY_TABLE *master_table, RAW_INT_COL *column, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(col_aux->insertions.count > 0 || col_aux->updates.count > 0);
-  assert(col_aux->max_idx_plus_one > 0);
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool raw_int_col_aux_check_key_1(UNARY_TABLE *master, RAW_INT_COL *, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  assert(col_aux->status_map.bit_map.num_dirty == 0);
 
-  uint32 max_idx = col_aux->max_idx_plus_one - 1;
-  uint32 bitmap_size = col_aux->bitmap_size;
-  uint64 *bitmap = col_aux->bitmap;
+  uint32 num_insertions = col_aux->insertions.count;
+  uint32 num_updates = col_aux->updates.count;
 
-  if (max_idx / 32 >= bitmap_size) {
-    release_state_mem_uint64_array(mem_pool, bitmap, bitmap_size);
-    do
-      bitmap_size *= 2;
-    while (max_idx / 32 >= bitmap_size);
-    bitmap = alloc_state_mem_zeroed_uint64_array(mem_pool, bitmap_size);
-    col_aux->bitmap_size = bitmap_size;
-    col_aux->bitmap = bitmap;
-  }
+  if (num_insertions != 0 | num_updates != 0) {
+    if (col_aux->clear) {
+      if (num_insertions != 0) {
+        uint32 *idxs = col_aux->insertions.u32_array;
+        for (uint32 i=0 ; i < num_insertions ; i++)
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
+            //## CLEAR?
+            //## RECORD THE ERROR
+            return false;
+          }
+      }
 
-  col_aux->dirty = true;
-
-  // 00 - untouched
-  // 01 - deleted
-  // 10 - inserted
-  // 11 - updated or inserted and deleted
-
-  uint32 count = col_aux->deletions.count;
-  if (count > 0) {
-    uint32 *idxs = col_aux->deletions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      uint32 slot_idx = idx / 32;
-      uint32 shift = 2 * (idx % 32);
-      uint64 slot = bitmap[slot_idx];
-      slot |= 1ULL << shift;
-      bitmap[slot_idx] = slot;
+      if (num_updates != 0) {
+        uint32 *idxs = col_aux->updates.u32_array;
+        for (uint32 i=0 ; i < num_updates ; i++) {
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
+            //## CLEAR?
+            //## RECORD THE ERROR
+            return false;
+          }
+        }
+      }
     }
-  }
+    else {
+      uint32 num_deletes = col_aux->deletions.count;
+      if (num_deletes != 0) {
+        uint32 *idxs = col_aux->deletions.array;
+        for (uint32 i=0 ; i < num_deletes ; i++)
+          col_update_status_map_mark_deletion(&col_aux->status_map, idxs[i], mem_pool);
+      }
 
-  count = col_aux->updates.count;
-  if (count > 0) {
-    uint32 *idxs = col_aux->updates.u32_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      uint32 slot_idx = idx / 32;
-      uint32 shift = 2 * (idx % 32);
-      uint64 slot = bitmap[slot_idx];
-      if (((slot >> shift) & 2) != 0) {
-        //## HERE I WOULD ACTUALLY NEED TO CHECK THAT THE NEW VALUE IS DIFFERENT FROM THE OLD ONE
-        record_col_1_key_violation(column, col_aux, idx, col_aux->updates.i64_array[i], true);
-        return false;
-      }
-      slot |= 3ULL << shift;
-      bitmap[slot_idx] = slot;
-    }
-  }
+      if (num_insertions != 0) {
+        uint32 *idxs = col_aux->insertions.u32_array;
+        for (uint32 i=0 ; i < num_insertions ; i++) {
+          uint32 idx = idxs[i];
+          //## COULD BE MADE MORE EFFICIENT IF WE MERGED THE .._deleted_flag_is_set(..) WITH .._check_and_mark_insertion(..)
+          if (unary_table_contains(master, idx) && !col_update_status_map_deleted_flag_is_set(&col_aux->status_map, idx)) {
+            //## CLEAR?
+            //## RECORD THE ERROR
+            return false;
+          }
 
-  count = col_aux->insertions.count;
-  if (count > 0) {
-    uint32 *idxs = col_aux->insertions.u32_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      uint32 slot_idx = idx / 32;
-      uint32 shift = 2 * (idx % 32);
-      uint64 slot = bitmap[slot_idx];
-      uint64 flags = (slot >> shift) & 3;
-      if (flags >= 2) {
-        //## HERE I WOULD ACTUALLY NEED TO CHECK THAT THE NEW VALUE IS DIFFERENT FROM THE OLD ONE
-        record_col_1_key_violation(column, col_aux, idx, col_aux->insertions.i64_array[i], true);
-        return false;
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
+            //## CLEAR?
+            //## RECORD THE ERROR
+            return false;
+          }
+        }
       }
-      if (flags == 0 && unary_table_contains(master_table, idx)) {
-        //## HERE I WOULD ACTUALLY NEED TO CHECK THAT THE NEW VALUE IS DIFFERENT FROM THE OLD ONE
-        record_col_1_key_violation(column, col_aux, idx, col_aux->insertions.i64_array[i], false);
-        return false;
+
+      if (num_updates != 0) {
+        uint32 *idxs = col_aux->updates.u32_array;
+        for (uint32 i=0 ; i < num_updates ; i++) {
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
+            //## CLEAR?
+            //## RECORD THE ERROR
+            return false;
+          }
+        }
       }
-      slot |= 2ULL << shift;
-      bitmap[slot_idx] = slot;
     }
   }
 
   return true;
-}
-
-bool raw_int_col_aux_check_key_1(UNARY_TABLE *master_table, RAW_INT_COL *column, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  if (col_aux->insertions.count != 0 || col_aux->updates.count != 0) {
-    assert(col_aux->max_idx_plus_one > 0 && !col_aux->dirty);
-    return obj_col_aux_build_bitmap_and_check_key(master_table, column, col_aux, mem_pool);
-  }
-  else
-    return true;
 }
