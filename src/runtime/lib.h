@@ -289,10 +289,14 @@ struct ONE_WAY_BIN_TABLE {
 
 struct COL_UPDATE_BIT_MAP {
   uint32 inline_dirty[32];
-  uint64 *bits;
+  uint64 *bits; // Stored in state memory
   uint32 *more_dirty;
   uint32 num_bits_words;
   uint32 num_dirty;
+};
+
+struct COL_UPDATE_STATUS_MAP {
+  COL_UPDATE_BIT_MAP bit_map;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -486,16 +490,10 @@ struct OBJ_COL_ITER {
 };
 
 struct OBJ_COL_AUX {
+  COL_UPDATE_STATUS_MAP status_map;
   QUEUE_U32 deletions;
   QUEUE_U32_OBJ insertions;
   QUEUE_U32_OBJ updates;
-
-  uint64 *bitmap; // Stored in state memory. This may cause trouble with concurrency
-  uint32 bitmap_size;
-
-  uint32 max_idx_plus_one;
-  bool dirty;
-
   bool clear;
 };
 
@@ -1421,11 +1419,17 @@ void switch_to_twin_stacks_allocator();
 
 //////////////////////////// key-checking-utils.cpp ////////////////////////////
 
-bool col_update_bit_map_init(COL_UPDATE_BIT_MAP *bit_map);
+void col_update_bit_map_init(COL_UPDATE_BIT_MAP *bit_map);
+void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map);
 bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
 void col_update_bit_map_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
-void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map);
 bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index);
+
+void col_update_status_map_init(COL_UPDATE_STATUS_MAP *);
+void col_update_status_map_clear(COL_UPDATE_STATUS_MAP *);
+void col_update_status_map_mark_deletion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
+bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
+bool col_update_status_map_deleted_flag_is_set(COL_UPDATE_STATUS_MAP *, uint32 index);
 
 /////////////////////////////// unary-table.cpp ////////////////////////////////
 
@@ -2330,6 +2334,18 @@ uint32 obj_store_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_a
 
 void obj_store_incr_rc(void *store, uint32 surr);
 void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
+
+////////////////////////////////// queues.cpp //////////////////////////////////
+
+void queue_u32_init(QUEUE_U32 *);
+void queue_u32_insert(QUEUE_U32 *, uint32);
+void queue_u32_prepare(QUEUE_U32 *);
+void queue_u32_reset(QUEUE_U32 *);
+bool queue_u32_contains(QUEUE_U32 *, uint32);
+
+void queue_u32_obj_init(QUEUE_U32_OBJ *);
+void queue_u32_obj_insert(QUEUE_U32_OBJ *, uint32, OBJ);
+void queue_u32_obj_reset(QUEUE_U32_OBJ *);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
