@@ -1425,7 +1425,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
     keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
-    return () if keys == [];
 
     keys_check_code = ("");
     for v, a, k <- sort_by_key(keys, order) {

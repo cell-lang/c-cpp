@@ -456,7 +456,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     }
     else {
       handler_id = value(maybe_handler_id);
-      handler_name_or_method_pointer_lookup_expr = native_name(db_type, handler_id);
+      handler_name_or_method_pointer_lookup_expr = msg_handler_entry_point_name(db_type, handler_id);
     }
 
     db_var_name = native_var_ref_name(db_var);
