@@ -10,7 +10,7 @@ void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
 }
 
 void int_col_aux_reset(INT_COL_AUX *col_aux) {
-  col_update_status_map_init(&col_aux->status_map);
+  col_update_status_map_clear(&col_aux->status_map);
   queue_u32_reset(&col_aux->deletions);
   queue_u32_i64_reset(&col_aux->insertions);
   queue_u32_i64_reset(&col_aux->updates);
