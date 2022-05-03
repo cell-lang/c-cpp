@@ -97,7 +97,7 @@ bool raw_obj_col_aux_check_key_1(UNARY_TABLE *master, RAW_OBJ_COL *, OBJ_COL_AUX
             return false;
           }
 
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idx, mem_pool)) {
             //## CLEAR?
             //## RECORD THE ERROR
             return false;

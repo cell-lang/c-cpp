@@ -1061,30 +1061,30 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   // }
 
 
-  String* auxiliary_reset_code(StaticBlock block) {
-    var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
-    vars_reset_code = (native_var_ref_name(pending_state_var(id)) & " = make_blank_obj();" : id <- var_ids);
+  // String* auxiliary_reset_code(StaticBlock block) {
+  //   var_ids = (bare_id(v) : v <- isort(keys(block.state_vars)));
+  //   vars_reset_code = (native_var_ref_name(pending_state_var(id)) & " = make_blank_obj();" : id <- var_ids);
 
-    dep_msg_vars_reset_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
-    dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
+  //   dep_msg_vars_reset_code = (dependee_msg_var_ref_name(linked_db_var(i)) & " = null;" : i < |block.links|);
+  //   dep_apply_code_vars_reset_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = 0;" : i < |block.links|);
 
-    value_stores_reset_code = (
-      native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_aux_reset", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
-    );
+  //   value_stores_reset_code = (
+  //     native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_aux_reset", (updater_var_ref_name(vs))) : vs, _ <- isort(block.value_stores)
+  //   );
 
-    tables_reset_code = ({
-      prefix = match (t)
-        mandatory_column()  = native_column_method_prefix(t.repr),
-        _                   = native_table_method_prefix(t);
-      return native_call(prefix & "_aux_reset", (pending_updates_var_ref_name(v)));
-    } : v, t <- isort(block.tables));
+  //   tables_reset_code = ({
+  //     prefix = match (t)
+  //       mandatory_column()  = native_column_method_prefix(t.repr),
+  //       _                   = native_table_method_prefix(t);
+  //     return native_call(prefix & "_aux_reset", (pending_updates_var_ref_name(v)));
+  //   } : v, t <- isort(block.tables));
 
-    body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
-           value_stores_reset_code & tables_reset_code;
+  //   body = vars_reset_code & dep_msg_vars_reset_code & dep_apply_code_vars_reset_code &
+  //          value_stores_reset_code & tables_reset_code;
 
-    sgn = "void " & auxiliary_reset_proc_name(block.name) & "(" & native_auxiliary_name(block.name) & " " & db_auxiliary_arg_name & ") {";
-    return (sgn) & indent_lines(body) & ("}");
-  }
+  //   sgn = "void " & auxiliary_reset_proc_name(block.name) & "(" & native_auxiliary_name(block.name) & " " & db_auxiliary_arg_name & ") {";
+  //   return (sgn) & indent_lines(body) & ("}");
+  // }
 
 
   String* var_apply_code(Atom var_id) {
@@ -1280,13 +1280,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();"
       : v <- isort(memb_vars)
     );
-    memb_vars_code = ("") & memb_vars_code if memb_vars != [];
 
     value_stores_code = (
       native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_reset_aux", (updater_var_ref_name(vs)))
       : vs <- isort(value_stores)
     );
-    value_stores_code = ("") & value_stores_code if value_stores != [];
 
     tables_code = ({
       table = tables(v);
@@ -1295,9 +1293,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         _                   = native_table_method_prefix(table);
       return native_call(prefix & "_aux_reset", (pending_updates_var_ref_name(v)));
     } : v <- isort(keys(tables)));
-    tables_code = ("") & tables_code if tables != [];
 
-    return memb_vars_code & value_stores_code & tables_code;
+    return append_with_sep((memb_vars_code, value_stores_code, tables_code));
   }
 
 

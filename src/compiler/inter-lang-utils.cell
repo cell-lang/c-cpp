@@ -1,6 +1,18 @@
 type Text = String, Text*;
 
 
+String* append_with_sep(String** chunks) {
+  lines = ();
+  for c <- chunks {
+    if c != () {
+      lines = (lines | "") if lines != ();
+      lines = lines & c;
+    }
+  }
+  return lines;
+}
+
+
 String remove_path(String str) {
   idx = length(str) - 1;
   rev_chs = ();
