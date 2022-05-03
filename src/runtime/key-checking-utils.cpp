@@ -52,13 +52,13 @@ bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index,
     }
     else {
       bit_map->num_bits_words = new_num_bits_words;
-      bit_map->bits = extend_state_mem_uint64_array(mem_pool, bit_map->bits, num_bits_words, new_num_bits_words);
+      bit_map->bits = extend_state_mem_zeroed_uint64_array(mem_pool, bit_map->bits, num_bits_words, new_num_bits_words);
       num_bits_words = new_num_bits_words;
     }
   }
 
   uint32 word_idx = index / 64;
-  uint32 bit_idx = index % 32;
+  uint32 bit_idx = index % 64;
   uint64 mask = 1ULL << bit_idx;
 
   uint64 *word_ptr = bit_map->bits + word_idx;
