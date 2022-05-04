@@ -2344,6 +2344,8 @@ void queue_u64_prepare(QUEUE_U64 *);
 void queue_u64_flip_words(QUEUE_U64 *);
 void queue_u64_reset(QUEUE_U64 *);
 
+void queue_2u32_insert(QUEUE_U32 *, uint32, uint32);
+
 void queue_3u32_insert(QUEUE_U32 *, uint32, uint32, uint32);
 void queue_3u32_prepare(QUEUE_U32 *);
 bool queue_3u32_contains(QUEUE_U32 *, uint32, uint32, uint32);

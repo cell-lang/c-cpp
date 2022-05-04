@@ -11,43 +11,6 @@ const uint32 DELETE_3_TAG   = 6;
 const uint32 TAG_CLEAR_MASK = 0x1FFFFFFF;
 
 
-void queue_u32_init(QUEUE_U32 *queue);
-void queue_u32_insert(QUEUE_U32 *queue, uint32 value);
-void queue_u32_prepare(QUEUE_U32 *queue);
-void queue_u32_reset(QUEUE_U32 *queue);
-bool queue_u32_contains(QUEUE_U32 *queue, uint32 value);
-
-////////////////////////////////////////////////////////////////////////////////
-
-void queue_u64_init(QUEUE_U64 *);
-void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_prepare(QUEUE_U64 *);
-void queue_u64_flip_words(QUEUE_U64 *);
-void queue_u64_reset(QUEUE_U64 *);
-bool queue_u64_contains(QUEUE_U64 *, uint64);
-
-////////////////////////////////////////////////////////////////////////////////
-
-void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3);
-
-void queue_2u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2) {
-  uint32 capacity = queue->capacity;
-  uint32 count = queue->count;
-  uint32 *array = queue->array;
-  assert(count <= capacity);
-  if (count + 2 >= capacity) {
-    assert(2 * capacity > count + 2);
-    array = resize_uint32_array(array, capacity, 2 * capacity);
-    queue->capacity = 2 * capacity;
-    queue->array = array;
-  }
-  array[count] = value1;
-  array[count + 1] = value2;
-  queue->count = count + 2;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void tern_table_aux_init(TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   queue_u32_init(&table_aux->deletions);
   queue_u32_init(&table_aux->insertions);

@@ -220,6 +220,24 @@ bool queue_u64_contains(QUEUE_U64 *queue, uint64 value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void queue_2u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2) {
+  uint32 capacity = queue->capacity;
+  uint32 count = queue->count;
+  uint32 *array = queue->array;
+  assert(count <= capacity);
+  if (count + 2 >= capacity) {
+    assert(2 * capacity > count + 2);
+    array = resize_uint32_array(array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->array = array;
+  }
+  array[count] = value1;
+  array[count + 1] = value2;
+  queue->count = count + 2;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
   uint32 capacity = queue->capacity;
   uint32 count = queue->count;
