@@ -156,3 +156,106 @@ void queue_u32_i64_reset(QUEUE_U32_I64 *queue) {
     queue->i64_array = queue->inline_i64_array;
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void queue_u64_init(QUEUE_U64 *queue) {
+  queue->capacity = QUEUE_INLINE_SIZE;
+  queue->count = 0;
+  queue->array = queue->inline_array;
+}
+
+void queue_u64_insert(QUEUE_U64 *queue, uint64 value) {
+  uint32 capacity = queue->capacity;
+  uint32 count = queue->count;
+  uint64 *array = queue->array;
+  assert(count <= capacity);
+  if (count == capacity) {
+    array = resize_uint64_array(array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->array = array;
+  }
+  array[count] = value;
+  queue->count = count + 1;
+}
+
+void queue_u64_prepare(QUEUE_U64 *queue) {
+  uint32 count = queue->count;
+  if (count > 16)
+    sort_u64(queue->array, count);
+}
+
+void queue_u64_flip_words(QUEUE_U64 *queue) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint64 *array = queue->array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint64 word = array[i];
+      uint64 flipped_word = (word << 32) | ((word >> 32) & 0xFFFFFFFF);
+      array[i] = flipped_word;
+    }
+  }
+}
+
+void queue_u64_reset(QUEUE_U64 *queue) {
+  queue->count = 0;
+  if (queue->capacity != QUEUE_INLINE_SIZE) {
+    queue->capacity = QUEUE_INLINE_SIZE;
+    queue->array = queue->inline_array;
+  }
+}
+
+bool queue_u64_contains(QUEUE_U64 *queue, uint64 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint64 *array = queue->array;
+    if (count > 16)
+      return sorted_u64_array_contains(array, count, value);
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == value)
+        return true;
+  }
+  return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
+  uint32 capacity = queue->capacity;
+  uint32 count = queue->count;
+  uint32 *array = queue->array;
+  assert(count <= capacity);
+  if (count + 3 >= capacity) {
+    assert(2 * capacity > count + 3);
+    array = resize_uint32_array(array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->array = array;
+  }
+  array[count] = value1;
+  array[count + 1] = value2;
+  array[count + 2] = value3;
+  queue->count = count + 3;
+}
+
+void queue_3u32_prepare(QUEUE_U32 *queue) {
+  uint32 count = queue->count / 3;
+  if (count > 16)
+    sort_3u32(queue->array, queue->count);
+}
+
+bool queue_3u32_contains(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
+  assert(queue->count % 3 == 0);
+  uint32 count = queue->count / 3;
+  if (count > 0) {
+    uint32 *ptr = queue->array;
+    if (count > 16)
+      return sorted_3u32_array_contains(ptr, count, value1, value2, value3);
+    //## WE COULD SPEED THIS UP BY READING A 64-BIT WORD AT A TIME
+    for (uint32 i=0 ; i < count ; i++) {
+      if (ptr[0] == value1 && ptr[1] == value2 && ptr[2] == value3)
+        return true;
+      ptr += 3;
+    }
+  }
+  return false;
+}

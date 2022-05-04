@@ -1,22 +1,5 @@
 #include "lib.h"
 
-void queue_u32_init(QUEUE_U32 *queue);
-void queue_u32_insert(QUEUE_U32 *queue, uint32 value);
-void queue_u32_prepare(QUEUE_U32 *queue);
-void queue_u32_reset(QUEUE_U32 *queue);
-bool queue_u32_contains(QUEUE_U32 *queue, uint32 value);
-void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3);
-
-////////////////////////////////////////////////////////////////////////////////
-
-void queue_u64_init(QUEUE_U64 *);
-void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_prepare(QUEUE_U64 *);
-void queue_u64_flip_words(QUEUE_U64 *);
-void queue_u64_reset(QUEUE_U64 *);
-bool queue_u64_contains(QUEUE_U64 *, uint64);
-
-////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
@@ -54,7 +37,6 @@ void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *
   queue_u32_init(&table_aux->insertions);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
-  table_aux->deletions_prepared = false;
 }
 
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux) {
@@ -65,7 +47,6 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->insertions);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
-  table_aux->deletions_prepared = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,6 +115,8 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
 
   //## BUG BUG BUG: NOT SURE THIS CANNOT HAPPEN
   //## TRY TO TRICK THE CODE ALL THE WAY HERE
+  //## ACTUALLY THIS CAN HAPPEN, IF slave_tern_table_aux_insert(..) IS CALLED WITHOUT A CORRESPONDING TUPLE IN THE MASTER TABLE
+  //## IMPLEMENT IMPLEMENT IMPLEMENT
   internal_fail();
 }
 
