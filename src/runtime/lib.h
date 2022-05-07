@@ -467,9 +467,10 @@ struct TERN_TABLE {
 };
 
 struct TERN_TABLE_AUX {
-  QUEUE_U32 deletions;
-  QUEUE_U32 insertions;
-  bool clear;
+  MASTER_BIN_TABLE_AUX master;
+  BIN_TABLE_AUX slave;
+  QUEUE_U32 surr12_follow_ups;
+  QUEUE_U32 insertions; //## THIS SHOULD BE USED ONLY WHEN THERE'S A 1-3 OR 2-3 KEY
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1513,6 +1514,8 @@ bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
 void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
+bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
 void sym_bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
@@ -1568,6 +1571,7 @@ uint32 master_bin_table_count_2(MASTER_BIN_TABLE *table, uint32 arg2);
 bool master_bin_table_contains(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
 bool master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg1);
 bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2);
+bool master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr);
 
 uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *args2, uint32 *surrs);
 uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *args1);
@@ -1584,6 +1588,7 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *);
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
 void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1);
 void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2);
+void master_bin_table_delete_by_surr(MASTER_BIN_TABLE *table, uint32 surr);
 
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
@@ -1627,7 +1632,7 @@ void master_bin_table_aux_delete(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, u
 void master_bin_table_aux_delete_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1);
 void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2);
 
-void master_bin_table_aux_insert(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
@@ -2348,6 +2353,9 @@ void queue_2u32_insert(QUEUE_U32 *, uint32, uint32);
 
 void queue_3u32_insert(QUEUE_U32 *, uint32, uint32, uint32);
 void queue_3u32_prepare(QUEUE_U32 *);
+void queue_3u32_sort_unique(QUEUE_U32 *);
+void queue_3u32_permute_132(QUEUE_U32 *);
+void queue_3u32_permute_231(QUEUE_U32 *);
 bool queue_3u32_contains(QUEUE_U32 *, uint32, uint32, uint32);
 
 ////////////////////////////////////////////////////////////////////////////////

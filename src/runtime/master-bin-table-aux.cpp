@@ -67,12 +67,12 @@ void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2)
   queue_u32_insert(&table_aux->deletions_2, arg2);
 }
 
-void master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF) {
     queue_u32_insert(&table_aux->reinsertions, surr);
-    return;
+    return surr;
   }
 
   uint32 count_times_3 = table_aux->insertions.count;
@@ -94,6 +94,7 @@ void master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *
 
   table_aux->last_surr = surr;
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
+  return surr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +118,7 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
   //## TRY TO TRICK THE CODE ALL THE WAY HERE
   //## ACTUALLY THIS CAN HAPPEN, IF slave_tern_table_aux_insert(..) IS CALLED WITHOUT A CORRESPONDING TUPLE IN THE MASTER TABLE
   //## IMPLEMENT IMPLEMENT IMPLEMENT
+  //## MAYBE IT WOULD BE BETTER TO KEEP THIS METHOD AS IS AND IMPLEMENT A SEPARATE master_bin_table_aux_lookup_surr_forced(..)
   internal_fail();
 }
 

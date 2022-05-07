@@ -222,6 +222,10 @@ bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   return one_way_bin_table_contains_key(&table->table.backward, arg2);
 }
 
+bool master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr) {
+  return surr < table->capacity && !master_bin_table_slot_is_empty(table->slots[surr]);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *arg2s, uint32 *surrs) {
@@ -372,6 +376,10 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
       master_bin_table_release_surr(table, surr);
     }
   }
+}
+
+void master_bin_table_delete_by_surr(MASTER_BIN_TABLE *table, uint32 surr) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 ////////////////////////////////////////////////////////////////////////////////

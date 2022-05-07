@@ -252,3 +252,9 @@ bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
 
   return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}

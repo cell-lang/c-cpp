@@ -261,6 +261,18 @@ void queue_3u32_prepare(QUEUE_U32 *queue) {
     sort_3u32(queue->array, queue->count);
 }
 
+void queue_3u32_sort_unique(QUEUE_U32 *queue) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void queue_3u32_permute_132(QUEUE_U32 *queue) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void queue_3u32_permute_231(QUEUE_U32 *queue) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 bool queue_3u32_contains(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
   assert(queue->count % 3 == 0);
   uint32 count = queue->count / 3;
