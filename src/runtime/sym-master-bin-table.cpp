@@ -36,6 +36,10 @@ bool sym_master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg) {
   return sym_bin_table_contains_1(&table->table, arg);
 }
 
+bool sym_master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr) {
+  return master_bin_table_contains_surr(table, surr);
+}
+
 uint32 sym_master_bin_table_count(MASTER_BIN_TABLE *table, uint32 arg) {
   return sym_bin_table_count(&table->table, arg);
 }

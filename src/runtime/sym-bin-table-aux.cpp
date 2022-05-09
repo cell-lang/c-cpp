@@ -1,15 +1,6 @@
 #include "lib.h"
 
 
-void queue_u32_init(QUEUE_U32 *);
-void queue_u32_insert(QUEUE_U32 *, uint32);
-void queue_u32_reset(QUEUE_U32 *);
-
-void queue_u64_init(QUEUE_U64 *);
-void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_reset(QUEUE_U64 *);
-
-
 inline uint64 pack_sym_args(uint32 arg1, uint32 arg2) {
   return arg1 <= arg2 ? pack(arg1, arg2) : pack(arg2, arg1);
 }

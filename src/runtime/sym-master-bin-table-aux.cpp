@@ -1,22 +1,5 @@
 #include "lib.h"
 
-void queue_u32_init(QUEUE_U32 *queue);
-void queue_u32_insert(QUEUE_U32 *queue, uint32 value);
-void queue_u32_prepare(QUEUE_U32 *queue);
-void queue_u32_reset(QUEUE_U32 *queue);
-bool queue_u32_contains(QUEUE_U32 *queue, uint32 value);
-void queue_3u32_insert(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3);
-
-////////////////////////////////////////////////////////////////////////////////
-
-void queue_u64_init(QUEUE_U64 *);
-void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_prepare(QUEUE_U64 *);
-void queue_u64_flip_words(QUEUE_U64 *);
-void queue_u64_reset(QUEUE_U64 *);
-bool queue_u64_contains(QUEUE_U64 *, uint64);
-
-////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
@@ -85,13 +68,13 @@ void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint
   queue_u32_insert(&table_aux->deletions_1, arg1);
 }
 
-void sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
   uint32 surr = sym_master_bin_table_lookup_surrogate(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF) {
     queue_3u32_insert(&table_aux->reinsertions, arg1, arg2, surr);
-    return;
+    return surr;
   }
 
   uint32 count_times_3 = table_aux->insertions.count;
@@ -113,6 +96,7 @@ void sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TAB
 
   table_aux->last_surr = surr;
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
+  return surr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
