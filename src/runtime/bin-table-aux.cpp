@@ -255,6 +255,38 @@ bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// SO FAR THIS IS ONLY USED BY tern_table_aux_check_key_13(..) AND tern_table_aux_check_key_23(..),
+// SO IT'S NOT SUPER IMPORTANT FOR PERFORMANCE.
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  if (table_aux->clear)
+    return true;
+
+  //## IMPLEMENT FOR REAL
+
+  uint32 count = table_aux->deletions_1.count;
+  if (count > 0) {
+    uint32 *array = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == arg1)
+        return true;
+  }
+
+  count = table_aux->deletions_2.count;
+  if (count > 0) {
+    uint32 *array = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == arg2)
+        return true;
+  }
+
+  count = table_aux->deletions.count;
+  if (count > 0) {
+    uint64 packed_args = pack_args(arg1, arg2);
+    uint64 *array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == packed_args)
+        return true;
+  }
+
+  return false;
 }

@@ -378,10 +378,6 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   }
 }
 
-void master_bin_table_delete_by_surr(MASTER_BIN_TABLE *table, uint32 surr) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table) {

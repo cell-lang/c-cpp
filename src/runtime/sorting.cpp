@@ -36,6 +36,37 @@ void sort_3u32(uint32 *array, uint32 len) {
   std::sort(begin, begin + len);
 }
 
+void sort_unique_3u32(uint32 *array, uint32 *len_var) {
+  uint32 len = *len_var;
+  if (len > 1) {
+    sort_3u32(array, len);
+    uint32 unique_len = 1;
+    uint32 prev_arg_1 = array[0];
+    uint32 prev_arg_2 = array[1];
+    uint32 prev_arg_3 = array[2];
+    uint32 *ptr = array;
+    for (uint32 i=1 ; i < len ; i++) {
+      ptr += 3;
+      uint32 arg1 = ptr[0];
+      uint32 arg2 = ptr[1];
+      uint32 arg3 = ptr[2];
+      if (arg1 != prev_arg_1 | arg2 != prev_arg_2 | arg3 != prev_arg_3) {
+        if (unique_len < i) {
+          uint32 *dest_ptr = array + unique_len;
+          dest_ptr[0] = arg1;
+          dest_ptr[1] = arg2;
+          dest_ptr[2] = arg3;
+        }
+        prev_arg_1 = arg1;
+        prev_arg_2 = arg2;
+        prev_arg_3 = arg3;
+        unique_len++;
+      }
+    }
+    *len_var = unique_len;
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 *stable_sort_obj_index(uint32 *ys, uint32 *zs, uint32 size, OBJ *objs) {

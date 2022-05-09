@@ -165,7 +165,7 @@ void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*i
         if (master_bin_table_contains_surr(&table->master, surr12)) {
           uint32 arg1 = master_bin_table_get_arg_1(&table->master, surr12);
           uint32 arg2 = master_bin_table_get_arg_2(&table->master, surr12);
-          master_bin_table_delete_by_surr(&table->master, surr12);
+          master_bin_table_delete(&table->master, arg1, arg2);
           decr_rc_1(store_1, store_aux_1, arg1);
           decr_rc_2(store_2, store_aux_2, arg2);
         }

@@ -262,15 +262,33 @@ void queue_3u32_prepare(QUEUE_U32 *queue) {
 }
 
 void queue_3u32_sort_unique(QUEUE_U32 *queue) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  sort_unique_3u32(queue->array, &queue->count);
 }
 
 void queue_3u32_permute_132(QUEUE_U32 *queue) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 count = queue->count / 3;
+  uint32 *ptr = queue->array;
+  for (uint32 i=0 ; i < count ; i++) {
+    uint32 arg2 = ptr[1];
+    uint32 arg3 = ptr[2];
+    ptr[1] = arg3;
+    ptr[2] = arg2;
+    ptr += 3;
+  }
 }
 
 void queue_3u32_permute_231(QUEUE_U32 *queue) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  uint32 count = queue->count / 3;
+  uint32 *ptr = queue->array;
+  for (uint32 i=0 ; i < count ; i++) {
+    uint32 arg1 = ptr[0];
+    uint32 arg2 = ptr[1];
+    uint32 arg3 = ptr[2];
+    ptr[0] = arg2;
+    ptr[1] = arg3;
+    ptr[2] = arg1;
+    ptr += 3;
+  }
 }
 
 bool queue_3u32_contains(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
