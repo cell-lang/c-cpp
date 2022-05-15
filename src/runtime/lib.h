@@ -1534,6 +1534,12 @@ void bin_table_aux_prepare(BIN_TABLE_AUX *);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 
+bool bin_table_aux_check_foreign_key_unary_table_1_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
 void sym_bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
@@ -1662,6 +1668,12 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
+
+bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 /////////////////////////// sym-master-bin-table.cpp ///////////////////////////
 
@@ -1815,6 +1827,11 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE
 
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
+
+bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+// bool tern_table_aux_check_foreign_key_bin_table_forward(TERN_TABLE *, TERN_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
 
 ///////////////////////// semisym-slave-tern-table.cpp /////////////////////////
 

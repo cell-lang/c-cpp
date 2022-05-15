@@ -324,3 +324,21 @@ bool tern_table_aux_check_keys_13_23(TERN_TABLE *table, TERN_TABLE_AUX *table_au
   queue_3u32_permute_132(&table_aux->insertions);
   return tern_table_aux_check_key_23(table, table_aux);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  return master_bin_table_aux_check_foreign_key_unary_table_1_forward(&table->master, &table_aux->master, target_table, target_table_aux);
+}
+
+bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  return master_bin_table_aux_check_foreign_key_unary_table_2_forward(&table->master, &table_aux->master, target_table, target_table_aux);
+}
+
+bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  return bin_table_aux_check_foreign_key_unary_table_2_forward(&table->slave, &table_aux->slave, target_table, target_table_aux);
+}
+
+// bool tern_table_aux_check_foreign_key_bin_table_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, BIN_TABLE *target_table, BIN_TABLE_AUX *target_table_aux) {
+//   return master_bin_table_aux_check_foreign_key_bin_table_forward(&table->master, &table_aux->master, target_table, target_table_aux);
+// }

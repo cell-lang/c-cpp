@@ -343,6 +343,7 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *table, BIN
 bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
     if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
       //## RECORD THE ERROR
       return false;
     }
@@ -355,11 +356,7 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!ins_queue_prepared) {
-          queue_u64_prepare_1(&table_aux->insertions);
-          ins_queue_prepared = true;
-        }
-        if (queue_u64_contains_1(&table_aux->insertions, arg1)) {
+        if (!bin_table_aux_contains_1(table, table_aux, arg1)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
           //## RECORD THE ERROR
           return false;
         }
@@ -403,7 +400,7 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count;
+    uint32 num_ins = table_aux->insertions.count / 3;
     if (num_ins > 0) {
       uint64 *args_array = table_aux->insertions.array;
       for (uint32 i=0 ; i < num_ins ; i++) {
@@ -432,6 +429,7 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
     if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
       //## RECORD THE ERROR
       return false;
     }
@@ -439,16 +437,11 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
 
   uint32 num_dels_2 = table_aux->deletions_2.count;
   if (num_dels_2 > 0) {
-    bool ins_queue_prepared = false;
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!ins_queue_prepared) {
-          queue_u64_prepare_2(&table_aux->insertions);
-          ins_queue_prepared = true;
-        }
-        if (queue_u64_contains_2(&table_aux->insertions, arg2)) {
+        if (!bin_table_aux_contains_2(table, table_aux, arg2)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
           //## RECORD THE ERROR
           return false;
         }
@@ -492,22 +485,22 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count;
+    uint32 num_ins = table_aux->insertions.count / 3;
     if (num_ins > 0) {
       uint64 *args_array = table_aux->insertions.array;
       for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg1 = unpack_arg1(args_array[i]);
-        inserted.insert(arg1);
+        uint32 arg2 = unpack_arg2(args_array[i]);
+        inserted.insert(arg2);
       }
     }
 
     for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 arg1 = it->first;
+      uint32 arg2 = it->first;
       uint32 num_del = it->second.size();
-      uint32 curr_num = bin_table_count_1(table, arg1);
+      uint32 curr_num = bin_table_count_2(table, arg2);
       assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(arg1) == 0) {
-        if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+      if (num_del == curr_num && inserted.count(arg2) == 0) {
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
           //## RECORD THE ERROR
           return false;
         }

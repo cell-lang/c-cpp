@@ -321,3 +321,250 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
     }
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->insertions.count / 3;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg1 = insertions[3 * i];
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg2 = insertions[3 * i + 1];
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// unary(X) -> binary(X, _)
+bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  if (table_aux->clear) {
+    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+      //## RECORD THE ERROR
+      return false;
+    }
+  }
+
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+  if (num_dels_1 > 0) {
+    uint32 *arg1s = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < num_dels_1 ; i++) {
+      uint32 arg1 = arg1s[i];
+      if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+        if (!master_bin_table_aux_contains_1(table, table_aux, arg1)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS/REINSERTIONS
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels > 0 | num_dels_2 > 0) {
+    //## BAD BAD BAD: IMPLEMENT FOR REAL
+
+    unordered_map<uint32, unordered_set<uint32>> deleted;
+    unordered_set<uint32> inserted;
+
+    if (num_dels > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg1 = unpack_arg1(args);
+        uint32 arg2 = unpack_arg2(args);
+        if (master_bin_table_contains(table, arg1, arg2))
+          deleted[arg1].insert(arg2);
+      }
+    }
+
+    if (num_dels_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < num_dels_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        if (master_bin_table_contains_2(table, arg2)) {
+          MASTER_BIN_TABLE_ITER_2 iter;
+          master_bin_table_iter_2_init(table, &iter, arg2);
+          while (!master_bin_table_iter_2_is_out_of_range(&iter)) {
+            uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
+            deleted[arg1].insert(arg2);
+            master_bin_table_iter_2_move_forward(&iter);
+          }
+        }
+      }
+    }
+
+    uint32 num_ins = table_aux->insertions.count / 3;
+    if (num_ins > 0) {
+      uint32 *insertions = table_aux->insertions.array;
+      for (uint32 i=0 ; i < num_ins ; i++) {
+        uint32 arg1 = insertions[3 * i];
+        inserted.insert(arg1);
+      }
+    }
+
+    uint32 num_reins = table_aux->reinsertions.count;
+    if (num_reins) {
+      uint32 *reins = table_aux->reinsertions.array;
+      for (uint32 i=0 ; i < num_reins ; i++) {
+        uint32 surr = reins[i];
+        assert(surr < table->capacity);
+        uint32 arg1 = unpack_arg1(table->slots[surr]);
+        inserted.insert(arg1);
+      }
+    }
+
+    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
+      uint32 arg1 = it->first;
+      uint32 num_del = it->second.size();
+      uint32 curr_num = master_bin_table_count_1(table, arg1);
+      assert(num_del <= curr_num);
+      if (num_del == curr_num && inserted.count(arg1) == 0) {
+        if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  if (table_aux->clear) {
+    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+      //## RECORD THE ERROR
+      return false;
+    }
+  }
+
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+  if (num_dels_2 > 0) {
+    uint32 *arg2s = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < num_dels_2 ; i++) {
+      uint32 arg2 = arg2s[i];
+      if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+        if (!master_bin_table_aux_contains_2(table, table_aux, arg2)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS/REINSERTIONS
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+
+  if (num_dels > 0 | num_dels_1 > 0) {
+    //## BAD BAD BAD: IMPLEMENT FOR REAL
+
+    unordered_map<uint32, unordered_set<uint32>> deleted;
+    unordered_set<uint32> inserted;
+
+    if (num_dels > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg1 = unpack_arg1(args);
+        uint32 arg2 = unpack_arg2(args);
+        if (master_bin_table_contains(table, arg1, arg2))
+          deleted[arg2].insert(arg1);
+      }
+    }
+
+    if (num_dels_1 > 0) {
+      uint32 *arg1s = table_aux->deletions_1.array;
+      for (uint32 i=0 ; i < num_dels_1 ; i++) {
+        uint32 arg1 = arg1s[i];
+        if (master_bin_table_contains_1(table, arg1)) {
+          MASTER_BIN_TABLE_ITER_1 iter;
+          master_bin_table_iter_1_init(table, &iter, arg1);
+          while (!master_bin_table_iter_1_is_out_of_range(&iter)) {
+            uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
+            deleted[arg2].insert(arg1);
+            master_bin_table_iter_1_move_forward(&iter);
+          }
+        }
+      }
+    }
+
+    uint32 num_ins = table_aux->insertions.count / 3;
+    if (num_ins > 0) {
+      uint32 *insertions = table_aux->insertions.array;
+      for (uint32 i=0 ; i < num_ins ; i++) {
+        uint32 arg2 = insertions[3 * i + 1];
+        inserted.insert(arg2);
+      }
+    }
+
+    uint32 num_reins = table_aux->reinsertions.count;
+    if (num_reins) {
+      uint32 *reins = table_aux->reinsertions.array;
+      for (uint32 i=0 ; i < num_reins ; i++) {
+        uint32 surr = reins[i];
+        assert(surr < table->capacity);
+        uint32 arg2 = unpack_arg2(table->slots[surr]);
+        inserted.insert(arg2);
+      }
+    }
+
+    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
+      uint32 arg2 = it->first;
+      uint32 num_del = it->second.size();
+      uint32 curr_num = master_bin_table_count_2(table, arg2);
+      assert(num_del <= curr_num);
+      if (num_del == curr_num && inserted.count(arg2) == 0) {
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
