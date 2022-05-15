@@ -470,7 +470,7 @@ struct TERN_TABLE_AUX {
   MASTER_BIN_TABLE_AUX master;
   BIN_TABLE_AUX slave;
   QUEUE_U32 surr12_follow_ups;
-  QUEUE_U32 insertions; //## THIS SHOULD BE USED ONLY WHEN THERE'S A 1-3 OR 2-3 KEY
+  QUEUE_U32 insertions; //## THIS SHOULD BE USED ONLY WHEN THERE'S A 1-3 OR 2-3 KEY (WHAT ABOUT FOREIGN KEYS?)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1459,6 +1459,10 @@ void   unary_table_aux_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
 void   unary_table_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void   unary_table_aux_reset(UNARY_TABLE_AUX *);
 
+void unary_table_aux_prepare(UNARY_TABLE_AUX *);
+bool unary_table_aux_contains(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
+bool unary_table_aux_is_empty(UNARY_TABLE *, UNARY_TABLE_AUX *);
+
 ///////////////////////////////// bin-table.cpp ////////////////////////////////
 
 void bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
@@ -1525,6 +1529,10 @@ void bin_table_aux_apply(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32),
 void bin_table_aux_reset(BIN_TABLE_AUX *);
 
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+
+void bin_table_aux_prepare(BIN_TABLE_AUX *);
+bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
+bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
@@ -1650,6 +1658,10 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX
 
 void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
+
+void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
+bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
+bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 
 /////////////////////////// sym-master-bin-table.cpp ///////////////////////////
 
@@ -1981,6 +1993,11 @@ bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_13(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_23(TERN_TABLE *, TERN_TABLE_AUX *);
 
+bool tern_table_aux_prepare(TERN_TABLE_AUX *);
+bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
+bool tern_table_aux_contains_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
+bool tern_table_aux_contains_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
+
 //////////////////////////// semisym-tern-table.cpp ////////////////////////////
 
 bool semisym_tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
@@ -2183,10 +2200,11 @@ void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
 void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void int_col_aux_slave_apply(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
-bool int_col_aux_build_bitmap_and_check_key(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
-bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
-int64 int_col_aux_lookup(INT_COL *col, INT_COL_AUX *col_aux, uint32 surr_1);
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
+
+void int_col_aux_prepare(INT_COL_AUX *);
+bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
+// int64 int_col_aux_lookup(INT_COL *, INT_COL_AUX *, uint32);
 
 ///////////////////////////////// float-col.cpp ////////////////////////////////
 
@@ -2227,10 +2245,11 @@ void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
 void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void float_col_aux_slave_apply(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
-bool float_col_aux_contains_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
-double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
-
 bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
+
+void float_col_aux_prepare(FLOAT_COL_AUX *);
+bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
+// double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
@@ -2273,8 +2292,9 @@ bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
-bool obj_col_aux_contains_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
-OBJ  obj_col_aux_lookup(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 surr_1);
+void obj_col_aux_prepare(OBJ_COL_AUX *);
+bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32);
+// OBJ  obj_col_aux_lookup(OBJ_COL *, OBJ_COL_AUX *, uint32);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
 
@@ -2359,6 +2379,10 @@ void queue_u64_insert(QUEUE_U64 *, uint64);
 void queue_u64_prepare(QUEUE_U64 *);
 void queue_u64_flip_words(QUEUE_U64 *);
 void queue_u64_reset(QUEUE_U64 *);
+void queue_u64_prepare_1(QUEUE_U64 *);
+bool queue_u64_contains_1(QUEUE_U64 *, uint32);
+void queue_u64_prepare_2(QUEUE_U64 *);
+bool queue_u64_contains_2(QUEUE_U64 *, uint32);
 
 void queue_2u32_insert(QUEUE_U32 *, uint32, uint32);
 
