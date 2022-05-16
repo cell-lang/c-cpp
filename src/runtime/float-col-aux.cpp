@@ -203,3 +203,32 @@ bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM
 
   return true;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool float_col_aux_check_foreign_key_unary_table_1_forward(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = col_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *arg1s = col_aux->insertions.u32_array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  uint32 num_updates = col_aux->updates.count;
+  if (num_updates > 0) {
+    uint32 *arg1s = col_aux->updates.u32_array;
+    for (uint32 i=0 ; i < num_updates ; i++) {
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  return true;
+}

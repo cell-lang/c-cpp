@@ -99,3 +99,9 @@ bool slave_tern_table_aux_check_key_12(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_
 bool slave_tern_table_aux_check_key_3(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   return bin_table_aux_check_key_2(slave_table, &table_aux->slave_table_aux, mem_pool);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool slave_tern_table_aux_check_foreign_key_unary_table_3_forward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  return bin_table_aux_check_foreign_key_unary_table_1_forward(table, &table_aux->slave_table_aux, target_table, target_table_aux);
+}
