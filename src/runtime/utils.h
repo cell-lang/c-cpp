@@ -200,5 +200,21 @@ inline uint64 pack(uint32 low, uint32 high) {
 ////////////////////////////////////////////////////////////////////////////////
 
 //## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
+
+inline uint32 unpack_arg1(uint64 args) {
+  return get_low_32(args);
+}
+
+inline uint32 unpack_arg2(uint64 args) {
+  return get_high_32(args);
+}
+
+inline uint64 pack_args(uint32 arg1, uint32 arg2) {
+  return pack(arg1, arg2);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
 void null_incr_rc(void *, uint32);
 void null_decr_rc(void *, void *, uint32);

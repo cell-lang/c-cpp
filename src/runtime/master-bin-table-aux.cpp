@@ -12,23 +12,6 @@ bool master_bin_table_slot_is_locked(MASTER_BIN_TABLE *table, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline uint32 unpack_arg1(uint64 args) {
-  return (uint32) (args >> 32);
-}
-
-inline uint32 unpack_arg2(uint64 args) {
-  return (uint32) args;
-}
-
-inline uint64 pack_args(uint32 arg1, uint32 arg2) {
-  uint64 args = (((uint64) arg1) << 32) | arg2;
-  assert(unpack_arg1(args) == arg1);
-  assert(unpack_arg2(args) == arg2);
-  return args;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   queue_u64_init(&table_aux->deletions);
   queue_u32_init(&table_aux->deletions_1);
@@ -328,11 +311,19 @@ void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
+bool master_bin_table_aux_contains(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
@@ -562,6 +553,88 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
           //## RECORD THE ERROR
           return false;
         }
+      }
+    }
+  }
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
+  if (table_aux->clear) {
+    if (!bin_table_aux_is_empty(src_table, &src_table_aux->slave_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+      //## RECORD THE ERROR
+      return false;
+    }
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
+    return true;
+
+  queue_u32_prepare(&table_aux->reinsertions);
+
+  if (num_dels > 0) {
+    uint64 *args_array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      uint64 args = args_array[i];
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      if (bin_table_aux_contains(src_table, &src_table_aux->slave_table_aux, arg1, arg2)) {
+        uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+        assert(surr != 0xFFFFFFFF);
+        if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  if (num_dels_1 > 0) {
+    uint32 *arg1s = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < num_dels_1 ; i++) {
+      uint32 arg1 = arg1s[i];
+      if (master_bin_table_contains_1(table, arg1)) {
+        MASTER_BIN_TABLE_ITER_1 iter;
+        master_bin_table_iter_1_init(table, &iter, arg1);
+        do {
+          uint32 arg2 = master_bin_table_iter_1_get_1(&iter);
+          if (bin_table_aux_contains(src_table, &src_table_aux->slave_table_aux, arg1, arg2)) {
+            uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+            assert(surr != 0xFFFFFFFF);
+            if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
+              //## RECORD THE ERROR
+              return false;
+            }
+          }
+        } while (!master_bin_table_iter_1_is_out_of_range(&iter));
+      }
+    }
+  }
+
+  if (num_dels_2 > 0) {
+    uint32 *arg2s = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < num_dels_2 ; i++) {
+      uint32 arg2 = arg2s[i];
+      if (master_bin_table_contains_2(table, arg2)) {
+        MASTER_BIN_TABLE_ITER_2 iter;
+        master_bin_table_iter_2_init(table, &iter, arg2);
+        do {
+          uint32 arg1 = master_bin_table_iter_2_get_1(&iter);
+          if (bin_table_aux_contains(src_table, &src_table_aux->slave_table_aux, arg1, arg2)) {
+            uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+            assert(surr != 0xFFFFFFFF);
+            if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
+              //## RECORD THE ERROR
+              return false;
+            }
+          }
+        } while (!master_bin_table_iter_2_is_out_of_range(&iter));
       }
     }
   }

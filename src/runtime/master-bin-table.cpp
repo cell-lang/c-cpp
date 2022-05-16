@@ -2,24 +2,8 @@
 #include "one-way-bin-table.h"
 
 
-inline uint32 unpack_arg1(uint64 args) {
-  return (uint32) (args >> 32);
-}
-
-inline uint32 unpack_arg2(uint64 args) {
-  return (uint32) args;
-}
-
 inline bool master_bin_table_slot_is_empty(uint64 slot) {
   return get_high_32(slot) == 0xFFFFFFFF;
-}
-
-inline uint64 pack_args(uint32 arg1, uint32 arg2) {
-  uint64 args = (((uint64) arg1) << 32) | arg2;
-  assert(unpack_arg1(args) == arg1);
-  assert(unpack_arg2(args) == arg2);
-  assert(!master_bin_table_slot_is_empty(args));
-  return args;
 }
 
 inline uint64 empty_slot(uint32 next) {

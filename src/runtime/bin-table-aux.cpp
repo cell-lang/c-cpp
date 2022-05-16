@@ -1,23 +1,6 @@
 #include "lib.h"
 
 
-inline uint32 unpack_arg1(uint64 args) {
-  return (uint32) (args >> 32);
-}
-
-inline uint32 unpack_arg2(uint64 args) {
-  return (uint32) args;
-}
-
-inline uint64 pack_args(uint32 arg1, uint32 arg2) {
-  uint64 args = (((uint64) arg1) << 32) | arg2;
-  assert(unpack_arg1(args) == arg1);
-  assert(unpack_arg2(args) == arg2);
-  return args;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void bin_table_aux_init(BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   col_update_bit_map_init(&table_aux->bit_map);
   queue_u64_init(&table_aux->deletions);
@@ -297,6 +280,10 @@ void bin_table_aux_prepare(BIN_TABLE_AUX *) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
+bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
@@ -305,6 +292,9 @@ bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
+bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

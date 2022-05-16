@@ -1531,8 +1531,10 @@ void bin_table_aux_reset(BIN_TABLE_AUX *);
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 void bin_table_aux_prepare(BIN_TABLE_AUX *);
+bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
+bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
 
 bool bin_table_aux_check_foreign_key_unary_table_1_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
@@ -1668,6 +1670,7 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
+bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);

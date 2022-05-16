@@ -213,6 +213,20 @@ bool unary_table_aux_check_foreign_key_float_col_1_backward(UNARY_TABLE_AUX *tab
   return true;
 }
 
+bool unary_table_aux_check_foreign_key_slave_tern_table_3_backward(UNARY_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
+  uint32 num_dels = table_aux->deletions.count;
+  if (num_dels > 0) {
+    uint32 *del_elts = table_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      if (bin_table_aux_contains_2(src_table, &src_table_aux->slave_table_aux, del_elts[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool unary_table_aux_check_foreign_key_tern_table_1_backward(UNARY_TABLE_AUX *table_aux, TERN_TABLE *src_table, TERN_TABLE_AUX *src_table_aux) {
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
