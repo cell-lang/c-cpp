@@ -98,6 +98,32 @@ bool unary_table_aux_check_foreign_key_unary_table_forward(UNARY_TABLE_AUX *tabl
   return true;
 }
 
+bool unary_table_aux_check_foreign_key_slave_tern_table_3_forward(UNARY_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *new_elts = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++)
+      if (!bin_table_aux_contains_2(target_table, &target_table_aux->slave_table_aux, new_elts[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+  }
+  return true;
+}
+
+bool unary_table_aux_check_foreign_key_tern_table_3_forward(UNARY_TABLE_AUX *table_aux, TERN_TABLE *target_table, TERN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *new_elts = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++)
+      if (!tern_table_aux_contains_3(target_table, target_table_aux, new_elts[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+  }
+  return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
