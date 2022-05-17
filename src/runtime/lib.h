@@ -1541,6 +1541,7 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABL
 
 bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool bin_table_aux_check_foreign_key_master_bin_table_surr_backward(BIN_TABLE *, BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
@@ -1671,6 +1672,7 @@ void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
+bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);

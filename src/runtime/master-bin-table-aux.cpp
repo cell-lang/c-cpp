@@ -327,6 +327,10 @@ bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
+bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
@@ -354,6 +358,80 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TAB
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg2 = insertions[3 * i + 1];
       if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+//## BAD BAD BAD: THE FOLLOWING FOUR METHODS ARE NEARLY IDENTICAL
+
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->insertions.count / 3;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 surr = insertions[3 * i + 2];
+      if (!bin_table_aux_contains_1(target_table, &target_table_aux->slave_table_aux, surr)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_obj_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *target_col, OBJ_COL_AUX *target_col_aux) {
+  uint32 num_ins = table_aux->insertions.count / 3;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 surr = insertions[3 * i + 2];
+      if (!obj_col_aux_contains_1(target_col, target_col_aux, surr)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_int_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *target_col, INT_COL_AUX *target_col_aux) {
+  uint32 num_ins = table_aux->insertions.count / 3;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 surr = insertions[3 * i + 2];
+      if (!int_col_aux_contains_1(target_col, target_col_aux, surr)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  // No need to check reinsertions here
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_float_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *target_col, FLOAT_COL_AUX *target_col_aux) {
+  uint32 num_ins = table_aux->insertions.count / 3;
+  if (num_ins > 0) {
+    uint32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 surr = insertions[3 * i + 2];
+      if (!float_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
       }

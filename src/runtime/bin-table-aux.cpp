@@ -416,6 +416,92 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
   return true;
 }
 
+bool bin_table_aux_check_foreign_key_master_bin_table_surr_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+  if (table_aux->clear) {
+    if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+      //## RECORD THE ERROR
+      return false;
+    }
+  }
+
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+  if (num_dels_1 > 0) {
+    bool ins_queue_prepared = false;
+    uint32 *surrs = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < num_dels_1 ; i++) {
+      uint32 surr = surrs[i];
+      if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
+        if (!bin_table_aux_contains_1(table, table_aux, surr)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels > 0 | num_dels_2 > 0) {
+    //## BAD BAD BAD: IMPLEMENT FOR REAL
+
+    unordered_map<uint32, unordered_set<uint32>> deleted;
+    unordered_set<uint32> inserted;
+
+    if (num_dels > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg1 = unpack_arg1(args);
+        uint32 arg2 = unpack_arg2(args);
+        if (bin_table_contains(table, arg1, arg2))
+          deleted[arg1].insert(arg2);
+      }
+    }
+
+    if (num_dels_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < num_dels_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        if (bin_table_contains_2(table, arg2)) {
+          BIN_TABLE_ITER_2 iter;
+          bin_table_iter_2_init(table, &iter, arg2);
+          while (!bin_table_iter_2_is_out_of_range(&iter)) {
+            uint32 arg1 = bin_table_iter_2_get_1(&iter);
+            deleted[arg1].insert(arg2);
+            bin_table_iter_2_move_forward(&iter);
+          }
+        }
+      }
+    }
+
+    uint32 num_ins = table_aux->insertions.count / 3;
+    if (num_ins > 0) {
+      uint64 *args_array = table_aux->insertions.array;
+      for (uint32 i=0 ; i < num_ins ; i++) {
+        uint32 arg1 = unpack_arg1(args_array[i]);
+        inserted.insert(arg1);
+      }
+    }
+
+    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
+      uint32 surr = it->first;
+      uint32 num_del = it->second.size();
+      uint32 curr_num = bin_table_count_1(table, surr);
+      assert(num_del <= curr_num);
+      if (num_del == curr_num && inserted.count(surr) == 0) {
+        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
     if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
