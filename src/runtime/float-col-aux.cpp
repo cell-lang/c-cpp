@@ -273,3 +273,32 @@ bool float_col_table_aux_check_foreign_key_master_bin_table_12_forward(FLOAT_COL
 
   return true;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool float_col_aux_check_foreign_key_master_bin_table_surr_backward(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+  if (col_aux->clear) {
+    if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
+      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+      //## RECORD THE ERROR
+      return false;
+    }
+  }
+
+  uint32 num_dels = col_aux->deletions.count;
+  if (num_dels > 0) {
+    uint32 *surrs = col_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      uint32 surr = surrs[i];
+      if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
+        if (!float_col_aux_contains_1(col, col_aux, surr)) { //## NOT THE MOST EFFICIENT WAY TO DO IT.
+          //## RECORD THE ERROR
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}

@@ -341,7 +341,6 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
 
   uint32 num_dels_1 = table_aux->deletions_1.count;
   if (num_dels_1 > 0) {
-    bool ins_queue_prepared = false;
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
@@ -427,7 +426,6 @@ bool bin_table_aux_check_foreign_key_master_bin_table_surr_backward(BIN_TABLE *t
 
   uint32 num_dels_1 = table_aux->deletions_1.count;
   if (num_dels_1 > 0) {
-    bool ins_queue_prepared = false;
     uint32 *surrs = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 surr = surrs[i];
