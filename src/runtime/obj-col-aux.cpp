@@ -207,6 +207,20 @@ bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL 
 
 //////////////////////////////////////////////////////////////////////////////
 
+void obj_col_aux_prepare(OBJ_COL_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool obj_col_aux_is_empty(OBJ_COL *col, OBJ_COL_AUX *col_aux) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 //## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
 bool obj_col_aux_check_foreign_key_unary_table_1_forward(OBJ_COL *col, OBJ_COL_AUX *col_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
   uint32 num_ins = col_aux->insertions.count;
@@ -225,6 +239,33 @@ bool obj_col_aux_check_foreign_key_unary_table_1_forward(OBJ_COL *col, OBJ_COL_A
     uint32 *arg1s = col_aux->updates.u32_array;
     for (uint32 i=0 ; i < num_updates ; i++) {
       if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
+bool obj_col_table_aux_check_foreign_key_master_bin_table_12_forward(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = col_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *surrs = col_aux->insertions.u32_array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+
+  uint32 num_updates = col_aux->updates.count;
+  if (num_updates > 0) {
+    uint32 *surrs = col_aux->updates.u32_array;
+    for (uint32 i=0 ; i < num_updates ; i++) {
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
         //## RECORD THE ERROR
         return false;
       }

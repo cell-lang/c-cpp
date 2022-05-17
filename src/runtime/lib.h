@@ -2224,6 +2224,7 @@ bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL 
 
 void int_col_aux_prepare(INT_COL_AUX *);
 bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
+bool int_col_aux_is_empty(INT_COL *, INT_COL_AUX *);
 // int64 int_col_aux_lookup(INT_COL *, INT_COL_AUX *, uint32);
 
 ///////////////////////////////// float-col.cpp ////////////////////////////////
@@ -2269,6 +2270,7 @@ bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM
 
 void float_col_aux_prepare(FLOAT_COL_AUX *);
 bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
+bool float_col_aux_is_empty(FLOAT_COL *, FLOAT_COL_AUX *);
 // double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
@@ -2314,6 +2316,7 @@ void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 void obj_col_aux_prepare(OBJ_COL_AUX *);
 bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32);
+bool obj_col_aux_is_empty(OBJ_COL *, OBJ_COL_AUX *);
 // OBJ  obj_col_aux_lookup(OBJ_COL *, OBJ_COL_AUX *, uint32);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
