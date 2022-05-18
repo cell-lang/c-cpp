@@ -5,6 +5,24 @@ void sort_u32(uint32 *array, uint32 len) {
   std::sort(array, array + len);
 }
 
+void sort_unique_u32(uint32 *array, uint32 *len_var) {
+  uint32 len = *len_var;
+  if (len > 1) {
+    std::sort(array, array + len);
+    uint32 prev_value = array[0];
+    uint32 write_idx = 1;
+    for (uint32 i=1 ; i < len ; i++) {
+      uint32 value = array[i];
+      if (value != prev_value) {
+        if (write_idx != i)
+          array[write_idx] = value;
+        write_idx++;
+        prev_value = value;
+      }
+    }
+  }
+}
+
 void sort_u64(uint64 *array, uint32 len) {
   std::sort(array, array + len);
 }

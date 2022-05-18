@@ -267,6 +267,9 @@ struct UNARY_TABLE_AUX {
   QUEUE_U32 insertions;
   uint32 init_capacity; // Capacity before the update is executed (DO WE STILL NEED THIS?)
   bool clear;
+#ifndef NDEBUG
+  bool prepared;
+#endif
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1131,6 +1134,7 @@ void sort_u32(uint32 *array, uint32 len);
 void sort_u64(uint64 *array, uint32 len);
 void sort_3u32(uint32 *array, uint32 len);
 
+void sort_unique_u32(uint32 *, uint32 *);
 void sort_unique_3u32(uint32 *, uint32 *);
 
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
@@ -2383,6 +2387,8 @@ void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
 
 void queue_u32_init(QUEUE_U32 *);
 void queue_u32_insert(QUEUE_U32 *, uint32);
+void queue_u32_sort_unique(QUEUE_U32 *);
+bool queue_u32_sorted_contains(QUEUE_U32 *, uint32);
 void queue_u32_prepare(QUEUE_U32 *);
 void queue_u32_reset(QUEUE_U32 *);
 bool queue_u32_contains(QUEUE_U32 *, uint32);

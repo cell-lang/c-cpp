@@ -21,6 +21,14 @@ void queue_u32_insert(QUEUE_U32 *queue, uint32 value) {
   queue->count = count + 1;
 }
 
+void queue_u32_sort_unique(QUEUE_U32 *queue) {
+  sort_unique_u32(queue->array, &queue->count);
+}
+
+bool queue_u32_sorted_contains(QUEUE_U32 *queue, uint32 value) {
+  return sorted_u32_array_contains(queue->array, queue->count, value);
+}
+
 void queue_u32_prepare(QUEUE_U32 *queue) {
   uint32 count = queue->count;
   if (count > 16)
