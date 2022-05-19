@@ -1521,7 +1521,7 @@ uint32 bin_table_iter_2_get_1(BIN_TABLE_ITER_2 *);
 void bin_table_aux_init(BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
 void bin_table_aux_clear(BIN_TABLE_AUX *);
-void bin_table_aux_delete(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void bin_table_aux_delete(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 void bin_table_aux_delete_1(BIN_TABLE_AUX *, uint32 arg1);
 void bin_table_aux_delete_2(BIN_TABLE_AUX *, uint32 arg2);
 void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
@@ -2408,12 +2408,15 @@ void queue_u32_i64_reset(QUEUE_U32_I64 *);
 void queue_u64_init(QUEUE_U64 *);
 void queue_u64_insert(QUEUE_U64 *, uint64);
 void queue_u64_prepare(QUEUE_U64 *);
+void queue_u64_sort_unique(QUEUE_U64 *);
+bool queue_u64_contains(QUEUE_U64 *, uint64);
 void queue_u64_flip_words(QUEUE_U64 *);
 void queue_u64_reset(QUEUE_U64 *);
 void queue_u64_prepare_1(QUEUE_U64 *);
 bool queue_u64_contains_1(QUEUE_U64 *, uint32);
 void queue_u64_prepare_2(QUEUE_U64 *);
 bool queue_u64_contains_2(QUEUE_U64 *, uint32);
+bool queue_u64_unique_count(QUEUE_U64 *);
 
 void queue_2u32_insert(QUEUE_U32 *, uint32, uint32);
 

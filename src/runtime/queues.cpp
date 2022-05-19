@@ -193,6 +193,12 @@ void queue_u64_prepare(QUEUE_U64 *queue) {
     sort_u64(queue->array, count);
 }
 
+void queue_u64_sort_unique(QUEUE_U64 *queue) {
+  uint32 count = queue->count;
+  if (count > 1)
+    sort_u64(queue->array, count);
+}
+
 void queue_u64_flip_words(QUEUE_U64 *queue) {
   uint32 count = queue->count;
   if (count > 0) {
@@ -224,6 +230,40 @@ bool queue_u64_contains(QUEUE_U64 *queue, uint64 value) {
         return true;
   }
   return false;
+}
+
+bool queue_u64_contains_1(QUEUE_U64 *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint64 *array = queue->array;
+    if (count > 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+      //## IMPLEMENT FOR REAL
+    }
+    for (uint32 i=0 ; i < count ; i++)
+      if (unpack_arg1(array[i]) == value)
+        return true;
+  }
+  return false;
+}
+
+bool queue_u64_contains_2(QUEUE_U64 *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint64 *array = queue->array;
+    if (count > 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+      //## IMPLEMENT FOR REAL
+    }
+    for (uint32 i=0 ; i < count ; i++)
+      if (unpack_arg2(array[i]) == value)
+        return true;
+  }
+  return false;
+}
+
+bool queue_u64_unique_count(QUEUE_U64 *queue) {
+  return queue->count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
