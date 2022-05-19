@@ -130,6 +130,9 @@ void col_update_status_map_clear(COL_UPDATE_STATUS_MAP *status_map) {
   col_update_bit_map_clear(&status_map->bit_map);
 }
 
+bool col_update_status_map_is_dirty(COL_UPDATE_STATUS_MAP *status_map) {
+  return status_map->bit_map.num_dirty > 0;
+}
 void col_update_status_map_mark_deletion(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
   col_update_bit_map_set(&status_map->bit_map, 2 * index, mem_pool);
 }

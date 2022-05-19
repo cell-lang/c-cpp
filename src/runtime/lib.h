@@ -1427,6 +1427,7 @@ bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index);
 
 void col_update_status_map_init(COL_UPDATE_STATUS_MAP *);
 void col_update_status_map_clear(COL_UPDATE_STATUS_MAP *);
+bool col_update_status_map_is_dirty(COL_UPDATE_STATUS_MAP *);
 void col_update_status_map_mark_deletion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
 bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
 bool col_update_status_map_deleted_flag_is_set(COL_UPDATE_STATUS_MAP *, uint32 index);
@@ -2311,7 +2312,7 @@ void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *);
 void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
 
 void obj_col_aux_clear(OBJ_COL_AUX *col_aux);
-void obj_col_aux_delete_1(OBJ_COL_AUX *col_aux, uint32 index);
+void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *col_aux, uint32 index);
 void obj_col_aux_insert(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
 void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
 
@@ -2392,18 +2393,25 @@ bool queue_u32_sorted_contains(QUEUE_U32 *, uint32);
 void queue_u32_prepare(QUEUE_U32 *);
 void queue_u32_reset(QUEUE_U32 *);
 bool queue_u32_contains(QUEUE_U32 *, uint32);
+bool queue_u32_unique_count(QUEUE_U32 *);
 
 void queue_u32_obj_init(QUEUE_U32_OBJ *);
 void queue_u32_obj_insert(QUEUE_U32_OBJ *, uint32, OBJ);
 void queue_u32_obj_reset(QUEUE_U32_OBJ *);
+void queue_u32_obj_prepare(QUEUE_U32_OBJ *);
+bool queue_u32_obj_contains_1(QUEUE_U32_OBJ *, uint32);
 
 void queue_u32_double_init(QUEUE_U32_FLOAT *);
 void queue_u32_double_insert(QUEUE_U32_FLOAT *, uint32, double);
 void queue_u32_double_reset(QUEUE_U32_FLOAT *);
+void queue_u32_double_prepare(QUEUE_U32_FLOAT *);
+bool queue_u32_double_contains_1(QUEUE_U32_FLOAT *, uint32);
 
 void queue_u32_i64_init(QUEUE_U32_I64 *);
 void queue_u32_i64_insert(QUEUE_U32_I64 *, uint32, int64);
 void queue_u32_i64_reset(QUEUE_U32_I64 *);
+void queue_u32_i64_prepare(QUEUE_U32_I64 *);
+bool queue_u32_i64_contains_1(QUEUE_U32_I64 *, uint32);
 
 void queue_u64_init(QUEUE_U64 *);
 void queue_u64_insert(QUEUE_U64 *, uint64);

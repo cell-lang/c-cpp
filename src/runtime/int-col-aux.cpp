@@ -206,16 +206,40 @@ bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_col_aux_prepare(INT_COL_AUX *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void int_col_aux_prepare(INT_COL_AUX *col_aux) {
+  queue_u32_sort_unique(&col_aux->deletions); // May need to support unique_count(..)
+  queue_u32_i64_prepare(&col_aux->insertions);
+  queue_u32_i64_prepare(&col_aux->updates);
 }
 
-bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 index) {
+  if (queue_u32_i64_contains_1(&col_aux->insertions, index))
+    return true;
+
+  if (queue_u32_i64_contains_1(&col_aux->updates, index))
+    return true;
+
+  if (col_aux->clear)
+    return false;
+
+  if (!int_col_contains_1(col, index))
+    return false;
+
+  return !queue_u32_sorted_contains(&col_aux->deletions, index);
 }
 
 bool int_col_aux_is_empty(INT_COL *col, INT_COL_AUX *col_aux) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  if (col_aux->insertions.count > 0 || col_aux->updates.count > 0)
+    return false;
+
+  if (col_aux->clear)
+    return true;
+
+  uint32 size = int_col_size(col);
+  if (size == 0)
+    return true;
+
+  return queue_u32_unique_count(&col_aux->deletions) == size;
 }
 
 //////////////////////////////////////////////////////////////////////////////
