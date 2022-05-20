@@ -24,7 +24,7 @@ void semisym_tern_table_aux_delete(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *ta
   uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
-    bin_table_aux_delete(&table_aux->slave, surr12, arg3);
+    bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
     queue_u32_insert(&table_aux->surr12_follow_ups, surr12);
   }
 }
@@ -49,7 +49,7 @@ void semisym_tern_table_aux_delete_13_23(TERN_TABLE *table, SEMISYM_TERN_TABLE_A
       for (uint32 i=0 ; i < count12 ; i++) {
         uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg12, other_args_12[i]);
         if (bin_table_contains(&table->slave, surr12, arg3)) {
-          bin_table_aux_delete(&table_aux->slave, surr12, arg3);
+          bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
           queue_u32_insert(&table_aux->surr12_follow_ups, surr12);
         }
       }
@@ -61,7 +61,7 @@ void semisym_tern_table_aux_delete_13_23(TERN_TABLE *table, SEMISYM_TERN_TABLE_A
       for (uint32 i=0 ; i < count3 ; i++) {
         uint32 surr12 = surr12s[i];
         if (sym_master_bin_table_get_arg_1(&table->master, surr12) == arg12 || sym_master_bin_table_get_arg_2(&table->master, surr12) == arg12) {
-          bin_table_aux_delete(&table_aux->slave, surr12, arg3);
+          bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
           queue_u32_insert(&table_aux->surr12_follow_ups, surr12);
         }
       }
