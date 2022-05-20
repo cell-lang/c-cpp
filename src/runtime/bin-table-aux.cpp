@@ -277,34 +277,6 @@ bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void bin_table_aux_prepare(BIN_TABLE_AUX *table_aux) {
-  queue_u64_sort_unique(&table_aux->deletions); // Needs to support unique_count(..)
-  queue_u32_prepare(&table_aux->deletions_1);
-  queue_u32_prepare(&table_aux->deletions_2);
-  queue_u64_prepare(&table_aux->insertions);
-}
-
-bool bin_table_aux_contains(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 args = pack_args(arg1, arg2);
-
-  if (queue_u64_contains(&table_aux->insertions, args))
-    return true;
-
-  if (!bin_table_contains(table, arg1, arg2))
-    return false;
-
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
-    return false;
-
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
-    return false;
-
-  if (queue_u64_contains(&table_aux->deletions, args))
-    return false;
-
-  return true;
-}
-
 static uint32 bin_table_aux_number_of_deletions_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
   assert(!queue_u32_contains(&table_aux->deletions_1, arg1));
 
@@ -375,44 +347,6 @@ static uint32 bin_table_aux_number_of_deletions_2(BIN_TABLE *table, BIN_TABLE_AU
   return deletions[arg2].size();
 }
 
-bool bin_table_aux_contains_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  if (queue_u64_contains_1(&table_aux->insertions, arg1))
-    return true;
-
-  if (!bin_table_contains_1(table, arg1))
-    return false;
-
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
-    return false;
-
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels == 0 & num_dels_2 == 0)
-    return true;
-
-  return bin_table_aux_number_of_deletions_1(table, table_aux, arg1) < bin_table_count_1(table, arg1);
-}
-
-bool bin_table_aux_contains_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  if (queue_u64_contains_2(&table_aux->insertions, arg2))
-    return true;
-
-  if (!bin_table_contains_2(table, arg2))
-    return false;
-
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
-    return false;
-
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-
-  if (num_dels == 0 & num_dels_1 == 0)
-    return true;
-
-  return bin_table_aux_number_of_deletions_2(table, table_aux, arg2) < bin_table_count_2(table, arg2);
-}
-
 static uint32 bin_table_aux_number_of_deletions(BIN_TABLE *table, QUEUE_U64 *deletions, QUEUE_U32 *deletions_1, QUEUE_U32 *deletions_2) {
   unordered_set<uint64> unique_deletions;
 
@@ -461,6 +395,83 @@ static uint32 bin_table_aux_number_of_deletions(BIN_TABLE *table, QUEUE_U64 *del
   return unique_deletions.size();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+void bin_table_aux_prepare(BIN_TABLE_AUX *table_aux) {
+  queue_u64_sort_unique(&table_aux->deletions); // Needs to support unique_count(..)
+  queue_u32_prepare(&table_aux->deletions_1);
+  queue_u32_prepare(&table_aux->deletions_2);
+  queue_u64_prepare(&table_aux->insertions);
+}
+
+bool bin_table_aux_contains(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  uint32 args = pack_args(arg1, arg2);
+
+  if (queue_u64_contains(&table_aux->insertions, args))
+    return true;
+
+  if (table_aux->clear)
+    return false;
+
+  if (!bin_table_contains(table, arg1, arg2))
+    return false;
+
+  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+    return false;
+
+  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+    return false;
+
+  if (queue_u64_contains(&table_aux->deletions, args))
+    return false;
+
+  return true;
+}
+
+bool bin_table_aux_contains_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  if (queue_u64_contains_1(&table_aux->insertions, arg1))
+    return true;
+
+  if (table_aux->clear)
+    return false;
+
+  if (!bin_table_contains_1(table, arg1))
+    return false;
+
+  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+    return false;
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels == 0 & num_dels_2 == 0)
+    return true;
+
+  return bin_table_aux_number_of_deletions_1(table, table_aux, arg1) < bin_table_count_1(table, arg1);
+}
+
+bool bin_table_aux_contains_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  if (queue_u64_contains_2(&table_aux->insertions, arg2))
+    return true;
+
+  if (table_aux->clear)
+    return false;
+
+  if (!bin_table_contains_2(table, arg2))
+    return false;
+
+  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+    return false;
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+
+  if (num_dels == 0 & num_dels_1 == 0)
+    return true;
+
+  return bin_table_aux_number_of_deletions_2(table, table_aux, arg2) < bin_table_count_2(table, arg2);
+}
+
 bool bin_table_aux_is_empty(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   if (table_aux->insertions.count > 0)
     return false;
@@ -494,7 +505,7 @@ bool bin_table_aux_is_empty(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
       }
       else {
         // NZ Z Z
-        return num_dels == size; //## BUG BUG BUG
+        return num_dels == size; //## BUG BUG BUG (WHY? CAN'T REMEMBER)
       }
     }
   }
