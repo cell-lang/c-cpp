@@ -213,6 +213,13 @@ struct QUEUE_U64 {
   uint64 inline_array[QUEUE_INLINE_SIZE];
 };
 
+struct QUEUE_3U32 {
+  uint32 capacity;
+  uint32 count;
+  uint32 (*array)[3];
+  uint32 inline_array[QUEUE_INLINE_SIZE][3];
+};
+
 struct QUEUE_U32_I64 {
   uint32 capacity;
   uint32 count;
@@ -2434,6 +2441,10 @@ void queue_3u32_sort_unique(QUEUE_U32 *);
 void queue_3u32_permute_132(QUEUE_U32 *);
 void queue_3u32_permute_231(QUEUE_U32 *);
 bool queue_3u32_contains(QUEUE_U32 *, uint32, uint32, uint32);
+bool queue_3u32_contains_12(QUEUE_U32 *, uint32, uint32);
+bool queue_3u32_contains_1(QUEUE_U32 *, uint32);
+bool queue_3u32_contains_2(QUEUE_U32 *, uint32);
+bool queue_3u32_contains_3(QUEUE_U32 *, uint32);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
