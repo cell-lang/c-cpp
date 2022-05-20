@@ -1836,7 +1836,6 @@ void slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, u
 void slave_tern_table_aux_delete_2(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg2);
 void slave_tern_table_aux_delete_3(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg3);
 
-void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
 void slave_tern_table_aux_insert(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, SLAVE_TERN_TABLE_AUX *, uint32, uint32, uint32);
 
 bool slave_tern_table_aux_check_key_12(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -2130,6 +2129,8 @@ void raw_int_col_iter_move_forward(RAW_INT_COL_ITER *);
 
 ////////////////////////////// raw-int-col-aux.cpp /////////////////////////////
 
+void raw_int_col_aux_delete_1(UNARY_TABLE *, INT_COL_AUX *, uint32);
+
 void raw_int_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
 bool raw_int_col_aux_check_key_1(UNARY_TABLE *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
@@ -2154,6 +2155,8 @@ double raw_float_col_iter_get_value(RAW_FLOAT_COL_ITER *);
 void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *);
 
 ///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
+
+void raw_float_col_aux_delete_1(UNARY_TABLE *, FLOAT_COL_AUX *, uint32);
 
 void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2184,7 +2187,7 @@ void   raw_obj_col_iter_move_forward(RAW_OBJ_COL_ITER *);
 ////////////////////////////// raw-obj-col-aux.cpp /////////////////////////////
 
 // void raw_obj_col_aux_clear(OBJ_COL_AUX *);
-// void raw_obj_col_aux_delete_1(OBJ_COL_AUX *, uint32);
+void raw_obj_col_aux_delete_1(UNARY_TABLE *, OBJ_COL_AUX *, uint32);
 // void raw_obj_col_aux_insert(OBJ_COL_AUX *, uint32, OBJ);
 // void raw_obj_col_aux_update(OBJ_COL_AUX *, uint32, OBJ);
 
@@ -2223,18 +2226,18 @@ void int_col_iter_move_forward(INT_COL_ITER *iter);
 
 //////////////////////////////// int-col-aux.cpp ///////////////////////////////
 
-void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *);
-void int_col_aux_reset(INT_COL_AUX *col_aux);
+void int_col_aux_init(INT_COL_AUX *, STATE_MEM_POOL *);
+void int_col_aux_reset(INT_COL_AUX *);
 
-void int_col_aux_clear(INT_COL_AUX *col_aux);
-void int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index);
-void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value);
-void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value);
+void int_col_aux_clear(INT_COL_AUX *);
+void int_col_aux_delete_1(INT_COL *, INT_COL_AUX *, uint32);
+void int_col_aux_insert(INT_COL_AUX *, uint32 index, int64 value);
+void int_col_aux_update(INT_COL_AUX *, uint32 index, int64 value);
 
-void int_col_aux_apply(INT_COL *col, INT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
+void int_col_aux_apply(INT_COL *col, INT_COL_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void int_col_aux_slave_apply(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
-bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *);
+bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *, STATE_MEM_POOL *);
 
 void int_col_aux_prepare(INT_COL_AUX *);
 bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
@@ -2269,23 +2272,23 @@ void float_col_iter_move_forward(FLOAT_COL_ITER *iter);
 
 /////////////////////////////// float-col-aux.cpp //////////////////////////////
 
-void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
-void float_col_aux_reset(FLOAT_COL_AUX *col_aux);
+void float_col_aux_init(FLOAT_COL_AUX *, STATE_MEM_POOL *);
+void float_col_aux_reset(FLOAT_COL_AUX *);
 
-void float_col_aux_clear(FLOAT_COL_AUX *col_aux);
-void float_col_aux_delete_1(FLOAT_COL_AUX *col_aux, uint32 index);
-void float_col_aux_insert(FLOAT_COL_AUX *col_aux, uint32 index, double value);
-void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value);
+void float_col_aux_clear(FLOAT_COL_AUX *);
+void float_col_aux_delete_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index);
+void float_col_aux_insert(FLOAT_COL_AUX *, uint32 index, double value);
+void float_col_aux_update(FLOAT_COL_AUX *, uint32 index, double value);
 
-void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
+void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 void float_col_aux_slave_apply(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
-bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *);
+bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 void float_col_aux_prepare(FLOAT_COL_AUX *);
 bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
 bool float_col_aux_is_empty(FLOAT_COL *, FLOAT_COL_AUX *);
-// double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 surr_1);
+// double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *, uint32 surr_1);
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
@@ -2315,17 +2318,17 @@ void   obj_col_iter_move_forward(OBJ_COL_ITER *iter);
 
 //////////////////////////////// obj-col-aux.cpp ///////////////////////////////
 
-void obj_col_aux_init(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *);
-void obj_col_aux_reset(OBJ_COL_AUX *col_aux);
+void obj_col_aux_init(OBJ_COL_AUX *, STATE_MEM_POOL *);
+void obj_col_aux_reset(OBJ_COL_AUX *);
 
-void obj_col_aux_clear(OBJ_COL_AUX *col_aux);
-void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *col_aux, uint32 index);
-void obj_col_aux_insert(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
-void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value);
+void obj_col_aux_clear(OBJ_COL_AUX *);
+void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *, uint32 index);
+void obj_col_aux_insert(OBJ_COL_AUX *, uint32 index, OBJ value);
+void obj_col_aux_update(OBJ_COL_AUX *, uint32 index, OBJ value);
 
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
-void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
+void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *, void (*)(void *, uint32), void (*)(void *, void *, uint32), void *, void *, STATE_MEM_POOL *);
 void obj_col_aux_slave_apply(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 void obj_col_aux_prepare(OBJ_COL_AUX *);

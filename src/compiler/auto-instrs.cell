@@ -335,6 +335,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     updater = pending_updates_var_ref_name(table_var);
     args = match (table)
       master_bin_table()  = (table_var, updater),
+      slave_tern_table()  = (table.master, pending_updates_var_ref_name(table.master), updater),
       _                   = (updater);
     args = args & tuple;
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);
@@ -385,6 +386,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     set_args = (a != nothing : a <- args);
     base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
     prefix = match (table)
+      mandatory_column()  = if set_args == (true, false)
+                              then native_table_method_prefix(table)
+                              else native_column_method_prefix(table.repr),
       mandatory_column()  = native_column_method_prefix(table.repr),
       _                   = native_table_method_prefix(table);
     method_name = prefix & "_aux_" & base_names(set_args);
@@ -392,6 +396,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     ad_hoc_args = match (table)
       table()             = (table_var if arity(table) == 1 and set_args == (false)),
       slave_tern_table()  = (table.master if set_args != (false, false, false)),
+      column()            = (table_var if set_args == (true, false)),
+      mandatory_column()  = (table.master if set_args == (true, false)),
       _                   = ();
     call_args = (ad_hoc_args | auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
     return native_call(method_name, call_args);

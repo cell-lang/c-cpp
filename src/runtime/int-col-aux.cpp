@@ -23,8 +23,9 @@ void int_col_aux_clear(INT_COL_AUX *col_aux) {
   col_aux->clear = true;
 }
 
-void int_col_aux_delete_1(INT_COL_AUX *col_aux, uint32 index) {
-  queue_u32_insert(&col_aux->deletions, index);
+void int_col_aux_delete_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 index) {
+  if (int_col_contains_1(col, index))
+    queue_u32_insert(&col_aux->deletions, index);
 }
 
 void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value) {

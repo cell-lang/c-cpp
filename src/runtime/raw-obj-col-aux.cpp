@@ -1,6 +1,13 @@
 #include "lib.h"
 
 
+void raw_obj_col_aux_delete_1(UNARY_TABLE *master, OBJ_COL_AUX *col_aux, uint32 index) {
+  if (unary_table_contains(master, index))
+    queue_u32_insert(&col_aux->deletions, index);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_table_aux, RAW_OBJ_COL *column, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
     assert(master_table->count == 0);
