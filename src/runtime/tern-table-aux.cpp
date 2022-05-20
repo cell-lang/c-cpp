@@ -327,6 +327,24 @@ bool tern_table_aux_check_keys_13_23(TERN_TABLE *table, TERN_TABLE_AUX *table_au
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool tern_table_aux_prepare(TERN_TABLE_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool tern_table_aux_contains_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool tern_table_aux_contains_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
   return master_bin_table_aux_check_foreign_key_unary_table_1_forward(&table->master, &table_aux->master, target_table, target_table_aux);
 }
