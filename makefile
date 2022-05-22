@@ -13,7 +13,8 @@ cellc: # cellc.net
 	#misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
 	# ./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
-	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+# 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 	# g++ -O3 -flto -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 
 cellc2:
@@ -47,6 +48,10 @@ update-cellc-inline:
 update-cellcr-inline:
 	@rm -f cellcr
 	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp -o cellcr
+
+runtime-dbg-objs:
+	@rm -f objs/dbg/*
+	cd objs/dbg/ ; g++ -c -I ../../src/runtime/ ../../src/runtime/*.cpp
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
