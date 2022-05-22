@@ -650,7 +650,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TAB
 
 //## BAD BAD BAD: THE FOLLOWING FOUR METHODS ARE NEARLY IDENTICAL
 
-bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->insertions.count / 3;
   if (num_ins > 0) {
     uint32 *insertions = table_aux->insertions.array;
@@ -668,7 +668,7 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_forward(MASTER_B
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_obj_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *target_col, OBJ_COL_AUX *target_col_aux) {
+bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *target_col, OBJ_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count / 3;
   if (num_ins > 0) {
     uint32 *insertions = table_aux->insertions.array;
@@ -686,7 +686,7 @@ bool master_bin_table_aux_check_foreign_key_obj_col_12_forward(MASTER_BIN_TABLE 
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_int_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *target_col, INT_COL_AUX *target_col_aux) {
+bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *target_col, INT_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count / 3;
   if (num_ins > 0) {
     uint32 *insertions = table_aux->insertions.array;
@@ -704,7 +704,7 @@ bool master_bin_table_aux_check_foreign_key_int_col_12_forward(MASTER_BIN_TABLE 
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_float_col_12_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *target_col, FLOAT_COL_AUX *target_col_aux) {
+bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *target_col, FLOAT_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count / 3;
   if (num_ins > 0) {
     uint32 *insertions = table_aux->insertions.array;
@@ -917,7 +917,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
     if (!bin_table_aux_is_empty(src_table, &src_table_aux->slave_table_aux)) {
       //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
@@ -995,7 +995,7 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_12_backward(MASTER_
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_obj_col_12_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *src_col, OBJ_COL_AUX *src_col_aux) {
+bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *src_col, OBJ_COL_AUX *src_col_aux) {
   if (table_aux->clear) {
     if (!obj_col_aux_is_empty(src_col, src_col_aux)) {
       //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
@@ -1073,7 +1073,7 @@ bool master_bin_table_aux_check_foreign_key_obj_col_12_backward(MASTER_BIN_TABLE
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_int_col_12_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *src_col, INT_COL_AUX *src_col_aux) {
+bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *src_col, INT_COL_AUX *src_col_aux) {
   if (table_aux->clear) {
     if (!int_col_aux_is_empty(src_col, src_col_aux)) {
       //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
@@ -1151,7 +1151,7 @@ bool master_bin_table_aux_check_foreign_key_int_col_12_backward(MASTER_BIN_TABLE
   return true;
 }
 
-bool master_bin_table_aux_check_foreign_key_float_col_12_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *src_col, FLOAT_COL_AUX *src_col_aux) {
+bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *src_col, FLOAT_COL_AUX *src_col_aux) {
   if (table_aux->clear) {
     if (!float_col_aux_is_empty(src_col, src_col_aux)) {
       //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?

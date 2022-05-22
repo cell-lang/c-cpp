@@ -102,7 +102,7 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_A
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool slave_tern_table_aux_check_foreign_key_master_bin_table_12_forward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
+bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->slave_table_aux.insertions.count;
   if (num_ins > 0) {
     uint64 *args = table_aux->slave_table_aux.insertions.array;
@@ -123,8 +123,8 @@ bool slave_tern_table_aux_check_foreign_key_unary_table_3_forward(BIN_TABLE *tab
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool slave_tern_table_aux_check_foreign_key_master_bin_table_surr_backward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
-  return bin_table_aux_check_foreign_key_master_bin_table_surr_backward(table, &table_aux->slave_table_aux, src_table, src_table_aux);
+bool slave_tern_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+  return bin_table_aux_check_foreign_key_master_bin_table_backward(table, &table_aux->slave_table_aux, src_table, src_table_aux);
 }
 
 bool slave_tern_table_aux_check_foreign_key_unary_table_3_backward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {

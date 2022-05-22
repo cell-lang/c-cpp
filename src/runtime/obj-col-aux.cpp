@@ -274,7 +274,7 @@ bool obj_col_aux_check_foreign_key_unary_table_1_forward(OBJ_COL *col, OBJ_COL_A
 }
 
 //## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
-bool obj_col_table_aux_check_foreign_key_master_bin_table_12_forward(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
+bool obj_col_aux_check_foreign_key_master_bin_table_forward(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = col_aux->insertions.count;
   if (num_ins > 0) {
     uint32 *surrs = col_aux->insertions.u32_array;
@@ -303,7 +303,7 @@ bool obj_col_table_aux_check_foreign_key_master_bin_table_12_forward(OBJ_COL *co
 //////////////////////////////////////////////////////////////////////////////
 
 //## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
-bool obj_col_aux_check_foreign_key_master_bin_table_surr_backward(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+bool obj_col_aux_check_foreign_key_master_bin_table_backward(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
   if (col_aux->clear) {
     if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
       //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?

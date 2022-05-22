@@ -1475,6 +1475,23 @@ void unary_table_aux_prepare(UNARY_TABLE_AUX *);
 bool unary_table_aux_contains(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
 bool unary_table_aux_is_empty(UNARY_TABLE *, UNARY_TABLE_AUX *);
 
+bool unary_table_aux_check_foreign_key_unary_table_forward(UNARY_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_slave_tern_table_3_forward(UNARY_TABLE_AUX *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_tern_table_3_forward(UNARY_TABLE_AUX *, TERN_TABLE *, TERN_TABLE_AUX *);
+
+bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_bin_table_1_backward(UNARY_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_master_bin_table_2_backward(UNARY_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_obj_col_1_backward(UNARY_TABLE_AUX *, OBJ_COL *, OBJ_COL_AUX *);
+bool unary_table_aux_check_foreign_key_int_col_1_backward(UNARY_TABLE_AUX *, INT_COL *, INT_COL_AUX *);
+bool unary_table_aux_check_foreign_key_float_col_1_backward(UNARY_TABLE_AUX *, FLOAT_COL *, FLOAT_COL_AUX *);
+bool unary_table_aux_check_foreign_key_slave_tern_table_3_backward(UNARY_TABLE_AUX *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_tern_table_1_backward(UNARY_TABLE_AUX *, TERN_TABLE *, TERN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_tern_table_2_backward(UNARY_TABLE_AUX *, TERN_TABLE *, TERN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_tern_table_3_backward(UNARY_TABLE_AUX *, TERN_TABLE *, TERN_TABLE_AUX *);
+
 ///////////////////////////////// bin-table.cpp ////////////////////////////////
 
 void bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
@@ -1553,7 +1570,7 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABL
 
 bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
-bool bin_table_aux_check_foreign_key_master_bin_table_surr_backward(BIN_TABLE *, BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *, BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
@@ -1688,9 +1705,17 @@ bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, OBJ_COL *, OBJ_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, INT_COL *, INT_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, FLOAT_COL *, FLOAT_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, OBJ_COL *, OBJ_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, INT_COL *, INT_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, FLOAT_COL *, FLOAT_COL_AUX *);
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
 
 /////////////////////////// sym-master-bin-table.cpp ///////////////////////////
 
@@ -1844,10 +1869,11 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
-bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
-bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
-bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *tabl, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
-// bool tern_table_aux_check_foreign_key_bin_table_forward(TERN_TABLE *, TERN_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
+bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool slave_tern_table_aux_check_foreign_key_unary_table_3_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool slave_tern_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool slave_tern_table_aux_check_foreign_key_unary_table_3_backward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 ///////////////////////// semisym-slave-tern-table.cpp /////////////////////////
 
@@ -2157,9 +2183,7 @@ void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *);
 ///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
 
 void raw_float_col_aux_delete_1(UNARY_TABLE *, FLOAT_COL_AUX *, uint32);
-
 void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
-
 bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
@@ -2244,6 +2268,11 @@ bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
 bool int_col_aux_is_empty(INT_COL *, INT_COL_AUX *);
 // int64 int_col_aux_lookup(INT_COL *, INT_COL_AUX *, uint32);
 
+bool int_col_aux_check_foreign_key_unary_table_1_forward(INT_COL *, INT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool int_col_aux_check_foreign_key_master_bin_table_forward(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
 ///////////////////////////////// float-col.cpp ////////////////////////////////
 
 void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *);
@@ -2290,6 +2319,11 @@ bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
 bool float_col_aux_is_empty(FLOAT_COL *, FLOAT_COL_AUX *);
 // double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *, uint32 surr_1);
 
+bool float_col_aux_check_foreign_key_unary_table_1_forward(FLOAT_COL *, FLOAT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool float_col_aux_check_foreign_key_master_bin_table_forward(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool float_col_aux_check_foreign_key_master_bin_table_backward(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
 void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *);
@@ -2335,6 +2369,11 @@ void obj_col_aux_prepare(OBJ_COL_AUX *);
 bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32);
 bool obj_col_aux_is_empty(OBJ_COL *, OBJ_COL_AUX *);
 // OBJ  obj_col_aux_lookup(OBJ_COL *, OBJ_COL_AUX *, uint32);
+
+bool obj_col_aux_check_foreign_key_unary_table_1_forward(OBJ_COL *, OBJ_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool obj_col_aux_check_foreign_key_master_bin_table_forward(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool obj_col_aux_check_foreign_key_master_bin_table_backward(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 //////////////////////////////// int-store.cpp /////////////////////////////////
 

@@ -988,16 +988,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       : v, t <- isort(block.tables)
     );
 
-    foreign_key_checkers_decls = ();
-  //   foreign_keys = isort(block.insert_checked_foreign_keys & block.delete_checked_foreign_keys);
-  //   foreign_key_checkers_decls = (
-  //     native_foreign_key_checker_type(k, block.tables(k.origin), block.tables(k.target)) & " " &
-  //     foreign_key_checker_decl_name(k) & ";"
-  //     : k <- foreign_keys
-  //   );
-
-    membs_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls &
-                 vars_decls & stores_decls & tables_decls & foreign_key_checkers_decls;
+    membs_decls = linked_updaters_decls & dep_msg_vars_decls & dep_apply_code_vars_decls & vars_decls & stores_decls & tables_decls;
 
     return ("struct " & native_auxiliary_name(block.name) & " {",) & indent_lines(membs_decls) & ("};");
   }
@@ -1422,21 +1413,38 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
     keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
+    keys = sort_by_key(keys, order);
 
-    keys_check_code = ("");
-    for v, a, k <- sort_by_key(keys, order) {
+    insert_checked_foreign_keys = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)];
+    insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
+
+    delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
+    delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
+
+    check_code = ("" if keys != () or insert_checked_foreign_keys != () or delete_checked_foreign_keys != ());
+
+    for v, a, k <- keys {
       fn_call = check_call(v, a, k, block);
-      keys_check_code = (keys_check_code | "if (!" & fn_call & ")", " return false;");
+      check_code = (check_code | "if (!" & fn_call & ")", " return false;");
     }
 
-    // foreign_keys  = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)] &
-    //                 [k : k <- block.delete_checked_foreign_keys, deletion_tables(k.target)];
+    check_code = (check_code | "") if keys != () and insert_checked_foreign_keys != ();
 
-    // foreign_keys_check_code = (check_stmt(k) : k <- sort_by_key(foreign_keys, order));
-    // foreign_keys_check_code = ("") & foreign_keys_check_code if foreign_keys != [];
+    for k <- insert_checked_foreign_keys {
+      check_expr = foreign_key_forward_check_expr(k, block);
+      check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
+    }
 
-    keys_check_code = (keys_check_code | "return true;");
-    return keys_check_code; // & foreign_keys_check_code;
+    check_code = (check_code | "") if (keys != () or insert_checked_foreign_keys != ()) and delete_checked_foreign_keys != ();
+
+    for k <- delete_checked_foreign_keys {
+      check_expr = foreign_key_backward_check_expr(k, block);
+      check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
+    }
+
+    check_code = (check_code | "", "return true;");
+
+    return check_code;
 
 
     String check_call(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
@@ -1460,9 +1468,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String check_stmt(BlockForeignKey key) {
-      checker_name = foreign_key_checker_ref_name(key);
-      return native_method_call(checker_name, "check", ());
+    String foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block) {
+      method_name = foreign_key_forward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
+      args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
+      return native_call_expr(method_name, args);
+    }
+
+
+    String foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block) {
+      method_name = foreign_key_backward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
+      needs_origin_ref = match (block.tables(key.target))
+        table() t?  = arity(t) != 1 ,
+        _           = true;
+      args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
+      return native_call_expr(method_name, args);
     }
 
 

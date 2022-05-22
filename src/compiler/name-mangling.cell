@@ -351,26 +351,39 @@ implicit context : NativeContext {
 
   String updater_var_ref_name(ValueStoreId vs) = "&" & db_auxiliary_arg_name & "->" & aux_var_decl_name(vs);
 
-  String foreign_key_checker_decl_name(BlockForeignKey key) {
 
-    // foreign_key(
-    //   type: binary_unary(0),
-    //   origin: table_var(phys_rel_var(str_attr)),
-    //   target: table_var(phys_rel_var(entity))
-    // )
+  String foreign_key_forward_checker_name(ForeignKeyType key_type, AnyTable origin, AnyTable target) =
+    foreign_key_checker_name(key_type, origin, target, true);
 
-    // suffix = foreign_key_checker_suffix(key.type);
-    // origin = native_var_decl_name(key.origin);
-    // target = native_var_decl_name(key.target);
-    // return "foreignKeyChecker" & suffix & "_" & origin & "_" & target;
 
-    fail;
+  String foreign_key_backward_checker_name(ForeignKeyType key_type, AnyTable origin, AnyTable target) =
+    foreign_key_checker_name(key_type, target, origin, false);
+
+
+  String foreign_key_checker_name(ForeignKeyType key_type, AnyTable first_table, AnyTable second_table, Bool forward) {
+    col_code = match (key_type)
+      unary_binary(i?)          |
+      unary_ternary(i?)         |
+      binary_unary(i?)          |
+      ternary_unary(i?)         = "_" & _print_(i + 1),
+      unary_unary               |
+      binary_ternary            |
+      ternary_binary            |
+      unary_sym_binary          |
+      unary_sym_ternary_12      |
+      unary_sym_ternary_3       |
+      sym_binary_unary          |
+      sym_ternary_unary_12      |
+      sym_ternary_unary_3       |
+      sym_binary_sym_ternary    |
+      sym_ternary_sym_binary    = "";
+
+    first_table_prefix = native_table_method_prefix(first_table);
+    second_table_prefix = native_table_method_prefix(second_table);
+
+    direction = if forward then "forward" else "backward";
+    return first_table_prefix & "_aux_check_foreign_key_" & second_table_prefix & col_code & "_" & direction;
   }
-
-
-  String foreign_key_checker_ref_name(BlockForeignKey key) = undefined;
-
-  String native_foreign_key_checker_type(BlockForeignKey, AnyTable, AnyTable) = undefined;
 
   //////////////////////////////////////////////////////////////////////////////
 
