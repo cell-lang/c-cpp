@@ -154,7 +154,7 @@ void unary_table_aux_prepare(UNARY_TABLE_AUX *table_aux) {
 }
 
 bool unary_table_aux_contains(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, uint32 elt) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   if (unary_table_contains(table, elt) && !table_aux->clear && !queue_u32_sorted_contains(&table_aux->deletions, elt))
     return true;
@@ -162,7 +162,7 @@ bool unary_table_aux_contains(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, ui
 }
 
 bool unary_table_aux_is_empty(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   if (table_aux->insertions.count > 0)
     return false;
@@ -234,7 +234,7 @@ bool unary_table_aux_check_foreign_key_tern_table_3_forward(UNARY_TABLE_AUX *tab
 ////////////////////////////////////////////////////////////////////////////////
 
 bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -251,7 +251,7 @@ bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *tab
 }
 
 bool unary_table_aux_check_foreign_key_bin_table_1_backward(UNARY_TABLE_AUX *table_aux, BIN_TABLE *src_table, BIN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -268,7 +268,7 @@ bool unary_table_aux_check_foreign_key_bin_table_1_backward(UNARY_TABLE_AUX *tab
 }
 
 bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *table_aux, BIN_TABLE *src_table, BIN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -286,7 +286,7 @@ bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *tab
 
 
 bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -303,7 +303,7 @@ bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_A
 }
 
 bool unary_table_aux_check_foreign_key_master_bin_table_2_backward(UNARY_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -319,7 +319,7 @@ bool unary_table_aux_check_foreign_key_master_bin_table_2_backward(UNARY_TABLE_A
 }
 
 bool unary_table_aux_check_foreign_key_obj_col_1_backward(UNARY_TABLE_AUX *table_aux, OBJ_COL *src_col, OBJ_COL_AUX *src_col_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -336,7 +336,7 @@ bool unary_table_aux_check_foreign_key_obj_col_1_backward(UNARY_TABLE_AUX *table
 }
 
 bool unary_table_aux_check_foreign_key_int_col_1_backward(UNARY_TABLE_AUX *table_aux, INT_COL *src_col, INT_COL_AUX *src_col_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -353,7 +353,7 @@ bool unary_table_aux_check_foreign_key_int_col_1_backward(UNARY_TABLE_AUX *table
 }
 
 bool unary_table_aux_check_foreign_key_float_col_1_backward(UNARY_TABLE_AUX *table_aux, FLOAT_COL *src_col, FLOAT_COL_AUX *src_col_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -370,7 +370,7 @@ bool unary_table_aux_check_foreign_key_float_col_1_backward(UNARY_TABLE_AUX *tab
 }
 
 bool unary_table_aux_check_foreign_key_slave_tern_table_3_backward(UNARY_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -387,7 +387,7 @@ bool unary_table_aux_check_foreign_key_slave_tern_table_3_backward(UNARY_TABLE_A
 }
 
 bool unary_table_aux_check_foreign_key_tern_table_1_backward(UNARY_TABLE_AUX *table_aux, TERN_TABLE *src_table, TERN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -404,7 +404,7 @@ bool unary_table_aux_check_foreign_key_tern_table_1_backward(UNARY_TABLE_AUX *ta
 }
 
 bool unary_table_aux_check_foreign_key_tern_table_2_backward(UNARY_TABLE_AUX *table_aux, TERN_TABLE *src_table, TERN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {
@@ -421,7 +421,7 @@ bool unary_table_aux_check_foreign_key_tern_table_2_backward(UNARY_TABLE_AUX *ta
 }
 
 bool unary_table_aux_check_foreign_key_tern_table_3_backward(UNARY_TABLE_AUX *table_aux, TERN_TABLE *src_table, TERN_TABLE_AUX *src_table_aux) {
-  assert(table_aux->prepared);
+  assert((table_aux->deletions.count == 0 && table_aux->insertions.count == 0) || table_aux->prepared);
 
   uint32 num_dels = table_aux->deletions.count;
   if (num_dels > 0) {

@@ -58,7 +58,8 @@ bool queue_u32_contains(QUEUE_U32 *queue, uint32 value) {
 }
 
 bool queue_u32_unique_count(QUEUE_U32 *queue) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  //## CHECK THAT THE QUEUE HAS BEEN DEDUPLICATED
+  return queue->count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,11 +99,21 @@ void queue_u32_obj_reset(QUEUE_U32_OBJ *queue) {
 }
 
 void queue_u32_obj_prepare(QUEUE_U32_OBJ *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
-bool queue_u32_obj_contains_1(QUEUE_U32_OBJ *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_u32_obj_contains_1(QUEUE_U32_OBJ *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->u32_array;
+    if (count > 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == value)
+        return true;
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,11 +153,21 @@ void queue_u32_double_reset(QUEUE_U32_FLOAT *queue) {
 }
 
 void queue_u32_double_prepare(QUEUE_U32_FLOAT *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
-bool queue_u32_double_contains_1(QUEUE_U32_FLOAT *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_u32_double_contains_1(QUEUE_U32_FLOAT *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->u32_array;
+    if (count > 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == value)
+        return true;
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,11 +207,21 @@ void queue_u32_i64_reset(QUEUE_U32_I64 *queue) {
 }
 
 void queue_u32_i64_prepare(QUEUE_U32_I64 *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
-bool queue_u32_i64_contains_1(QUEUE_U32_I64 *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_u32_i64_contains_1(QUEUE_U32_I64 *queue, uint32 value) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->u32_array;
+    if (count > 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i++)
+      if (array[i] == value)
+        return true;
+  }
+  return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -384,18 +415,58 @@ bool queue_3u32_contains(QUEUE_U32 *queue, uint32 value1, uint32 value2, uint32 
   return false;
 }
 
-bool queue_3u32_contains_12(QUEUE_U32 *, uint32, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_3u32_contains_12(QUEUE_U32 *queue, uint32 value1, uint32 value2) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->array;
+    if (count > 3 * 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i += 3)
+      if (array[i] == value1 && array[i + 1] == value2)
+        return true;
+  }
+  return false;
 }
 
-bool queue_3u32_contains_1(QUEUE_U32 *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_3u32_contains_1(QUEUE_U32 *queue, uint32 value1) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->array;
+    if (count > 3 * 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i += 3)
+      if (array[i] == value1)
+        return true;
+  }
+  return false;
 }
 
-bool queue_3u32_contains_2(QUEUE_U32 *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_3u32_contains_2(QUEUE_U32 *queue, uint32 value2) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->array;
+    if (count > 3 * 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i += 3)
+      if (array[i + 1] == value2)
+        return true;
+  }
+  return false;
 }
 
-bool queue_3u32_contains_3(QUEUE_U32 *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool queue_3u32_contains_3(QUEUE_U32 *queue, uint32 value3) {
+  uint32 count = queue->count;
+  if (count > 0) {
+    uint32 *array = queue->array;
+    if (count > 3 * 16) {
+      //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    for (uint32 i=0 ; i < count ; i += 3)
+      if (array[i + 2] == value3)
+        return true;
+  }
+  return false;
 }

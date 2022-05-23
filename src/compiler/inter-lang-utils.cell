@@ -1,6 +1,11 @@
 type Text = String, Text*;
 
 
+Bool ends_with_empty_line(String* lines) {
+  len = |lines|;
+  return len == 0 or lines(len - 1) == "";
+}
+
 String* append_with_sep(String** chunks) {
   lines = ();
   for c <- chunks {

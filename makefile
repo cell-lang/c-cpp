@@ -51,7 +51,7 @@ update-cellcr-inline:
 
 runtime-dbg-objs:
 	@rm -f objs/dbg/*
-	cd objs/dbg/ ; g++ -c -I ../../src/runtime/ ../../src/runtime/*.cpp
+	cd objs/dbg/ ; g++ -c -ggdb -I ../../src/runtime/ ../../src/runtime/*.cpp
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/

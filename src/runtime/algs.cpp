@@ -2,87 +2,87 @@
 
 
 bool sorted_u32_array_contains(uint32 *array, uint32 len, uint32 value) {
-  assert(len > 0);
-  for (int i=1 ; i < len ; i++)
-    assert(array[i - 1] <= array[i]);
+  if (len > 0) {
+    for (int i=1 ; i < len ; i++)
+      assert(array[i - 1] <= array[i]);
 
-  uint32 low_idx = 0;
-  uint32 high_idx = len - 1;
+    uint32 low_idx = 0;
+    uint32 high_idx = len - 1;
 
-  while (low_idx <= high_idx) {
-    uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
-    uint32 mid_value = array[mid_idx];
-    if (mid_value == value)
-      return true;
-    if (mid_value < value)
-      low_idx = mid_idx + 1;
-    else
-      high_idx = mid_idx - 1;
+    while (low_idx <= high_idx) {
+      uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
+      uint32 mid_value = array[mid_idx];
+      if (mid_value == value)
+        return true;
+      if (mid_value < value)
+        low_idx = mid_idx + 1;
+      else
+        high_idx = mid_idx - 1;
+    }
   }
-
   return false;
 }
 
 bool sorted_u64_array_contains(uint64 *array, uint32 len, uint64 value) {
-  assert(len > 0);
-  for (int i=1 ; i < len ; i++)
-    assert(array[i - 1] <= array[i]);
+  if (len > 0) {
+    for (int i=1 ; i < len ; i++)
+      assert(array[i - 1] <= array[i]);
 
-  uint32 low_idx = 0;
-  uint32 high_idx = len - 1;
+    uint32 low_idx = 0;
+    uint32 high_idx = len - 1;
 
-  while (low_idx <= high_idx) {
-    uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
-    uint64 mid_value = array[mid_idx];
-    if (mid_value == value)
-      return true;
-    if (mid_value < value)
-      low_idx = mid_idx + 1;
-    else
-      high_idx = mid_idx - 1;
+    while (low_idx <= high_idx) {
+      uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
+      uint64 mid_value = array[mid_idx];
+      if (mid_value == value)
+        return true;
+      if (mid_value < value)
+        low_idx = mid_idx + 1;
+      else
+        high_idx = mid_idx - 1;
+    }
   }
-
   return false;
 }
 
 bool sorted_3u32_array_contains(uint32 *array, uint32 len, uint32 value1, uint32 value2, uint32 value3) {
-  assert(len > 0);
-  for (int i=3 ; i < 3 * len ; i += 3)
-    assert(
-      array[i - 3] < array[i] || (
-        array[i-3] == array[i] && (
-          array[i-2] < array[i+1] || (
-            array[i-2] == array[i+1] && array[i-1] <= array[i+2])))
-    );
+  if (len > 0) {
+    for (int i=3 ; i < 3 * len ; i += 3)
+      assert(
+        array[i - 3] < array[i] || (
+          array[i-3] == array[i] && (
+            array[i-2] < array[i+1] || (
+              array[i-2] == array[i+1] && array[i-1] <= array[i+2])))
+      );
 
-  uint32 low_idx = 0;
-  uint32 high_idx = 3 * (len - 1);
+    uint32 low_idx = 0;
+    uint32 high_idx = 3 * (len - 1);
 
-  while (low_idx <= high_idx) {
-    uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
-    uint32 mid_value_1 = array[mid_idx];
-    if (mid_value_1 == value1) {
-      uint32 mid_value_2 = array[mid_idx + 1];
-      if (mid_value_2 == value2) {
-        uint32 mid_value_3 = array[mid_idx + 2];
-        if (mid_value_3 == value3)
-          return true;
-        if (mid_value_3 < value3)
+    while (low_idx <= high_idx) {
+      uint32 mid_idx = (high_idx + low_idx) / 2; //## THIS IS BUGGY
+      uint32 mid_value_1 = array[mid_idx];
+      if (mid_value_1 == value1) {
+        uint32 mid_value_2 = array[mid_idx + 1];
+        if (mid_value_2 == value2) {
+          uint32 mid_value_3 = array[mid_idx + 2];
+          if (mid_value_3 == value3)
+            return true;
+          if (mid_value_3 < value3)
+            low_idx = mid_idx + 3;
+          else
+            high_idx = mid_idx - 3;
+        }
+        else if (mid_value_2 < value2)
           low_idx = mid_idx + 3;
         else
           high_idx = mid_idx - 3;
       }
-      else if (mid_value_2 < value2)
+      else if (mid_value_1 < value1)
         low_idx = mid_idx + 3;
       else
         high_idx = mid_idx - 3;
     }
-    else if (mid_value_1 < value1)
-      low_idx = mid_idx + 3;
-    else
-      high_idx = mid_idx - 3;
   }
-
   return false;
 }
 

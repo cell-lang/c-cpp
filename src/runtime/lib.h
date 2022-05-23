@@ -1869,6 +1869,8 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE
 void slave_tern_table_aux_apply(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
+void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *);
+
 bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool slave_tern_table_aux_check_foreign_key_unary_table_3_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 

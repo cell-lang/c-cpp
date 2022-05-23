@@ -102,6 +102,12 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_A
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *table_aux) {
+  bin_table_aux_prepare(&table_aux->slave_table_aux);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->slave_table_aux.insertions.count;
   if (num_ins > 0) {

@@ -1412,6 +1412,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
+    mutated_tables = insertion_tables & deletion_tables;
+    mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
+
     keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
     keys = sort_by_key(keys, order);
 
@@ -1421,21 +1424,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
-    check_code = ("" if keys != () or insert_checked_foreign_keys != () or delete_checked_foreign_keys != ());
+    check_code = ("" if mutated_tables != ());
+
+    for t <- mutated_tables
+      check_code = check_code & aux_prepare_code(t, block);
+
+    check_code = (check_code | "") if keys != () and not ends_with_empty_line(check_code);
 
     for v, a, k <- keys {
       fn_call = check_call(v, a, k, block);
       check_code = (check_code | "if (!" & fn_call & ")", " return false;");
     }
 
-    check_code = (check_code | "") if keys != () and insert_checked_foreign_keys != ();
+    check_code = (check_code | "") if insert_checked_foreign_keys != () and not ends_with_empty_line(check_code);
 
     for k <- insert_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block);
       check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
     }
 
-    check_code = (check_code | "") if (keys != () or insert_checked_foreign_keys != ()) and delete_checked_foreign_keys != ();
+    check_code = (check_code | "") if delete_checked_foreign_keys != () and not ends_with_empty_line(check_code);
 
     for k <- delete_checked_foreign_keys {
       check_expr = foreign_key_backward_check_expr(k, block);
@@ -1445,6 +1453,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     check_code = (check_code | "", "return true;");
 
     return check_code;
+
+
+    String* aux_prepare_code(TableVar var, StaticBlock block) {
+      table_type = block.tables(var);
+      needs_preparation = match (table_type)
+        mandatory_column()  = false,
+        _                   = true;
+      return () if not needs_preparation;
+      method_name = native_table_method_prefix(table_type) & "_aux_prepare";
+      args = (pending_updates_var_ref_name(var));
+      return (native_call(method_name, args));
+    }
 
 
     String check_call(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
