@@ -537,8 +537,8 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   has_main = (p <- opt_code.procs : p.name == proc_symbol(:main));
   Print(
     if has_main
-      then "Main() found. Generating code for standalone executable\n"
-      else "Main() not found. Generating code to be included in an existing C/C++ project\n"
+      then "Main(..) found. Generating code for standalone executable\n"
+      else "Main(..) not found. Generating code to be included in an existing C/C++ project\n"
   );
 
   return files;
