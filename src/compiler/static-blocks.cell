@@ -355,7 +355,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // Value stores' auxiliary data structures initialization
     if ord_value_stores != () {
       code = ({
-        init_method_name = native_value_store_method_prefix(value_stores(vs_id)) & "_init_aux";
+        init_method_name = native_value_store_method_prefix(value_stores(vs_id)) & "_aux_init";
         return native_call(init_method_name, (updater_var_ref_name(vs_id)));
       } : vs_id <- ord_value_stores);
 
@@ -1273,7 +1273,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
     value_stores_code = (
-      native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_reset_aux", (updater_var_ref_name(vs)))
+      native_call(native_value_store_method_prefix(block.value_stores(vs)) & "_aux_reset", (updater_var_ref_name(vs)))
       : vs <- isort(value_stores)
     );
 
@@ -1294,7 +1294,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     if value_stores_with_insertions != [] {
       value_stores_code = (
-        native_call(native_value_store_method_prefix(block.value_stores(s)) & "_apply", (s, updater_var_ref_name(s), :mem_pool))
+        native_call(native_value_store_method_prefix(block.value_stores(s)) & "_aux_apply", (s, updater_var_ref_name(s), :mem_pool))
         : s <- isort(value_stores_with_insertions)
       );
       code = (code | "") if code != ();
@@ -1310,7 +1310,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
         value_store_args = join(({
           prefix = native_value_store_method_prefix(block.value_stores(v));
-          return (prefix & "_incr_rc", prefix & "_decr_rc", v, updater_var_ref_name(v));
+          return (prefix & "_incr_rc", prefix & "_aux_decr_rc", v, updater_var_ref_name(v));
         } : v <- table_value_stores(table)));
 
         args = if is_mandatory_column(table)
@@ -1404,7 +1404,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* updates_finish_code([TableVar] deletion_tables, StaticBlock block) {
     value_stores_with_deletions = [s : v <- deletion_tables, s <- table_value_stores(block.tables(v))];
     code = (
-      native_call(native_value_store_method_prefix(block.value_stores(v)) & "_apply_deferred_releases", (v, updater_var_ref_name(v)))
+      native_call(native_value_store_method_prefix(block.value_stores(v)) & "_aux_apply_deferred_releases", (v, updater_var_ref_name(v)))
       : v <- isort(value_stores_with_deletions)
     );
     return code;

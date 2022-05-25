@@ -662,22 +662,20 @@ struct OBJ_STORE_AUX {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct INT_STORE {
-  // Bits  0 - 31: 32-bit value, or index of 64-bit value
-  // Bits 32 - 61: index of next value in the bucket if used or next free index otherwise
-  // Bits 62 - 63: tag: 00 used (32 bit), 01 used (64 bit), 10 free
-  uint64 *slots;
+  // Value associated to the surrogate if in use, or next free index otherwise
+  //## TODO: USE 32-BIT SLOTS
+  int64 *surr_to_value_array;
 
-  unordered_map<uint32, int64> large_ints;
-
-  // INV_IDX when there's no value in that bucket
-  uint32 *hashtable;
+  // Lookup structures
+  uint32 *partial_value_to_surr_array;
+  unordered_map<int64, uint32> value_to_surr_map;
 
   uint8  *refs_counters;
   unordered_map<uint32, uint32> extra_refs;
 
   uint32 capacity;
   uint32 count;
-  uint32 first_free;
+  uint32 first_free_surr;
 };
 
 
@@ -2390,21 +2388,21 @@ OBJ int_store_surr_to_obj(void *, uint32);
 
 ////////////////////////////// int-store-aux.cpp ///////////////////////////////
 
-void int_store_init_aux(INT_STORE_AUX *store_aux);
+void int_store_aux_init(INT_STORE_AUX *store_aux);
+void int_store_aux_reset(INT_STORE_AUX *store_aux);
 
-void int_store_mark_for_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr);
-void int_store_mark_for_batch_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr, uint32 count);
+void int_store_aux_mark_for_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr);
+// void int_store_aux_mark_for_batch_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr, uint32 count);
 
-void int_store_apply_deferred_releases(INT_STORE *store, INT_STORE_AUX *store_aux);
+void int_store_aux_apply_deferred_releases(INT_STORE *store, INT_STORE_AUX *store_aux);
 
-void int_store_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *);
-void int_store_reset_aux(INT_STORE_AUX *store_aux);
+void int_store_aux_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *);
 
-uint32 int_store_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, OBJ value);
-uint32 int_store_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *, int64 value);
+uint32 int_store_aux_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, OBJ value);
+uint32 int_store_aux_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *, int64 value);
 
 void int_store_incr_rc(void *store, uint32 surr);
-void int_store_decr_rc(void *store, void *store_aux, uint32 surr);
+void int_store_aux_decr_rc(void *store, void *store_aux, uint32 surr);
 
 //////////////////////////////// obj-store.cpp /////////////////////////////////
 
@@ -2419,21 +2417,21 @@ OBJ obj_store_surr_to_obj(void *, uint32);
 
 ////////////////////////////// obj-store-aux.cpp ///////////////////////////////
 
-void obj_store_init_aux(OBJ_STORE_AUX *store_aux);
+void obj_store_aux_init(OBJ_STORE_AUX *store_aux);
+void obj_store_aux_reset(OBJ_STORE_AUX *store_aux);
 
-void obj_store_mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
-void obj_store_mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);
+void obj_store_aux_mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr);
+// void obj_store_aux_mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 count);
 
-void obj_store_apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
+void obj_store_aux_apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux);
 
-void obj_store_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *);
-void obj_store_reset_aux(OBJ_STORE_AUX *store_aux);
+void obj_store_aux_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *);
 
-uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
-uint32 obj_store_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *, OBJ value);
+uint32 obj_store_aux_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value);
+uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *, OBJ value);
 
 void obj_store_incr_rc(void *store, uint32 surr);
-void obj_store_decr_rc(void *store, void *store_aux, uint32 surr);
+void obj_store_aux_decr_rc(void *store, void *store_aux, uint32 surr);
 
 ////////////////////////////////// queues.cpp //////////////////////////////////
 
