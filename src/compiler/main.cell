@@ -24,6 +24,7 @@ Int Main(String* args) {
 
   include_runtime = core_runtime != ();
   ignore_assertions = false;
+  skip_integrity_checks = false;
   debug_mode = false;
 
   developer_mode = false;
@@ -71,6 +72,9 @@ Int Main(String* args) {
     }
     else if o == "-ia" {
       ignore_assertions = true;
+    }
+    else if o == "-sic" {
+      skip_integrity_checks = true;
     }
     else if o == "-dev" {
       developer_mode = true;
@@ -135,6 +139,7 @@ Int Main(String* args) {
   options = (
     debug_mode:             debug_mode,
     ignore_assertions:      ignore_assertions,
+    skip_integrity_checks:  skip_integrity_checks,
     include_runtime:        include_runtime,
     developer_mode:         developer_mode,
     print_intermediate:     print_intermediate,
@@ -170,6 +175,7 @@ Bool looks_like_an_option(String str) {
 type CmdLineOpts = (
   debug_mode:             Bool,
   ignore_assertions:      Bool,
+  skip_integrity_checks:  Bool,
   include_runtime:        Bool,
   developer_mode:         Bool,
   print_intermediate:     Bool,
@@ -507,7 +513,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   res = GenOptCmpCode(src_files, types_gen_files, cmd_line_opts);
   opt_code, all_types_to_gen, perms, ticks = res;
 
-  files = GenerateCode(opt_code, perms, all_types_to_gen, cmd_line_opts.debug_mode, cmd_line_opts.include_runtime);
+  files = GenerateCode(opt_code, perms, all_types_to_gen, cmd_line_opts.debug_mode, cmd_line_opts.include_runtime, cmd_line_opts.skip_integrity_checks);
 
   t8 = _ticks_(:unused);
   ticks = (ticks | t8);

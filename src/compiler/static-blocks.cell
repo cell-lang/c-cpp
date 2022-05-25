@@ -1,4 +1,4 @@
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
   String* native_static_block_decl(StaticBlock block) {
     links_decls = (native_name(l) & " *" & native_dependee_name(l, i) & ";" : l @ i <- block.links);
     state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
@@ -1147,7 +1147,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 }
 
 
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
   String* native_handler_code(DBSymbol block_name, HandlerId handler_id, <StdVar, FnArg>* args, Instr* body) {
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name)) & (obj_type_name & " " & native_var_decl_name(a) : a <- args) & ("ENV &env");
     args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- args));
@@ -1365,7 +1365,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 }
 
 
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
   String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar -> DBSymbol] vars) {
     return (); //## IMPLEMENT IMPLEMENT IMPLEMENT
 
@@ -1450,6 +1450,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
     }
 
+    check_code = () if skip_integrity_checks;
     check_code = (check_code | "", "return true;");
 
     return check_code;

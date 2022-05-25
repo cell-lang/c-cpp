@@ -16,7 +16,8 @@ type PrgData =  prg_data(
   [DBSymbol -> [RelVar -> [+Nat -> Nat]]] rel_vars_perm_map,
   [BasicTypeSymbol] generated,
   Bool debug_mode,
-  Bool include_runtime
+  Bool include_runtime,
+  Bool skip_integrity_checks
 ) {
   program_symbols = program_symbols(prg);
   assert |program_symbols| <= 64 * 1024; ## IMPLEMENT PROPERLY
@@ -82,7 +83,14 @@ type PrgData =  prg_data(
 
   // Static block declarations (in topological order)
   for block <- ord_static_blocks {
-    def = native_static_block_decl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
+    def = native_static_block_decl(
+      block,
+      prg_data = prg_data,
+      rel_vars_perm_map = rel_vars_perm_map,
+      context = :core,
+      debug_mode = debug_mode,
+      skip_integrity_checks = skip_integrity_checks
+    );
     gen_content = (gen_content | ("", "")) & def;
   }
 
@@ -118,7 +126,14 @@ type PrgData =  prg_data(
 
   // Static blocks' implementations (in topological order)
   for block <- ord_static_blocks {
-    def = native_static_block_impl(block, prg_data = prg_data, rel_vars_perm_map = rel_vars_perm_map, context = :core, debug_mode = debug_mode);
+    def = native_static_block_impl(
+      block,
+      prg_data = prg_data,
+      rel_vars_perm_map = rel_vars_perm_map,
+      context = :core,
+      debug_mode = debug_mode,
+      skip_integrity_checks = skip_integrity_checks
+    );
     gen_content = (gen_content | ("", "")) & def;
   }
 
