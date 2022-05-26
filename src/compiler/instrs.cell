@@ -36,7 +36,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     ret_val(e?)           = ("return " & native_expr(e) & ";"),
     no_op                 = (),
     repeat(body?)         = native_repeat_code(body, block_id),
-    foreach()             = native_foreach_code(instr, block_id),
+    foreach()             = native_foreach_code(instr.iter, instr.body, block_id),
     break_loop            = (if break_target == nothing then "break;" else "goto " & value(break_target) & ";"),
     execute_block(body?)  = { new_block_id = new_unique_id(:unused);
                               body_code = native_code(body, just(new_block_id));
@@ -167,14 +167,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_foreach_code(ForeachInstr instr, Maybe[Nat] block_id) {
-    seq_name        = native_var_ref_name(instr.seq);
-    src_array_name  = native_var_ref_name(instr.src_array);
-    count_var_name  = native_var_ref_name(instr.count_var);
-    idx_var_name    = native_var_ref_name(instr.idx_var);
-    it_var_name     = native_var_ref_name(instr.it_var);
+  String* native_foreach_code(ForeachSeqIter iter, Instr* body, Maybe[Nat] block_id) {
+    seq_name        = native_var_ref_name(iter.seq);
+    src_array_name  = native_var_ref_name(iter.src_array);
+    count_var_name  = native_var_ref_name(iter.count_var);
+    idx_var_name    = native_var_ref_name(iter.idx_var);
+    it_var_name     = native_var_ref_name(iter.it_var);
 
-    src_repr = low_level_repr(instr.it_var);
+    src_repr = low_level_repr(iter.it_var);
 
     unique_id = printed(new_unique_id(:unused));
     buffer_var_name = "buffer_" & unique_id;
@@ -198,8 +198,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     offset_var_name = "offset_" & unique_id;
 
     label = "label_" & unique_id;
-    may_break = instr.body != () and may_break(instr.body);
-    body_code = native_code(instr.body, block_id, break_target = if may_break then just(label) else nothing);
+    may_break = body != () and may_break(body);
+    body_code = native_code(body, block_id, break_target = if may_break then just(label) else nothing);
 
     return (
       idx_var_name & " = 0;",
