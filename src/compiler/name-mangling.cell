@@ -97,19 +97,6 @@ implicit context : NativeContext {
     avar()              = "y" & printed(var.id) & "_" & native_type(var.repr, context = :core),
     shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
 
-  String native_var_name(TableItVar v, Bool as_ref_name) {
-    prefix = match (v.table_type)
-      unary_table       = "unary",
-      bin_table         = "bin",
-      sym_bin_table     = "sym_bin",
-      master_bin_table  = "master_bin",
-      tern_table        = "tern",
-      sym_12_tern_table = "sym_12_tern",
-      slave_tern_table  = "slave_tern";
-    prefix = "&" & prefix if as_ref_name;
-    return prefix & "_table_it_" & printed(v.id);
-  }
-
   String native_var_name(ColumnItVar var, Bool as_ref_name) {
     prefix = match (var.repr)
       object  = "obj",
@@ -293,6 +280,19 @@ implicit context : NativeContext {
   }
 
 
+  String native_deref_var_name(AnyTableVar var) {
+    return match (var)
+      table_var(v?)             = auto_or_db_arg_name & "->" & native_name(v),
+      qual_table_var()          = native_var_name(var.db_var, true) & "->" & native_var_name(var.table_var, false),
+      capt_table_var(v?)        = auto_or_db_arg_name & "->" & native_var_name(v, false);
+
+    ## THIS IS A DUPLICATE OF THE SAME NESTED FUNCTION IN THE PREVIOUS FUNCTION
+    String native_name(PhysRelVar) =
+      phys_rel_var(s?)      = _print_(s) & "_B",
+      split_rel_var(v?, n?) = native_name(v) & "_" & _print_(n);
+  }
+
+
   String native_var_name(AnyValueStoreId v, Bool add_prefix) =
     value_store_id(n?)        = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & "value_store_" & printed(n),
     nested_value_store_id()   = { assert add_prefix;
@@ -416,7 +416,6 @@ implicit context : NativeContext {
   String native_var_type(VecVar v)       = undefined;
   String native_var_type(ArrayVar v)     = native_elt_type(v) & "[]";
 
-  String native_var_type(TableItVar v)        = table_it_var_type(v);
   String native_var_type(ColumnItVar v)       = column_it_var_type(v);
   String native_var_type(SlaveColumnItVar v)  = slave_column_it_var_type(v);
 
@@ -601,28 +600,6 @@ String native_column_method_prefix(ColumnRepr repr, Bool mandatory) =
     else native_column_method_prefix(repr);
 
 
-String table_it_var_type(TableItVar var) {
-  prefix = match (var.table_type)
-    unary_table       = "UNARY_TABLE",
-    bin_table         |
-    sym_bin_table     = "BIN_TABLE",
-    master_bin_table  = "MASTER_BIN_TABLE",
-    tern_table        = "TERN_TABLE",
-    sym_12_tern_table = "SYM_12_TERN_TABLE",
-    slave_tern_table  = "SLAVE_TERN_TABLE";
-  return prefix & "_ITER" & set_args_suffixes(var.set_args, !);
-
-  [[Nat] -> String] set_args_suffixes = [
-    []      -> "",
-    [0]     -> "_1",
-    [1]     -> "_2",
-    [2]     -> "_3",
-    [0, 1]  -> "_12",
-    [0, 2]  -> "_13",
-    [1, 2]  -> "_23"
-  ];
-}
-
 String column_it_var_type(ColumnItVar var) {
   name = match (var.repr)
     object    = "OBJ_COL_ITER",
@@ -643,28 +620,6 @@ String it_var_method_prefix(SeqItVar var)     = "";
 String it_var_method_prefix(SetItVar var)     = "";
 String it_var_method_prefix(BinRelItVar var)  = "";
 String it_var_method_prefix(TernRelItVar var) = "";
-
-String it_var_method_prefix(TableItVar var) {
-  prefix = match (var.table_type)
-    unary_table       = "unary_table",
-    bin_table         = "bin_table",
-    sym_bin_table     = "sym_bin_table",
-    master_bin_table  = "master_bin_table",
-    tern_table        = "tern_table",
-    sym_12_tern_table = "sym_12_tern_table",
-    slave_tern_table  = "slave_tern_table";
-  return prefix & "_iter" & set_args_suffixes(var.set_args, !);
-
-  [[Nat] -> String] set_args_suffixes = [
-    []      -> "",
-    [0]     -> "_1",
-    [1]     -> "_2",
-    [2]     -> "_3",
-    [0, 1]  -> "_12",
-    [0, 2]  -> "_13",
-    [1, 2]  -> "_23"
-  ];
-}
 
 String it_var_method_prefix(ColumnItVar var) {
   prefix = match (var.repr)

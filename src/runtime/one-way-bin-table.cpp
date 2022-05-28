@@ -116,6 +116,39 @@ uint32 one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 
   return 2;
 }
 
+UINT32_ARRAY one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *table, uint32 key, uint32 first, uint32 *dest, uint32 capacity) {
+  assert(capacity == 64);
+
+  UINT32_ARRAY result;
+
+  if (key < table->capacity) {
+    uint64 slot = table->column[key];
+
+    if (!is_empty(slot)) {
+      if (is_index(slot)) {
+        result = overflow_table_range_copy(&table->array_pool, slot, first, dest, capacity);
+      }
+      else {
+        dest[0] = get_low_32(slot);
+        uint32 high = get_high_32(slot);
+        if (high != EMPTY_MARKER) {
+          dest[1] = high;
+          result.size = 2;
+        }
+        else
+          result.size = 1;
+        result.array = dest;
+      }
+    }
+    else
+      result.size = 0;
+  }
+  else
+    result.size = 0;
+
+  return result;
+}
+
 uint32 one_way_bin_table_lookup(ONE_WAY_BIN_TABLE *table, uint32 surr) {
   if (surr >= table->capacity)
     return -1;

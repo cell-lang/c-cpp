@@ -167,7 +167,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_foreach_code(ForeachSeqIter iter, Instr* body, Maybe[Nat] block_id) {
+  String* native_foreach_code(SeqIter iter, Instr* body, Maybe[Nat] block_id) {
     seq_name        = native_var_ref_name(iter.seq);
     src_array_name  = native_var_ref_name(iter.src_array);
     count_var_name  = native_var_ref_name(iter.count_var);

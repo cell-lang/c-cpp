@@ -266,7 +266,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     init_table()          = (), //(native_method_call(instr.rel_var, "init",    ())),
     cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
 
-    get_table_iter()      = (native_get_table_iter_code(instr.it_var, instr.table_var, instr.table, instr.args)),
     get_slave_col_iter()  = (native_get_slave_col_iter_code(instr.it_var, instr.table_var, instr.column, instr.args)),
     get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.col_var, instr.column)),
 
@@ -440,13 +439,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_get_table_iter_code(TableItVar it_var, AnyTableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args) {
-    method_name = it_var_method_prefix(it_var) & "_init";
-    native_args = (table.master if table :: SlaveTernTable, table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing);
-    return native_call(method_name, native_args);
-  }
-
-
   String native_get_slave_col_iter_code(SlaveColumnItVar it_var, AnyTableVar table_var, SlaveColumn column, Maybe[Int32Var]+ args) {
     method_name = it_var_method_prefix(it_var) & "_init";
     return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
@@ -457,6 +449,163 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     method_name = native_column_method_prefix(it_var.repr, it_var.mandatory) & "_iter_init";
     return native_call(method_name, (column.master if is_mandatory_column(column), col_var, it_var));
   }
+
+
+  String* native_foreach_code(UnaryTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    table_name = native_deref_var_name(iter.table_var);
+
+    unique_id = printed(new_unique_id(:unused));
+    left_var = "left_" & unique_id;
+    bitmap_var = "bitmap_" & unique_id;
+    word_idx_var = "word_idx_" & unique_id;
+    word_var = "word_" & unique_id;
+    bit_idx_var = "bit_idx_" & unique_id;
+
+    code = (
+      "uint32 " & left_var & " = " & table_name & ".count;",
+      "uint64 *" & bitmap_var & " = " & table_name & ".bitmap;",
+      "for (uint32 " & word_idx_var & "=0 ; " & left_var & " > 0 ; " & word_idx_var & "++) {",
+      "  uint64 " & word_var & " = " & bitmap_var & "[" & word_idx_var & "];",
+      "  for (uint32 " & bit_idx_var & "=0 ; " & bit_idx_var & " < 64 ; " & bit_idx_var & "++) {",
+      "    if ((" & word_var & " >> " & bit_idx_var & ") & 1) {",
+      "      " & left_var & "--;",
+      "      uint32 " & native_var_ref_name(iter.var) & " = 64 * " & word_idx_var & " + " & bit_idx_var & ";" if iter.var?
+    );
+
+    code = code & indent_lines(native_code(body, block_id), 3);
+
+    code = (code |
+      "    }",
+      "  }",
+      "}"
+    );
+
+    return code;
+  }
+
+  String* native_foreach_code(BinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    arg1, arg2 = iter.args;
+    code = match (arg1, arg2)
+      bound(v?),  _         = loop_head_code_1(iter.table_var, iter.table, v, arg2),
+      _,          bound(v?) = loop_head_code_2(iter.table_var, iter.table, arg1, v),
+      _,          _         = loop_head_code(iter.table_var, iter.table, iter.args);
+
+    code = code & indent_lines(native_code(body, block_id), 2);
+
+    code = (code |
+      "  }",
+      "}"
+    );
+
+    return code;
+
+
+    String* loop_head_code_1(AnyTableVar table_var, Table table, Int32Var arg1, TableArgStatus arg2) {
+      table_var_str = native_var_ref_name(table_var);
+      // table_var_str = native_deref_var_name(iter.table_var);
+      arg1_str = native_var_ref_name(arg1);
+
+      unique_id = printed(new_unique_id(:unused));
+      buffer_var = "buffer_" & unique_id;
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      array_var = "array_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      code = (
+        "uint32 " & buffer_var & "[64];",
+        "uint32 " & count_var & " = bin_table_count_1(" & table_var_str & ", " & arg1_str & ");",
+        "uint32 " & read_var & " = 0;",
+        "while (" & read_var & " < " & count_var & ") {",
+        "  UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & table_var_str & ", " & arg1_str & ", " & read_var & ", " & buffer_var & ", 64);",
+        "  " & read_var & " += " & array_var & ".size;",
+        "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+      );
+
+      code = match (arg2)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        ignored   = code,
+        bound()   = undefined;
+
+      return code;
+    }
+
+
+    String* loop_head_code_2(AnyTableVar table_var, Table table, TableArgStatus arg1, Int32Var arg2) {
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+
+
+    String* loop_head_code(AnyTableVar table_var, Table table, (TableArgStatus, TableArgStatus) args) {
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+  }
+
+  String* native_foreach_code(SymBinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+  String* native_foreach_code(MasterBinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+    // seq_name        = native_var_ref_name(iter.seq);
+    // src_array_name  = native_var_ref_name(iter.src_array);
+    // count_var_name  = native_var_ref_name(iter.count_var);
+    // idx_var_name    = native_var_ref_name(iter.idx_var);
+    // it_var_name     = native_var_ref_name(iter.it_var);
+
+    // src_repr = low_level_repr(iter.it_var);
+
+    // unique_id = printed(new_unique_id(:unused));
+    // buffer_var_name = "buffer_" & unique_id;
+
+    // method_name = match (src_repr)
+    //   bool    = "get_seq_next_frag_bool",
+    //   int     = "get_seq_next_frag_int64",
+    //   float   = "get_seq_next_frag_double",
+    //   _       = "get_seq_next_frag_obj";
+
+    // ## TRY TO TUNE THESE TO SEE IF MEMORY CONSUMPTION CAN BE REDUCED
+    // buff_size = match (src_repr)
+    //   bool    = 1024,
+    //   int     = 1024,
+    //   float   = 1024,
+    //   _       = 1024;
+
+    // buff_size_str = printed(buff_size);
+
+    // end_var_name = "end_" & unique_id;
+    // offset_var_name = "offset_" & unique_id;
+
+    // label = "label_" & unique_id;
+    // may_break = body != () and may_break(body);
+    // body_code = native_code(body, block_id, break_target = if may_break then just(label) else nothing);
+
+    // return (
+    //   idx_var_name & " = 0;",
+    //   "do {",
+    //   "  uint32 " & end_var_name & ";",
+    //   "  " & native_type(src_repr) & " " & buffer_var_name & "[" & buff_size_str & "];",
+    //   "  " & src_array_name & " = " & method_name & "(" & seq_name & ", " & idx_var_name & ", " & buffer_var_name & ", " & buff_size_str & ", &" & end_var_name & ");",
+    //   "  while (" & idx_var_name & " < " & end_var_name & ") {",
+    //   "    " & it_var_name & " = " & src_array_name & "[" & idx_var_name & "];"
+    // ) & indent_lines(body_code, 2) & (
+    //   "    " & idx_var_name & "++;",
+    //   "  }",
+    //   "} while (" & idx_var_name & " < " & count_var_name & ");",
+    //   "assert(" & idx_var_name & " == " & count_var_name & ");",
+    //   label & ":;" if may_break
+    // );
+  }
+
+  String* native_foreach_code(TernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+  String* native_foreach_code(SemiSymTernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
 
   String* native_send_external_msg_code(LocDBVar db_var, DBSymbol db_type, AtomicExpr msg, BoolVar res_var, Maybe[HandlerId] maybe_handler_id) {
     if maybe_handler_id == nothing {

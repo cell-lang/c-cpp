@@ -367,12 +367,6 @@ implicit context : NativeContext {
       return native_call_expr(method_name, (table_var, surr));
     }
 
-    String native_get_unknown_arg_expr(TableItVar iter, <0..2> arg) {
-      method_name = it_var_method_prefix(iter) & "_get";
-      method_name = method_name & "_" & printed(arg + 1) if arity(iter) != 1;
-      return method_name & "(" & native_var_ref_name(iter) & ")";
-    }
-
     String native_get_unknown_arg_expr(<ColumnItVar, SlaveColumnItVar> iter, <0..2> arg) {
       assert arg == 0;
       return it_var_method_prefix(iter) & "_get_idx(" & native_var_ref_name(iter) & ")";

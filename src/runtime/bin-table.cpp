@@ -31,12 +31,20 @@ uint32 bin_table_count_2(BIN_TABLE *table, uint32 arg2) {
   return one_way_bin_table_get_count(&table->backward, arg2);
 }
 
-uint32 bin_table_restrict_1(BIN_TABLE *table, uint32 arg1, uint32 *args2) {
-  return one_way_bin_table_restrict(&table->forward, arg1, args2);
+uint32 bin_table_restrict_1(BIN_TABLE *table, uint32 arg1, uint32 *arg2s) {
+  return one_way_bin_table_restrict(&table->forward, arg1, arg2s);
 }
 
-uint32 bin_table_restrict_2(BIN_TABLE *table, uint32 arg2, uint32 *args1) {
-  return one_way_bin_table_restrict(&table->backward, arg2, args1);
+uint32 bin_table_restrict_2(BIN_TABLE *table, uint32 arg2, uint32 *arg1s) {
+  return one_way_bin_table_restrict(&table->backward, arg2, arg1s);
+}
+
+UINT32_ARRAY bin_table_range_restrict_1(BIN_TABLE *table, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity) {
+  return one_way_bin_table_range_restrict(&table->forward, arg1, first, arg2s, capacity);
+}
+
+UINT32_ARRAY bin_table_range_restrict_2(BIN_TABLE *table, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity) {
+  return one_way_bin_table_range_restrict(&table->backward, arg2, first, arg1s, capacity);
 }
 
 uint32 bin_table_lookup_1(BIN_TABLE *table, uint32 arg1) {
@@ -77,11 +85,11 @@ void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
   uint32 count = bin_table_count_1(table, arg1);
   if (count > 0) {
     uint32 inline_array[1024];
-    uint32 *args2 = count <= 1024 ? inline_array : new_uint32_array(count);
-    one_way_bin_table_delete_by_key(&table->forward, arg1, args2);
+    uint32 *arg2s = count <= 1024 ? inline_array : new_uint32_array(count);
+    one_way_bin_table_delete_by_key(&table->forward, arg1, arg2s);
 
     for (uint32 i=0 ; i < count ; i++) {
-      bool found = one_way_bin_table_delete(&table->backward, args2[i], arg1);
+      bool found = one_way_bin_table_delete(&table->backward, arg2s[i], arg1);
       assert(found);
     }
   }
@@ -92,16 +100,16 @@ void bin_table_delete_2(BIN_TABLE *table, uint32 arg2) {
   uint32 count = bin_table_count_2(table, arg2);
   if (count > 0) {
     uint32 inline_array[1024];
-    uint32 *args1;
+    uint32 *arg1s;
     if (count <= 1024)
-      args1 = inline_array;
+      arg1s = inline_array;
     else
-      args1 = new_uint32_array(count);
+      arg1s = new_uint32_array(count);
 
-    one_way_bin_table_delete_by_key(&table->backward, arg2, args1);
+    one_way_bin_table_delete_by_key(&table->backward, arg2, arg1s);
 
     for (uint32 i=0 ; i < count ; i++) {
-      bool found = one_way_bin_table_delete(&table->forward, args1[i], arg2);
+      bool found = one_way_bin_table_delete(&table->forward, arg1s[i], arg2);
       assert(found);
     }
   }

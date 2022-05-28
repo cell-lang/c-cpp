@@ -1505,8 +1505,11 @@ bool bin_table_contains_2(BIN_TABLE *, uint32 arg2);
 uint32 bin_table_lookup_1(BIN_TABLE *, uint32 arg1);
 uint32 bin_table_lookup_2(BIN_TABLE *, uint32 arg2);
 
-uint32 bin_table_restrict_1(BIN_TABLE *, uint32 arg1, uint32 *args2);
-uint32 bin_table_restrict_2(BIN_TABLE *, uint32 arg2, uint32 *args1);
+uint32 bin_table_restrict_1(BIN_TABLE *, uint32 arg1, uint32 *arg2s);
+uint32 bin_table_restrict_2(BIN_TABLE *, uint32 arg2, uint32 *arg1s);
+
+UINT32_ARRAY bin_table_range_restrict_1(BIN_TABLE *, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity);
+UINT32_ARRAY bin_table_range_restrict_2(BIN_TABLE *, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity);
 
 bool bin_table_insert(BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
@@ -1627,8 +1630,8 @@ bool master_bin_table_contains_1(MASTER_BIN_TABLE *table, uint32 arg1);
 bool master_bin_table_contains_2(MASTER_BIN_TABLE *table, uint32 arg2);
 bool master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr);
 
-uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *args2, uint32 *surrs);
-uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *args1);
+uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *arg2s, uint32 *surrs);
+uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *arg1s);
 
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1);
 uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2);

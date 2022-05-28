@@ -215,6 +215,13 @@ inline uint64 pack_args(uint32 arg1, uint32 arg2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct UINT32_ARRAY {
+  uint32 *array; //## RENAME TO ptr
+  uint32 size;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 //## NOT THE BEST PLACES FOR THESE FUNCTIONS PROBABLY
 void null_incr_rc(void *, uint32);
 void null_decr_rc(void *, void *, uint32);
