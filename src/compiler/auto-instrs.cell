@@ -649,10 +649,10 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
       code = (
         "uint32 " & buffer_var & "[64];",
-        "uint32 " & count_var & " = bin_table_count_1(" & table_var_str & ", " & arg1_str & ");",
+        "uint32 " & count_var & " = master_bin_table_count_1(" & table_var_str & ", " & arg1_str & ");",
         "uint32 " & read_var & " = 0;",
         "while (" & read_var & " < " & count_var & ") {",
-        "  UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & table_var_str & ", " & arg1_str & ", " & read_var & ", " & buffer_var & ", 64);",
+        "  UINT32_ARRAY " & array_var & " = master_bin_table_range_restrict_1(" & table_var_str & ", " & arg1_str & ", " & read_var & ", " & buffer_var & ", 64);",
         "  " & read_var & " += " & array_var & ".size;",
         "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
       );
@@ -686,10 +686,10 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
       code = (
         "uint32 " & buffer_var & "[64];",
-        "uint32 " & count_var & " = bin_table_count_2(" & table_var_str & ", " & arg_2_var & ");",
+        "uint32 " & count_var & " = master_bin_table_count_2(" & table_var_str & ", " & arg_2_var & ");",
         "uint32 " & read_var & " = 0;",
         "while (" & read_var & " < " & count_var & ") {",
-        "  UINT32_ARRAY " & array_var & " = bin_table_range_restrict_2(" & table_var_str & ", " & arg_2_var & ", " & read_var & ", " & buffer_var & ", 64);",
+        "  UINT32_ARRAY " & array_var & " = master_bin_table_range_restrict_2(" & table_var_str & ", " & arg_2_var & ", " & read_var & ", " & buffer_var & ", 64);",
         "  " & read_var & " += " & array_var & ".size;",
         "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
       );
@@ -711,6 +711,40 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
     String* foreach_code(AnyTableVar table_var, MasterBinTable table, TableArgStatus arg1, TableArgStatus arg2, Maybe[Int32Var] maybe_surr_var, Instr* body, Maybe[Nat] block_id) {
+      table_var_str = native_var_ref_name(table_var);
+
+      unique_id = printed(new_unique_id(:unused));
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      slots_var = "slots_" & unique_id;
+      slot_var = "slot_" & unique_id;
+      surr_var = if maybe_surr_var != nothing then native_var_ref_name(value(maybe_surr_var)) else "surr_var_" & unique_id;
+
+      code = (
+        "uint32 " & count_var & " = master_bin_table_size(" & table_var_str & ");",
+        "uint32 " & read_var & " = 0;",
+        "uint64 *" & slots_var & " = master_bin_table_slots(" & table_var_str & ");",
+        "for (uint32 " & surr_var & "=0 ; " & read_var & " < " & count_var & " ; " & surr_var & "++) {",
+        "  uint64 " & slot_var & " = " & slots_var & "[" & surr_var & "];",
+        "  if (!master_bin_table_slot_is_empty(" & slot_var & ")) {",
+        "    " & read_var & "++;"
+      );
+
+      code = match (arg1)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = unpack_arg1(" & slot_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = match (arg1)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = unpack_arg2(" & slot_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = code & indent_lines(native_code(body, block_id), 2);
+
+      code = (code | "  }", "}");
+
+      return code;
     }
   }
 

@@ -220,6 +220,14 @@ uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 
   return one_way_bin_table_restrict(&table->table.backward, arg2, arg1s);
 }
 
+UINT32_ARRAY master_bin_table_range_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity) {
+  return one_way_bin_table_range_restrict(&table->table.forward, arg1, first, arg2s, capacity);
+}
+
+UINT32_ARRAY master_bin_table_range_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity) {
+  return one_way_bin_table_range_restrict(&table->table.backward, arg2, first, arg1s, capacity);
+}
+
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1) {
   return one_way_bin_table_lookup(&table->table.forward, arg1);
 }
@@ -241,6 +249,10 @@ uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, u
   }
 #endif
   return surr;
+}
+
+uint64 *master_bin_table_slots(MASTER_BIN_TABLE *table) {
+  return table->slots;
 }
 
 uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *table, uint32 surr) {

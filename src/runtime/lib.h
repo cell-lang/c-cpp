@@ -1633,10 +1633,15 @@ bool master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr);
 uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *arg2s, uint32 *surrs);
 uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *arg1s);
 
+UINT32_ARRAY master_bin_table_range_restrict_1(MASTER_BIN_TABLE *, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity);
+UINT32_ARRAY master_bin_table_range_restrict_2(MASTER_BIN_TABLE *, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity);
+
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1);
 uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2);
 
 uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2);
+
+uint64 *master_bin_table_slots(MASTER_BIN_TABLE *);
 
 uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr);
 uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr);
