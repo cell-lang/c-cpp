@@ -2,7 +2,7 @@
 
 
 bool semisym_slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   assert(surr12 != 0xFFFFFFFF);
   return bin_table_insert(slave_table, surr12, arg3, mem_pool);
 }
@@ -26,12 +26,12 @@ uint32 semisym_slave_tern_table_size(BIN_TABLE *slave_table) {
 }
 
 bool semisym_slave_tern_table_contains(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF && bin_table_contains(slave_table, surr12, arg3);
 }
 
 bool semisym_slave_tern_table_contains_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF && bin_table_contains_1(slave_table, surr12);
 }
 
@@ -43,7 +43,7 @@ bool semisym_slave_tern_table_contains_13(MASTER_BIN_TABLE *master_table, BIN_TA
     uint32 *other_args_12 = count > 1024 ? new_uint32_array(count) : inline_array;
     sym_master_bin_table_restrict(master_table, arg12, other_args_12);
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg12, other_args_12[i]);
+      uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg12, other_args_12[i]);
       if (bin_table_contains(slave_table, surr, arg3))
         return true;
     }
@@ -59,7 +59,7 @@ bool semisym_slave_tern_table_contains_1(MASTER_BIN_TABLE *master_table, BIN_TAB
     uint32 *other_args = count > 1024 ? new_uint32_array(count) : inline_array;
     sym_master_bin_table_restrict(master_table, arg, other_args);
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg, other_args[i]);
+      uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg, other_args[i]);
       if (bin_table_contains_1(slave_table, surr))
         return true;
     }
@@ -75,7 +75,7 @@ bool semisym_slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3) {
 }
 
 uint32 semisym_slave_tern_table_lookup_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 == 0xFFFFFFFF)
     soft_fail(NULL);
   return bin_table_lookup_1(slave_table, surr12);
@@ -91,7 +91,7 @@ uint32 semisym_slave_tern_table_lookup_13(MASTER_BIN_TABLE *master_table, BIN_TA
     uint32 result = 0xFFFFFFFF;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 other_arg_12 = other_args_12[i];
-      uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg12, other_arg_12);
+      uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg12, other_arg_12);
       if (bin_table_contains(slave_table, surr, arg3))
         if (result == 0xFFFFFFFF)
           result = other_arg_12;
@@ -105,7 +105,7 @@ uint32 semisym_slave_tern_table_lookup_13(MASTER_BIN_TABLE *master_table, BIN_TA
 }
 
 uint32 semisym_slave_tern_table_count_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF ? bin_table_count_1(slave_table, surr12) : 0;
 }
 
@@ -118,7 +118,7 @@ uint32 semisym_slave_tern_table_count_13(MASTER_BIN_TABLE *master_table, BIN_TAB
     uint32 *other_args_12 = count12 > 1024 ? new_uint32_array(count12) : inline_array;
     sym_master_bin_table_restrict(master_table, arg12, other_args_12);
     for (uint32 i=0 ; i < count12 ; i++) {
-      uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg12, other_args_12[i]);
+      uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg12, other_args_12[i]);
       if (bin_table_contains(slave_table, surr, arg3))
         count_13++;
     }
@@ -134,7 +134,7 @@ uint32 semisym_slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABL
     uint32 *other_args_12 = count12 > 1024 ? new_uint32_array(count12) : inline_array;
     sym_master_bin_table_restrict(master_table, arg12, other_args_12);
     for (uint32 i=0 ; i < count12 ; i++) {
-      uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg12, other_args_12[i]);
+      uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg12, other_args_12[i]);
       full_count += bin_table_count_1(slave_table, surr);
     }
   }
@@ -260,7 +260,7 @@ uint32 semisym_slave_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void semisym_slave_tern_table_iter_12_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2) {
-  uint32 surr = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr != 0xFFFFFFFF)
     bin_table_iter_1_init(slave_table, &iter->slave_iter, surr);
   else

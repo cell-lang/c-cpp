@@ -798,7 +798,7 @@ static uint32 copy_hashed_block_range(ARRAY_MEM_POOL *array_pool, uint32 block_i
 
             if (subhigh != EMPTY_MARKER) {
               if (passed >= first)
-                dest[passed] = (subhigh << subshift) + slot_least_bits;
+                dest[passed - first] = (subhigh << subshift) + slot_least_bits;
               passed++;
               if (passed == first + capacity)
                 return capacity;

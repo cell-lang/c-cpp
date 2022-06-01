@@ -53,7 +53,7 @@ void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint
 
 uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
-  uint32 surr = sym_master_bin_table_lookup_surrogate(table, arg1, arg2);
+  uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF) {
     queue_3u32_insert(&table_aux->reinsertions, arg1, arg2, surr);
@@ -86,7 +86,7 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
 
 uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
-  uint32 surr = sym_master_bin_table_lookup_surrogate(table, arg1, arg2);
+  uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF)
     return surr;

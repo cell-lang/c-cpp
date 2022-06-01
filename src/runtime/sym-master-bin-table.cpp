@@ -52,9 +52,9 @@ uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *table, uint32 arg) {
   return sym_bin_table_lookup(&table->table, arg);
 }
 
-uint32 sym_master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+uint32 sym_master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
-  return master_bin_table_lookup_surrogate(table, arg1, arg2);
+  return master_bin_table_lookup_surr(table, arg1, arg2);
 }
 
 uint32 sym_master_bin_table_get_arg_1(MASTER_BIN_TABLE *table, uint32 surr) {
@@ -75,7 +75,7 @@ int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint3
   sort_args(arg1, arg2);
 
   if (one_way_bin_table_contains(&table->table.forward, arg1, arg2)) {
-    uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+    uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
     assert(surr != 0xFFFFFFFF);
     return -((int32) surr) - 1;
   }
@@ -107,7 +107,7 @@ bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1,
     return true;
   }
   else {
-    assert(master_bin_table_lookup_surrogate(table, arg1, arg2) == surr);
+    assert(master_bin_table_lookup_surr(table, arg1, arg2) == surr);
     return false;
   }
 }

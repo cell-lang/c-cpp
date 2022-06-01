@@ -8,7 +8,7 @@ bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3,
 }
 
 // bool tern_table_delete(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3) {
-//   uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+//   uint32 surr12 = master_bin_table_lookup_surr(&table->master, arg1, arg2);
 //   if (surr12 != 0xFFFFFFFF) {
 //     if (bin_table_delete(&table->slave, surr12, arg3)) {
 //       if (bin_table_count_1(&table->slave, surr12) == 0) {

@@ -148,6 +148,7 @@ uint64 loaded_overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle, uint32 valu
 void loaded_overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle);
 
 void loaded_overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *values, uint32 *data, uint32 offset);
+UINT32_ARRAY loaded_overflow_table_range_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 first, uint32 *output, uint32 capacity);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -155,6 +156,7 @@ void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
 uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint32 *dest, uint32 *data);
+UINT32_ARRAY loaded_one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *, uint32 key, uint32 first, uint32 *output, uint32 capacity);
 
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *);
 

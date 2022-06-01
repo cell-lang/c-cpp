@@ -218,6 +218,7 @@ inline uint64 pack_args(uint32 arg1, uint32 arg2) {
 struct UINT32_ARRAY {
   uint32 *array; //## RENAME TO ptr
   uint32 size;
+  uint32 offset; //## THIS IS WAY TO SPECIALIZED FOR A DATA STRUCTURE CALLED UINT32_ARRAY
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -107,6 +107,49 @@ uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, 
   return 2;
 }
 
+UINT32_ARRAY loaded_one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *table, uint32 key, uint32 first, uint32 *output, uint32 output_capacity) {
+  assert(output_capacity == 64);
+
+  UINT32_ARRAY result;
+
+  uint32 table_capacity = table->capacity;
+
+  if (key < table_capacity) {
+    uint64 *slot_ptr = table->column + key;
+    uint64 slot = *slot_ptr;
+
+    if (!is_empty(slot)) {
+      if (is_index(slot)) {
+        result = loaded_overflow_table_range_copy(&table->array_pool, slot, first, output, output_capacity);
+      }
+      else {
+        uint64 data_slot = *(slot_ptr + table_capacity);
+
+        output[0] = get_low_32(slot);
+        output[2] = get_low_32(data_slot);
+
+        uint32 high = get_high_32(slot);
+        if (high != EMPTY_MARKER) {
+          output[1] = high;
+          output[3] = get_high_32(data_slot);
+          result.size = 2;
+        }
+        else
+          result.size = 1;
+
+        result.offset = 2;
+        result.array = output;
+      }
+    }
+    else
+      result.size = 0;
+  }
+  else
+    result.size = 0;
+
+  return result;
+}
+
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *mem_pool) {
   uint32 capacity = table->capacity;
 

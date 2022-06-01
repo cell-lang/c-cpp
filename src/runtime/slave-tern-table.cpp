@@ -2,7 +2,7 @@
 
 
 bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   assert(surr12 != 0xFFFFFFFF);
   return bin_table_insert(slave_table, surr12, arg3, mem_pool);
 }
@@ -26,12 +26,12 @@ uint32 slave_tern_table_size(BIN_TABLE *slave_table) {
 }
 
 bool slave_tern_table_contains(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF && bin_table_contains(slave_table, surr12, arg3);
 }
 
 bool slave_tern_table_contains_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF && bin_table_contains_1(slave_table, surr12);
 }
 
@@ -59,7 +59,7 @@ bool slave_tern_table_contains_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *sla
     uint32 _count = master_bin_table_restrict_2(master_table, arg2, args1);
     assert(_count == count);
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr12 = master_bin_table_lookup_surrogate(master_table, args1[i], arg2);
+      uint32 surr12 = master_bin_table_lookup_surr(master_table, args1[i], arg2);
       assert(surr12 != 0xFFFFFFFF);
       if (bin_table_contains(slave_table, surr12, arg3))
         return true;
@@ -83,7 +83,7 @@ bool slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3) {
 }
 
 uint32 slave_tern_table_lookup_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 == 0xFFFFFFFF)
     soft_fail(NULL);
   return bin_table_lookup_1(slave_table, surr12);
@@ -123,7 +123,7 @@ uint32 slave_tern_table_lookup_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *sla
     uint32 arg1 = -1;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 curr_arg_1 = args1[i];
-      uint32 surr12 = master_bin_table_lookup_surrogate(master_table, curr_arg_1, arg2);
+      uint32 surr12 = master_bin_table_lookup_surr(master_table, curr_arg_1, arg2);
       assert(surr12 != 0xFFFFFFFF);
       if (bin_table_contains(slave_table, surr12, arg3))
         if (arg1 == -1)
@@ -138,7 +138,7 @@ uint32 slave_tern_table_lookup_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *sla
 }
 
 uint32 slave_tern_table_count_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   return surr12 != 0xFFFFFFFF ? bin_table_count_1(slave_table, surr12) : 0;
 }
 
@@ -200,7 +200,7 @@ uint32 slave_tern_table_count_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave
     uint32 _count = master_bin_table_restrict_2(master_table, arg2, args1);
     assert(_count == count2);
     for (uint32 i=0 ; i < count2 ; i++) {
-      uint32 surr12 = master_bin_table_lookup_surrogate(master_table, args1[i], arg2);
+      uint32 surr12 = master_bin_table_lookup_surr(master_table, args1[i], arg2);
       assert(surr12 != 0xFFFFFFFF);
       full_count += bin_table_count_1(slave_table, surr12);
     }
@@ -410,7 +410,7 @@ uint32 slave_tern_table_iter_2_get_2(SLAVE_TERN_TABLE_ITER_2 *iter) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void slave_tern_table_iter_12_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 != 0xFFFFFFFF)
     bin_table_iter_1_init(slave_table, &iter->slave_iter, surr12);
   else

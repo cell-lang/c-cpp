@@ -23,7 +23,7 @@ void tern_table_aux_clear(TERN_TABLE_AUX *table_aux) {
 }
 
 void tern_table_aux_delete(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
     bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
@@ -32,7 +32,7 @@ void tern_table_aux_delete(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 
 }
 
 void tern_table_aux_delete_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+  uint32 surr12 = master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
     master_bin_table_aux_delete(&table->master, &table_aux->master, arg1, arg2); //# WOULD BE MORE EFFICIENT TO PASS THE SURROGATE INSTEAD
@@ -81,7 +81,7 @@ void tern_table_aux_delete_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint
       uint32 *arg1s = count2 <= 256 ? inline_array : new_uint32_array(count2); //## THE MEMORY ALLOCATED HERE SHOULD BE RELEASED ASAP
       master_bin_table_restrict_2(&table->master, arg2, arg1s);
       for (uint32 i=0 ; i < count2 ; i++) {
-        uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1s[i], arg2);
+        uint32 surr12 = master_bin_table_lookup_surr(&table->master, arg1s[i], arg2);
         if (bin_table_contains(&table->slave, surr12, arg3)) {
           bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
           queue_u32_insert(&table_aux->surr12_follow_ups, surr12);
@@ -124,7 +124,7 @@ void tern_table_aux_delete_2(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint3
     master_bin_table_restrict_2(&table->master, arg2, arg1s);
     master_bin_table_aux_delete_2(&table_aux->master, arg2);
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr12 = master_bin_table_lookup_surrogate(&table->master, arg1s[i], arg2);
+      uint32 surr12 = master_bin_table_lookup_surr(&table->master, arg1s[i], arg2);
       bin_table_aux_delete_1(&table_aux->slave, surr12);
     }
   }
@@ -244,7 +244,7 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 
       if (arg2 != existing_arg2) {
         //## THIS COULD BE MADE MORE EFFICIENT, MAYBE USING AN INDEX
-        uint32 other_surr12 = master_bin_table_lookup_surrogate(&table->master, arg1, existing_arg2);
+        uint32 other_surr12 = master_bin_table_lookup_surr(&table->master, arg1, existing_arg2);
         if (!bin_table_aux_was_deleted(&table_aux->slave, other_surr12, arg3)) {
           tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, existing_arg2, false);
           return false;
@@ -305,7 +305,7 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 
       if (arg1 != existing_arg1) {
         //## THIS COULD BE MADE MORE EFFICIENT, MAYBE USING AN INDEX
-        uint32 existing_surr12 = master_bin_table_lookup_surrogate(&table->master, existing_arg1, arg2);
+        uint32 existing_surr12 = master_bin_table_lookup_surr(&table->master, existing_arg1, arg2);
         if (!bin_table_aux_was_deleted(&table_aux->slave, existing_surr12, arg3)) {
           tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, existing_arg1, false);
           return false;

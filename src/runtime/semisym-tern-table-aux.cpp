@@ -21,7 +21,7 @@ void semisym_tern_table_aux_clear(SEMISYM_TERN_TABLE_AUX *table_aux) {
 }
 
 void semisym_tern_table_aux_delete(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
     bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
@@ -30,7 +30,7 @@ void semisym_tern_table_aux_delete(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *ta
 }
 
 void semisym_tern_table_aux_delete_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
     sym_master_bin_table_aux_delete(&table_aux->master, arg1, arg2); //# WOULD BE MORE EFFICIENT TO PASS THE SURROGATE INSTEAD
@@ -47,7 +47,7 @@ void semisym_tern_table_aux_delete_13_23(TERN_TABLE *table, SEMISYM_TERN_TABLE_A
       uint32 *other_args_12 = count12 <= 256 ? inline_array : new_uint32_array(count12); //## THE MEMORY ALLOCATED HERE SHOULD BE RELEASED ASAP
       sym_master_bin_table_restrict(&table->master, arg12, other_args_12);
       for (uint32 i=0 ; i < count12 ; i++) {
-        uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg12, other_args_12[i]);
+        uint32 surr12 = sym_master_bin_table_lookup_surr(&table->master, arg12, other_args_12[i]);
         if (bin_table_contains(&table->slave, surr12, arg3)) {
           bin_table_aux_delete(&table->slave, &table_aux->slave, surr12, arg3);
           queue_u32_insert(&table_aux->surr12_follow_ups, surr12);
@@ -77,7 +77,7 @@ void semisym_tern_table_aux_delete_1(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *
     sym_master_bin_table_restrict(&table->master, arg, other_args); //## I SHOULD RETRIEVE THE SURROGATES DIRECTLY
     sym_master_bin_table_aux_delete_1(&table_aux->master, arg);
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr12 = sym_master_bin_table_lookup_surrogate(&table->master, arg, other_args[i]);
+      uint32 surr12 = sym_master_bin_table_lookup_surr(&table->master, arg, other_args[i]);
       bin_table_aux_delete_1(&table_aux->slave, surr12);
     }
   }

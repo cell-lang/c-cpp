@@ -2,7 +2,7 @@
 #include "one-way-bin-table.h"
 
 
-inline bool master_bin_table_slot_is_empty(uint64 slot) {
+bool master_bin_table_slot_is_empty(uint64 slot) {
   return get_high_32(slot) == 0xFFFFFFFF;
 }
 
@@ -228,6 +228,10 @@ UINT32_ARRAY master_bin_table_range_restrict_2(MASTER_BIN_TABLE *table, uint32 a
   return one_way_bin_table_range_restrict(&table->table.backward, arg2, first, arg1s, capacity);
 }
 
+UINT32_ARRAY master_bin_table_range_restrict_1_with_surrs(MASTER_BIN_TABLE *table, uint32 arg1, uint32 first, uint32 *arg2s_surrs, uint32 capacity) {
+  return loaded_one_way_bin_table_range_restrict(&table->table.forward, arg1, first, arg2s_surrs, capacity);
+}
+
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1) {
   return one_way_bin_table_lookup(&table->table.forward, arg1);
 }
@@ -238,7 +242,7 @@ uint32 master_bin_table_lookup_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 master_bin_table_lookup_surrogate(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+uint32 master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   uint32 surr = loaded_one_way_bin_table_payload(&table->table.forward, arg1, arg2);
 #ifndef NDEBUG
   if (surr != 0xFFFFFFFF) {
@@ -258,14 +262,14 @@ uint64 *master_bin_table_slots(MASTER_BIN_TABLE *table) {
 uint32 master_bin_table_get_arg_1(MASTER_BIN_TABLE *table, uint32 surr) {
   assert(surr < table->capacity);
   uint64 slot = table->slots[surr];
-  assert(master_bin_table_lookup_surrogate(table, unpack_arg1(slot), unpack_arg2(slot)) == surr);
+  assert(master_bin_table_lookup_surr(table, unpack_arg1(slot), unpack_arg2(slot)) == surr);
   return unpack_arg1(slot);
 }
 
 uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
   assert(surr < table->capacity);
   uint64 slot = table->slots[surr];
-  assert(master_bin_table_lookup_surrogate(table, unpack_arg1(slot), unpack_arg2(slot)) == surr);
+  assert(master_bin_table_lookup_surr(table, unpack_arg1(slot), unpack_arg2(slot)) == surr);
   return unpack_arg2(slot);
 }
 
@@ -277,7 +281,7 @@ uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
 //   bool was_new = code >= 0;
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
   if (master_bin_table_contains(table, arg1, arg2)) {
-    uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+    uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
     assert(surr != 0xFFFFFFFF);
     return -((int32) surr) - 1;
   }
@@ -304,7 +308,7 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
     return true;
   }
   else {
-    assert(master_bin_table_lookup_surrogate(table, arg1, arg2) == surr);
+    assert(master_bin_table_lookup_surr(table, arg1, arg2) == surr);
     return false;
   }
 }

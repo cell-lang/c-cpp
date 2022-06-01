@@ -657,6 +657,108 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
   return target_idx;
 }
 
+static uint32 loaded_overflow_table_copy_hashed_block_range(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 first, uint32 *values, uint32 *data, uint32 capacity, uint32 shift, uint32 least_bits) {
+  uint64 *slots = array_pool->slots;
+  uint32 distance = array_pool->size;
+
+  uint32 subshift = shift + 4;
+  uint32 passed = 0;
+
+  for (uint32 i=0 ; i < 16 ; i++) {
+    assert(passed < first + capacity);
+
+    uint32 slot_least_bits = (i << shift) + least_bits;
+    uint64 *slot_ptr = slots + block_idx + i;
+    uint64 slot = *slot_ptr;
+    uint32 low = get_low_32(slot);
+
+    if (low != EMPTY_MARKER) {
+      uint32 tag = get_tag(low);
+      if (tag == INLINE_SLOT) {
+        uint64 data_slot = *(slot_ptr + distance); //## SHOULD BE READ ONLY WHEN passed >= first OR WHEN high != EMPTY_MARKER AND passed + 1 >= first
+
+        if (passed >= first) {
+          values[passed - first] = (get_payload(low) << shift) + least_bits;
+          data[passed - first] = get_low_32(data_slot);
+        }
+        passed++;
+        if (passed == first + capacity)
+          return capacity;
+
+        uint32 high = get_high_32(slot);
+        if (high != EMPTY_MARKER) {
+          if (passed >= first) {
+            values[passed - first] = (get_payload(high) << shift) + least_bits;
+            data[passed - first] = get_high_32(data_slot);
+          }
+          passed++;
+          if (passed == first + capacity)
+            return capacity;
+        }
+      }
+      else if (tag == HASHED_BLOCK) {
+        uint32 count = get_count(slot);
+
+        if (passed + count > first) {
+          uint32 written = passed >= first ? passed - first : 0;
+          uint32 subfirst = passed >= first ? 0 : first - passed;
+          uint32 newly_written = loaded_overflow_table_copy_hashed_block_range(array_pool, get_payload(low), subfirst, values + written, data + written, capacity - written, subshift, slot_least_bits);
+          assert(newly_written > 0);
+          passed += subfirst + newly_written;
+          assert (passed <= first + capacity);
+          if (passed == first + capacity)
+            return capacity;
+        }
+        else
+          passed += count;
+      }
+      else {
+        uint32 count = get_count(slot);
+        if (passed + count >= first) {
+          uint32 subblock_idx = get_payload(low);
+
+          uint32 end = (count + 1) / 2;
+
+          for (uint32 j=0 ; j < end ; j++) {
+            assert(passed < first + capacity);
+
+            uint64 *subslot_ptr = slots + subblock_idx + j;
+            uint64 subslot = *subslot_ptr;
+            uint32 sublow = get_low_32(subslot);
+            uint32 subhigh = get_high_32(subslot);
+
+            assert(sublow != EMPTY_MARKER & get_tag(sublow) == 0);
+
+            uint64 data_subslot = *(subslot_ptr + distance);
+
+            if (passed >= first) {
+              values[passed - first] = (sublow << subshift) + slot_least_bits;
+              data[passed - first] = get_low_32(data_subslot);
+            }
+            passed++;
+            if (passed == first + capacity)
+              return capacity;
+
+            if (subhigh != EMPTY_MARKER) {
+              if (passed >= first) {
+                values[passed - first] = (subhigh << subshift) + slot_least_bits;
+                data[passed - first] = get_high_32(data_subslot);
+              }
+              passed++;
+              if (passed == first + capacity)
+                return capacity;
+            }
+          }
+        }
+        else
+          passed += count;
+      }
+    }
+  }
+
+  return passed - first;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -781,4 +883,31 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint3
   }
   else
     copy_hashed_block(array_pool, block_idx, values, data, offset, 0, 0);
+}
+
+UINT32_ARRAY loaded_overflow_table_range_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 first, uint32 *output, uint32 capacity) {
+  assert(capacity == 64);
+
+  UINT32_ARRAY result;
+
+  uint32 low = get_low_32(handle);
+  uint32 tag = get_tag(low);
+  uint32 block_idx = get_payload(low);
+
+  assert(tag != INLINE_SLOT);
+  assert(pack_tag_payload(tag, block_idx) == get_low_32(handle));
+
+  if (tag != HASHED_BLOCK) {
+    //## WARNING: THIS ONLY WORKS ON LITTLE-ENDIAM CPUS
+    result.array = (uint32 *) (array_pool->slots + block_idx);
+    result.size = get_count(handle);
+    result.offset = array_pool->size;
+  }
+  else {
+    result.array = output;
+    result.size = loaded_overflow_table_copy_hashed_block_range(array_pool, block_idx, first, output, output + capacity, capacity, 0, 0);
+    result.offset = capacity;
+  }
+
+  return result;
 }

@@ -16,13 +16,13 @@ void semisym_slave_tern_table_aux_clear(SLAVE_TERN_TABLE_AUX *table_aux) {
 }
 
 void semisym_slave_tern_table_aux_delete(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 != 0xFFFFFFFF)
     bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
 }
 
 void semisym_slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = sym_master_bin_table_lookup_surrogate(master_table, arg1, arg2);
+  uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 != 0xFFFFFFFF)
     bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
 }

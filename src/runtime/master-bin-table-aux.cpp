@@ -52,7 +52,7 @@ void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2)
 }
 
 uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+  uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
 
   if (surr != 0xFFFFFFFF) {
     queue_u32_insert(&table_aux->reinsertions, surr);
@@ -84,7 +84,7 @@ uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+  uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF)
     return surr;
 
@@ -171,7 +171,7 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
             uint64 args = array[i];
             uint32 arg1 = unpack_arg1(args);
             uint32 arg2 = unpack_arg2(args);
-            uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+            uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
             if (surr != 0xFFFFFFFF && !master_bin_table_slot_is_locked(table, surr)) {
               bool found = master_bin_table_delete(table, arg1, arg2);
               assert(found);
@@ -941,7 +941,7 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       if (surr != 0xFFFFFFFF)
         if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
           if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
@@ -1019,7 +1019,7 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       if (surr != 0xFFFFFFFF)
         if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
           if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
@@ -1097,7 +1097,7 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       if (surr != 0xFFFFFFFF)
         if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
           if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
@@ -1175,7 +1175,7 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      uint32 surr = master_bin_table_lookup_surrogate(table, arg1, arg2);
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       if (surr != 0xFFFFFFFF)
         if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
           if (!queue_u32_contains(&table_aux->reinsertions, surr)) {
