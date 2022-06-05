@@ -1,0 +1,349 @@
+implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
+  String native_get_slave_col_iter_code(SlaveColumnItVar it_var, AnyTableVar table_var, SlaveColumn column, Maybe[Int32Var]+ args) {
+    method_name = it_var_method_prefix(it_var) & "_init";
+    return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
+  }
+
+
+  String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar col_var, <Column, MandatoryColumn> column) {
+    method_name = native_column_method_prefix(it_var.repr, it_var.mandatory) & "_iter_init";
+    return native_call(method_name, (column.master if is_mandatory_column(column), col_var, it_var));
+  }
+
+
+  String* native_foreach_code(UnaryTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    table_name = native_deref_var_name(iter.table_var);
+
+    unique_id = printed(new_unique_id(:unused));
+    left_var = "left_" & unique_id;
+    bitmap_var = "bitmap_" & unique_id;
+    word_idx_var = "word_idx_" & unique_id;
+    word_var = "word_" & unique_id;
+    bit_idx_var = "bit_idx_" & unique_id;
+
+    code = (
+      "uint32 " & left_var & " = " & table_name & ".count;",
+      "uint64 *" & bitmap_var & " = " & table_name & ".bitmap;",
+      "for (uint32 " & word_idx_var & "=0 ; " & left_var & " > 0 ; " & word_idx_var & "++) {",
+      "  uint64 " & word_var & " = " & bitmap_var & "[" & word_idx_var & "];",
+      "  for (uint32 " & bit_idx_var & "=0 ; " & bit_idx_var & " < 64 ; " & bit_idx_var & "++) {",
+      "    if ((" & word_var & " >> " & bit_idx_var & ") & 1) {",
+      "      " & left_var & "--;",
+      "      uint32 " & native_var_ref_name(iter.var) & " = 64 * " & word_idx_var & " + " & bit_idx_var & ";" if iter.var?
+    );
+
+    code = code & indent_lines(native_code(body, block_id), 3);
+
+    code = (code |
+      "    }",
+      "  }",
+      "}"
+    );
+
+    return code;
+  }
+
+  String* native_foreach_code(BinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    arg1, arg2 = iter.args;
+    return match (arg1, arg2)
+      bound(v?),  _         = native_bin_table_foreach_code_1(iter.table_var, v, arg2, body, block_id),
+      _,          bound(v?) = native_bin_table_foreach_code_2(iter.table_var, arg1, v, body, block_id),
+      _,          _         = native_bin_table_foreach_code(iter.table_var, arg1, arg2, body, block_id);
+  }
+
+  String* native_bin_table_foreach_code_1(AnyTableVar table_var, Int32Var arg1, TableArgStatus arg2, Instr* body, Maybe[Nat] block_id) {
+    table_var_str = native_var_ref_name(table_var);
+    arg1_str = native_var_ref_name(arg1);
+
+    unique_id = printed(new_unique_id(:unused));
+    buffer_var = "buffer_" & unique_id;
+    count_var = "count_" & unique_id;
+    read_var = "read_" & unique_id;
+    array_var = "array_" & unique_id;
+    idx_var = "idx_" & unique_id;
+
+    code = (
+      "uint32 " & buffer_var & "[64];",
+      "uint32 " & count_var & " = bin_table_count_1(" & table_var_str & ", " & arg1_str & ");",
+      "uint32 " & read_var & " = 0;",
+      "while (" & read_var & " < " & count_var & ") {",
+      "  UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & table_var_str & ", " & arg1_str & ", " & read_var & ", " & buffer_var & ", 64);",
+      "  " & read_var & " += " & array_var & ".size;",
+      "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+    );
+
+    code = match (arg2)
+      read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      ignored   = code,
+      bound()   = undefined;
+
+    code = code & indent_lines(native_code(body, block_id), 2);
+
+    code = (code |
+      "  }",
+      "}"
+    );
+
+    return code;
+  }
+
+
+  String* native_bin_table_foreach_code_2(AnyTableVar table_var, TableArgStatus arg1, Int32Var arg2, Instr* body, Maybe[Nat] block_id) {
+    table_var_str = native_var_ref_name(table_var);
+    arg_2_var = native_var_ref_name(arg2);
+
+    unique_id = printed(new_unique_id(:unused));
+    buffer_var = "buffer_" & unique_id;
+    count_var = "count_" & unique_id;
+    read_var = "read_" & unique_id;
+    array_var = "array_" & unique_id;
+    idx_var = "idx_" & unique_id;
+
+    code = (
+      "uint32 " & buffer_var & "[64];",
+      "uint32 " & count_var & " = bin_table_count_2(" & table_var_str & ", " & arg_2_var & ");",
+      "uint32 " & read_var & " = 0;",
+      "while (" & read_var & " < " & count_var & ") {",
+      "  UINT32_ARRAY " & array_var & " = bin_table_range_restrict_2(" & table_var_str & ", " & arg_2_var & ", " & read_var & ", " & buffer_var & ", 64);",
+      "  " & read_var & " += " & array_var & ".size;",
+      "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+    );
+
+    code = match (arg1)
+      read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      ignored   = code,
+      bound()   = undefined;
+
+    code = code & indent_lines(native_code(body, block_id), 2);
+
+    code = (code |
+      "  }",
+      "}"
+    );
+
+    return code;
+  }
+
+
+  String* native_bin_table_foreach_code(AnyTableVar table_var, TableArgStatus arg1, TableArgStatus arg2, Instr* body, Maybe[Nat] block_id) {
+    table_var_str = native_var_ref_name(table_var);
+
+    unique_id = printed(new_unique_id(:unused));
+    count_var = "count_" & unique_id;
+    read_var = "read_" & unique_id;
+    count_1_var = "count_1_" & unique_id;
+    read_1_var = "read_1_" & unique_id;
+    buffer_var = "buffer_" & unique_id;
+    array_var = "array_" & unique_id;
+    idx_var = "idx_" & unique_id;
+
+    arg_1_var = match (arg1)
+      read(v?)  = native_var_ref_name(v),
+      ignored   = "arg_1_" & unique_id,
+      bound()   = undefined;
+
+    code = (
+      "uint32 " & count_var & " = bin_table_size(" & table_var_str & ");",
+      "uint32 " & read_var & " = 0;",
+      "for (uint32 " & arg_1_var & "=0 ; " & read_var & " < " & count_var & " ; " & arg_1_var & "++) {",
+      "  uint32 " & count_1_var & " = bin_table_count_1(" & table_var_str & ", " & arg_1_var & ");",
+      "  if (" & count_1_var & " > 0) {",
+      "    " & read_var & " += " & count_1_var & ";",
+      "    uint32 " & buffer_var & "[64];",
+      "    uint32 " & read_1_var & " = 0;",
+      "    while (" & read_1_var & " < " & count_1_var & ") {",
+      "      UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & table_var_str & ", " & arg_1_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
+      "      " & read_1_var & " += " & array_var & ".size;",
+      "      for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+    );
+
+    code = match (arg2)
+      read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      ignored   = code,
+      bound()   = undefined;
+
+    code = code & indent_lines(native_code(body, block_id), 4);
+
+    code = (code |
+      "      }",
+      "    }",
+      "  }",
+      "}"
+    );
+
+    return code;
+  }
+
+  String* native_foreach_code(SymBinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+  String* native_foreach_code(MasterBinTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    arg1, arg2 = iter.args;
+    maybe_surr_var = if iter.surr_var? then just(iter.surr_var) else nothing;
+    return match (arg1, arg2)
+      bound(v?),  _         = foreach_code_1(iter.table_var, iter.table, v, arg2, maybe_surr_var, body, block_id),
+      _,          bound(v?) = foreach_code_2(iter.table_var, iter.table, arg1, v, maybe_surr_var, body, block_id),
+      _,          _         = foreach_code(iter.table_var, iter.table, arg1, arg2, maybe_surr_var, body, block_id);
+
+
+
+    String* foreach_code_1(AnyTableVar table_var, MasterBinTable table, Int32Var arg1, TableArgStatus arg2, Maybe[Int32Var] maybe_surr_var, Instr* body, Maybe[Nat] block_id) {
+      table_var_str = native_var_ref_name(table_var);
+      arg1_str = native_var_ref_name(arg1);
+
+      unique_id = printed(new_unique_id(:unused));
+      buffer_var = "buffer_" & unique_id;
+      surrs_var = "surrs_array_" & unique_id;
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      array_var = "array_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      inner_loop_label = "label_" & unique_id;
+
+      if maybe_surr_var != nothing {
+        restrict_method_name = "master_bin_table_range_restrict_1_with_surrs";
+        buffer_size_str = "128";
+      }
+      else {
+        restrict_method_name = "master_bin_table_range_restrict_1";
+        buffer_size_str = "64";
+      }
+
+      restrict_args = (table_var, arg1, read_var, buffer_var, 64);
+      restrict_call = native_call(restrict_method_name, restrict_args);
+
+      code = (
+        "uint32 " & buffer_var & "[" & buffer_size_str & "];",
+        "uint32 " & count_var & " = master_bin_table_count_1(" & table_var_str & ", " & arg1_str & ");",
+        "uint32 " & read_var & " = 0;",
+        "while (" & read_var & " < " & count_var & ") {",
+        "  UINT32_ARRAY " & array_var & " = " & restrict_call,
+        "  " & read_var & " += " & array_var & ".size;",
+        "  uint32 *" & surrs_var & " = " & array_var & ".array + " & array_var & ".offset;" if maybe_surr_var != nothing,
+        // "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+        "  uint32 " & idx_var & " = 0;",
+        "  " & inner_loop_label & ":"
+      );
+
+      code = match (arg2)
+        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        ignored   = code,
+        bound()   = undefined;
+
+      if maybe_surr_var != nothing
+        code = (code | "  " & native_var_ref_name(value(maybe_surr_var)) & " = " & surrs_var & "[" & idx_var & "];");
+
+      code = code & indent_lines(native_code(body, block_id));
+
+      code = (code |
+        "  " & idx_var & "++;",
+        "  if (" & idx_var & " < " & array_var & ".size)",
+        "    goto " & inner_loop_label & ";",
+        "}"
+      );
+
+      return code;
+    }
+
+
+    String* foreach_code_2(AnyTableVar table_var, MasterBinTable table, TableArgStatus arg1, Int32Var arg2, Maybe[Int32Var] maybe_surr_var, Instr* body, Maybe[Nat] block_id) {
+      table_var_str = native_var_ref_name(table_var);
+      arg2_var = native_var_ref_name(arg2);
+
+      unique_id = printed(new_unique_id(:unused));
+      buffer_var = "buffer_" & unique_id;
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      array_var = "array_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      arg1_var = match (arg1)
+        read(v?)  = native_var_ref_name(v),
+        _         = "arg1_" & unique_id;
+
+      code = (
+        "uint32 " & buffer_var & "[64];",
+        "uint32 " & count_var & " = master_bin_table_count_2(" & table_var_str & ", " & arg2_var & ");",
+        "uint32 " & read_var & " = 0;",
+        "while (" & read_var & " < " & count_var & ") {",
+        "  UINT32_ARRAY " & array_var & " = master_bin_table_range_restrict_2(" & table_var_str & ", " & arg2_var & ", " & read_var & ", " & buffer_var & ", 64);",
+        "  " & read_var & " += " & array_var & ".size;",
+        "  for (uint32 " & idx_var & "=0 ; " & idx_var & " < " & array_var & ".size ; " & idx_var & "++) {"
+      );
+
+      arg1_read_instr = "    " & arg1_var & " = " & array_var & ".array[" & idx_var & "];";
+      code = match (arg1)
+        read(v?)  = (code | arg1_read_instr),
+        ignored   = if maybe_surr_var != nothing then (code | arg1_read_instr) else code,
+        bound()   = undefined;
+
+      if maybe_surr_var != nothing
+        code = (code | "    " & native_var_ref_name(value(maybe_surr_var)) & " = " & native_call("master_bin_table_lookup_surr", (table_var, arg1_var, arg2_var)));
+
+      code = code & indent_lines(native_code(body, block_id), 2);
+
+      code = (code |
+        "  }",
+        "}"
+      );
+
+      return code;
+    }
+
+
+    String* foreach_code(AnyTableVar table_var, MasterBinTable table, TableArgStatus arg1, TableArgStatus arg2, Maybe[Int32Var] maybe_surr_var, Instr* body, Maybe[Nat] block_id) {
+      table_var_str = native_var_ref_name(table_var);
+
+      unique_id = printed(new_unique_id(:unused));
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      slots_var = "slots_" & unique_id;
+      slot_var = "slot_" & unique_id;
+      surr_var = if maybe_surr_var != nothing then native_var_ref_name(value(maybe_surr_var)) else "surr_var_" & unique_id;
+
+      code = (
+        "uint32 " & count_var & " = master_bin_table_size(" & table_var_str & ");",
+        "uint32 " & read_var & " = 0;",
+        "uint64 *" & slots_var & " = master_bin_table_slots(" & table_var_str & ");",
+        "for (uint32 " & surr_var & "=0 ; " & read_var & " < " & count_var & " ; " & surr_var & "++) {",
+        "  uint64 " & slot_var & " = " & slots_var & "[" & surr_var & "];",
+        "  if (!master_bin_table_slot_is_empty(" & slot_var & ")) {",
+        "    " & read_var & "++;"
+      );
+
+      code = match (arg1)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = unpack_arg1(" & slot_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = match (arg2)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = unpack_arg2(" & slot_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = code & indent_lines(native_code(body, block_id), 2);
+
+      code = (code | "  }", "}");
+
+      return code;
+    }
+  }
+
+  String* native_foreach_code(SlaveTernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    arg1, arg2 = iter.args;
+    return match (arg1, arg2)
+      bound(v?),  _         = native_bin_table_foreach_code_1(iter.table_var, v, arg2, body, block_id),
+      _,          bound(v?) = native_bin_table_foreach_code_2(iter.table_var, arg1, v, body, block_id),
+      _,          _         = native_bin_table_foreach_code(iter.table_var, arg1, arg2, body, block_id);
+  }
+
+  String* native_foreach_code(TernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+  String* native_foreach_code(SemiSymTernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+}
