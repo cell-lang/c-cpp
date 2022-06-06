@@ -126,6 +126,7 @@
 
 ../compiler/src/G-code-preprocessing/rel-vars-part.cell
 ../compiler/src/G-code-preprocessing/rel-vars-perm.cell
+../compiler/src/G-code-preprocessing/expr-simpl.cell
 
 ../compiler/src/H-code-generation/cg.cell
 ../compiler/src/H-code-generation/utils.cell
