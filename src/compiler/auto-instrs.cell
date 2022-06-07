@@ -388,7 +388,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       mandatory_column()  = if set_args == (true, false)
                               then native_table_method_prefix(table)
                               else native_column_method_prefix(table.repr),
-      mandatory_column()  = native_column_method_prefix(table.repr),
       _                   = native_table_method_prefix(table);
     method_name = prefix & "_aux_" & base_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);
@@ -398,8 +397,10 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
                                 (true, true)  = true,
                                 _             = false
                             ),
+      master_bin_table()  = (table_var if set_args == (true, true)),
       slave_tern_table()  = (table.master if set_args != (false, false, false)),
       column()            = (table_var if set_args == (true, false)),
+      slave_column()      = (table_var if set_args == (true, false)),
       mandatory_column()  = (table.master if set_args == (true, false)),
       _                   = ();
     call_args = (ad_hoc_args | auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);

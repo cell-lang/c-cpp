@@ -326,6 +326,7 @@ implicit context : NativeContext {
   }
 
   String pending_updates_var_ref_name(TableVar table_var) = "&" & db_auxiliary_arg_name & "->" & pending_updates_var_decl_name(table_var);
+  String pending_updates_var_deref_name(TableVar table_var) = db_auxiliary_arg_name & "->" & pending_updates_var_decl_name(table_var);
 
   String dependee_msg_var_decl_name(LinkedDBVar) =
     linked_db_var(i?)   = "dependee_" & _print_(i) & "_msg";

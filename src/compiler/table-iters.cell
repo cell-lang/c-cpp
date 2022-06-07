@@ -299,7 +299,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  " & label & ":"
       );
 
-      arg1_read_instr = "  " & arg1_var & " = " & array_var & ".array[" & idx_var & "];";
+      arg1_read_instr = "  uint32 " & arg1_var & " = " & array_var & ".array[" & idx_var & "];";
       code = match (arg1)
         read(v?)  = (code | arg1_read_instr),
         ignored   = if maybe_surr_var != nothing then (code | arg1_read_instr) else code,

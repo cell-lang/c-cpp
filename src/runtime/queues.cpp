@@ -470,3 +470,86 @@ bool queue_3u32_contains_3(QUEUE_U32 *queue, uint32 value3) {
   }
   return false;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void queue_3u32_init(QUEUE_3U32 *queue) {
+  queue->capacity = QUEUE_INLINE_SIZE;
+  queue->count_ = 0;
+  queue->array = queue->inline_array;
+}
+
+void queue_3u32_reset(QUEUE_3U32 *queue) {
+  queue->count_ = 0;
+  if (queue->capacity != QUEUE_INLINE_SIZE) {
+    queue->capacity = QUEUE_INLINE_SIZE;
+    queue->array = queue->inline_array;
+  }
+}
+
+void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
+  uint32 capacity = queue->capacity;
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  assert(count <= capacity);
+  if (3 * (count + 1) > capacity) {
+    assert(2 * capacity > 3 * (count + 1));
+    array = (uint32 (*)[3]) resize_uint32_array((uint32 *) array, capacity, 2 * capacity);
+    queue->capacity = 2 * capacity;
+    queue->array = array;
+  }
+  uint32 *ptr = *(array + count);
+  ptr[0] = value1;
+  ptr[1] = value2;
+  ptr[2] = value3;
+  queue->count_ = count + 1;
+}
+
+void queue_3u32_prepare(QUEUE_3U32 *queue) {
+
+}
+
+bool queue_3u32_contains(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (array[i][0] == value1 && array[i][1] == value2 && array[i][2] == value3)
+      return true;
+  return false;
+}
+
+bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2) {
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (array[i][0] == value1 && array[i][1] == value2)
+      return true;
+  return false;
+}
+
+bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1) {
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (array[i][0] == value1)
+      return true;
+  return false;
+}
+
+bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2) {
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (array[i][1] == value2)
+      return true;
+  return false;
+}
+
+bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3) {
+  uint32 count = queue->count_;
+  uint32 (*array)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (array[i][2] == value3)
+      return true;
+  return false;
+}

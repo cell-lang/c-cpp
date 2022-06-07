@@ -215,7 +215,7 @@ struct QUEUE_U64 {
 
 struct QUEUE_3U32 {
   uint32 capacity;
-  uint32 count;
+  uint32 count_;
   uint32 (*array)[3];
   uint32 inline_array[QUEUE_INLINE_SIZE][3];
 };
@@ -391,8 +391,9 @@ struct MASTER_BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
-  QUEUE_U32 insertions;
+  QUEUE_3U32 insertions;
   QUEUE_U32 reinsertions;
+  unordered_map<uint64, uint32> reserved_surrs;
   uint32 last_surr;
   bool clear;
 };
@@ -2498,6 +2499,19 @@ bool queue_3u32_contains_12(QUEUE_U32 *, uint32, uint32);
 bool queue_3u32_contains_1(QUEUE_U32 *, uint32);
 bool queue_3u32_contains_2(QUEUE_U32 *, uint32);
 bool queue_3u32_contains_3(QUEUE_U32 *, uint32);
+
+////////////////////////////////////////////////////////////////////////////////
+
+void queue_3u32_init(QUEUE_3U32 *queue);
+void queue_3u32_reset(QUEUE_3U32 *queue);
+void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
+void queue_3u32_prepare(QUEUE_3U32 *queue);
+
+bool queue_3u32_contains(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
+bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2);
+bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1);
+bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2);
+bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

@@ -17,7 +17,7 @@ void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *
   queue_u32_init(&table_aux->deletions_1);
   queue_u32_init(&table_aux->deletions_2);
   queue_u32_init(&table_aux->reinsertions);
-  queue_u32_init(&table_aux->insertions);
+  queue_3u32_init(&table_aux->insertions);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -27,7 +27,8 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->deletions_1);
   queue_u32_reset(&table_aux->deletions_2);
   queue_u32_reset(&table_aux->reinsertions);
-  queue_u32_reset(&table_aux->insertions);
+  queue_3u32_reset(&table_aux->insertions);
+  table_aux->reserved_surrs.clear();
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -59,24 +60,35 @@ uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
     return surr;
   }
 
-  uint32 count_times_3 = table_aux->insertions.count;
-  if (count_times_3 > 0) {
+  uint32 count = table_aux->insertions.count_;
+  if (count > 0) {
     //## BAD BAD BAD: IMPLEMENT FOR REAL
-    uint32 *array = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count_times_3 ; i += 3) {
-      uint32 curr_arg1 = array[i];
-      uint32 curr_arg2 = array[i + 1];
+    uint32 (*ptr)[3] = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 curr_arg1 = (*ptr)[0];
+      uint32 curr_arg2 = (*ptr)[1];
       if (curr_arg1 == arg1 & curr_arg2 == arg2) {
-        surr = array[i + 2];
+        surr = (*ptr)[2];
         break;
       }
+      ptr++;
     }
   }
 
-  if (surr == 0xFFFFFFFF)
-    surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+  if (surr == 0xFFFFFFFF) {
+    unordered_map<uint64, uint32> &reserved_surrs = table_aux->reserved_surrs;
+    unordered_map<uint64, uint32>::iterator it = reserved_surrs.find(pack_args(arg1, arg2));
+    if (it != reserved_surrs.end()) {
+      surr = it->second;
+      reserved_surrs.erase(it);
+      assert(reserved_surrs.count(pack_args(arg1, arg2)) == 0);
+    }
+    else {
+      surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+      table_aux->last_surr = surr;
+    }
+  }
 
-  table_aux->last_surr = surr;
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
   return surr;
 }
@@ -89,29 +101,38 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
     return surr;
 
   //## BAD BAD BAD: IMPLEMENT FOR REAL
-  uint32 count_times_3 = table_aux->insertions.count;
-  uint32 *array = table_aux->insertions.array;
-  for (uint32 i=0 ; i < count_times_3 ; i += 3) {
-    uint32 curr_arg1 = array[i];
-    uint32 curr_arg2 = array[i + 1];
+  uint32 count = table_aux->insertions.count_;
+  uint32 (*ptr)[3] = table_aux->insertions.array;
+  for (uint32 i=0 ; i < count ; i++) {
+    uint32 curr_arg1 = (*ptr)[0];
+    uint32 curr_arg2 = (*ptr)[1];
     if (curr_arg1 == arg1 & curr_arg2 == arg2)
-      return array[i + 2];
+      return (*ptr)[2];
+    ptr++;
   }
 
-  //## BUG BUG BUG: NOT SURE THIS CANNOT HAPPEN
-  //## TRY TO TRICK THE CODE ALL THE WAY HERE
-  //## ACTUALLY THIS CAN HAPPEN, IF slave_tern_table_aux_insert(..) IS CALLED WITHOUT A CORRESPONDING TUPLE IN THE MASTER TABLE
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-  //## MAYBE IT WOULD BE BETTER TO KEEP THIS METHOD AS IS AND IMPLEMENT A SEPARATE master_bin_table_aux_lookup_surr_forced(..)
-  internal_fail();
+  uint64 args = pack_args(arg1, arg2);
+
+  unordered_map<uint64, uint32>::iterator it = table_aux->reserved_surrs.find(pack_args(arg1, arg2));
+  if (it != table_aux->reserved_surrs.end())
+    return it->second;
+
+  surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+  table_aux->last_surr = surr;
+  table_aux->reserved_surrs[args] = surr;
+  return surr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool) {
+  //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
+  //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
+  assert(table_aux->reserved_surrs.empty());
+
   // Removing from the surrogates already reserved for newly inserted tuples
   // from the list of free ones, so we can append to that list while deleting
-  uint32 ins_count = table_aux->insertions.count / 3;
+  uint32 ins_count = table_aux->insertions.count_;
   if (ins_count != 0) {
     assert(table_aux->last_surr != 0xFFFFFFFF);
     uint32 next_surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
@@ -292,16 +313,16 @@ void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *t
   }
 
   if (ins_count > 0) {
-    uint32 *array = table_aux->insertions.array;
+    uint32 (*ptr)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < ins_count ; i++) {
-      uint32 idx = 3 * i;
-      uint32 arg1 = array[idx];
-      uint32 arg2 = array[idx + 1];
-      uint32 surr = array[idx + 2];
+      uint32 arg1 = (*ptr)[0];
+      uint32 arg2 = (*ptr)[1];
+      uint32 surr = (*ptr)[2];
       if (master_bin_table_insert_with_surr(table, arg1, arg2, surr, mem_pool)) {
         incr_rc_1(store_1, arg1);
         incr_rc_2(store_2, arg2);
       }
+      ptr++;
     }
   }
 }
@@ -433,20 +454,23 @@ void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_prepare(&table_aux->deletions_1);
   queue_u32_prepare(&table_aux->deletions_2);
   queue_3u32_prepare(&table_aux->insertions);
-  queue_3u32_prepare(&table_aux->reinsertions);
+  queue_u32_prepare(&table_aux->reinsertions);
 }
 
 bool master_bin_table_aux_contains(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   if (queue_3u32_contains_12(&table_aux->insertions, arg1, arg2))
     return true;
 
-  if (queue_3u32_contains_12(&table_aux->reinsertions, arg1, arg2))
+  uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
+  assert(master_bin_table_contains(table, arg1, arg2) == (surr != 0xFFFFFFFF));
+
+  if (surr == 0xFFFFFFFF)
+    return false; // If it's not in the original table it cannot be in the reinsertion list either
+
+  if (queue_u32_contains(&table_aux->reinsertions, surr))
     return true;
 
   if (table_aux->clear)
-    return false;
-
-  if (!master_bin_table_contains(table, arg1, arg2))
     return false;
 
   if (queue_u32_contains(&table_aux->deletions_1, arg1))
@@ -466,13 +490,24 @@ bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
   if (queue_3u32_contains_1(&table_aux->insertions, arg1))
     return true;
 
-  if (queue_3u32_contains_1(&table_aux->reinsertions, arg1))
-    return true;
+  if (!master_bin_table_contains_1(table, arg1))
+    return false; // If it's not in the original table it cannot be in the reinsertions list either
+
+  uint32 reins_count = table_aux->reinsertions.count;
+  if (reins_count > 0) {
+    uint32 *array = table_aux->reinsertions.array;
+    uint64 *slots = table->slots;
+    for (uint32 i=0 ; i < reins_count ; i++) {
+      if (arg1 == unpack_arg1(slots[array[i]])) {
+        uint32 surr = array[i];
+        uint64 slot = slots[surr];
+        if (unpack_arg1(slot) == arg1)
+          return true;
+      }
+    }
+  }
 
   if (table_aux->clear)
-    return false;
-
-  if (!master_bin_table_contains_1(table, arg1))
     return false;
 
   if (queue_u32_contains(&table_aux->deletions_1, arg1))
@@ -491,13 +526,24 @@ bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
   if (queue_3u32_contains_2(&table_aux->insertions, arg2))
     return true;
 
-  if (queue_3u32_contains_2(&table_aux->reinsertions, arg2))
-    return true;
+  if (!master_bin_table_contains_2(table, arg2))
+    return false; // If it's not in the original table it cannot be in the reinsertions list either
+
+  uint32 reins_count = table_aux->reinsertions.count;
+  if (reins_count > 0) {
+    uint32 *array = table_aux->reinsertions.array;
+    uint64 *slots = table->slots;
+    for (uint32 i=0 ; i < reins_count ; i++) {
+      if (arg2 == unpack_arg2(slots[array[i]])) {
+        uint32 surr = array[i];
+        uint64 slot = slots[surr];
+        if (unpack_arg2(slot) == arg2)
+          return true;
+      }
+    }
+  }
 
   if (table_aux->clear)
-    return false;
-
-  if (!master_bin_table_contains_2(table, arg2))
     return false;
 
   if (queue_u32_contains(&table_aux->deletions_2, arg2))
@@ -542,7 +588,7 @@ bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
 }
 
 bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
-  if (table_aux->insertions.count > 0 || table_aux->reinsertions.count > 0)
+  if (table_aux->insertions.count_ > 0 || table_aux->reinsertions.count > 0)
     return false;
 
   if (table_aux->clear)
@@ -613,11 +659,11 @@ bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
 ////////////////////////////////////////////////////////////////////////////////
 
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
-  uint32 num_ins = table_aux->insertions.count / 3;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 arg1 = insertions[3 * i];
+      uint32 arg1 = insertions[i][0];
       if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
         //## RECORD THE ERROR
         return false;
@@ -631,11 +677,11 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TAB
 }
 
 bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
-  uint32 num_ins = table_aux->insertions.count;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 arg2 = insertions[3 * i + 1];
+      uint32 arg2 = insertions[i][1];
       if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
         //## RECORD THE ERROR
         return false;
@@ -651,11 +697,11 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TAB
 //## BAD BAD BAD: THE FOLLOWING FOUR METHODS ARE NEARLY IDENTICAL
 
 bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
-  uint32 num_ins = table_aux->insertions.count / 3;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[3 * i + 2];
+      uint32 surr = insertions[i][2];
       if (!bin_table_aux_contains_1(target_table, &target_table_aux->slave_table_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -669,11 +715,11 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_
 }
 
 bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *target_col, OBJ_COL_AUX *target_col_aux) {
-  uint32 num_ins = table_aux->insertions.count / 3;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[3 * i + 2];
+      uint32 surr = insertions[i][2];
       if (!obj_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -687,11 +733,11 @@ bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *ta
 }
 
 bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *target_col, INT_COL_AUX *target_col_aux) {
-  uint32 num_ins = table_aux->insertions.count / 3;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[3 * i + 2];
+      uint32 surr = insertions[i][2];
       if (!int_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -705,11 +751,11 @@ bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *ta
 }
 
 bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *target_col, FLOAT_COL_AUX *target_col_aux) {
-  uint32 num_ins = table_aux->insertions.count / 3;
+  uint32 num_ins = table_aux->insertions.count_;
   if (num_ins > 0) {
-    uint32 *insertions = table_aux->insertions.array;
+    uint32 (*insertions)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[3 * i + 2];
+      uint32 surr = insertions[i][2];
       if (!float_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -784,11 +830,11 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count / 3;
+    uint32 num_ins = table_aux->insertions.count_;
     if (num_ins > 0) {
-      uint32 *insertions = table_aux->insertions.array;
+      uint32 (*insertions)[3] = table_aux->insertions.array;
       for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg1 = insertions[3 * i];
+        uint32 arg1 = insertions[i][0];
         inserted.insert(arg1);
       }
     }
@@ -880,11 +926,11 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count / 3;
+    uint32 num_ins = table_aux->insertions.count_;
     if (num_ins > 0) {
-      uint32 *insertions = table_aux->insertions.array;
+      uint32 (*insertions)[3] = table_aux->insertions.array;
       for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg2 = insertions[3 * i + 1];
+        uint32 arg2 = insertions[i][1];
         inserted.insert(arg2);
       }
     }
