@@ -1,10 +1,25 @@
 Nat nanoseconds_since_epoc_at_compilation_time = undefined;
 
 
+String format_iso_time(Time time) {
+  year, month, day = (printed(n) : n <- year_month_day(day(time)));
+  hour = printed(hour(time));
+  minute = printed(minute(time));
+  second = printed(second(time));
+  return year & "-" & month & "-" & day & " " & hour & ":" & minute & ":" & second;
+
+  String printed(Int n) {
+    str = _print_(n);
+    str = "0" & str if length(str) < 2;
+    return str;
+  }
+}
+
+
 Int Main(String* args) {
   argc = |args|;
 
-  version = "0.7 alpha (" & _print_(:time(nanoseconds_since_epoc_at_compilation_time)) & ")";
+  version = "0.7 alpha (" & format_iso_time(:time(nanoseconds_since_epoc_at_compilation_time)) & ")";
 
   if argc < 2 {
     Print(
