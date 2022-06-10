@@ -133,6 +133,26 @@ static void obj_col_aux_record_col_1_key_violation(OBJ_COL *col, OBJ_COL_AUX *co
 
 //////////////////////////////////////////////////////////////////////////////
 
+static bool obj_col_aux_value_set_at_is(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
+  uint32 count = col_aux->insertions.count;
+  uint32 *idxs = col_aux->insertions.u32_array;
+
+  for (uint32 i=0 ; i < count ; i++)
+    if (idxs[i] == index)
+      return are_eq(col_aux->insertions.obj_array[i], value);
+
+  count = col_aux->updates.count;
+  idxs = col_aux->updates.u32_array;
+  for (uint32 i=0 ; i < count ; i++)
+    if (idxs[i] == index)
+      return are_eq(col_aux->updates.obj_array[i], value);
+
+  if (obj_col_contains_1(col, index))
+    return are_eq(obj_col_lookup(col, index), value);
+
+  internal_fail();
+}
+
 //## NEARLY IDENTICAL TO THE CORRESPONDING INT AND FLOAT VERSIONS
 bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   assert(col_aux->status_map.bit_map.num_dirty == 0);
@@ -167,8 +187,20 @@ bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL 
       uint32 num_deletes = col_aux->deletions.count;
       if (num_deletes != 0) {
         uint32 *idxs = col_aux->deletions.array;
-        for (uint32 i=0 ; i < num_deletes ; i++)
-          col_update_status_map_mark_deletion(&col_aux->status_map, idxs[i], mem_pool);
+        for (uint32 i=0 ; i < num_deletes ; i++) {
+          uint32 idx = idxs[i];
+          if (obj_col_contains_1(col, idx))
+            col_update_status_map_mark_deletion(&col_aux->status_map, idx, mem_pool);
+        }
+      }
+
+      if (num_updates != 0) {
+        uint32 *idxs = col_aux->updates.u32_array;
+        for (uint32 i=0 ; i < num_updates ; i++) {
+          uint32 idx = idxs[i];
+          if (obj_col_contains_1(col, idx))
+            col_update_status_map_mark_deletion(&col_aux->status_map, idx, mem_pool);
+        }
       }
 
       if (num_insertions != 0) {
@@ -176,28 +208,32 @@ bool obj_col_aux_check_key_1(OBJ_COL *col, OBJ_COL_AUX *col_aux, STATE_MEM_POOL 
         for (uint32 i=0 ; i < num_insertions ; i++) {
           uint32 idx = idxs[i];
           //## COULD BE MADE MORE EFFICIENT IF WE MERGED THE .._deleted_flag_is_set(..) WITH .._check_and_mark_insertion(..)
-          if (obj_col_contains_1(col, idx) && !col_update_status_map_deleted_flag_is_set(&col_aux->status_map, idx)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
+          if (obj_col_contains_1(col, idx) && !col_update_status_map_deleted_flag_is_set(&col_aux->status_map, idx))
+            if (!are_eq(obj_col_lookup(col, idx), col_aux->insertions.obj_array[i])) {
+              //## CLEAR?
+              //## RECORD THE ERROR
+              return false;
+            }
 
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool))
+            if (!obj_col_aux_value_set_at_is(col, col_aux, idx, col_aux->insertions.obj_array[i])) {
+              //## CLEAR?
+              //## RECORD THE ERROR
+              return false;
+            }
         }
       }
 
       if (num_updates != 0) {
         uint32 *idxs = col_aux->updates.u32_array;
         for (uint32 i=0 ; i < num_updates ; i++) {
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
+          uint32 idx = idxs[i];
+          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idx, mem_pool))
+            if (!obj_col_aux_value_set_at_is(col, col_aux, idx, col_aux->updates.obj_array[i])) {
+              //## CLEAR?
+              //## RECORD THE ERROR
+              return false;
+            }
         }
       }
     }

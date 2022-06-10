@@ -161,3 +161,6 @@ clean:
 	@rm -rf cellc-cs cellc.net generated.cpp cellc-cs.cpp
 	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o gmon.out
 	@mkdir tmp/ tmp/null/
+
+objs/dbg/%.o: src/runtime/%.cpp
+	g++ -c -ggdb -I src/runtime/ $< -o $@

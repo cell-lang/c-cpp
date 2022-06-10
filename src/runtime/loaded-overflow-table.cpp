@@ -901,7 +901,7 @@ UINT32_ARRAY loaded_overflow_table_range_copy(ARRAY_MEM_POOL *array_pool, uint64
     //## WARNING: THIS ONLY WORKS ON LITTLE-ENDIAM CPUS
     result.array = (uint32 *) (array_pool->slots + block_idx);
     result.size = get_count(handle);
-    result.offset = array_pool->size;
+    result.offset = 2 * array_pool->size;
   }
   else {
     result.array = output;

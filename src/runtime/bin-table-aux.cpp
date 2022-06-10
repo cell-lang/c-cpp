@@ -485,7 +485,7 @@ void bin_table_aux_prepare(BIN_TABLE_AUX *table_aux) {
 }
 
 bool bin_table_aux_contains(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 args = pack_args(arg1, arg2);
+  uint64 args = pack_args(arg1, arg2);
 
   if (queue_u64_contains(&table_aux->insertions, args))
     return true;

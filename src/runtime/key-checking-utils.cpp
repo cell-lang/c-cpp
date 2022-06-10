@@ -111,7 +111,7 @@ bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index) {
   uint32 word_idx = index / 64;
   uint32 bit_idx = index % 64;
   uint64 word = bit_map->bits[word_idx];
-  return ((word >> bit_idx) & 1) == 0;
+  return ((word >> bit_idx) & 1) != 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

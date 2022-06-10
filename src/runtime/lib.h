@@ -1704,8 +1704,9 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX
 // bool master_bin_table_aux_check_key_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 // bool master_bin_table_aux_check_key_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux);
 
-void master_bin_table_aux_apply(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
-void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux);
+void master_bin_table_aux_apply(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *);
+void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *);
+void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *);
 
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);

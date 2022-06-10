@@ -255,6 +255,21 @@ uint32 master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32
   return surr;
 }
 
+uint32 master_bin_table_lookup_possibly_locked_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  uint32 surr = loaded_one_way_bin_table_payload(&table->table.forward, arg1, arg2);
+#ifndef NDEBUG
+  if (surr != 0xFFFFFFFF) {
+    assert(surr < table->capacity);
+    uint64 slot = table->slots[surr];
+    if (is_locked(slot))
+      slot = unlock_slot(slot);
+    assert(unpack_arg1(slot) == arg1);
+    assert(unpack_arg2(slot) == arg2);
+  }
+#endif
+  return surr;
+}
+
 uint64 *master_bin_table_slots(MASTER_BIN_TABLE *table) {
   return table->slots;
 }
