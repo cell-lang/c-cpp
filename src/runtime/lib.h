@@ -411,7 +411,7 @@ struct SYM_MASTER_BIN_TABLE_ITER_1 {
 struct SYM_MASTER_BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
-  QUEUE_U32 insertions;
+  QUEUE_3U32 insertions;
   QUEUE_U32 reinsertions;
   uint32 last_surr;
   bool clear;
@@ -481,7 +481,7 @@ struct TERN_TABLE_AUX {
   MASTER_BIN_TABLE_AUX master;
   BIN_TABLE_AUX slave;
   QUEUE_U32 surr12_follow_ups;
-  QUEUE_U32 insertions; //## THIS SHOULD BE USED ONLY WHEN THERE'S A 1-3 OR 2-3 KEY (WHAT ABOUT FOREIGN KEYS?)
+  QUEUE_3U32 insertions; //## THIS SHOULD BE USED ONLY WHEN THERE'S A 1-3 OR 2-3 KEY (WHAT ABOUT FOREIGN KEYS?)
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1141,7 +1141,7 @@ void sort_u64(uint64 *array, uint32 len);
 void sort_3u32(uint32 *array, uint32 len);
 
 void sort_unique_u32(uint32 *, uint32 *);
-void sort_unique_3u32(uint32 *, uint32 *);
+void sort_unique_3u32(uint32 (*)[3], uint32 *);
 
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
@@ -2488,21 +2488,6 @@ void queue_u64_prepare_2(QUEUE_U64 *);
 bool queue_u64_contains_2(QUEUE_U64 *, uint32);
 bool queue_u64_unique_count(QUEUE_U64 *);
 
-void queue_2u32_insert(QUEUE_U32 *, uint32, uint32);
-
-void queue_3u32_insert(QUEUE_U32 *, uint32, uint32, uint32);
-void queue_3u32_prepare(QUEUE_U32 *);
-void queue_3u32_sort_unique(QUEUE_U32 *);
-void queue_3u32_permute_132(QUEUE_U32 *);
-void queue_3u32_permute_231(QUEUE_U32 *);
-bool queue_3u32_contains(QUEUE_U32 *, uint32, uint32, uint32);
-bool queue_3u32_contains_12(QUEUE_U32 *, uint32, uint32);
-bool queue_3u32_contains_1(QUEUE_U32 *, uint32);
-bool queue_3u32_contains_2(QUEUE_U32 *, uint32);
-bool queue_3u32_contains_3(QUEUE_U32 *, uint32);
-
-////////////////////////////////////////////////////////////////////////////////
-
 void queue_3u32_init(QUEUE_3U32 *queue);
 void queue_3u32_reset(QUEUE_3U32 *queue);
 void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
@@ -2513,6 +2498,10 @@ bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2);
 bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1);
 bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2);
 bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3);
+
+void queue_3u32_sort_unique(QUEUE_3U32 *);
+void queue_3u32_permute_132(QUEUE_3U32 *);
+void queue_3u32_permute_231(QUEUE_3U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

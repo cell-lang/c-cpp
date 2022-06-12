@@ -5,14 +5,14 @@ void tern_table_aux_init(TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   master_bin_table_aux_init(&table_aux->master, mem_pool);
   bin_table_aux_init(&table_aux->slave, mem_pool);
   queue_u32_init(&table_aux->surr12_follow_ups);
-  queue_u32_init(&table_aux->insertions);
+  queue_3u32_init(&table_aux->insertions);
 }
 
 void tern_table_aux_reset(TERN_TABLE_AUX *table_aux) {
   master_bin_table_aux_reset(&table_aux->master);
   bin_table_aux_reset(&table_aux->slave);
   queue_u32_reset(&table_aux->surr12_follow_ups);
-  queue_u32_reset(&table_aux->insertions); //## THIS SHOULD ONLY BE DONE WHEN THERE'S A 1-3 OR 2-3 KEY
+  queue_3u32_reset(&table_aux->insertions); //## THIS SHOULD ONLY BE DONE WHEN THERE'S A 1-3 OR 2-3 KEY
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -196,11 +196,11 @@ bool tern_table_aux_check_key_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, S
 }
 
 bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  uint32 count = table_aux->insertions.count % 3;
+  uint32 count = table_aux->insertions.count_;
   if (count == 0)
     return true;
 
-  uint32 *array = table_aux->insertions.array;
+  uint32 (*array)[3] = table_aux->insertions.array;
 
   queue_3u32_permute_132(&table_aux->insertions);
 
@@ -209,35 +209,33 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   if (count > 1) {
     queue_3u32_sort_unique(&table_aux->insertions);
 
-    uint32 *ptr = array;
-    uint32 prev_arg1 = ptr[0];
-    uint32 prev_arg3 = ptr[1];
+    uint32 (*ptr)[3] = array;
+    uint32 prev_arg1 = ptr[0][0];
+    uint32 prev_arg3 = ptr[0][1];
 
     for (uint32 i=1 ; i < count ; i++) {
-      ptr += 3;
-      uint32 arg1 = ptr[0];
-      uint32 arg3 = ptr[1];
+      uint32 arg1 = ptr[i][0];
+      uint32 arg3 = ptr[i][1];
       if (arg1 == prev_arg1 & arg3 == prev_arg3) {
-        uint32 arg2 = ptr[2];
-        uint32 prev_arg2 = ptr[-1];
+        uint32 arg2 = ptr[i][2];
+        uint32 prev_arg2 = ptr[i-1][2];
         tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, prev_arg2, true);
         return false;
       }
-
       prev_arg1 = arg1;
       prev_arg3 = arg3;
     }
   }
 
   // Now we need to check if the new tuples conflict with the existing ones
-  uint32 *ptr = array;
+  uint32 (*ptr)[3] = array;
   for (uint32 i=0 ; i < count ; i++) {
-    uint32 arg1 = ptr[0];
-    uint32 arg3 = ptr[1];
+    uint32 arg1 = ptr[i][0];
+    uint32 arg3 = ptr[i][1];
     if (tern_table_contains_13(table, arg1, arg3)) {
       assert(tern_table_count_13(table, arg1, arg3) == 1);
 
-      uint32 arg2 = ptr[2];
+      uint32 arg2 = ptr[i][2];
       //## tern_table_lookup_13 DOES SOME EXTRA WORK TO MAKE SURE THAT THE
       //## SECOND ARGUMENT IS UNIQUE, BUT THAT'S UNNECESSARY HERE. FIX THAT
       uint32 existing_arg2 = tern_table_lookup_13(table, arg1, arg3);
@@ -257,11 +255,11 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 }
 
 bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  uint32 count = table_aux->insertions.count % 3;
+  uint32 count = table_aux->insertions.count_;
   if (count == 0)
     return true;
 
-  uint32 *array = table_aux->insertions.array;
+  uint32 (*array)[3] = table_aux->insertions.array;
 
   // First we need to check that there are no conflicts among insertions.
   // That can be done with a sort based on second and third argument
@@ -269,36 +267,34 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   if (count > 1) {
     queue_3u32_sort_unique(&table_aux->insertions);
 
-    uint32 *ptr = array;
-    uint32 prev_arg2 = ptr[0];
-    uint32 prev_arg3 = ptr[1];
+    uint32 (*ptr)[3] = array;
+    uint32 prev_arg2 = ptr[0][0];
+    uint32 prev_arg3 = ptr[0][1];
 
     for (uint32 i=1 ; i < count ; i++) {
-      ptr += 3;
-      uint32 arg2 = ptr[0];
-      uint32 arg3 = ptr[1];
+      uint32 arg2 = ptr[i][0];
+      uint32 arg3 = ptr[i][1];
       if (arg2 == prev_arg2 & arg3 == prev_arg3) {
-        uint32 arg1 = ptr[2];
-        uint32 prev_arg1 = ptr[-1];
+        uint32 arg1 = ptr[i][2];
+        uint32 prev_arg1 = ptr[i-1][2];
         tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, prev_arg1, true);
         // No need to permute back to the normal order, since the 2-3 key is checked after the 1-3 one, if this is present
         return false;
       }
-
       prev_arg2 = arg2;
       prev_arg3 = arg3;
     }
   }
 
   // Now we need to check if the new tuples conflict with the existing ones
-  uint32 *ptr = array;
+  uint32 (*ptr)[3] = array;
   for (uint32 i=0 ; i < count ; i++) {
-    uint32 arg2 = ptr[0];
-    uint32 arg3 = ptr[1];
+    uint32 arg2 = ptr[i][0];
+    uint32 arg3 = ptr[i][1];
     if (tern_table_contains_23(table, arg2, arg3)) {
       assert(tern_table_count_23(table, arg2, arg3) == 1);
 
-      uint32 arg1 = ptr[2];
+      uint32 arg1 = ptr[i][2];
       //## tern_table_lookup_13 DOES SOME EXTRA WORK TO MAKE SURE THAT THE
       //## SECOND ARGUMENT IS UNIQUE, BUT THAT'S UNNECESSARY HERE. FIX THAT
       uint32 existing_arg1 = tern_table_lookup_23(table, arg2, arg3);
