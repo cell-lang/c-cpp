@@ -40,6 +40,10 @@ uint32 sym_bin_table_restrict(BIN_TABLE *table, uint32 arg, uint32 *other_args) 
   return fwd_count + bkw_count;
 }
 
+UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
 uint32 sym_bin_table_lookup(BIN_TABLE *table, uint32 arg) {
   uint32 other_arg = one_way_bin_table_lookup(&table->forward, arg);
   assert(other_arg == 0xFFFFFFFF || other_arg >= arg);
@@ -114,66 +118,4 @@ void sym_bin_table_copy_to(BIN_TABLE *table, OBJ (*surr_to_obj)(void *, uint32),
 
 void sym_bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr_to_obj)(void *, uint32), void *store) {
   bin_table_write(write_state, table, surr_to_obj, store, surr_to_obj, store, false, false);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void sym_bin_table_iter_init_empty(BIN_TABLE_ITER *iter) {
-  bin_table_iter_init_empty(iter);
-}
-
-void sym_bin_table_iter_init(BIN_TABLE *table, BIN_TABLE_ITER *iter) {
-  bin_table_iter_init(table, iter);
-}
-
-void sym_bin_table_iter_move_forward(BIN_TABLE_ITER *iter) {
-  bin_table_iter_move_forward(iter);
-}
-
-bool sym_bin_table_iter_is_out_of_range(BIN_TABLE_ITER *iter) {
-  return bin_table_iter_is_out_of_range(iter);
-}
-
-uint32 sym_bin_table_iter_get_1(BIN_TABLE_ITER *iter) {
-  return bin_table_iter_get_1(iter);
-}
-
-uint32 sym_bin_table_iter_get_2(BIN_TABLE_ITER *iter) {
-  return bin_table_iter_get_2(iter);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void sym_bin_table_iter_1_init_empty(BIN_TABLE_ITER_1 *iter) {
-#ifndef NDEBUG
-  iter->args = NULL;
-#endif
-  iter->left = 0;
-}
-
-void sym_bin_table_iter_1_init(BIN_TABLE *table, BIN_TABLE_ITER_1 *iter, uint32 arg) {
-  uint32 count = sym_bin_table_count(table, arg);
-
-  if (count > 0) {
-    uint32 *other_args = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
-    uint32 count_ = sym_bin_table_restrict(table, arg, other_args);
-    assert(count_ == count);
-
-    iter->args = other_args;
-    iter->left = count;
-  }
-  else
-    sym_bin_table_iter_1_init_empty(iter);
-}
-
-void sym_bin_table_iter_1_move_forward(BIN_TABLE_ITER_1 *iter) {
-  bin_table_iter_1_move_forward(iter);
-}
-
-bool sym_bin_table_iter_1_is_out_of_range(BIN_TABLE_ITER_1 *iter) {
-  return bin_table_iter_1_is_out_of_range(iter);
-}
-
-uint32 sym_bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *iter) {
-  return bin_table_iter_1_get_1(iter);
 }

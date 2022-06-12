@@ -37,11 +37,20 @@ void unary_table_aux_clear(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
 
 void unary_table_aux_apply(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
-    UNARY_TABLE_ITER iter;
-    unary_table_iter_init(table, &iter);
-    while (!unary_table_iter_is_out_of_range(&iter)) {
-      uint32 surr = unary_table_iter_get(&iter);
-      decr_rc(store, store_aux, surr);
+    uint32 left = table->count;
+    uint64 *bitmap = table->bitmap;
+    for (uint32 word_idx=0 ; left > 0 ; word_idx++) {
+      uint64 word = bitmap[word_idx];
+      for (uint32 bit_idx=0 ; word != 0 ; bit_idx++) {
+        if (word & 1 != 0) {
+          left--;
+          uint32 surr = 64 * word_idx + bit_idx;
+
+          decr_rc(store, store_aux, surr);
+
+        }
+        word >>= 1;
+      }
     }
   }
   else {

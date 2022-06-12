@@ -263,12 +263,6 @@ struct UNARY_TABLE {
   uint32 count;
 };
 
-struct UNARY_TABLE_ITER {
-  uint64 *bitmap;
-  uint32 index;
-  uint32 left;
-};
-
 struct UNARY_TABLE_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32 insertions;
@@ -316,30 +310,6 @@ struct BIN_TABLE {
   ONE_WAY_BIN_TABLE backward;
 };
 
-const uint32 BIN_TABLE_ITER_INLINE_SIZE = 256; //## TOO MUCH?
-
-struct BIN_TABLE_ITER {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  BIN_TABLE *table;
-  uint32 *arg2s;
-  uint32 capacity;
-  uint32 idx_last;
-  uint32 arg1;
-  uint32 left;
-};
-
-struct BIN_TABLE_ITER_1 {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  uint32 *args;
-  uint32 left;
-};
-
-struct BIN_TABLE_ITER_2 {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  uint32 *args;
-  uint32 left;
-};
-
 struct BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
   QUEUE_U64 deletions;
@@ -365,28 +335,6 @@ struct MASTER_BIN_TABLE {
   uint32 first_free;
 };
 
-struct MASTER_BIN_TABLE_ITER {
-  uint64 *slots;
-  uint32 index;
-  uint32 left;
-};
-
-struct MASTER_BIN_TABLE_ITER_1 {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  uint32 *arg2s;
-  uint32 *surrs;
-  uint32 left;
-};
-
-struct MASTER_BIN_TABLE_ITER_2 {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  ONE_WAY_BIN_TABLE *forward;
-  uint32 *arg1s;
-  uint32 arg2;
-  uint32 left;
-
-};
-
 struct MASTER_BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
@@ -400,14 +348,6 @@ struct MASTER_BIN_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct SYM_MASTER_BIN_TABLE_ITER_1 {
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  ONE_WAY_BIN_TABLE *forward;
-  uint32 *other_args;
-  uint32 arg;
-  uint32 left;
-};
-
 struct SYM_MASTER_BIN_TABLE_AUX {
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
@@ -419,55 +359,8 @@ struct SYM_MASTER_BIN_TABLE_AUX {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct SLAVE_TERN_TABLE_ITER {
-  MASTER_BIN_TABLE_ITER master_iter;
-  BIN_TABLE_ITER_1 slave_iter;
-  BIN_TABLE *slave_table;
-};
-
-struct SLAVE_TERN_TABLE_ITER_1 {
-  MASTER_BIN_TABLE_ITER_1 master_iter;
-  BIN_TABLE_ITER_1 slave_iter;
-  BIN_TABLE *slave_table;
-};
-
-struct SLAVE_TERN_TABLE_ITER_2 {
-  MASTER_BIN_TABLE_ITER_2 master_iter;
-  BIN_TABLE_ITER_1 slave_iter;
-  BIN_TABLE *slave_table;
-};
-
-struct SLAVE_TERN_TABLE_ITER_12 {
-  BIN_TABLE_ITER_1 slave_iter;
-};
-
-struct SLAVE_TERN_TABLE_ITER_3 {
-  BIN_TABLE_ITER_2 slave_iter;
-  MASTER_BIN_TABLE *master_table;
-};
-
-struct SLAVE_TERN_TABLE_ITER_13 {
-  BIN_TABLE_ITER_2 slave_iter;
-  MASTER_BIN_TABLE *master_table;
-  uint32 arg1;
-};
-
-struct SLAVE_TERN_TABLE_ITER_23 {
-  BIN_TABLE_ITER_2 slave_iter;
-  MASTER_BIN_TABLE *master_table;
-  uint32 arg2;
-};
-
 struct SLAVE_TERN_TABLE_AUX {
   BIN_TABLE_AUX slave_table_aux;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
-struct SEMISYM_SLAVE_TERN_TABLE_ITER_1 {
-  SYM_MASTER_BIN_TABLE_ITER_1 master_iter;
-  BIN_TABLE_ITER_1 slave_iter;
-  BIN_TABLE *slave_table;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -572,11 +465,6 @@ struct RAW_OBJ_COL {
 #endif
 };
 
-struct RAW_OBJ_COL_ITER {
-  UNARY_TABLE_ITER iter;
-  OBJ *array;
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 
 struct RAW_INT_COL {
@@ -586,11 +474,6 @@ struct RAW_INT_COL {
 #endif
 };
 
-struct RAW_INT_COL_ITER {
-  UNARY_TABLE_ITER iter;
-  int64 *array;
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 
 struct RAW_FLOAT_COL {
@@ -598,11 +481,6 @@ struct RAW_FLOAT_COL {
 #ifndef NDEBUG
   uint32 capacity;
 #endif
-};
-
-struct RAW_FLOAT_COL_ITER {
-  UNARY_TABLE_ITER iter;
-  double *array;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1454,11 +1332,6 @@ void unary_table_clear(UNARY_TABLE *);
 void unary_table_copy_to(UNARY_TABLE *table, OBJ (*)(void *, uint32), void *, STREAM *stream);
 void unary_table_write(WRITE_FILE_STATE *, UNARY_TABLE *, OBJ (*)(void *, uint32), void *);
 
-void unary_table_iter_init(UNARY_TABLE *, UNARY_TABLE_ITER *);
-void unary_table_iter_move_forward(UNARY_TABLE_ITER *);
-bool unary_table_iter_is_out_of_range(UNARY_TABLE_ITER *);
-uint32 unary_table_iter_get(UNARY_TABLE_ITER *);
-
 ///////////////////////////// unary-table-aux.cpp //////////////////////////////
 
 void   unary_table_aux_init(UNARY_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1524,25 +1397,6 @@ bool bin_table_col_2_is_key(BIN_TABLE *);
 void bin_table_copy_to(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
 
-void bin_table_iter_init_empty(BIN_TABLE_ITER *);
-void bin_table_iter_init(BIN_TABLE *, BIN_TABLE_ITER *);
-void bin_table_iter_move_forward(BIN_TABLE_ITER *);
-bool bin_table_iter_is_out_of_range(BIN_TABLE_ITER *);
-uint32 bin_table_iter_get_1(BIN_TABLE_ITER *);
-uint32 bin_table_iter_get_2(BIN_TABLE_ITER *);
-
-void bin_table_iter_1_init_empty(BIN_TABLE_ITER_1 *);
-void bin_table_iter_1_init(BIN_TABLE *, BIN_TABLE_ITER_1 *, uint32 arg1);
-void bin_table_iter_1_move_forward(BIN_TABLE_ITER_1 *);
-bool bin_table_iter_1_is_out_of_range(BIN_TABLE_ITER_1 *);
-uint32 bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *);
-
-void bin_table_iter_2_init_empty(BIN_TABLE_ITER_2 *);
-void bin_table_iter_2_init(BIN_TABLE *, BIN_TABLE_ITER_2 *, uint32 arg2);
-void bin_table_iter_2_move_forward(BIN_TABLE_ITER_2 *);
-bool bin_table_iter_2_is_out_of_range(BIN_TABLE_ITER_2 *);
-uint32 bin_table_iter_2_get_1(BIN_TABLE_ITER_2 *);
-
 /////////////////////////////// bin-table-aux.cpp //////////////////////////////
 
 void bin_table_aux_init(BIN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1583,6 +1437,7 @@ bool sym_bin_table_contains(BIN_TABLE *, uint32 arg1, uint32 arg2);
 bool sym_bin_table_contains_1(BIN_TABLE *, uint32 arg);
 uint32 sym_bin_table_count(BIN_TABLE *, uint32 arg);
 uint32 sym_bin_table_restrict(BIN_TABLE *, uint32 arg, uint32 *other_args);
+UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity);
 uint32 sym_bin_table_lookup(BIN_TABLE *, uint32 arg);
 
 bool sym_bin_table_insert(BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
@@ -1592,19 +1447,6 @@ void sym_bin_table_clear(BIN_TABLE *, STATE_MEM_POOL *);
 
 void sym_bin_table_copy_to(BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
 void sym_bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store);
-
-void sym_bin_table_iter_init_empty(BIN_TABLE_ITER *);
-void sym_bin_table_iter_init(BIN_TABLE *, BIN_TABLE_ITER *);
-void sym_bin_table_iter_move_forward(BIN_TABLE_ITER *);
-bool sym_bin_table_iter_is_out_of_range(BIN_TABLE_ITER *);
-uint32 sym_bin_table_iter_get_1(BIN_TABLE_ITER *);
-uint32 sym_bin_table_iter_get_2(BIN_TABLE_ITER *);
-
-void sym_bin_table_iter_1_init_empty(BIN_TABLE_ITER_1 *);
-void sym_bin_table_iter_1_init(BIN_TABLE *, BIN_TABLE_ITER_1 *, uint32 arg);
-void sym_bin_table_iter_1_move_forward(BIN_TABLE_ITER_1 *);
-bool sym_bin_table_iter_1_is_out_of_range(BIN_TABLE_ITER_1 *);
-uint32 sym_bin_table_iter_1_get_1(BIN_TABLE_ITER_1 *);
 
 ///////////////////////////// sym-bin-table-aux.cpp ////////////////////////////
 
@@ -1664,31 +1506,6 @@ bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, 
 void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2);
 void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped);
 
-void master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *);
-void master_bin_table_iter_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER *);
-void master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *);
-bool master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *);
-uint32 master_bin_table_iter_get_1(MASTER_BIN_TABLE_ITER *);
-uint32 master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *);
-uint32 master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *);
-
-void master_bin_table_iter_1_init_empty(MASTER_BIN_TABLE_ITER_1 *);
-void master_bin_table_iter_1_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER_1 *, uint32 arg1);
-void master_bin_table_iter_1_init_surrs(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER_1 *, uint32 arg1);
-void master_bin_table_iter_1_move_forward(MASTER_BIN_TABLE_ITER_1 *);
-bool master_bin_table_iter_1_is_out_of_range(MASTER_BIN_TABLE_ITER_1 *);
-uint32 master_bin_table_iter_1_get_1(MASTER_BIN_TABLE_ITER_1 *);
-uint32 master_bin_table_iter_1_get_2(MASTER_BIN_TABLE_ITER_1 *);
-uint32 master_bin_table_iter_1_get_surr(MASTER_BIN_TABLE_ITER_1 *);
-
-void master_bin_table_iter_2_init_empty(MASTER_BIN_TABLE_ITER_2 *);
-void master_bin_table_iter_2_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER_2 *, uint32 arg2);
-void master_bin_table_iter_2_move_forward(MASTER_BIN_TABLE_ITER_2 *);
-bool master_bin_table_iter_2_is_out_of_range(MASTER_BIN_TABLE_ITER_2 *);
-uint32 master_bin_table_iter_2_get_1(MASTER_BIN_TABLE_ITER_2 *);
-uint32 master_bin_table_iter_2_get_2(MASTER_BIN_TABLE_ITER_2 *);
-uint32 master_bin_table_iter_2_get_surr(MASTER_BIN_TABLE_ITER_2 *);
-
 /////////////////////////// master-bin-table-aux.cpp ///////////////////////////
 
 void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *);
@@ -1738,6 +1555,7 @@ bool sym_master_bin_table_contains_1(MASTER_BIN_TABLE *, uint32 arg);
 bool sym_master_bin_table_contains_surr(MASTER_BIN_TABLE *, uint32 surr);
 uint32 sym_master_bin_table_count(MASTER_BIN_TABLE *, uint32 arg);
 uint32 sym_master_bin_table_restrict(MASTER_BIN_TABLE *, uint32 arg, uint32 *other_args);
+UINT32_ARRAY sym_master_bin_table_range_restrict(MASTER_BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity);
 uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *, uint32 arg);
 uint32 sym_master_bin_table_lookup_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
 uint32 sym_master_bin_table_get_arg_1(MASTER_BIN_TABLE *, uint32 surr);
@@ -1752,21 +1570,6 @@ void sym_master_bin_table_clear(MASTER_BIN_TABLE *, STATE_MEM_POOL *);
 
 void sym_master_bin_table_copy_to(MASTER_BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
 void sym_master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *, OBJ (*surr_to_obj)(void *, uint32), void *store);
-
-void sym_master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *);
-void sym_master_bin_table_iter_init(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_ITER *);
-void sym_master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *);
-bool sym_master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *);
-uint32 sym_master_bin_table_iter_get_1(MASTER_BIN_TABLE_ITER *);
-uint32 sym_master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *);
-uint32 sym_master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *);
-
-void sym_master_bin_table_iter_1_init_empty(SYM_MASTER_BIN_TABLE_ITER_1 *);
-void sym_master_bin_table_iter_1_init(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_ITER_1 *, uint32 arg);
-void sym_master_bin_table_iter_1_move_forward(SYM_MASTER_BIN_TABLE_ITER_1 *);
-bool sym_master_bin_table_iter_1_is_out_of_range(SYM_MASTER_BIN_TABLE_ITER_1 *);
-uint32 sym_master_bin_table_iter_1_get_1(SYM_MASTER_BIN_TABLE_ITER_1 *);
-uint32 sym_master_bin_table_iter_1_get_surr(SYM_MASTER_BIN_TABLE_ITER_1 *);
 
 ///////////////////////// sym-master-bin-table-aux.cpp /////////////////////////
 
@@ -1818,46 +1621,6 @@ bool slave_tern_table_col_3_is_key(BIN_TABLE *slave_table);
 
 void slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
-
-void slave_tern_table_iter_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER *iter);
-void slave_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
-bool slave_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
-uint32 slave_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
-uint32 slave_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
-uint32 slave_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
-
-void slave_tern_table_iter_1_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
-void slave_tern_table_iter_1_move_forward(SLAVE_TERN_TABLE_ITER_1 *iter);
-bool slave_tern_table_iter_1_is_out_of_range(SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 slave_tern_table_iter_1_get_1(SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 slave_tern_table_iter_1_get_2(SLAVE_TERN_TABLE_ITER_1 *iter);
-
-void slave_tern_table_iter_2_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_2 *iter, uint32 arg2);
-void slave_tern_table_iter_2_move_forward(SLAVE_TERN_TABLE_ITER_2 *iter);
-bool slave_tern_table_iter_2_is_out_of_range(SLAVE_TERN_TABLE_ITER_2 *iter);
-uint32 slave_tern_table_iter_2_get_1(SLAVE_TERN_TABLE_ITER_2 *iter);
-uint32 slave_tern_table_iter_2_get_2(SLAVE_TERN_TABLE_ITER_2 *iter);
-
-void slave_tern_table_iter_12_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
-void slave_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
-bool slave_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
-uint32 slave_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
-
-void slave_tern_table_iter_3_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
-void slave_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
-bool slave_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 slave_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 slave_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
-
-void slave_tern_table_iter_13_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
-void slave_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
-bool slave_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
-uint32 slave_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
-
-void slave_tern_table_iter_23_init(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_ITER_23 *iter, uint32 arg2, uint32 arg3);
-void slave_tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
-bool slave_tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
-uint32 slave_tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
 
 /////////////////////////// slave-tern-table-aux.cpp ///////////////////////////
 
@@ -1918,35 +1681,6 @@ bool semisym_slave_tern_table_col_3_is_key(BIN_TABLE *);
 void semisym_slave_tern_table_copy_to(MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *, STREAM *, STREAM *);
 void semisym_slave_tern_table_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
 
-void semisym_slave_tern_table_iter_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER *);
-void semisym_slave_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *);
-bool semisym_slave_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *);
-uint32 semisym_slave_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *);
-uint32 semisym_slave_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *);
-uint32 semisym_slave_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *);
-
-void semisym_slave_tern_table_iter_1_init(MASTER_BIN_TABLE *, BIN_TABLE *, SEMISYM_SLAVE_TERN_TABLE_ITER_1 *, uint32 arg1);
-void semisym_slave_tern_table_iter_1_move_forward(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
-bool semisym_slave_tern_table_iter_1_is_out_of_range(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
-uint32 semisym_slave_tern_table_iter_1_get_1(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
-uint32 semisym_slave_tern_table_iter_1_get_2(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *);
-
-void semisym_slave_tern_table_iter_3_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_3 *, uint32 arg3);
-void semisym_slave_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *);
-bool semisym_slave_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *);
-uint32 semisym_slave_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *);
-uint32 semisym_slave_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *);
-
-void semisym_slave_tern_table_iter_12_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_12 *, uint32 arg1, uint32 arg2);
-void semisym_slave_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *);
-bool semisym_slave_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *);
-uint32 semisym_slave_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *);
-
-void semisym_slave_tern_table_iter_13_init(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_ITER_13 *, uint32 arg1, uint32 arg3);
-void semisym_slave_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *);
-bool semisym_slave_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *);
-uint32 semisym_slave_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *);
-
 /////////////////////// semisym-slave-tern-table-aux.cpp ///////////////////////
 
 void semisym_slave_tern_table_aux_init(SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -2000,46 +1734,6 @@ bool tern_table_col_3_is_key(TERN_TABLE *table);
 
 void tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
-
-void tern_table_iter_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER *iter);
-void tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
-bool tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
-uint32 tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
-uint32 tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
-uint32 tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
-
-void tern_table_iter_1_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
-void tern_table_iter_1_move_forward(SLAVE_TERN_TABLE_ITER_1 *iter);
-bool tern_table_iter_1_is_out_of_range(SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 tern_table_iter_1_get_1(SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 tern_table_iter_1_get_2(SLAVE_TERN_TABLE_ITER_1 *iter);
-
-void tern_table_iter_2_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_2 *iter, uint32 arg2);
-void tern_table_iter_2_move_forward(SLAVE_TERN_TABLE_ITER_2 *iter);
-bool tern_table_iter_2_is_out_of_range(SLAVE_TERN_TABLE_ITER_2 *iter);
-uint32 tern_table_iter_2_get_1(SLAVE_TERN_TABLE_ITER_2 *iter);
-uint32 tern_table_iter_2_get_2(SLAVE_TERN_TABLE_ITER_2 *iter);
-
-void tern_table_iter_3_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
-void tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
-bool tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
-
-void tern_table_iter_12_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
-void tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
-bool tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
-uint32 tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
-
-void tern_table_iter_13_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
-void tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
-bool tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
-uint32 tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
-
-void tern_table_iter_23_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_23 *iter, uint32 arg2, uint32 arg3);
-void tern_table_iter_23_move_forward(SLAVE_TERN_TABLE_ITER_23 *iter);
-bool tern_table_iter_23_is_out_of_range(SLAVE_TERN_TABLE_ITER_23 *iter);
-uint32 tern_table_iter_23_get_1(SLAVE_TERN_TABLE_ITER_23 *iter);
 
 ////////////////////////////// tern-table-aux.cpp //////////////////////////////
 
@@ -2099,35 +1793,6 @@ bool semisym_tern_table_col_3_is_key(TERN_TABLE *table);
 void semisym_tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void semisym_tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
 
-void semisym_tern_table_iter_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER *iter);
-void semisym_tern_table_iter_move_forward(SLAVE_TERN_TABLE_ITER *iter);
-bool semisym_tern_table_iter_is_out_of_range(SLAVE_TERN_TABLE_ITER *iter);
-uint32 semisym_tern_table_iter_get_1(SLAVE_TERN_TABLE_ITER *iter);
-uint32 semisym_tern_table_iter_get_2(SLAVE_TERN_TABLE_ITER *iter);
-uint32 semisym_tern_table_iter_get_3(SLAVE_TERN_TABLE_ITER *iter);
-
-void semisym_tern_table_iter_1_init(TERN_TABLE *table, SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter, uint32 arg1);
-void semisym_tern_table_iter_1_move_forward(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
-bool semisym_tern_table_iter_1_is_out_of_range(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 semisym_tern_table_iter_1_get_1(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
-uint32 semisym_tern_table_iter_1_get_2(SEMISYM_SLAVE_TERN_TABLE_ITER_1 *iter);
-
-void semisym_tern_table_iter_3_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_3 *iter, uint32 arg3);
-void semisym_tern_table_iter_3_move_forward(SLAVE_TERN_TABLE_ITER_3 *iter);
-bool semisym_tern_table_iter_3_is_out_of_range(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 semisym_tern_table_iter_3_get_1(SLAVE_TERN_TABLE_ITER_3 *iter);
-uint32 semisym_tern_table_iter_3_get_2(SLAVE_TERN_TABLE_ITER_3 *iter);
-
-void semisym_tern_table_iter_12_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_12 *iter, uint32 arg1, uint32 arg2);
-void semisym_tern_table_iter_12_move_forward(SLAVE_TERN_TABLE_ITER_12 *iter);
-bool semisym_tern_table_iter_12_is_out_of_range(SLAVE_TERN_TABLE_ITER_12 *iter);
-uint32 semisym_tern_table_iter_12_get_1(SLAVE_TERN_TABLE_ITER_12 *iter);
-
-void semisym_tern_table_iter_13_init(TERN_TABLE *table, SLAVE_TERN_TABLE_ITER_13 *iter, uint32 arg1, uint32 arg3);
-void semisym_tern_table_iter_13_move_forward(SLAVE_TERN_TABLE_ITER_13 *iter);
-bool semisym_tern_table_iter_13_is_out_of_range(SLAVE_TERN_TABLE_ITER_13 *iter);
-uint32 semisym_tern_table_iter_13_get_1(SLAVE_TERN_TABLE_ITER_13 *iter);
-
 ////////////////////////// semisym-tern-table-aux.cpp //////////////////////////
 
 void semisym_tern_table_aux_init(TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool);
@@ -2160,12 +1825,6 @@ void raw_int_col_update(UNARY_TABLE *, RAW_INT_COL *, uint32 idx, int64 value, S
 void raw_int_col_copy_to(UNARY_TABLE *, RAW_INT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void raw_int_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_INT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
 
-void raw_int_col_iter_init(UNARY_TABLE *, RAW_INT_COL *, RAW_INT_COL_ITER *);
-bool raw_int_col_iter_is_out_of_range(RAW_INT_COL_ITER *);
-uint32 raw_int_col_iter_get_idx(RAW_INT_COL_ITER *);
-int64 raw_int_col_iter_get_value(RAW_INT_COL_ITER *);
-void raw_int_col_iter_move_forward(RAW_INT_COL_ITER *);
-
 ////////////////////////////// raw-int-col-aux.cpp /////////////////////////////
 
 void raw_int_col_aux_delete_1(UNARY_TABLE *, INT_COL_AUX *, uint32);
@@ -2186,12 +1845,6 @@ void raw_float_col_update(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx, double val
 
 void raw_float_col_copy_to(UNARY_TABLE *, RAW_FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *, STREAM *);
 void raw_float_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
-
-void raw_float_col_iter_init(UNARY_TABLE *, RAW_FLOAT_COL *, RAW_FLOAT_COL_ITER *);
-bool raw_float_col_iter_is_out_of_range(RAW_FLOAT_COL_ITER *);
-uint32 raw_float_col_iter_get_idx(RAW_FLOAT_COL_ITER *);
-double raw_float_col_iter_get_value(RAW_FLOAT_COL_ITER *);
-void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *);
 
 ///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
 
@@ -2214,12 +1867,6 @@ void   raw_obj_col_clear(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
 
 void   raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void   raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
-
-void   raw_obj_col_iter_init(UNARY_TABLE *, RAW_OBJ_COL *, RAW_OBJ_COL_ITER *);
-bool   raw_obj_col_iter_is_out_of_range(RAW_OBJ_COL_ITER *);
-uint32 raw_obj_col_iter_get_idx(RAW_OBJ_COL_ITER *);
-OBJ    raw_obj_col_iter_get_value(RAW_OBJ_COL_ITER *);
-void   raw_obj_col_iter_move_forward(RAW_OBJ_COL_ITER *);
 
 ////////////////////////////// raw-obj-col-aux.cpp /////////////////////////////
 

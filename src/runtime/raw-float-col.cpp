@@ -68,66 +68,51 @@ void raw_float_col_copy_to(UNARY_TABLE *master_table, RAW_FLOAT_COL *column, OBJ
 
   double *array = column->array;
 
-  UNARY_TABLE_ITER iter;
-  unary_table_iter_init(master_table, &iter);
+  uint32 left = master_table->count;
+  uint64 *bitmap = master_table->bitmap;
+  for (uint32 word_idx=0 ; left > 0 ; word_idx++) {
+    uint64 word = bitmap[word_idx];
+    for (uint32 bit_idx=0 ; word != 0 ; bit_idx++) {
+      if (word & 1 != 0) {
+        left--;
+        uint32 key_surr = 64 * word_idx + bit_idx;
 
-  while (!unary_table_iter_is_out_of_range(&iter)) {
-    uint32 key_surr = unary_table_iter_get(&iter);
-    OBJ key = surr_to_obj(store, key_surr);
-    OBJ value = make_int(array[key_surr]);
+        OBJ key = surr_to_obj(store, key_surr);
+        OBJ value = make_int(array[key_surr]);
+        append(*strm_1, key);
+        append(*strm_2, value);
 
-    append(*strm_1, key);
-    append(*strm_2, value);
-
-    unary_table_iter_move_forward(&iter);
+      }
+      word >>= 1;
+    }
   }
 }
 
 void raw_float_col_write(WRITE_FILE_STATE *write_state, UNARY_TABLE *master_table, RAW_FLOAT_COL *column, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip) {
   assert(master_table->capacity == column->capacity);
 
-  uint32 remaining = master_table->count;
   double *array = column->array;
 
-  UNARY_TABLE_ITER iter;
-  unary_table_iter_init(master_table, &iter);
+  uint32 left = master_table->count;
+  uint64 *bitmap = master_table->bitmap;
+  for (uint32 word_idx=0 ; left > 0 ; word_idx++) {
+    uint64 word = bitmap[word_idx];
+    for (uint32 bit_idx=0 ; word != 0 ; bit_idx++) {
+      if (word & 1 != 0) {
+        left--;
+        uint32 key_surr = 64 * word_idx + bit_idx;
 
-  while (!unary_table_iter_is_out_of_range(&iter)) {
-    uint32 key_surr = unary_table_iter_get(&iter);
-    OBJ key = surr_to_obj(store, key_surr);
-    OBJ value = make_float(column->array[key_surr]); //## NO NEED TO CONVERT THIS TO OBJ
+        OBJ key = surr_to_obj(store, key_surr);
+        OBJ value = make_float(column->array[key_surr]); //## NO NEED TO CONVERT THIS TO OBJ
+        write_str(write_state, "\n    ");
+        write_obj(write_state, flip ? value : key);
+        write_str(write_state, " -> ");
+        write_obj(write_state, flip ? key : value);
+        if (left > 0)
+          write_str(write_state, ",");
 
-    write_str(write_state, "\n    ");
-    write_obj(write_state, flip ? value : key);
-    write_str(write_state, " -> ");
-    write_obj(write_state, flip ? key : value);
-    if (--remaining > 0)
-      write_str(write_state, ",");
-
-    unary_table_iter_move_forward(&iter);
+      }
+      word >>= 1;
+    }
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void raw_float_col_iter_init(UNARY_TABLE *master_table, RAW_FLOAT_COL *column, RAW_FLOAT_COL_ITER *iter) {
-  unary_table_iter_init(master_table, &iter->iter);
-  iter->array = column->array;
-}
-
-bool raw_float_col_iter_is_out_of_range(RAW_FLOAT_COL_ITER *iter) {
-  return unary_table_iter_is_out_of_range(&iter->iter);
-}
-
-uint32 raw_float_col_iter_get_idx(RAW_FLOAT_COL_ITER *iter) {
-  return unary_table_iter_get(&iter->iter);
-}
-
-double raw_float_col_iter_get_value(RAW_FLOAT_COL_ITER *iter) {
-  uint32 idx = unary_table_iter_get(&iter->iter);
-  return iter->array[idx];
-}
-
-void raw_float_col_iter_move_forward(RAW_FLOAT_COL_ITER *iter) {
-  unary_table_iter_move_forward(&iter->iter);
 }

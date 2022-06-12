@@ -45,14 +45,26 @@ void bin_table_aux_insert(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
 
 void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
-    BIN_TABLE_ITER iter;
-    bin_table_iter_init(table, &iter);
-    while (!bin_table_iter_is_out_of_range(&iter)) {
-      uint32 arg1 = bin_table_iter_get_1(&iter);
-      uint32 arg2 = bin_table_iter_get_2(&iter);
-      decr_rc_1(store_1, store_aux_1, arg1);
-      decr_rc_2(store_2, store_aux_2, arg2);
-      bin_table_iter_move_forward(&iter);
+    uint32 count = bin_table_size(table);
+    uint32 read = 0;
+    for (uint32 arg1=0 ; read < count ; arg1++) {
+      uint32 count_1 = bin_table_count_1(table, arg1);
+      if (count_1 > 0) {
+        read += count_1;
+        uint32 read_1 = 0;
+        do {
+          uint32 buffer[64];
+          UINT32_ARRAY array = bin_table_range_restrict_1(table, arg1, read_1, buffer, 64);
+          read_1 += array.size;
+          for (uint32 i=0 ; i < array.size ; i++) {
+            uint32 arg2 = array.array[i];
+
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+
+          }
+        } while (read_1 < count_1);
+      }
     }
     bin_table_clear(table, mem_pool);
   }
@@ -76,14 +88,22 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint32 *array = table_aux->deletions_1.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg1 = array[i];
-        BIN_TABLE_ITER_1 iter;
-        bin_table_iter_1_init(table, &iter, arg1);
-        while (!bin_table_iter_1_is_out_of_range(&iter)) {
-          uint32 arg2 = bin_table_iter_1_get_1(&iter);
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
-          bin_table_iter_1_move_forward(&iter);
+
+        uint32 count1 = bin_table_count_1(table, arg1);
+        uint32 read1 = 0;
+        while (read1 < count1) {
+          uint32 buffer[64];
+          UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+          read1 += array1.size;
+          for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+            uint32 arg2 = array1.array[i1];
+
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+
+          }
         }
+
         bin_table_delete_1(table, arg1);
       }
     }
@@ -93,13 +113,20 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint32 *array = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg2 = array[i];
-        BIN_TABLE_ITER_2 iter;
-        bin_table_iter_2_init(table, &iter, arg2);
-        while (!bin_table_iter_2_is_out_of_range(&iter)) {
-          uint32 arg1 = bin_table_iter_2_get_1(&iter);
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
-          bin_table_iter_2_move_forward(&iter);
+
+        uint32 count2 = bin_table_count_2(table, arg2);
+        uint32 read2 = 0;
+        while (read2 < count2) {
+          uint32 buffer[64];
+          UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+          read2 += array2.size;
+          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+            uint32 arg1 = array2.array[i2];
+
+            decr_rc_1(store_1, store_aux_1, arg1);
+            decr_rc_2(store_2, store_aux_2, arg2);
+
+          }
         }
         bin_table_delete_2(table, arg2);
       }
@@ -162,14 +189,19 @@ inline void bin_table_aux_build_col_1_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX
     uint32 *array = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < del_2_count ; i++) {
       uint32 arg2 = array[i];
-      if (bin_table_contains_2(table, arg2)) {
-        BIN_TABLE_ITER_2 iter;
-        bin_table_iter_2_init(table, &iter, arg2);
-        assert(!bin_table_iter_2_is_out_of_range(&iter));
-        do {
-          uint32 arg1 = bin_table_iter_2_get_1(&iter);
+
+      uint32 count2 = bin_table_count_2(table, arg2);
+      uint32 read2 = 0;
+      while (read2 < count2) {
+        uint32 buffer[64];
+        UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+        read2 += array2.size;
+        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+          uint32 arg1 = array2.array[i2];
+
           col_update_bit_map_set(bit_map, arg1, mem_pool);
-        } while (!bin_table_iter_2_is_out_of_range(&iter));
+
+        }
       }
     }
   }
@@ -198,14 +230,19 @@ inline void bin_table_aux_build_col_2_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX
     uint32 *array = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < del_1_count ; i++) {
       uint32 arg1 = array[i];
-      if (bin_table_contains_1(table, arg1)) {
-        BIN_TABLE_ITER_1 iter;
-        bin_table_iter_1_init(table, &iter, arg1);
-        assert(!bin_table_iter_1_is_out_of_range(&iter));
-        do {
-          uint32 arg2 = bin_table_iter_1_get_1(&iter);
+
+      uint32 count1 = bin_table_count_1(table, arg1);
+      uint32 read1 = 0;
+      while (read1 < count1) {
+        uint32 buffer[64];
+        UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+        read1 += array1.size;
+        for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+          uint32 arg2 = array1.array[i1];
+
           col_update_bit_map_set(bit_map, arg2, mem_pool);
-        } while (!bin_table_iter_1_is_out_of_range(&iter));
+
+        }
       }
     }
   }
@@ -379,12 +416,19 @@ static uint32 bin_table_aux_number_of_deletions_1(BIN_TABLE *table, BIN_TABLE_AU
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-      BIN_TABLE_ITER_2 iter;
-      bin_table_iter_2_init(table, &iter, arg2);
-      while (!bin_table_iter_2_is_out_of_range(&iter)) {
-        uint32 arg1 = bin_table_iter_2_get_1(&iter);
-        deletions[arg1].insert(arg2);
-        bin_table_iter_2_move_forward(&iter);
+
+      uint32 count2 = bin_table_count_2(table, arg2);
+      uint32 read2 = 0;
+      while (read2 < count2) {
+        uint32 buffer[64];
+        UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+        read2 += array2.size;
+        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+          uint32 arg1 = array2.array[i2];
+
+          deletions[arg1].insert(arg2);
+
+        }
       }
     }
   }
@@ -414,12 +458,19 @@ static uint32 bin_table_aux_number_of_deletions_2(BIN_TABLE *table, BIN_TABLE_AU
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-      BIN_TABLE_ITER_1 iter;
-      bin_table_iter_1_init(table, &iter, arg1);
-      while (!bin_table_iter_1_is_out_of_range(&iter)) {
-        uint32 arg2 = bin_table_iter_1_get_1(&iter);
-        deletions[arg2].insert(arg1);
-        bin_table_iter_1_move_forward(&iter);
+
+      uint32 count1 = bin_table_count_1(table, arg1);
+      uint32 read1 = 0;
+      while (read1 < count1) {
+        uint32 buffer[64];
+        UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+        read1 += array1.size;
+        for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+          uint32 arg2 = array1.array[i1];
+
+          deletions[arg2].insert(arg1);
+
+        }
       }
     }
   }
@@ -447,12 +498,18 @@ static uint32 bin_table_aux_number_of_deletions(BIN_TABLE *table, QUEUE_U64 *del
     uint32 *arg1s = deletions_1->array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-      BIN_TABLE_ITER_1 iter;
-      bin_table_iter_1_init(table, &iter, arg1);
-      while (!bin_table_iter_1_is_out_of_range(&iter)) {
-        uint32 arg2 = bin_table_iter_1_get_1(&iter);
-        unique_deletions.insert(pack_args(arg1, arg2));
-        bin_table_iter_1_move_forward(&iter);
+
+      uint32 count1 = bin_table_count_1(table, arg1);
+      uint32 read1 = 0;
+      while (read1 < count1) {
+        uint32 buffer[64];
+        UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+        read1 += array1.size;
+        for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+          uint32 arg2 = array1.array[i1];
+
+          unique_deletions.insert(pack_args(arg1, arg2));
+        }
       }
     }
   }
@@ -462,12 +519,19 @@ static uint32 bin_table_aux_number_of_deletions(BIN_TABLE *table, QUEUE_U64 *del
     uint32 *arg2s = deletions_2->array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-      BIN_TABLE_ITER_2 iter;
-      bin_table_iter_2_init(table, &iter, arg2);
-      while (!bin_table_iter_2_is_out_of_range(&iter)) {
-        uint32 arg1 = bin_table_iter_2_get_1(&iter);
-        unique_deletions.insert(pack_args(arg1, arg2));
-        bin_table_iter_2_move_forward(&iter);
+
+      uint32 count2 = bin_table_count_2(table, arg2);
+      uint32 read2 = 0;
+      while (read2 < count2) {
+        uint32 buffer[64];
+        UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+        read2 += array2.size;
+        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+          uint32 arg1 = array2.array[i2];
+
+          unique_deletions.insert(pack_args(arg1, arg2));
+
+        }
       }
     }
   }
@@ -702,13 +766,18 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
       uint32 *arg2s = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < num_dels_2 ; i++) {
         uint32 arg2 = arg2s[i];
-        if (bin_table_contains_2(table, arg2)) {
-          BIN_TABLE_ITER_2 iter;
-          bin_table_iter_2_init(table, &iter, arg2);
-          while (!bin_table_iter_2_is_out_of_range(&iter)) {
-            uint32 arg1 = bin_table_iter_2_get_1(&iter);
+
+        uint32 count2 = bin_table_count_2(table, arg2);
+        uint32 read2 = 0;
+        while (read2 < count2) {
+          uint32 buffer[64];
+          UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+          read2 += array2.size;
+          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+            uint32 arg1 = array2.array[i2];
+
             deleted[arg1].insert(arg2);
-            bin_table_iter_2_move_forward(&iter);
+
           }
         }
       }
@@ -787,13 +856,18 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
       uint32 *arg2s = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < num_dels_2 ; i++) {
         uint32 arg2 = arg2s[i];
-        if (bin_table_contains_2(table, arg2)) {
-          BIN_TABLE_ITER_2 iter;
-          bin_table_iter_2_init(table, &iter, arg2);
-          while (!bin_table_iter_2_is_out_of_range(&iter)) {
-            uint32 arg1 = bin_table_iter_2_get_1(&iter);
+
+        uint32 count2 = bin_table_count_2(table, arg2);
+        uint32 read2 = 0;
+        while (read2 < count2) {
+          uint32 buffer[64];
+          UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+          read2 += array2.size;
+          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+            uint32 arg1 = array2.array[i2];
+
             deleted[arg1].insert(arg2);
-            bin_table_iter_2_move_forward(&iter);
+
           }
         }
       }
@@ -873,12 +947,19 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
       for (uint32 i=0 ; i < num_dels_1 ; i++) {
         uint32 arg1 = arg1s[i];
         if (bin_table_contains_1(table, arg1)) {
-          BIN_TABLE_ITER_1 iter;
-          bin_table_iter_1_init(table, &iter, arg1);
-          while (!bin_table_iter_1_is_out_of_range(&iter)) {
-            uint32 arg2 = bin_table_iter_1_get_1(&iter);
-            deleted[arg2].insert(arg1);
-            bin_table_iter_1_move_forward(&iter);
+
+          uint32 count1 = bin_table_count_1(table, arg1);
+          uint32 read1 = 0;
+          while (read1 < count1) {
+            uint32 buffer[64];
+            UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+            read1 += array1.size;
+            for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+              uint32 arg2 = array1.array[i1];
+
+              deleted[arg2].insert(arg1);
+
+            }
           }
         }
       }

@@ -48,6 +48,10 @@ uint32 sym_master_bin_table_restrict(MASTER_BIN_TABLE *table, uint32 arg, uint32
   return sym_bin_table_restrict(&table->table, arg, other_args);
 }
 
+UINT32_ARRAY sym_master_bin_table_range_restrict(MASTER_BIN_TABLE *table, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity) {
+  return sym_bin_table_range_restrict(&table->table, arg, first, other_args, capacity);
+}
+
 uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *table, uint32 arg) {
   return sym_bin_table_lookup(&table->table, arg);
 }
@@ -166,84 +170,4 @@ void sym_master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj)(vo
 
 void sym_master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj)(void *, uint32), void *store) {
   bin_table_write(write_state, &table->table, surr_to_obj, store, surr_to_obj, store, false, false);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void sym_master_bin_table_iter_init_empty(MASTER_BIN_TABLE_ITER *iter) {
-  master_bin_table_iter_init_empty(iter);
-}
-
-void sym_master_bin_table_iter_init(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_ITER *iter) {
-  master_bin_table_iter_init(table, iter);
-}
-
-void sym_master_bin_table_iter_move_forward(MASTER_BIN_TABLE_ITER *iter) {
-  master_bin_table_iter_move_forward(iter);
-}
-
-bool sym_master_bin_table_iter_is_out_of_range(MASTER_BIN_TABLE_ITER *iter) {
-  return master_bin_table_iter_is_out_of_range(iter);
-}
-
-uint32 sym_master_bin_table_iter_get_1(MASTER_BIN_TABLE_ITER *iter) {
-  return master_bin_table_iter_get_1(iter);
-}
-
-uint32 sym_master_bin_table_iter_get_2(MASTER_BIN_TABLE_ITER *iter) {
-  return master_bin_table_iter_get_2(iter);
-}
-
-uint32 sym_master_bin_table_iter_get_surr(MASTER_BIN_TABLE_ITER *iter) {
-  return master_bin_table_iter_get_surr(iter);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void sym_master_bin_table_iter_1_init_empty(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
-#ifndef NDEBUG
-  uint32 inline_array[BIN_TABLE_ITER_INLINE_SIZE];
-  iter->forward = NULL;
-  iter->other_args = NULL;
-  iter->arg = 0xFFFFFFFF;
-#endif
-  iter->left = 0;
-}
-
-void sym_master_bin_table_iter_1_init(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_ITER_1 *iter, uint32 arg) {
-  uint32 count = sym_master_bin_table_count(table, arg);
-
-  if (count > 0) {
-    uint32 *other_args = count <= BIN_TABLE_ITER_INLINE_SIZE ? iter->inline_array : new_uint32_array(count);
-    sym_master_bin_table_restrict(table, arg, other_args);
-    iter->other_args = other_args;
-    iter->arg = arg;
-    iter->left = count;
-    iter->forward = &table->table.forward;
-  }
-  else
-    sym_master_bin_table_iter_1_init_empty(iter);
-}
-
-void sym_master_bin_table_iter_1_move_forward(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
-  assert(!sym_master_bin_table_iter_1_is_out_of_range(iter));
-  iter->other_args++;
-  iter->left--;
-}
-
-bool sym_master_bin_table_iter_1_is_out_of_range(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
-  return iter->left > 0;
-}
-
-uint32 sym_master_bin_table_iter_1_get_1(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
-  assert(!sym_master_bin_table_iter_1_is_out_of_range(iter));
-  return *iter->other_args;
-}
-
-uint32 sym_master_bin_table_iter_1_get_surr(SYM_MASTER_BIN_TABLE_ITER_1 *iter) {
-  assert(!sym_master_bin_table_iter_1_is_out_of_range(iter));
-  uint32 arg1 = iter->arg;
-  uint32 arg2 = *iter->other_args;
-  sort_args(arg1, arg2);
-  return loaded_one_way_bin_table_payload(iter->forward, arg1, arg2); //## THIS COULD BE AVOIDED FOR THE TUPLES WHERE arg <= other_arg
 }

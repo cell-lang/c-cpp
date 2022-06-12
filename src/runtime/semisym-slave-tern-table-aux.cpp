@@ -28,22 +28,38 @@ void semisym_slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *master_table, SLAV
 }
 
 void semisym_slave_tern_table_aux_delete_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3) {
-  SYM_MASTER_BIN_TABLE_ITER_1 iter;
-  sym_master_bin_table_iter_1_init(master_table, &iter, arg1);
-  while (!sym_master_bin_table_iter_1_is_out_of_range(&iter)) {
-    uint32 surr12 = sym_master_bin_table_iter_1_get_surr(&iter);
-    bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
-    sym_master_bin_table_iter_1_move_forward(&iter);
+  uint32 count = sym_master_bin_table_count(master_table, arg1);
+  uint32 read = 0;
+  while (read < count) {
+    uint32 buffer[64];
+    //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+    UINT32_ARRAY array = sym_master_bin_table_range_restrict(master_table, arg1, read, buffer, 64);
+    read += array.size;
+    for (uint32 i=0 ; i < array.size ; i++) {
+      uint32 arg2 = array.array[i];
+      uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
+
+      bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
+
+    }
   }
 }
 
 void semisym_slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1) {
-  SYM_MASTER_BIN_TABLE_ITER_1 iter;
-  sym_master_bin_table_iter_1_init(master_table, &iter, arg1);
-  while (!sym_master_bin_table_iter_1_is_out_of_range(&iter)) {
-    uint32 surr12 = sym_master_bin_table_iter_1_get_surr(&iter);
-    bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
-    sym_master_bin_table_iter_1_move_forward(&iter);
+  uint32 count = sym_master_bin_table_count(master_table, arg1);
+  uint32 read = 0;
+  while (read < count) {
+    uint32 buffer[64];
+    //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+    UINT32_ARRAY array = sym_master_bin_table_range_restrict(master_table, arg1, read, buffer, 64);
+    read += array.size;
+    for (uint32 i=0 ; i < array.size ; i++) {
+      uint32 arg2 = array.array[i];
+      uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
+
+      bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
+
+    }
   }
 }
 

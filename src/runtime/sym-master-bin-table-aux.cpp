@@ -111,6 +111,6 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_
 ////////////////////////////////////////////////////////////////////////////////
 
 void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
   //## COPY AND ADJUST THE NON-SYMMETRIC VERSION AFTER GETTING RID OF ITERATORS
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
