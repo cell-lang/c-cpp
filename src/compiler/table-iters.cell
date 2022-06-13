@@ -368,48 +368,92 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
   String* native_foreach_code(TernTableIter iter, Instr* body, Maybe[Nat] block_id) {
+    body_text = native_code(body, block_id);
     arg1, arg2, arg3 = iter.args;
     return match (arg1, arg2, arg3)
-      bound(v1?),   bound(v2?),   _           = native_foreach_code_12(iter.table_var, v1, v2, arg3, body, block_id),
-      bound(v1?),   _,            bound(v3?)  = native_foreach_code_13(iter.table_var, v1, v3, arg2, body, block_id),
-      _,            bound(v2?),   bound(v3?)  = native_foreach_code_23(iter.table_var, v2, v3, arg1, body, block_id),
-      bound(v1?),   _,            _           = native_foreach_code_1(iter.table_var, v1, arg2, arg3, body, block_id),
-      _,            bound(v2?),   _           = native_foreach_code_2(iter.table_var, v2, arg1, arg3, body, block_id),
-      _,            _,            bound(v3?)  = native_foreach_code_3(iter.table_var, v3, arg1, arg2, body, block_id),
-      _,            _,            _           = native_foreach_code(iter.table_var, arg1, arg2, arg3, body, block_id);
+      bound(v1?),   bound(v2?),   _           = native_foreach_code_12(iter.table_var, v1, v2, arg3, body_text),
+      bound(v1?),   _,            bound(v3?)  = native_foreach_code_13(iter.table_var, v1, v3, arg2, body_text),
+      _,            bound(v2?),   bound(v3?)  = native_foreach_code_23(iter.table_var, v2, v3, arg1, body_text),
+      bound(v1?),   _,            _           = native_foreach_code_1(iter.table_var, v1, arg2, arg3, body_text),
+      _,            bound(v2?),   _           = native_foreach_code_2(iter.table_var, v2, arg1, arg3, body_text),
+      _,            _,            bound(v3?)  = native_foreach_code_3(iter.table_var, v3, arg1, arg2, body_text),
+      _,            _,            _           = native_foreach_code(iter.table_var, arg1, arg2, arg3, body_text);
 
 
-    String* native_foreach_code_12(AnyTableVar table_var, Int32Var var1, Int32Var var2, TableArgStatus arg3, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code_12(AnyTableVar table_var, Int32Var var1, Int32Var var2, TableArgStatus arg3, String* body_text) {
+      base_table_var_str = native_var_ref_name(table_var);
+      slave_table_var_str = base_table_var_str & ".slave";
+      master_table_var_str = base_table_var_str & ".master";
+
+      unique_id = printed(new_unique_id(:unused));
+      count_var = "count_" & unique_id;
+      read_var = "read_" & unique_id;
+      buffer_var = "buffer_" & unique_id;
+      array_var = "array_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      assoc_surr_var = "assoc_surr_" & unique_id;
+
+      label = "label_" & unique_id;
+
+      code = (
+        "uint32 " & native_call(assoc_surr_var, "master_bin_table_lookup_surr", (master_table_var_str, var1, var2)),
+        "if (" & assoc_surr_var & " != 0xFFFFFFFF) {",
+        "  uint32 " & count_var & " = bin_table_count_1(" & slave_table_var_str & ", " & assoc_surr_var & ");",
+        "  uint32 " & read_var & " = 0;",
+        "  while (" & read_var & " < " & count_var & ") {",
+        "    uint32 " & buffer_var & "[64];",
+        "    UINT32_ARRAY " & native_call(array_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_var, buffer_var, 64)),
+        "    " & read_var & " += " & array_var & ".size;",
+        "    uint32 " & idx_var & " = 0;",
+        "    " & label & ":"
+      );
+
+      code = match (arg3)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = code & indent_lines(body_text, 2);
+
+      code = (code |
+        "    " & idx_var & "++;",
+        "    if (" & idx_var & " < " & array_var & ".size)",
+        "      goto " & label & ";",
+        "  }",
+        "}"
+      );
+
+      return code;
+    }
+
+
+    String* native_foreach_code_13(AnyTableVar table_var, Int32Var var1, Int32Var var3, TableArgStatus arg2, String* body_text) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
-    String* native_foreach_code_13(AnyTableVar table_var, Int32Var var1, Int32Var var3, TableArgStatus arg2, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code_23(AnyTableVar table_var, Int32Var var2, Int32Var var3, TableArgStatus arg1, String* body_text) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
-    String* native_foreach_code_23(AnyTableVar table_var, Int32Var var2, Int32Var var3, TableArgStatus arg1, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code_1(AnyTableVar table_var, Int32Var var1, TableArgStatus arg2, TableArgStatus arg3, String* body_text) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
-    String* native_foreach_code_1(AnyTableVar table_var, Int32Var var1, TableArgStatus arg2, TableArgStatus arg3, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code_2(AnyTableVar table_var, Int32Var var2, TableArgStatus arg1, TableArgStatus arg3, String* body_text) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
-    String* native_foreach_code_2(AnyTableVar table_var, Int32Var var2, TableArgStatus arg1, TableArgStatus arg3, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code_3(AnyTableVar table_var, Int32Var var3, TableArgStatus arg1, TableArgStatus arg2, String* body_text) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
-    String* native_foreach_code_3(AnyTableVar table_var, Int32Var var3, TableArgStatus arg1, TableArgStatus arg2, Instr* body, Maybe[Nat] block_id) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-    }
-
-
-    String* native_foreach_code(AnyTableVar table_var, TableArgStatus arg1, TableArgStatus arg2, TableArgStatus arg3, Instr* body, Maybe[Nat] block_id) {
+    String* native_foreach_code(AnyTableVar table_var, TableArgStatus arg1, TableArgStatus arg2, TableArgStatus arg3, String* body_text) {
       base_table_var_str = native_var_ref_name(table_var);
       slave_table_var_str = base_table_var_str & ".slave";
       master_table_var_str = base_table_var_str & ".master";
@@ -427,11 +471,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
       label_1 = "label_1_" & unique_id;
       label_2 = "label_2_" & unique_id;
-
-      arg_1_var = match (arg1)
-        read(v?)  = native_var_ref_name(v),
-        ignored   = "arg_1_" & unique_id,
-        bound()   = undefined;
 
       code = (
         "uint32 " & count_var & " = bin_table_size(" & slave_table_var_str & ");",
@@ -468,7 +507,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(native_code(body, block_id), 2);
+      code = code & indent_lines(body_text, 2);
 
       code = (code |
         "    " & idx_var & "++;",
