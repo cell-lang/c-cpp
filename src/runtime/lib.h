@@ -1702,6 +1702,8 @@ bool semisym_slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX 
 
 //////////////////////////////// tern-table.cpp ////////////////////////////////
 
+void tern_table_init(TERN_TABLE *, STATE_MEM_POOL *);
+
 bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
 bool tern_table_delete(TERN_TABLE *table, uint32 surr1, uint32 surr2, uint32 arg3);
 void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *);
@@ -1740,7 +1742,7 @@ void tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*su
 void tern_table_aux_init(TERN_TABLE_AUX *, STATE_MEM_POOL *);
 void tern_table_aux_reset(TERN_TABLE_AUX *);
 
-void tern_table_aux_insert(TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+void tern_table_aux_insert(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
 
 void tern_table_aux_delete(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
 void tern_table_aux_delete_12(TERN_TABLE *, TERN_TABLE_AUX *, uint32 arg1, uint32 arg2);

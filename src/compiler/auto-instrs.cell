@@ -335,6 +335,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     args = match (table)
       master_bin_table()  = (table_var, updater),
       slave_tern_table()  = (table.master, pending_updates_var_ref_name(table.master), updater),
+      table()             = (table_var if arity(table) == 3, updater),
       _                   = (updater);
     args = args & tuple;
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);

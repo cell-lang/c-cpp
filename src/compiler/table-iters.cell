@@ -410,7 +410,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
     String* native_foreach_code(AnyTableVar table_var, TableArgStatus arg1, TableArgStatus arg2, TableArgStatus arg3, Instr* body, Maybe[Nat] block_id) {
-      table_var_str = native_var_ref_name(table_var);
+      base_table_var_str = native_var_ref_name(table_var);
+      slave_table_var_str = base_table_var_str & ".slave";
+      master_table_var_str = base_table_var_str & ".master";
 
       unique_id = printed(new_unique_id(:unused));
       count_var = "count_" & unique_id;
@@ -421,6 +423,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       array_var = "array_" & unique_id;
       idx_var = "idx_" & unique_id;
 
+      assoc_surr_var = "assoc_surr_" & unique_id;
+
       label_1 = "label_1_" & unique_id;
       label_2 = "label_2_" & unique_id;
 
@@ -430,22 +434,36 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         bound()   = undefined;
 
       code = (
-        "uint32 " & count_var & " = bin_table_size(" & table_var_str & ");",
+        "uint32 " & count_var & " = bin_table_size(" & slave_table_var_str & ");",
         "uint32 " & read_var & " = 0;",
-        "for (uint32 " & arg_1_var & "=0 ; " & read_var & " < " & count_var & " ; " & arg_1_var & "++) {",
-        "  uint32 " & count_1_var & " = bin_table_count_1(" & table_var_str & ", " & arg_1_var & ");",
+        "for (uint32 " & assoc_surr_var & "=0 ; " & read_var & " < " & count_var & " ; " & assoc_surr_var & "++) {",
+        "  uint32 " & count_1_var & " = bin_table_count_1(" & slave_table_var_str & ", " & assoc_surr_var & ");",
         "  if (" & count_1_var & " > 0) {",
-        "    " & read_var & " += " & count_1_var & ";",
+        "    " & read_var & " += " & count_1_var & ";"
+      );
+
+      code = match (arg1)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = master_bin_table_get_arg_1(" & master_table_var_str & ", " & assoc_surr_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = match (arg2)
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = master_bin_table_get_arg_2(" & master_table_var_str & ", " & assoc_surr_var & ");"),
+        ignored   = code,
+        bound()   = undefined;
+
+      code = (
+        code |
         "    uint32 " & buffer_var & "[64];",
         "    uint32 " & read_1_var & " = 0;",
         "    " & label_1 & ":",
-        "    UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & table_var_str & ", " & arg_1_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
+        "    UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & slave_table_var_str & ", " & assoc_surr_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
         "    " & read_1_var & " += " & array_var & ".size;",
         "    uint32 " & idx_var & " = 0;",
         "    " & label_2 & ":"
       );
 
-      code = match (arg2)
+      code = match (arg3)
         read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
@@ -470,3 +488,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+// String native_unbound_table_arg_name(TableArgStatus arg, String default) =
+//   read(v?)

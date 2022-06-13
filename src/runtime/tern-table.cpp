@@ -1,6 +1,13 @@
 #include "lib.h"
 
 
+void tern_table_init(TERN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  master_bin_table_init(&table->master, mem_pool);
+  bin_table_init(&table->slave, mem_pool);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool) {
   int32 code = master_bin_table_insert_ex(&table->master, arg1, arg2, mem_pool);
   uint32 surr12 = code >= 0 ? code : -code - 1;
