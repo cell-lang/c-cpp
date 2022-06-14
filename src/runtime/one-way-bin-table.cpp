@@ -129,6 +129,7 @@ UINT32_ARRAY one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *table, uint32 k
         result = overflow_table_range_copy(&table->array_pool, slot, first, dest, capacity);
       }
       else {
+        assert(first == 0);
         dest[0] = get_low_32(slot);
         uint32 high = get_high_32(slot);
         if (high != EMPTY_MARKER) {

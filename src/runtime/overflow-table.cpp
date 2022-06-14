@@ -946,6 +946,7 @@ UINT32_ARRAY overflow_table_range_copy(ARRAY_MEM_POOL *array_pool, uint64 handle
   assert(pack_tag_payload(tag, block_idx) == get_low_32(handle));
 
   if (tag != HASHED_BLOCK) {
+    assert(first == 0);
     //## WARNING: THIS ONLY WORKS ON LITTLE-ENDIAM CPUS
     result.size = get_count(handle);
     result.array = (uint32 *) (array_pool->slots + block_idx);

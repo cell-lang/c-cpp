@@ -131,3 +131,87 @@ void tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32),
 void tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3) {
   slave_tern_table_write(write_state, &table->master, &table->slave, surr_to_obj_1, store_1, surr_to_obj_2, store_2, surr_to_obj_3, store_3, idx1, idx2, idx3);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void tern_table_iter_13_init(TERN_TABLE *table, TERN_TABLE_ITER_13_OR_23 *iter, uint32 arg1, uint32 arg3) {
+  uint32 count1 = master_bin_table_count_1(&table->master, arg1);
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  iter->offset = count1 == 0 | count3 == 3 ? 0xFFFFFFFF : 0;
+}
+
+bool tern_table_iter_13_done(TERN_TABLE_ITER_13_OR_23 *iter) {
+  return iter->offset == 0xFFFFFFFF;
+}
+
+uint32 tern_table_iter_13_read(TERN_TABLE *table, TERN_TABLE_ITER_13_OR_23 *iter, uint32 arg1, uint32 arg3, uint32 *arg2s, uint32 capacity) {
+  assert(capacity == 64);
+  assert(!tern_table_iter_13_done(iter));
+
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  uint32 write_idx = 0;
+
+  uint32 read3 = iter->offset;
+  assert(read3 == 0 || read3 >= 64);
+
+  while (read3 < count3) {
+    uint32 buffer[64];
+    UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read3, buffer, 64);
+    for (uint32 i=0 ; i < array.size ; i++) {
+      uint32 assoc_surr = array.array[i];
+      read3++;
+      uint32 curr_arg1 = master_bin_table_get_arg_1(&table->master, assoc_surr);
+      if (curr_arg1 == arg1) {
+        arg2s[write_idx++] = master_bin_table_get_arg_2(&table->master, assoc_surr);
+        if (write_idx == capacity) {
+          iter->offset = read3;
+          return capacity;
+        }
+      }
+    }
+  }
+
+  iter->offset = 0xFFFFFFFF;
+  return write_idx;
+}
+
+void tern_table_iter_23_init(TERN_TABLE *table, TERN_TABLE_ITER_13_OR_23 *iter, uint32 arg2, uint32 arg3) {
+  uint32 count2 = master_bin_table_count_2(&table->master, arg2);
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  iter->offset = count2 == 0 | count3 == 3 ? 0xFFFFFFFF : 0;
+}
+
+bool tern_table_iter_23_done(TERN_TABLE_ITER_13_OR_23 *iter) {
+  return iter->offset == 0xFFFFFFFF;
+}
+
+uint32 tern_table_iter_23_read(TERN_TABLE *table, TERN_TABLE_ITER_13_OR_23 *iter, uint32 arg2, uint32 arg3, uint32 *arg1s, uint32 capacity) {
+  assert(capacity == 64);
+  assert(!tern_table_iter_23_done(iter));
+
+  uint32 count3 = bin_table_count_2(&table->slave, arg3);
+  uint32 write_idx = 0;
+
+  uint32 read3 = iter->offset;
+  assert(read3 == 0 || read3 >= 64);
+
+  while (read3 < count3) {
+    uint32 buffer[64];
+    UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read3, buffer, 64);
+    for (uint32 i=0 ; i < array.size ; i++) {
+      uint32 assoc_surr = array.array[i];
+      read3++;
+      uint32 curr_arg2 = master_bin_table_get_arg_2(&table->master, assoc_surr);
+      if (curr_arg2 == arg2) {
+        arg1s[write_idx++] = master_bin_table_get_arg_1(&table->master, assoc_surr);
+        if (write_idx == capacity) {
+          iter->offset = read3;
+          return capacity;
+        }
+      }
+    }
+  }
+
+  iter->offset = 0xFFFFFFFF;
+  return write_idx;
+}

@@ -429,12 +429,82 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
     String* native_foreach_code_13(AnyTableVar table_var, Int32Var var1, Int32Var var3, TableArgStatus arg2, String* body_text) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      table_var_str = native_var_ref_name(table_var);
+
+      unique_id = printed(new_unique_id(:unused));
+
+      iter_var = "iter_" & unique_id;
+      iter_var_ptr = "&" & iter_var;
+      batch_size_var = "batch_size_" & unique_id;
+      arg2s_var = "arg2s_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      label = "label_" & unique_id;
+
+      code = (
+        "TERN_TABLE_ITER_13_OR_23 " & iter_var & ";",
+        native_call("tern_table_iter_13_init", (table_var_str, iter_var_ptr, var1, var3)),
+        "while (!tern_table_iter_13_done(" & iter_var_ptr & ")) {",
+        "  uint32 " & arg2s_var & "[64];",
+        "  uint32 " & native_call(batch_size_var, "tern_table_iter_13_read", (table_var_str, iter_var_ptr, var1, var3, arg2s_var, 64)),
+        "  uint32 " & idx_var & " = 0;",
+        "  " & label & ":"
+      );
+
+      code = match (arg2)
+        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & arg2s_var & "[" & idx_var & "];"),
+        ignored   = code;
+
+      code = code & indent_lines(body_text);
+
+      code = (
+        code |
+        "  if (++" & idx_var & " < " & batch_size_var & ")",
+        "    goto " & label & ";",
+        "}"
+      );
+
+      return code;
     }
 
 
     String* native_foreach_code_23(AnyTableVar table_var, Int32Var var2, Int32Var var3, TableArgStatus arg1, String* body_text) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      table_var_str = native_var_ref_name(table_var);
+
+      unique_id = printed(new_unique_id(:unused));
+
+      iter_var = "iter_" & unique_id;
+      iter_var_ptr = "&" & iter_var;
+      batch_size_var = "batch_size_" & unique_id;
+      arg1s_var = "arg1s_" & unique_id;
+      idx_var = "idx_" & unique_id;
+
+      label = "label_" & unique_id;
+
+      code = (
+        "TERN_TABLE_ITER_13_OR_23 " & iter_var & ";",
+        native_call("tern_table_iter_23_init", (table_var_str, iter_var_ptr, var2, var3)),
+        "while (!tern_table_iter_23_done(" & iter_var_ptr & ")) {",
+        "  uint32 " & arg1s_var & "[64];",
+        "  uint32 " & native_call(batch_size_var, "tern_table_iter_23_read", (table_var_str, iter_var_ptr, var2, var3, arg1s_var, 64)),
+        "  uint32 " & idx_var & " = 0;",
+        "  " & label & ":"
+      );
+
+      code = match (arg1)
+        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & arg1s_var & "[" & idx_var & "];"),
+        ignored   = code;
+
+      code = code & indent_lines(body_text);
+
+      code = (
+        code |
+        "  if (++" & idx_var & " < " & batch_size_var & ")",
+        "    goto " & label & ";",
+        "}"
+      );
+
+      return code;
     }
 
 

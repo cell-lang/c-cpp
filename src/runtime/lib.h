@@ -370,6 +370,10 @@ struct TERN_TABLE {
   BIN_TABLE slave;
 };
 
+struct TERN_TABLE_ITER_13_OR_23 {
+  uint32 offset;
+};
+
 struct TERN_TABLE_AUX {
   MASTER_BIN_TABLE_AUX master;
   BIN_TABLE_AUX slave;
@@ -1736,6 +1740,14 @@ bool tern_table_col_3_is_key(TERN_TABLE *table);
 
 void tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void tern_table_write(WRITE_FILE_STATE *write_state, TERN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+
+void tern_table_iter_13_init(TERN_TABLE *, TERN_TABLE_ITER_13_OR_23 *, uint32 arg1, uint32 arg3);
+bool tern_table_iter_13_done(TERN_TABLE_ITER_13_OR_23 *);
+uint32 tern_table_iter_13_read(TERN_TABLE *, TERN_TABLE_ITER_13_OR_23 *, uint32 arg1, uint32 arg3, uint32 *arg2s, uint32 capacity);
+
+void tern_table_iter_23_init(TERN_TABLE *, TERN_TABLE_ITER_13_OR_23 *, uint32 arg2, uint32 arg3);
+bool tern_table_iter_23_done(TERN_TABLE_ITER_13_OR_23 *);
+uint32 tern_table_iter_23_read(TERN_TABLE *, TERN_TABLE_ITER_13_OR_23 *, uint32 arg2, uint32 arg3, uint32 *arg1s, uint32 capacity);
 
 ////////////////////////////// tern-table-aux.cpp //////////////////////////////
 
