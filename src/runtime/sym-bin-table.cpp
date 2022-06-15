@@ -40,8 +40,12 @@ uint32 sym_bin_table_restrict(BIN_TABLE *table, uint32 arg, uint32 *other_args) 
   return fwd_count + bkw_count;
 }
 
-UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *table, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity) {
+  uint32 fwd_count = one_way_bin_table_get_count(&table->forward, arg);
+  if (first < fwd_count)
+    return one_way_bin_table_range_restrict(&table->forward, arg, first, other_args, capacity);
+  assert(first < fwd_count + one_way_bin_table_get_count(&table->backward, arg));
+  return one_way_bin_table_range_restrict(&table->backward, arg, first - fwd_count, other_args, capacity);
 }
 
 uint32 sym_bin_table_lookup(BIN_TABLE *table, uint32 arg) {

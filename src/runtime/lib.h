@@ -1464,6 +1464,8 @@ void sym_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
 
 void sym_bin_table_aux_apply(BIN_TABLE *, SYM_BIN_TABLE_AUX *, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *);
 
+void sym_bin_table_aux_prepare(SYM_BIN_TABLE_AUX *);
+
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 
 void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *);
