@@ -27,7 +27,6 @@ implicit context : NativeContext {
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
     surr_to_value()     = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_surr_to_value", (expr.store, expr.surrogate)),
     column_lookup()     = native_column_lookup_expr(expr.var, expr.column, expr.key),
-    get_value()         = undefined, //native_var_ref_name(expr.var) & ".GetValue()",
     only_elt(e?)        = "set_only_elt(" & native_expr(e) & ")";
 
 
@@ -345,7 +344,6 @@ implicit context : NativeContext {
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
-      get_unknown_arg()       = native_get_unknown_arg_expr(expr.iter, expr.arg),
       get_arg_by_assoc_surr() = native_get_arg_by_assoc_surr_expr(expr.table_var, expr.table_type, expr.arg, expr.surr),
       get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surr", (expr.table_var) & expr.args),
       get_aux_assoc_surr()    = native_get_aux_assoc_surr_expr(expr.table_var, expr.table, expr.args),
@@ -365,11 +363,6 @@ implicit context : NativeContext {
     String native_get_arg_by_assoc_surr_expr(AnyTableVar table_var, MasterBinTable table, <0..1> arg, Int32Var surr) {
       method_name = native_table_method_prefix(table) & "_get_arg_" & _print_(arg + 1);
       return native_call_expr(method_name, (table_var, surr));
-    }
-
-    String native_get_unknown_arg_expr(<ColumnItVar, SlaveColumnItVar> iter, <0..2> arg) {
-      assert arg == 0;
-      return it_var_method_prefix(iter) & "_get_idx(" & native_var_ref_name(iter) & ")";
     }
   }
 

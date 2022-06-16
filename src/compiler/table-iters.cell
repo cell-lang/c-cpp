@@ -1,16 +1,4 @@
 implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
-  String native_get_slave_col_iter_code(SlaveColumnItVar it_var, AnyTableVar table_var, SlaveColumn column, Maybe[Int32Var]+ args) {
-    method_name = it_var_method_prefix(it_var) & "_init";
-    return native_call(method_name, (table_var, it_var) & (native_expr(value(a)) : a <- args, a != nothing));
-  }
-
-
-  String native_get_column_iter_code(ColumnItVar it_var, AnyTableVar col_var, <Column, MandatoryColumn> column) {
-    method_name = native_column_method_prefix(it_var.repr, it_var.mandatory) & "_iter_init";
-    return native_call(method_name, (column.master if is_mandatory_column(column), col_var, it_var));
-  }
-
-
   String* native_foreach_code(UnaryTableIter iter, Instr* body, Maybe[Nat] block_id) {
     table_name = native_deref_var_name(iter.table_var);
 

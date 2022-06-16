@@ -266,9 +266,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     init_table()          = (), //(native_method_call(instr.rel_var, "init",    ())),
     cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
 
-    get_slave_col_iter()  = (native_get_slave_col_iter_code(instr.it_var, instr.table_var, instr.column, instr.args)),
-    get_column_iter()     = (native_get_column_iter_code(instr.it_var, instr.col_var, instr.column)),
-
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),

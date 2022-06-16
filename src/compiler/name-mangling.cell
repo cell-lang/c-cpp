@@ -26,7 +26,7 @@
 //  Z
 
 type QualifiableVars    = ObjVar, PendingInputVar, BoolVar, IntVar, Int32Var, FloatVar,
-                          AnyAutoVar, AnyDBVar, AnyTableVar, AnyTableItVar, AnyValueStoreId;
+                          AnyAutoVar, AnyDBVar, AnyTableVar, AnyValueStoreId;
 
 type UnqualifiableVars  = OptTagRecVar, VecVar, ArrayVar, SeqItVar, SetItVar, BinRelItVar, TernRelItVar, StreamVar, AnyClsVar;
 
@@ -96,25 +96,6 @@ implicit context : NativeContext {
   String native_var_name(ArrayVar var) =
     avar()              = "y" & printed(var.id) & "_" & native_type(var.repr, context = :core),
     shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
-
-  String native_var_name(ColumnItVar var, Bool as_ref_name) {
-    prefix = match (var.repr)
-      object  = "obj",
-      int     = "int",
-      float   = "float";
-    prefix = "raw_" & prefix if var.mandatory;
-    prefix = "&" & prefix if as_ref_name;
-    return prefix & "_col_it_" & printed(var.id);
-  }
-
-  String native_var_name(SlaveColumnItVar var, Bool as_ref_name) {
-    prefix = match (var.repr)
-      object  = "obj",
-      int     = "int",
-      float   = "float";
-    prefix = "&" & prefix if as_ref_name;
-    return prefix & "_slave_col_it_" & printed(var.id);
-  }
 
   String native_var_name(AnyClsVar v) =
     cls_var(<+> a?)     = _print_(a) & "_C",
@@ -416,9 +397,6 @@ implicit context : NativeContext {
   String native_var_type(VecVar v)       = undefined;
   String native_var_type(ArrayVar v)     = native_elt_type(v) & "[]";
 
-  String native_var_type(ColumnItVar v)       = column_it_var_type(v);
-  String native_var_type(SlaveColumnItVar v)  = slave_column_it_var_type(v);
-
 
   String native_elt_type(ArrayVar var) = native_type(var.repr);
 
@@ -600,41 +578,10 @@ String native_column_method_prefix(ColumnRepr repr, Bool mandatory) =
     else native_column_method_prefix(repr);
 
 
-String column_it_var_type(ColumnItVar var) {
-  name = match (var.repr)
-    object    = "OBJ_COL_ITER",
-    int       = "INT_COL_ITER",
-    float     = "FLOAT_COL_ITER";
-  name = "RAW_" & name if var.mandatory;
-  return name;
-}
-
-String slave_column_it_var_type(SlaveColumnItVar var) =
-  match (var.repr)
-    object    = "OBJ_COL_ITER",
-    int       = "INT_COL_ITER",
-    float     = "FLOAT_COL_ITER";
-
-
 String it_var_method_prefix(SeqItVar var)     = "";
 String it_var_method_prefix(SetItVar var)     = "";
 String it_var_method_prefix(BinRelItVar var)  = "";
 String it_var_method_prefix(TernRelItVar var) = "";
-
-String it_var_method_prefix(ColumnItVar var) {
-  prefix = match (var.repr)
-    object  = "obj_col_iter",
-    int     = "int_col_iter",
-    float   = "float_col_iter";
-  prefix = "raw_" & prefix if var.mandatory;
-  return prefix;
-}
-
-String it_var_method_prefix(SlaveColumnItVar var) =
-  match (var.repr)
-    object  = "obj_col_iter",
-    int     = "int_col_iter",
-    float   = "float_col_iter";
 
 
 String native_table_aux_type(AnyTable table) =
