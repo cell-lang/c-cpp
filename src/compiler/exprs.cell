@@ -32,7 +32,7 @@ implicit context : NativeContext {
 
   String native_column_lookup_expr(AnyTableVar var, AnyColumn column, Int32Var key) {
     method_name = native_table_method_prefix(column) & "_lookup";
-    args = (column.master if is_mandatory_column(column), var, key);
+    args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
     expr = native_call_expr(method_name, args);
     return match (column.repr)
       object  = expr,
@@ -298,7 +298,7 @@ implicit context : NativeContext {
     String native_get_int_val_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key) {
       if column.repr == :int {
         method_name = native_table_method_prefix(column) & "_lookup";
-        args = (column.master if is_mandatory_column(column), var, key);
+        args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
         return native_call_expr(method_name, args);
       }
       else
@@ -461,7 +461,7 @@ implicit context : NativeContext {
   String native_float_value_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key) {
     if column.repr == :float {
       method_name = native_table_method_prefix(column) & "_lookup";
-      args = (column.master if is_mandatory_column(column), var, key);
+      args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
       return native_call_expr(method_name, args);
     }
     else
