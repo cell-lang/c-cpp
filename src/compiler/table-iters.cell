@@ -207,10 +207,10 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     arg1, arg2 = iter.args;
     maybe_surr_var = if iter.surr_var? then just(iter.surr_var) else nothing;
     return match (arg1, arg2)
-      bound(v?),  _         = foreach_code_1(iter.table_var, iter.table, v, arg2, maybe_surr_var, body, block_id),
-      _,          bound(v?) = foreach_code_2(iter.table_var, iter.table, arg1, v, maybe_surr_var, body, block_id),
-      _,          _         = foreach_code(iter.table_var, iter.table, arg1, arg2, maybe_surr_var, body, block_id);
-
+      bound(),    bound()     = undefined,
+      bound(v?),  _           = foreach_code_1(iter.table_var, iter.table, v, arg2, maybe_surr_var, body, block_id),
+      _,          bound(v?)   = foreach_code_2(iter.table_var, iter.table, arg1, v, maybe_surr_var, body, block_id),
+      _,          _           = foreach_code(iter.table_var, iter.table, arg1, arg2, maybe_surr_var, body, block_id);
 
 
     String* foreach_code_1(AnyTableVar table_var, MasterBinTable table, Int32Var arg1, TableArgStatus arg2, Maybe[Int32Var] maybe_surr_var, Instr* body, Maybe[Nat] block_id) {
