@@ -115,12 +115,21 @@ static void int_store_aux_resize(INT_STORE_AUX *store_aux) {
 
   uint32 *hashtable = new_uint32_array(capacity); // capacity == new_capacity / 2
   memset(hashtable, 0xFF, capacity * sizeof(uint32));
+#ifndef NDEBUG
   for (uint32 i=0 ; i < capacity ; i++)
     assert(hashtable[i] == 0xFFFFFFFF);
+#endif
+
+  uint32 *buckets = new_uint32_array(new_capacity);  // new_capacity == 2 * capacity
+  memset(buckets, 0xFF, new_capacity * sizeof(uint32));
+#ifndef NDEBUG
+  for (uint32 i=0 ; i < new_capacity ; i++)
+    assert(buckets[i] == 0xFFFFFFFF);
+#endif
+  store_aux->buckets = buckets;
 
   store_aux->hash_range = capacity; // capacity == new_capacity / 2
   store_aux->hashtable = hashtable;
-  store_aux->buckets = new_uint32_array(new_capacity);
 
   assert(store_aux->count == capacity);
   for (uint32 i=0 ; i < capacity ; i++)
@@ -247,10 +256,15 @@ uint32 int_store_aux_value_to_surr(INT_STORE *store, INT_STORE_AUX *store_aux, i
       uint32 idx = hashtable[hash_idx];
       while (idx != 0xFFFFFFFF) {
         INT_STORE_AUX_INSERT_ENTRY *entry = entries + idx;
-        if (hashcode == entry->hashcode && value == entry->value)
+        if (value == entry->value)
           return entry->surr;
         idx = buckets[idx];
       }
+
+#ifndef NDEBUG
+      for (uint32 i=0 ; i < count ; i++)
+        assert(entries[i].value != value);
+#endif
     }
   }
 
@@ -289,10 +303,10 @@ uint32 int_store_aux_insert(INT_STORE *store, INT_STORE_AUX *store_aux, int64 va
   //## THESE TWO WRITES SHOULD BE MERGED
   entry_ptr->hashcode = hashcode;
   entry_ptr->surr = surr;
-  store_aux->count = ++count;
+  store_aux->count = count + 1;
 
   if (count > INLINE_AUX_SIZE) {
-
+    int_store_aux_insert_into_hashtable(store_aux, count, hashcode);
   }
   // if (count >= 16) {
   //   if (count >= hashRange) {

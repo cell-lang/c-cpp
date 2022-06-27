@@ -523,12 +523,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         : tv <- tvs
       ]);
 
-      perm_args = if symmetric
-        then ()
-        else match (|perm|)
-          1   = (),
-          2   = if perm == [0 -> 1, 1 -> 0] then ("true") else ("false"),
-          3   = (_print_(perm(j)) : j < 3);
+      perm_args = match (|perm|)
+        1   = (),
+        2   = if not symmetric
+                then if perm == [0 -> 1, 1 -> 0] then ("true") else ("false")
+                else (),
+        3   = (_print_(perm(j)) : j < 3);
 
       // are_slave_columns = only([
       //   match (block.tables(tv))
@@ -1475,7 +1475,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     String check_call(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
       table_type = block.tables(var);
       method_name = match (table_type)
-        table()             = table_key_check_method_names(arity, key, !),
+        table()             = if not table_type.symmetric
+                                then table_key_check_method_names(arity, key, !)
+                                else semisym_table_key_check_method_names(arity, key, !),
         master_bin_table()  = undefined,
         slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
         mandatory_column()  = native_table_method_prefix(table_type) & "_aux_check_key_1",
@@ -1486,7 +1488,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         column()            = (var, aux_var, :mem_pool),
         mandatory_column()  = (table_type.master, var, aux_var, :mem_pool),
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
-        table()             = (var, aux_var, :mem_pool if arity == 2),
+        table()             = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and table_type.symmetric)),
         master_bin_table()  = (var, aux_var),
         slave_column()      = (var, aux_var, :mem_pool);
       return native_call_expr(method_name, args);
@@ -1517,6 +1519,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       3,  [0, 1], "tern_table_aux_check_key_12";
       3,  [1, 2], "tern_table_aux_check_key_23";
       3,  [0, 2], "tern_table_aux_check_key_13"
+    ];
+
+
+    [NzNat, [+Nat], String] semisym_table_key_check_method_names = [
+      3,  [2],    "semisym_tern_table_aux_check_key_3";
+      3,  [0, 1], "semisym_tern_table_aux_check_key_12"
     ];
 
 

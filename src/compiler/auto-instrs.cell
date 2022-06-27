@@ -202,10 +202,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  init(stream_1);", "  init(stream_2);", "  init(stream_3);"
       );
       for v <- ord_table_vars {
-        value_stores = match (tables(v))
-          table() t?  = t.value_stores,
-          _           = undefined;
-        assert |value_stores| == 3;
+        value_stores = table_value_stores(tables(v));
+        assert |value_stores| == if symmetric then 2 else 3;
         store_types = (prg_data.value_stores(rel_auto_id)(vs) : vs <- value_stores);
         method_names = (native_surr_to_obj_method_name(t) : t <- store_types);
         stores_args = join(((method_names(i), vs) : vs @ i <- value_stores));

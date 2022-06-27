@@ -33,7 +33,7 @@ void semisym_tern_table_aux_delete_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX 
   uint32 surr12 = sym_master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {
     assert(bin_table_contains_1(&table->slave, surr12));
-    sym_master_bin_table_aux_delete(&table_aux->master, arg1, arg2); //# WOULD BE MORE EFFICIENT TO PASS THE SURROGATE INSTEAD
+    sym_master_bin_table_aux_delete(&table->master, &table_aux->master, arg1, arg2); //# WOULD BE MORE EFFICIENT TO PASS THE SURROGATE INSTEAD
     bin_table_aux_delete_1(&table_aux->slave, surr12);
   }
 }
@@ -145,4 +145,28 @@ bool semisym_tern_table_aux_check_key_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_A
 bool semisym_tern_table_aux_check_key_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   // THE VIOLATION OF THE KEY IS DETECTED CORRECTLY, BUT THE ERROR MESSAGE MAY BE WRONG/UNHELPFUL
   return bin_table_aux_check_key_2(&table->slave, &table_aux->slave, mem_pool);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void semisym_tern_table_aux_prepare(SEMISYM_TERN_TABLE_AUX *) {
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *) {
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool semisym_tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *) {
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_backward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *) {
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool semisym_tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *) {
+  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }

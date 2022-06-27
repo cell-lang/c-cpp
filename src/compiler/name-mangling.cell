@@ -523,12 +523,10 @@ Bool is_nullable(OptTagRecRepr) = true;
 
 
 String native_table_type(Table table) =
-  match (arity(table), table.symmetric)
-    1,  false   = "UNARY_TABLE",
-    2,  false   = "BIN_TABLE",
-    2,  true    = "BIN_TABLE",
-    3,  false   = "TERN_TABLE",
-    3,  true    = "SYM12_TERN_TABLE";
+  match (arity(table))
+    1   = "UNARY_TABLE",
+    2   = "BIN_TABLE",
+    3   = "TERN_TABLE";
 
 String native_table_type(MasterBinTable) = "MASTER_BIN_TABLE";
 String native_table_type(SlaveTernTable) = "BIN_TABLE";
@@ -556,7 +554,7 @@ String native_table_method_prefix(NzNat arity, Bool symmetric) =
   2,  false   = "bin_table",
   2,  true    = "sym_bin_table",
   3,  false   = "tern_table",
-  3,  true    = "sym_12_tern_table";
+  3,  true    = "semisym_tern_table";
 
 String native_table_method_prefix(MasterBinTable) = "master_bin_table";
 String native_table_method_prefix(SlaveTernTable) = "slave_tern_table";
@@ -587,7 +585,12 @@ String it_var_method_prefix(TernRelItVar var) = "";
 String native_table_aux_type(AnyTable table) =
   mandatory_column()  = native_column_type(table.repr) & "_AUX",
   slave_tern_table()  = "SLAVE_TERN_TABLE_AUX",
-  table()             = if arity(table) == 2 and table.symmetric then "SYM_BIN_TABLE_AUX" else native_table_type(table) & "_AUX",
+  table()             = if table.symmetric
+                          then match (arity(table))
+                            2   = "SYM_BIN_TABLE_AUX",
+                            3   = "SEMISYM_TERN_TABLE_AUX"
+                        else
+                          native_table_type(table) & "_AUX",
   _                   = native_table_type(table) & "_AUX";
 
 

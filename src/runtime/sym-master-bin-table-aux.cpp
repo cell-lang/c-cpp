@@ -1,11 +1,18 @@
 #include "lib.h"
 
 
+bool is_locked(uint64);
+
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
 
 bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool);
+
 bool master_bin_table_lock_surr(MASTER_BIN_TABLE *table, uint32 surr);
+bool master_bin_table_unlock_surr(MASTER_BIN_TABLE *table, uint32 surr);
+bool master_bin_table_slot_is_locked(MASTER_BIN_TABLE *table, uint32 surr);
+
+uint32 master_bin_table_lookup_possibly_locked_surr(MASTER_BIN_TABLE *, uint32, uint32);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -33,6 +40,7 @@ void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->deletions_1);
   queue_3u32_reset(&table_aux->insertions);
   queue_u32_reset(&table_aux->reinsertions);
+  table_aux->reserved_surrs.clear();
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -43,8 +51,9 @@ void sym_master_bin_table_aux_clear(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   table_aux->clear = true;
 }
 
-void sym_master_bin_table_aux_delete(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
+void sym_master_bin_table_aux_delete(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  if (sym_master_bin_table_contains(table, arg1, arg2))
+    queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
 }
 
 void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
@@ -75,10 +84,20 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
     }
   }
 
-  if (surr == 0xFFFFFFFF)
-    surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+  if (surr == 0xFFFFFFFF) {
+    unordered_map<uint64, uint32> &reserved_surrs = table_aux->reserved_surrs;
+    unordered_map<uint64, uint32>::iterator it = reserved_surrs.find(pack_args(arg1, arg2));
+    if (it != reserved_surrs.end()) {
+      surr = it->second;
+      reserved_surrs.erase(it);
+      assert(reserved_surrs.count(pack_args(arg1, arg2)) == 0);
+    }
+    else {
+      surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+      table_aux->last_surr = surr;
+    }
+  }
 
-  table_aux->last_surr = surr;
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
   return surr;
 }
@@ -88,7 +107,6 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
 uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
-
   if (surr != 0xFFFFFFFF)
     return surr;
 
@@ -103,9 +121,16 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_
     ptr++;
   }
 
-  //## BUG BUG BUG: NOT SURE THIS CANNOT HAPPEN
-  //## TRY TO TRICK THE CODE ALL THE WAY HERE
-  internal_fail();
+  uint64 args = pack_args(arg1, arg2);
+
+  unordered_map<uint64, uint32>::iterator it = table_aux->reserved_surrs.find(pack_args(arg1, arg2));
+  if (it != table_aux->reserved_surrs.end())
+    return it->second;
+
+  surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+  table_aux->last_surr = surr;
+  table_aux->reserved_surrs[args] = surr;
+  return surr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -154,8 +179,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
             uint32 arg2 = unpack_arg2(slot);
 
             master_bin_table_delete(table, arg1, arg2);
-            decr_rc_1(store_1, store_aux_1, arg1);
-            decr_rc_2(store_2, store_aux_2, arg2);
+            decr_rc(store, store_aux, arg1);
+            decr_rc(store, store_aux, arg2);
 
           }
         }
@@ -168,9 +193,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
     else {
       uint32 dels_count = table_aux->deletions.count;
       uint32 dels_1_count = table_aux->deletions_1.count;
-      uint32 dels_2_count = table_aux->deletions_2.count;
 
-      if (dels_count != 0 | dels_1_count != 0 | dels_2_count != 0) {
+      if (dels_count != 0 | dels_1_count != 0) {
         // Locking all tuples that are supposed to be reinserted, so as to avoid deleting them in the first place
         uint32 *surrs = table_aux->reinsertions.array;
         for (uint32 i=0 ; i < reins_count ; i++)
@@ -186,8 +210,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
             if (surr != 0xFFFFFFFF && !master_bin_table_slot_is_locked(table, surr)) {
               bool found = master_bin_table_delete(table, arg1, arg2);
               assert(found);
-              decr_rc_1(store_1, store_aux_1, arg1);
-              decr_rc_2(store_2, store_aux_2, arg2);
+              decr_rc(store, store_aux, arg1);
+              decr_rc(store, store_aux, arg2);
             }
           }
         }
@@ -218,42 +242,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
 
                   bool found = master_bin_table_delete(table, arg1, arg2);
                   assert(found);
-                  decr_rc_1(store_1, store_aux_1, arg1);
-                  decr_rc_2(store_2, store_aux_2, arg2);
-
-                }
-              }
-            }
-          }
-        }
-
-        if (dels_2_count > 0) {
-          uint32 *array = table_aux->deletions_2.array;
-
-          uint32 max_count_2 = 0;
-          for (uint32 i=0 ; i < dels_2_count ; i++) {
-            uint32 arg2 = array[i];
-            uint32 count2 = master_bin_table_count_2(table, arg2);
-            if (count2 > max_count_2)
-              max_count_2 = count2;
-          }
-
-          if (max_count_2 > 0) {
-            uint32 buffer[256];
-            uint32 *arg1s = max_count_2 <= 256 ? buffer : new_uint32_array(max_count_2);
-
-            for (uint32 i=0 ; i < dels_2_count ; i++) {
-              uint32 arg2 = array[i];
-              uint32 count2 = master_bin_table_restrict_2(table, arg2, arg1s);
-              for (uint32 j=0 ; j < count2 ; j++) {
-                uint32 arg1 = arg1s[j];
-                uint32 surr = master_bin_table_lookup_possibly_locked_surr(table, arg1, arg2);
-                if (!master_bin_table_slot_is_locked(table, surr)) {
-
-                  bool found = master_bin_table_delete(table, arg1, arg2);
-                  assert(found);
-                  decr_rc_1(store_1, store_aux_1, arg1);
-                  decr_rc_2(store_2, store_aux_2, arg2);
+                  decr_rc(store, store_aux, arg1);
+                  decr_rc(store, store_aux, arg2);
 
                 }
               }
@@ -279,8 +269,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
           uint32 arg1 = unpack_arg1(slot);
           uint32 arg2 = unpack_arg2(slot);
 
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
+          decr_rc(store, store_aux, arg1);
+          decr_rc(store, store_aux, arg2);
 
         }
       }
@@ -295,8 +285,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
           uint32 arg1 = unpack_arg1(args);
           uint32 arg2 = unpack_arg2(args);
           if (master_bin_table_delete(table, arg1, arg2)) {
-            decr_rc_1(store_1, store_aux_1, arg1);
-            decr_rc_2(store_2, store_aux_2, arg2);
+            decr_rc(store, store_aux, arg1);
+            decr_rc(store, store_aux, arg2);
           }
         }
       }
@@ -316,36 +306,12 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
             for (uint32 i=0 ; i < array1.size ; i++) {
               uint32 arg2 = array1.array[i];
 
-              decr_rc_1(store_1, store_aux_1, arg1);
-              decr_rc_2(store_2, store_aux_2, arg2);
+              decr_rc(store, store_aux, arg1);
+              decr_rc(store, store_aux, arg2);
 
             }
           }
           master_bin_table_delete_1(table, arg1);
-        }
-      }
-
-      count = table_aux->deletions_2.count;
-      if (count > 0) {
-        uint32 *array = table_aux->deletions_2.array;
-        for (uint32 i=0 ; i < count ; i++) {
-          uint32 arg2 = array[i];
-
-          uint32 count2 = master_bin_table_count_2(table, arg2);
-          uint32 read = 0;
-          while (read < count2) {
-            uint32 buffer[64];
-            UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-            read += array2.size;
-            for (uint32 i=0 ; i < array2.size ; i++) {
-              uint32 arg1 = array2.array[i];
-
-              decr_rc_1(store_1, store_aux_1, arg1);
-              decr_rc_2(store_2, store_aux_2, arg2);
-
-            }
-          }
-          master_bin_table_delete_2(table, arg2);
         }
       }
     }
@@ -358,8 +324,8 @@ void sym_master_bin_table_aux_apply(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABL
       uint32 arg2 = (*ptr)[1];
       uint32 surr = (*ptr)[2];
       if (master_bin_table_insert_with_surr(table, arg1, arg2, surr, mem_pool)) {
-        incr_rc_1(store_1, arg1);
-        incr_rc_2(store_2, arg2);
+        incr_rc(store, arg1);
+        incr_rc(store, arg2);
       }
       ptr++;
     }
