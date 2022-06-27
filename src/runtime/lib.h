@@ -398,12 +398,6 @@ struct OBJ_COL {
   uint32 count;
 };
 
-struct OBJ_COL_ITER {
-  OBJ *array;
-  uint32 left; // Includes current value
-  uint32 idx;
-};
-
 struct OBJ_COL_AUX {
   COL_UPDATE_STATUS_MAP status_map;
   QUEUE_U32 deletions;
@@ -422,14 +416,6 @@ struct INT_COL {
   unordered_set<uint32> collisions;
 };
 
-struct INT_COL_ITER {
-  int64 *array;
-  uint32 left; // Includes current value
-  uint32 idx;
-
-  unordered_set<uint32> *collisions;
-};
-
 struct INT_COL_AUX {
   COL_UPDATE_STATUS_MAP status_map;
   QUEUE_U32 deletions;
@@ -444,12 +430,6 @@ struct FLOAT_COL {
   double *array;
   uint32 capacity;
   uint32 count;
-};
-
-struct FLOAT_COL_ITER {
-  double *array;
-  uint32 left; // Includes current value
-  uint32 idx;
 };
 
 struct FLOAT_COL_AUX {
@@ -1926,12 +1906,6 @@ void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_ob
 void slave_int_col_copy_to(MASTER_BIN_TABLE *, INT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void slave_int_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, INT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, uint32 idx1, uint32 idx2, uint32 idx3);
 
-void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter);
-bool int_col_iter_is_out_of_range(INT_COL_ITER *iter);
-uint32 int_col_iter_get_idx(INT_COL_ITER *iter);
-int64 int_col_iter_get_value(INT_COL_ITER *iter);
-void int_col_iter_move_forward(INT_COL_ITER *iter);
-
 //////////////////////////////// int-col-aux.cpp ///////////////////////////////
 
 void int_col_aux_init(INT_COL_AUX *, STATE_MEM_POOL *);
@@ -1977,12 +1951,6 @@ void float_col_write(WRITE_FILE_STATE *, FLOAT_COL *, OBJ (*surr_to_obj)(void *,
 void slave_float_col_copy_to(MASTER_BIN_TABLE *, FLOAT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void slave_float_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, FLOAT_COL *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, uint32 idx1, uint32 idx2, uint32 idx3);
 
-void float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter);
-bool float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter);
-uint32 float_col_iter_get_idx(FLOAT_COL_ITER *iter);
-double float_col_iter_get_value(FLOAT_COL_ITER *iter);
-void float_col_iter_move_forward(FLOAT_COL_ITER *iter);
-
 /////////////////////////////// float-col-aux.cpp //////////////////////////////
 
 void float_col_aux_init(FLOAT_COL_AUX *, STATE_MEM_POOL *);
@@ -2027,12 +1995,6 @@ void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), voi
 
 void   slave_obj_col_copy_to(MASTER_BIN_TABLE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
 void   slave_obj_col_write(WRITE_FILE_STATE *, MASTER_BIN_TABLE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, uint32 idx1, uint32 idx2, uint32 idx3);
-
-void   obj_col_iter_init(OBJ_COL *column, OBJ_COL_ITER *iter);
-bool   obj_col_iter_is_out_of_range(OBJ_COL_ITER *iter);
-uint32 obj_col_iter_get_idx(OBJ_COL_ITER *iter);
-OBJ    obj_col_iter_get_value(OBJ_COL_ITER *iter);
-void   obj_col_iter_move_forward(OBJ_COL_ITER *iter);
 
 //////////////////////////////// obj-col-aux.cpp ///////////////////////////////
 

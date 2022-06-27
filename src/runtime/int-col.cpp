@@ -37,7 +37,7 @@ inline bool is_collision(INT_COL *column, uint32 idx) {
   return column->collisions.count(idx) != 0;
 }
 
-inline bool is_set_at(INT_COL *column, uint32 idx, int64 value) {
+bool is_set_at(INT_COL *column, uint32 idx, int64 value) {
   return value != INT_NULL || is_collision(column, idx);
 }
 
@@ -245,48 +245,5 @@ void slave_int_col_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master
       if (remaining > 0 | count == 1)
         write_str(write_state, ";");
     }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void int_col_iter_init(INT_COL *column, INT_COL_ITER *iter) {
-  int64 *array = column->array;
-  uint32 count = column->count;
-
-  uint32 idx = 0;
-  if (count > 0)
-    while (!is_set_at(column, idx, array[idx]))
-      idx++;
-
-  iter->array = column->array;
-  iter->left = count;
-  iter->idx = idx;
-  iter->collisions = &column->collisions;
-}
-
-bool int_col_iter_is_out_of_range(INT_COL_ITER *iter) {
-  return iter->left == 0;
-}
-
-uint32 int_col_iter_get_idx(INT_COL_ITER *iter) {
-  assert(!int_col_iter_is_out_of_range(iter));
-  return iter->idx;
-}
-
-int64 int_col_iter_get_value(INT_COL_ITER *iter) {
-  assert(!int_col_iter_is_out_of_range(iter));
-  return iter->array[iter->idx];
-}
-
-void int_col_iter_move_forward(INT_COL_ITER *iter) {
-  assert(!int_col_iter_is_out_of_range(iter));
-  if (--iter->left) {
-    int64 *array = iter->array;
-    uint32 idx = iter->idx;
-    do
-      idx++;
-    while (array[idx] == INT_NULL && iter->collisions->count(idx) == 0);
-    iter->idx = idx;
   }
 }

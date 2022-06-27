@@ -40,14 +40,14 @@ void obj_col_aux_update(OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
 
 void obj_col_aux_apply(OBJ_COL *col, OBJ_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
-    OBJ_COL_ITER iter;
-    obj_col_iter_init(col, &iter);
-    while (!obj_col_iter_is_out_of_range(&iter)) {
-      assert(!is_blank(obj_col_iter_get_value(&iter)));
-      uint32 idx = obj_col_iter_get_idx(&iter);
-      decr_rc(store, store_aux, idx);
-      obj_col_iter_move_forward(&iter);
-    }
+    OBJ *array = col->array;
+    uint32 count = col->count;
+    uint32 read = 0;
+    for (uint32 idx=0 ; read < count ; idx++)
+      if (!is_blank(array[idx])) {
+        read++;
+        decr_rc(store, store_aux, idx);
+      }
 
     obj_col_clear(col, mem_pool);
   }

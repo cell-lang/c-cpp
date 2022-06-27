@@ -12,7 +12,7 @@ const double NORM_NAN = 0.0 / 0.0;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline bool is_float_col_null(double value) {
+bool is_float_col_null(double value) {
   return bits_cast_double_uint64(value) == NULL_BIT_MASK;
 }
 
@@ -221,47 +221,5 @@ void slave_float_col_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *mast
       if (remaining > 0 | count == 1)
         write_str(write_state, ";");
     }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void float_col_iter_init(FLOAT_COL *column, FLOAT_COL_ITER *iter) {
-  double *array = column->array;
-  uint32 count = column->count;
-
-  uint32 idx = 0;
-  if (count > 0)
-    while (is_float_col_null(array[idx]))
-      idx++;
-
-  iter->array = column->array;
-  iter->left = count;
-  iter->idx = idx;
-}
-
-bool float_col_iter_is_out_of_range(FLOAT_COL_ITER *iter) {
-  return iter->left == 0;
-}
-
-uint32 float_col_iter_get_idx(FLOAT_COL_ITER *iter) {
-  assert(!float_col_iter_is_out_of_range(iter));
-  return iter->idx;
-}
-
-double float_col_iter_get_value(FLOAT_COL_ITER *iter) {
-  assert(!float_col_iter_is_out_of_range(iter));
-  return iter->array[iter->idx];
-}
-
-void float_col_iter_move_forward(FLOAT_COL_ITER *iter) {
-  assert(!float_col_iter_is_out_of_range(iter));
-  if (--iter->left) {
-    double *array = iter->array;
-    uint32 idx = iter->idx;
-    do
-      idx++;
-    while (is_float_col_null(array[idx]));
-    iter->idx = idx;
   }
 }

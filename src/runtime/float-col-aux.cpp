@@ -1,6 +1,10 @@
 #include "lib.h"
 
 
+bool is_float_col_null(double);
+
+////////////////////////////////////////////////////////////////////////////////
+
 void float_col_aux_init(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   col_update_status_map_init(&col_aux->status_map);
   queue_u32_init(&col_aux->deletions);
@@ -40,14 +44,14 @@ void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value) {
 
 void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
-    FLOAT_COL_ITER iter;
-    float_col_iter_init(col, &iter);
-    while (!float_col_iter_is_out_of_range(&iter)) {
-      // assert(!is_blank(float_col_iter_get_value(&iter)));
-      uint32 idx = float_col_iter_get_idx(&iter);
-      decr_rc(store, store_aux, idx);
-      float_col_iter_move_forward(&iter);
-    }
+    double *array = col->array;
+    uint32 count = col->count;
+    uint32 read = 0;
+    for (uint32 idx=0 ; read < count ; idx++)
+      if (!is_float_col_null(array[idx])) {
+        read++;
+        decr_rc(store, store_aux, idx);
+      }
 
     float_col_clear(col, mem_pool);
   }
