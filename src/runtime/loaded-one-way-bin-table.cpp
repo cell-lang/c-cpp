@@ -42,6 +42,7 @@ static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_p
 }
 
 //////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   array_mem_pool_init(&table->array_pool, true, mem_pool);
@@ -50,6 +51,42 @@ void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem
     slots[i] = EMPTY_SLOT;
   table->column = slots;
   table->capacity = MIN_CAPACITY;
+  table->count = 0;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void loaded_one_way_bin_table_release(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+// struct ARRAY_MEM_POOL {
+//   uint64 *slots;
+//   uint32 size;
+//   uint32 head2, head4, head8, head16;
+//   bool alloc_double_space;
+// };
+
+// struct ONE_WAY_BIN_TABLE {
+//   ARRAY_MEM_POOL array_pool;
+//   uint64 *column;
+//   uint32 capacity;
+//   uint32 count;
+// };
+
+void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  array_mem_pool_clear(&table->array_pool, mem_pool);
+  uint32 capacity = table->capacity;
+  uint64 *slots = table->column;
+  if (capacity > MIN_CAPACITY) { //## WHAT WOULD BE A GOOD VALUE FOR THE REALLOCATION THRESHOLD?
+    release_state_mem_uint64_array(mem_pool, slots, 2 * capacity);
+    slots = alloc_state_mem_uint64_array(mem_pool, 2 * MIN_CAPACITY);
+    table->column = slots;
+    capacity = MIN_CAPACITY;
+    table->capacity = capacity;
+  }
+  for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
+    slots[i] = EMPTY_SLOT;
   table->count = 0;
 }
 
@@ -77,6 +114,8 @@ uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *table, uint32 surr1, 
 }
 
 uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, uint32 *values, uint32 *data) {
+  assert(values != NULL && data != NULL);
+
   uint32 capacity = table->capacity;
 
   if (surr >= capacity)
@@ -285,8 +324,4 @@ void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 sur
     else
       table->count--;
   }
-}
-
-void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table) {
-  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
 }

@@ -110,8 +110,8 @@ void sym_bin_table_delete_1(BIN_TABLE *table, uint32 arg) {
 }
 
 void sym_bin_table_clear(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  one_way_bin_table_clear(&table->forward);
-  one_way_bin_table_clear(&table->backward);
+  one_way_bin_table_clear(&table->forward, mem_pool);
+  one_way_bin_table_clear(&table->backward, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

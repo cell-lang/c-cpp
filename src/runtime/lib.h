@@ -1748,8 +1748,8 @@ void tern_table_aux_clear(TERN_TABLE_AUX *);
 
 void tern_table_aux_apply(TERN_TABLE *, TERN_TABLE_AUX *, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *);
 
-bool tern_table_aux_check_key_3(TERN_TABLE *, TERN_TABLE_AUX *);
-bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *);
+bool tern_table_aux_check_key_3(TERN_TABLE *, TERN_TABLE_AUX *, STATE_MEM_POOL *);
+bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *, STATE_MEM_POOL *);
 bool tern_table_aux_check_key_13(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_23(TERN_TABLE *, TERN_TABLE_AUX *);
 
@@ -2135,6 +2135,7 @@ bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3);
 void queue_3u32_sort_unique(QUEUE_3U32 *);
 void queue_3u32_permute_132(QUEUE_3U32 *);
 void queue_3u32_permute_231(QUEUE_3U32 *);
+void queue_3u32_permute_312(QUEUE_3U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

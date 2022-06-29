@@ -88,6 +88,8 @@ uint64 set_low_32(uint64 slot, uint32 low32);
 uint64 set_high_32(uint64 slot, uint32 high32);
 
 void array_mem_pool_init(ARRAY_MEM_POOL *, bool alloc_parallel_space, STATE_MEM_POOL *);
+void array_mem_pool_release(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool);
+void array_mem_pool_clear(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool);
 
 uint32 array_mem_pool_alloc_16_block(ARRAY_MEM_POOL *, STATE_MEM_POOL *);
 void array_mem_pool_release_16_block(ARRAY_MEM_POOL *, uint32 block_idx);
@@ -116,6 +118,8 @@ UINT32_ARRAY overflow_table_range_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 f
 ////////////////////////////////////////////////////////////////////////////////
 
 void one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+void one_way_bin_table_release(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
 bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *, uint32 surr1);
@@ -131,7 +135,6 @@ uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2,
 
 bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2);
-void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);
 
 bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *);
 void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *, uint32 *dest);
@@ -153,6 +156,8 @@ UINT32_ARRAY loaded_overflow_table_range_copy(ARRAY_MEM_POOL *, uint64 handle, u
 ////////////////////////////////////////////////////////////////////////////////
 
 void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+void loaded_one_way_bin_table_release(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
+void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *, STATE_MEM_POOL*);
 
 uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *, uint32 surr, uint32 *dest, uint32 *data);
@@ -162,4 +167,3 @@ void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, u
 
 uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2, uint32 *data);
-void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *);

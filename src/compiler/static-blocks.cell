@@ -129,6 +129,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String *native_set_state_entry_point_code(DBSymbol db_type, DBSymbol* dependees) {
     method_name = set_state_entry_point_name(db_type);
     init_method_name = init_method_name(db_type);
+    aux_init_method_name = aux_init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
     set_state_method_name = set_state_proc_name(db_type);
     db_type_name = native_name(db_type);
@@ -136,26 +137,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     dep_names = (native_dependee_name(t, i) : t @ i <- dependees);
     dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
-    dep_args = (", target->" & dep_names(i) & ", auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
+    dep_args = ("target->" & dep_names(i) : _ @ i <- dependees);
+    dep_aux_args = ("auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
 
     return (
       "bool " & method_name & "(" & db_type_name & " *target, " & aux_type_name & " *auxiliary, OBJ new_state, ENV &env) {",
       "  " & db_type_name & " new_inst;",
-      "  " & aux_type_name & " new_aux_inst;",
       "  ",
       "  switch_mem_stacks();",
       "  ",
-      "  " & init_method_name & "(&new_inst, &new_aux_inst" & append(dep_args) & ", env);",
+      "  " & native_call(init_method_name, ("&new_inst") & dep_args & ("env")),
       "  ",
-      "  bool succeeded = " & set_state_method_name & "(&new_inst, new_state);",
+      "  bool " & native_call("succeeded", set_state_method_name, ("&new_inst", "new_state")),
       "  ",
       "  if (succeeded) {",
       "    " & cleanup_method_name & "(target, auxiliary);",
       "    *target = new_inst;",
-      "    *auxiliary = new_aux_inst;",
+      "    " & native_call(aux_init_method_name, ("&new_inst", "auxiliary") & dep_aux_args),
       "  }",
       "  else {",
-      "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
+      "    " & cleanup_method_name & "(&new_inst, NULL);",
       "  }",
       "  ",
       "  unswitch_mem_stacks();",
@@ -169,6 +170,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* native_load_state_entry_point_code(DBSymbol db_type, DBSymbol* dependees) {
     method_name = load_state_entry_point_name(db_type);
     init_method_name = init_method_name(db_type);
+    aux_init_method_name = aux_init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
     load_fn_name = load_state_proc_name(db_type);
     db_type_name = native_name(db_type);
@@ -176,12 +178,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     dep_names = (native_dependee_name(t, i) : t @ i <- dependees);
     dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
-    dep_args = (", target->" & dep_names(i) & ", auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
+    dep_args = ("target->" & dep_names(i) : _ @ i <- dependees);
+    dep_aux_args = ("auxiliary->" & dep_aux_names(i) : _ @ i <- dependees);
 
     return (
       "OBJ " & method_name & "(OBJ fname, " & db_type_name & " *target, " & aux_type_name &" *auxiliary, ENV &env) {",
       "  " & db_type_name & " new_inst;",
-      "  " & aux_type_name &" new_aux_inst;",
       "",
       "  switch_mem_stacks();",
       "",
@@ -193,20 +195,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return make_bool(false);",
       "  }",
       "",
-      "  " & init_method_name & "(&new_inst, &new_aux_inst" & append(dep_args) & ", env);",
+      "  " & native_call(init_method_name, ("&new_inst") & dep_args & ("env")),
       "",
       "  READ_FILE_STATE read_state;",
       "  read_state.fp = fp;",
-      "  bool succeeded = " & load_fn_name & "(&new_inst, &new_aux_inst, read_file, &read_state);",
+      "  bool " & native_call("succeeded", load_fn_name, ("&new_inst", "read_file", "&read_state")),
       "  fclose(fp);",
       "",
       "  if (succeeded) {",
-      "    " & cleanup_method_name & "(target, auxiliary);",
+      "    " & native_call(cleanup_method_name, ("target", "auxiliary")),
       "    *target = new_inst;",
-      "    *auxiliary = new_aux_inst;",
+      "    " & native_call(aux_init_method_name, ("&new_inst", "auxiliary") & dep_aux_args),
       "  }",
       "  else {",
-      "    " & cleanup_method_name & "(&new_inst, &new_aux_inst);",
+      "    " & cleanup_method_name & "(&new_inst, NULL);",
       "  }",
       "",
       "  unswitch_mem_stacks();",
@@ -261,7 +263,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     aux_arg = auxiliary_arg_decl(name);
     dependees_names = (native_dependee_name(t, i) : t @ i <- dependees);
     dep_aux_names = (aux_var_decl_name(linked_db_var(i)) : _ @ i <- dependees);
-    dependees_args = (", " & native_name(t) & " *" & dependees_names(i) & ", " & native_auxiliary_name(t) & " *" & dep_aux_names(i) : t @ i <- dependees);
+    dependees_args = (", " & native_name(t) & " *" & dependees_names(i) : t @ i <- dependees);
+    dependees_aux_args = (", " & native_auxiliary_name(t) & " *" & dep_aux_names(i) : t @ i <- dependees);
 
     ord_value_stores = isort(keys(value_stores));
 
@@ -287,8 +290,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     if dependees != () {
       body = (body | "");
       body = body & (target_name & "->" & dependees_names(i) & " = " & dependees_names(i) & ";" : i < |dependees|);
-      body = (body | "");
-      body = body & (aux_name & "->" & dep_aux_names(i) & " = " & dep_aux_names(i) & ";" : i < |dependees|);
     }
 
     // Member variables initialization
@@ -309,18 +310,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     // Tables initialization
     if tables_in_init_order != () {
       code = ({
-      //   value_stores = match (t)
-      //     table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
-      //     master_bin_table()  = if t.symmetric then undefined else t.value_stores,
-      //     slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
-      //     column()            = (t.value_store),
-      //     slave_column()      = ();
-      //   arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
-      //   arg_list = match (t)
-      //     slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
-      //     _                   = arg_list;
-      //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
-
         init_method_name = match (t)
           slave_tern_table()  = "bin_table_init",
           _                   = native_table_method_prefix(t) & "_init";
@@ -335,11 +324,21 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       body = body & ("") & code;
     }
 
+
+    // Auxiliary structure initialization
+    body_aux = ();
+
+    // Dependee links initialization
+    if dependees != () {
+      body_aux = (body_aux | "");
+      body_aux = body_aux & (aux_name & "->" & dep_aux_names(i) & " = " & dep_aux_names(i) & ";" : i < |dependees|);
+    }
+
     // Pending update variables initialization
     if state_vars != [] {
       ord_state_vars = isort(keys(state_vars));
       pending_aux_vars_init_code = (native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();" : v <- ord_state_vars);
-      body = body & ("") & pending_aux_vars_init_code;
+      body_aux = body_aux & ("") & pending_aux_vars_init_code;
     }
 
     if dependees != () {
@@ -349,7 +348,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       // Dependees' apply codes initialization
       apply_code_vars_init_code = (dependee_apply_code_var_ref_name(linked_db_var(i)) & " = -1;" : i < |dependees|);
 
-      body = body & ("") & msg_vars_init_code & ("") & apply_code_vars_init_code;
+      body_aux = body_aux & ("") & msg_vars_init_code & ("") & apply_code_vars_init_code;
     }
 
     // Value stores' auxiliary data structures initialization
@@ -359,24 +358,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         return native_call(init_method_name, (updater_var_ref_name(vs_id)));
       } : vs_id <- ord_value_stores);
 
-      body = body & ("") & code;
+      body_aux = body_aux & ("") & code;
     }
 
     // Tables' auxiliary data structures initialization
     if tables_in_init_order != () {
       code = ({
-      //   value_stores = match (t)
-      //     table()             = if t.symmetric then drop(t.value_stores, 1) else t.value_stores,
-      //     master_bin_table()  = if t.symmetric then undefined else t.value_stores,
-      //     slave_tern_table()  = if t.symmetric then undefined else t.value_stores,
-      //     column()            = (t.value_store),
-      //     slave_column()      = ();
-      //   arg_list = append(("this::" & native_surr_obj_mapper_name(vs) : vs <- value_stores), ", ");
-      //   arg_list = match (t)
-      //     slave_tern_table()  = native_var_ref_name(t.master) & ", " & arg_list,
-      //     _                   = arg_list;
-      //   return native_var_ref_name(v) & " = new " & native_table_type(t) & "(" & arg_list & ");";
-
         prefix = match (t)
           mandatory_column()  = native_column_method_prefix(t.repr),
           _                   = native_table_method_prefix(t);
@@ -385,12 +372,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         return native_call(init_method_name, (pending_updates_var_ref_name(v), :mem_pool));
       } : v, t <- tables_in_init_order);
 
-      body = body & ("") & code;
+      body_aux = body_aux & ("") & code;
     }
 
     // Putting it all together
-    signature = "void " & init_method_name(name) & "(" & target_arg & ", " & aux_arg & append(dependees_args) & ", ENV &" & env_arg_name & ") {";
-    return (signature) & indent_lines(body) & ("}");
+    init_sgn = "void " & init_method_name(name) & "(" & target_arg & append(dependees_args) & ", ENV &" & env_arg_name & ") {";
+    init_aux_sgn = "void " & aux_init_method_name(name) & "(" & target_arg & ", " & aux_arg & append(dependees_aux_args) & ") {";
+    return (init_sgn) & indent_lines(body) & ("}", "", init_aux_sgn) & indent_lines(body_aux) & ("}");
   }
 
 
@@ -647,8 +635,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     vars_decls = gen_all_vars_decls(code_blocks, []);
 
     header = (
-      "bool " & load_state_proc_name(name) & "(" & target_arg_decl(name) & ", " & auxiliary_arg_decl(name) & ", uint32 (*read)(void *, uint8 *, uint32), void *read_state) {",
+      "bool " & load_state_proc_name(name) & "(" & target_arg_decl(name) & ", uint32 (*read)(void *, uint8 *, uint32), void *read_state) {",
     ) & indent_lines(vars_decls) & (
+      "  OBJ obj;",
       "",
       "  SURR_SET surr_set;",
       "  surr_set_init(&surr_set);",
@@ -709,11 +698,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       return (
         "case " & symb_str & ":",
-        "  if (!parse_obj(&parser, &v0)) {",
+        "  if (!parse_obj(&parser, &obj)) {",
         "    return false;",
         "  }",
         "  remove_from_pool(" & pool_ref_str & ", " & var_str & ");",
-        "  " & var_str & " = copy_to_pool(" & pool_ref_str & ", v0);",
+        "  " & var_str & " = copy_to_pool(" & pool_ref_str & ", obj);",
         "  if (!(" & guard_expr_str & ")) {",
         "    return false;",
         "  }",
@@ -1488,7 +1477,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         column()            = (var, aux_var, :mem_pool),
         mandatory_column()  = (table_type.master, var, aux_var, :mem_pool),
         slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
-        table()             = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and table_type.symmetric)),
+        table()             = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2]))),
         master_bin_table()  = (var, aux_var),
         slave_column()      = (var, aux_var, :mem_pool);
       return native_call_expr(method_name, args);

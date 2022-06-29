@@ -323,6 +323,8 @@ implicit context : NativeContext {
   String aux_var_decl_name(LinkedDBVar db_var) =
     linked_db_var(i?)   = "dependee_" & _print_(i) & "_aux";
 
+  String pending_updates_var_ref_name(LinkedDBVar db_var) = db_auxiliary_arg_name & "->" & aux_var_decl_name(db_var);
+
   String updater_var_ref_name(LocDBVar db_var) = aux_var_decl_name(db_var);
 
   String updater_var_ref_name(LinkedDBVar db_var) = db_auxiliary_arg_name & "->" & aux_var_decl_name(db_var);
@@ -647,6 +649,7 @@ String native_reset_method_name(DBSymbol db_type, HandlerId id) = qualified_name
 ////////////////////////////////////////////////////////////////////////////////
 
 String init_method_name           (DBSymbol db_type) = qualified_name(db_type, "init");
+String aux_init_method_name       (DBSymbol db_type) = qualified_name(db_type, "aux_init");
 String init_set_state_method_name (DBSymbol db_type) = qualified_name(db_type, "set_init_state");
 String init_load_state_method_name(DBSymbol db_type) = qualified_name(db_type, "load_init_state");
 String cleanup_method_name        (DBSymbol db_type) = qualified_name(db_type, "cleanup");

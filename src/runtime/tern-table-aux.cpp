@@ -251,6 +251,8 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
     }
   }
 
+  queue_3u32_permute_132(&table_aux->insertions);
+
   return true;
 }
 
@@ -310,16 +312,18 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
     }
   }
 
+  queue_3u32_permute_312(&table_aux->insertions);
+
   return true;
 }
 
-bool tern_table_aux_check_keys_13_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  //## CAN THIS BE MADE MORE EFFICIENT?
-  if (!tern_table_aux_check_key_13(table, table_aux))
-    return false;
-  queue_3u32_permute_132(&table_aux->insertions);
-  return tern_table_aux_check_key_23(table, table_aux);
-}
+// bool tern_table_aux_check_keys_13_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
+//   //## CAN THIS BE MADE MORE EFFICIENT?
+//   if (!tern_table_aux_check_key_13(table, table_aux))
+//     return false;
+//   queue_3u32_permute_132(&table_aux->insertions);
+//   return tern_table_aux_check_key_23(table, table_aux);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -329,8 +329,8 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
 }
 
 void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  loaded_one_way_bin_table_clear(&table->table.forward);
-  one_way_bin_table_clear(&table->table.backward);
+  loaded_one_way_bin_table_clear(&table->table.forward, mem_pool);
+  one_way_bin_table_clear(&table->table.backward, mem_pool);
 
   uint32 capacity = table->capacity;
   uint64 *slots = table->slots;

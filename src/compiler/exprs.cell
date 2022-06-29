@@ -149,24 +149,30 @@ implicit context : NativeContext {
 
 
   String native_table_contains(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ tuple, Bool symmetric) {
-    name = native_table_method_prefix(table) & "_contains";
-    if (a <- tuple : a == nothing) {
-      if not symmetric {
-        suffix = append((printed(i+1) : a @ i <- tuple, a != nothing));
-      }
-      else {
-        suffix = match (tuple)
-          (_,       _)                  = "",
-          (just(),  just(),  nothing)   = "12",
-          (just(),  nothing, just())    |
-          (nothing, just(),  nothing)   = "13_23",
-          (just(),  nothing, nothing)   |
-          (nothing, just(),  nothing)   = "1_2",
-          (nothing, nothing, just())    = "3";
-      }
-      name = name & "_" & suffix if suffix != "";
+    if tuple :: Nothing+ {
+      method_name = native_table_method_prefix(table) & "_size";
+      return "(" & method_name & "(" & native_var_ref_name(table_var) & ") > 0)"; ## BAD BAD BAD: REMOVE PARENTHESIS IF THEY'RE NOT NECESSARY
     }
-    return native_call_expr(name, (table_var) & (native_expr(value(a)) : a <- tuple, a != nothing));
+    else {
+      name = native_table_method_prefix(table) & "_contains";
+      if (a <- tuple : a == nothing) {
+        if not symmetric {
+          suffix = append((printed(i+1) : a @ i <- tuple, a != nothing));
+        }
+        else {
+          suffix = match (tuple)
+            (_,       _)                  = "",
+            (just(),  just(),  nothing)   = "12",
+            (just(),  nothing, just())    |
+            (nothing, just(),  nothing)   = "13_23",
+            (just(),  nothing, nothing)   |
+            (nothing, just(),  nothing)   = "1_2",
+            (nothing, nothing, just())    = "3";
+        }
+        name = name & "_" & suffix if suffix != "";
+      }
+      return native_call_expr(name, (table_var) & (native_expr(value(a)) : a <- tuple, a != nothing));
+    }
   }
 
 

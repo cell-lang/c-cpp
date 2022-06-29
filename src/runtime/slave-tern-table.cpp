@@ -40,8 +40,10 @@ bool slave_tern_table_contains_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *sla
   uint32 count = master_bin_table_count_1(master_table, arg1);
   if (count > 0) {
     uint32 inline_array[1024];
-    uint32 *surrs = count > 1024 ? new_uint32_array(count) : inline_array;
-    uint32 _count = master_bin_table_restrict_1(master_table, arg1, NULL, surrs);
+    uint32 *arg2s_unused = count > 512 ? new_uint32_array(2 * count) : inline_array;
+    uint32 *surrs = arg2s_unused + count;
+    //## BAD BAD BAD: ALLOCATING SPACE FOR THE VALUES OF THE SECOND ARGUMENTS EVEN THOUGH THEY'RE NOT USED
+    uint32 _count = master_bin_table_restrict_1(master_table, arg1, arg2s_unused, surrs);
     assert(_count == count);
     for (uint32 i=0 ; i < count ; i++)
       if (bin_table_contains(slave_table, surrs[i], arg3))
@@ -148,8 +150,10 @@ uint32 slave_tern_table_count_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slav
   uint32 count1 = master_bin_table_count_1(master_table, arg1);
   if (count1 > 0) {
     uint32 inline_array[1024];
-    uint32 *surrs = count1 > 1024 ? new_uint32_array(count1) : inline_array;
-    uint32 _count = master_bin_table_restrict_1(master_table, arg1, NULL, surrs);
+    uint32 *arg2s_unused = count1 > 512 ? new_uint32_array(2 * count1) : inline_array;
+    uint32 *surrs = arg2s_unused + count1;
+    //## BAD BAD BAD: ALLOCATING SPACE FOR THE VALUES OF THE SECOND ARGUMENTS EVEN THOUGH THEY'RE NOT USED
+    uint32 _count = master_bin_table_restrict_1(master_table, arg1, arg2s_unused, surrs);
     assert(_count == count1);
     for (uint32 i=0 ; i < count1 ; i++) {
       if (bin_table_contains(slave_table, surrs[i], arg3))
@@ -182,8 +186,10 @@ uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave
   uint32 count1 = master_bin_table_count_1(master_table, arg1);
   if (count1 > 0) {
     uint32 inline_array[1024];
-    uint32 *surrs = count1 > 1024 ? new_uint32_array(count1) : inline_array;
-    uint32 _count = master_bin_table_restrict_1(master_table, arg1, NULL, surrs);
+    uint32 *arg2s_unused = count1 > 512 ? new_uint32_array(2 * count1) : inline_array;
+    uint32 *surrs = arg2s_unused + count1;
+    //## BAD BAD BAD: ALLOCATING SPACE FOR THE VALUES OF THE SECOND ARGUMENTS EVEN THOUGH THEY'RE NOT USED
+    uint32 _count = master_bin_table_restrict_1(master_table, arg1, arg2s_unused, surrs);
     assert(_count == count1);
     for (uint32 i=0 ; i < count1 ; i++)
       full_count += bin_table_count_1(slave_table, surrs[i]);

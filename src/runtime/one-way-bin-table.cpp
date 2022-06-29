@@ -49,6 +49,26 @@ void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) 
   table->count = 0;
 }
 
+void one_way_bin_table_release(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  array_mem_pool_clear(&table->array_pool, mem_pool);
+  uint32 capacity = table->capacity;
+  uint64 *slots = table->column;
+  if (capacity > MIN_CAPACITY) { //## WHAT WOULD BE A GOOD VALUE FOR THE REALLOCATION THRESHOLD?
+    release_state_mem_uint64_array(mem_pool, slots, capacity);
+    slots = alloc_state_mem_uint64_array(mem_pool, MIN_CAPACITY);
+    table->column = slots;
+    capacity = MIN_CAPACITY;
+    table->capacity = capacity;
+  }
+  for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
+    slots[i] = EMPTY_SLOT;
+  table->count = 0;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 surr2) {
@@ -333,10 +353,6 @@ void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uin
     else
       table->count--;
   }
-}
-
-void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table) {
-  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 ////////////////////////////////////////////////////////////////////////////////

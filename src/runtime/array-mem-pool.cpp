@@ -53,6 +53,38 @@ void array_mem_pool_init(ARRAY_MEM_POOL *array, bool alloc_double_space, STATE_M
   array->alloc_double_space = alloc_double_space;
 }
 
+void array_mem_pool_release(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool) {
+  uint32 alloc_size = array->size;
+  if (array->alloc_double_space)
+    alloc_size *= 2;
+  uint64 *slots = array->slots;
+  release_state_mem_uint64_array(mem_pool, slots, alloc_size);
+
+}
+
+void array_mem_pool_clear(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool) {
+  uint32 size = array->size;
+  uint64 *slots = array->slots;
+
+  if (size > MIN_SIZE) { //## WHAT WOULD BE A GOOD VALUE FOR THE REALLOCATION THRESHOLD?
+    release_state_mem_uint64_array(mem_pool, slots, array->alloc_double_space ? 2 * size : size);
+    slots = alloc_state_mem_uint64_array(mem_pool, array->alloc_double_space ? 2 * MIN_SIZE : MIN_SIZE);
+    array->slots = slots;
+    size = MIN_SIZE;
+    array->size = size;
+  }
+
+  slots[0] = pack(END_LOWER_MARKER, pack_tag_payload(BLOCK_16, 16));
+  for (uint32 i=16 ; i < MIN_SIZE - 16 ; i += 16)
+    slots[i] = pack(pack_tag_payload(AVAILABLE, i - 16), pack_tag_payload(BLOCK_16, i + 16));
+  slots[MIN_SIZE - 16] = pack(pack_tag_payload(AVAILABLE, MIN_SIZE - 32), END_UPPER_MARKER_16);
+
+  array->head2 = EMPTY_MARKER;
+  array->head4 = EMPTY_MARKER;
+  array->head8 = EMPTY_MARKER;
+  array->head16 = 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static uint32 add_block_to_chain(ARRAY_MEM_POOL *array, uint32 block_idx, uint32 size_tag, uint32 end_upper_marker, uint32 head) {

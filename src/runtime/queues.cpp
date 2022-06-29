@@ -437,3 +437,17 @@ void queue_3u32_permute_231(QUEUE_3U32 *queue) {
     ptr++;
   }
 }
+
+void queue_3u32_permute_312(QUEUE_3U32 *queue) {
+  uint32 count = queue->count_;
+  uint32 (*ptr)[3] = queue->array;
+  for (uint32 i=0 ; i < count ; i++) {
+    uint32 arg1 = (*ptr)[0];
+    uint32 arg2 = (*ptr)[1];
+    uint32 arg3 = (*ptr)[2];
+    (*ptr)[0] = arg3;
+    (*ptr)[1] = arg1;
+    (*ptr)[2] = arg2;
+    ptr++;
+  }
+}

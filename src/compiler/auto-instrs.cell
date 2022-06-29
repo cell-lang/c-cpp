@@ -79,7 +79,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         args = maybe_master_table_arg & (v, native_surr_to_obj_method_name(store_type), value_store) & streams_args;
         code = (code | "  " & native_call(copy_method_name, args));
       }
-      code = (code | "  " & native_call(res_var, "build_map", ("stream_1", "stream_2")), "}");
+      code = (code | "  " & native_call(res_var, if flipped then "build_bin_rel" else "build_map", ("stream_1", "stream_2")), "}");
       return code;
     }
     else if is_slave_column {
@@ -340,8 +340,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_init_db_code(AnyDBVar db_var, LocDBVar* links, DBSymbol db_type) {
     fail if not db_var :: LocDBVar;
 
-    args = (native_var_ref_name(db_var), updater_var_ref_name(db_var)) & join(((l, updater_var_ref_name(l)) : l <- links)) & ("env");
-    return (native_call(init_method_name(db_type), args));
+    args = (db_var) & links & ("env");
+    aux_args = (db_var, updater_var_ref_name(db_var)) & (updater_var_ref_name(l) : l <- links);
+    return (native_call(init_method_name(db_type), args), native_call(aux_init_method_name(db_type), aux_args));
 
     // return (
     //   native_new_call(db_var, native_name(db_type), (links | "env")),
@@ -389,9 +390,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     auxiliary = pending_updates_var_ref_name(table_var);
     ad_hoc_args = match (table)
       table()             = ( table_var if match (set_args)
-                                (false)       |
-                                (true, true)  = true,
-                                _             = false
+                                (false)             |
+                                (true, true)        |
+                                (true, _,    _)     |
+                                (_,    true, _)     |
+                                (_,    _,    true)  = true,
+                                _                   = false
                             ),
       master_bin_table()  = (table_var if set_args == (true, true)),
       slave_tern_table()  = (table.master if set_args != (false, false, false)),
@@ -456,7 +460,18 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_send_internal_msg_code(LinkedDBVar db_var, DBSymbol db_type, AtomicExpr msg) {
-    fail; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    methods_array_name = msg_handler_entry_point_array(db_type);
+    resolver_name = handler_dispatch_resolver_name(db_type);
+    handler_name_or_method_pointer_lookup_expr = methods_array_name & "[" & resolver_name & "(" & native_expr(msg) & ")]";
+
+    db_var_name = native_var_ref_name(db_var);
+    aux_var_name = pending_updates_var_ref_name(db_var);
+    args = (db_var_name, aux_var_name, msg, "env");
+    line = native_call(handler_name_or_method_pointer_lookup_expr, args);
+    return ("// HERE HERE HERE", line);
+
+
+
 
     // method_name = update_name(db_type, main_handler);
     // aux_db_var_name = updater_var_ref_name(db_var);

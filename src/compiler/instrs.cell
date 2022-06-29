@@ -248,7 +248,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   ## TERMINATE AN OUTER LOOP, THAT BREAK WILL TERMINATE THE SWITCH/CASE INSTEAD.
   String* native_nat_switch_code(IntExpr value, Instr*+ cases, Maybe[Nat] block_id) {
     cases_code = (
-      ("case " & printed(i) & ":",) & indent_lines((native_code(c, block_id) | "break;", ""))
+      ("case " & printed(i) & ": {",) & indent_lines((native_code(c, block_id) | "break;", "}"))
       : c @ i <- cases
     );
     default_code = ("default:", "  internal_fail();");
@@ -266,9 +266,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     body_code = (
       ("" if i > 0) &
-      ("case " & symb_id_name(a) & ":" : a <- isort(as)) &
+      ("case " & symb_id_name(a) & ":" & if j == |as| - 1 then " {" else "" : a @ j <- isort(as)) &
       indent_lines(native_code(is, block_id)) &
-      ("  break;" if in(falls_through, code_outcomes(is)))
+      ("  break;" if in(falls_through, code_outcomes(is)), "}")
       : as, is @ i <- isort(cases)
     );
 
