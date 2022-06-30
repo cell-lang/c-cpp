@@ -161,7 +161,8 @@ implicit context : NativeContext {
         }
         else {
           suffix = match (tuple)
-            (_,       _)                  = "",
+            (just(),  just())             = "",
+            (just(),  nothing)            = "1",
             (just(),  just(),  nothing)   = "12",
             (just(),  nothing, just())    |
             (nothing, just(),  nothing)   = "13_23",

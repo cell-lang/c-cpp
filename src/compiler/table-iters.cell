@@ -154,8 +154,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       bound()   = undefined;
 
     size_method = if symmetric then "sym_bin_table_size" else "bin_table_size";
-    count_1_method = if symmetric then "sym_bin_table_count" else "bin_table_count_1";
-    range_restrict_1_method = if symmetric then "sym_bin_table_range_restrict" else "bin_table_range_restrict_1";
+    count_1_method = if symmetric then "sym_bin_table_count_lower" else "bin_table_count_1";
+    range_restrict_1_method = if symmetric then "sym_bin_table_range_restrict_lower" else "bin_table_range_restrict_1";
 
     code = (
       "uint32 " & native_call(count_var, size_method, (table_var)),
@@ -167,23 +167,22 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       "    uint32 " & buffer_var & "[64];",
       "    uint32 " & read_1_var & " = 0;",
       "    " & label_1 & ":",
-      "    UINT32_ARRAY " & native_call(array_var, range_restrict_1_method, (table_var, arg_1_var, read_1_var, buffer_var, 64)),
-      "    " & read_1_var & " += " & array_var & ".size;",
-      "    uint32 " & idx_var & " = 0;",
-      "    " & label_2 & ":"
+      "      UINT32_ARRAY " & native_call(array_var, range_restrict_1_method, (table_var, arg_1_var, read_1_var, buffer_var, 64)),
+      "      " & read_1_var & " += " & array_var & ".size;",
+      "      uint32 " & idx_var & " = 0;",
+      "      " & label_2 & ":"
     );
 
     code = match (arg2)
-      read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
       ignored   = code,
       bound()   = undefined;
 
-    code = code & indent_lines(body_text, 2);
+    code = code & indent_lines(body_text, 4);
 
     code = (code |
-      "    " & idx_var & "++;",
-      "    if (" & idx_var & " < " & array_var & ".size)",
-      "      goto " & label_2 & ";",
+      "      if (++" & idx_var & " < " & array_var & ".size)",
+      "        goto " & label_2 & ";",
       "    if (" & read_1_var & " < " & count_1_var & ")",
       "      goto " & label_1 & ";",
       "  }",

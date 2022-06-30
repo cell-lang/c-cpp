@@ -1421,8 +1421,10 @@ uint32 sym_bin_table_size(BIN_TABLE *);
 bool sym_bin_table_contains(BIN_TABLE *, uint32 arg1, uint32 arg2);
 bool sym_bin_table_contains_1(BIN_TABLE *, uint32 arg);
 uint32 sym_bin_table_count(BIN_TABLE *, uint32 arg);
+uint32 sym_bin_table_count_lower(BIN_TABLE *, uint32 lower_arg);
 uint32 sym_bin_table_restrict(BIN_TABLE *, uint32 arg, uint32 *other_args);
 UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity);
+UINT32_ARRAY sym_bin_table_range_restrict_lower(BIN_TABLE *, uint32 lower_arg, uint32 first, uint32 *other_args, uint32 capacity);
 uint32 sym_bin_table_lookup(BIN_TABLE *, uint32 arg);
 
 bool sym_bin_table_insert(BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
