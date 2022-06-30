@@ -313,11 +313,6 @@ implicit context : NativeContext {
 
   String dependee_msg_var_ref_name(LinkedDBVar var) = db_auxiliary_arg_name & "->" & dependee_msg_var_decl_name(var);
 
-  String dependee_apply_code_var_decl_name(LinkedDBVar) =
-    linked_db_var(i?) = "dependee_" & _print_(i) & "_apply_code";
-
-  String dependee_apply_code_var_ref_name(LinkedDBVar var) = db_auxiliary_arg_name & "->" & dependee_apply_code_var_decl_name(var);
-
   String aux_var_decl_name(LocDBVar db_var) = native_var_decl_name(db_var) & "x";
 
   String aux_var_decl_name(LinkedDBVar db_var) =
@@ -669,6 +664,7 @@ String load_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "
 String save_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "save_state_entry_point");
 
 String msg_handler_entry_point_array(DBSymbol db_type) = qualified_name(db_type, "msg_handlers_entry_points");
+String msg_handler_array(DBSymbol db_type) = qualified_name(db_type, "msg_handlers");
 
 String msg_handler_entry_point_name(DBSymbol db_type, HandlerId id) =
   qualified_name(db_type, "msg_handler_" & uppercase_encoding(_untag_(id)) & "_entry_point");
