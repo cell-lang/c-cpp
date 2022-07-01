@@ -635,11 +635,6 @@ String native_name(<AutoSymbol, DBSymbol> auto_or_db_type, MethodId meth_id) {
   return qualified_name(auto_or_db_type, base_name);
 }
 
-String native_name(DBSymbol db_type, HandlerId id) = qualified_name(db_type, "msg_handler_" & uppercase_encoding(_untag_(id)));
-
-String native_apply_method_name(DBSymbol db_type, HandlerId id) = qualified_name(db_type, "msg_handler_apply_" & uppercase_encoding(_untag_(id)));
-String native_reset_method_name(DBSymbol db_type, HandlerId id) = qualified_name(db_type, "msg_handler_reset_" & uppercase_encoding(_untag_(id)));
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -663,11 +658,10 @@ String set_state_entry_point_name (DBSymbol db_type) = qualified_name(db_type, "
 String load_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "load_state_entry_point");
 String save_state_entry_point_name(DBSymbol db_type) = qualified_name(db_type, "save_state_entry_point");
 
-String msg_handler_entry_point_array(DBSymbol db_type) = qualified_name(db_type, "msg_handlers_entry_points");
-String msg_handler_array(DBSymbol db_type) = qualified_name(db_type, "msg_handlers");
-
-String msg_handler_entry_point_name(DBSymbol db_type, HandlerId id) =
-  qualified_name(db_type, "msg_handler_" & uppercase_encoding(_untag_(id)) & "_entry_point");
+String msg_handler_entry_point_array(DBSymbol db_type)  = qualified_name(db_type, "msg_handlers_entry_points");
+String msg_handler_array(DBSymbol db_type)              = qualified_name(db_type, "msg_handlers");
+String msg_handler_apply_array(DBSymbol db_type)        = qualified_name(db_type, "msg_handlers_apply");
+String msg_handler_reset_array(DBSymbol db_type)        = qualified_name(db_type, "msg_handlers_reset");
 
 String state_is_def_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "state_is_def");
 
@@ -680,7 +674,31 @@ String cleanup_method_name      (AutoSymbol auto_type) = qualified_name(auto_typ
 String insert_timer_method_name (AutoSymbol auto_type) = qualified_name(auto_type, "insert_timer");
 String clear_timer_method_name  (AutoSymbol auto_type) = qualified_name(auto_type, "clear_timer");
 
-String handler_name(DBSymbol db, HandlerId id) = native_name(db, id);
+
+String native_handler_name(DBSymbol rid, HandlerId hid, NeType msg_type)          = suffixed_handler_name("msg_handler", rid, hid, msg_type);
+String native_apply_method_name(DBSymbol rid, HandlerId hid, NeType msg_type)     = suffixed_handler_name("msg_handler_apply", rid, hid, msg_type);
+String native_reset_method_name(DBSymbol rid, HandlerId hid, NeType msg_type)     = suffixed_handler_name("msg_handler_reset", rid, hid, msg_type);
+String msg_handler_entry_point_name(DBSymbol rid, HandlerId hid, NeType msg_type) = suffixed_handler_name("msg_handler_entry_point", rid, hid, msg_type);
+
+String suffixed_handler_name(String base_name, DBSymbol db, HandlerId id, NeType msg_type) {
+  type_suffix = type_suffix(msg_type);
+  enc_id = uppercase_encoding(_untag_(id));
+  suffix = if type_suffix != ""
+    then enc_id & "__" & type_suffix
+    else enc_id;
+  return qualified_name(db, base_name & "_" & suffix);
+
+
+  String type_suffix(NeType msg_type) =
+    symb_type(object(s?))             = _print_(s),
+    tag_obj_type()                    = type_suffix(msg_type.tag_type),
+    type_ref(type_symbol(s?))         = _print_(s),
+    type_ref(par_type_symbol() ts?)   = type_suffix(type_ref(ts.symbol)),
+    union_type(ts?)                   = append(isort([s : t <- ts, s = type_suffix(t), s != ""]), "_"),
+    _                                 = "";
+}
+
+
 String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = native_name(type, method);
 
 String handler_dispatch_resolver_name(DBSymbol db_type) = qualified_name(db_type, "msg_handler_dispatch_id");

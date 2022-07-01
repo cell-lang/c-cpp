@@ -1095,23 +1095,44 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
   String *handler_methods_arrays(StaticBlock block) {
     num_msg_handlers = |block.handlers|;
+    array_size_str = _print_(num_msg_handlers);
     rel_auto_type = native_name(block.name);
     rel_auto_aux_type = native_auxiliary_name(block.name);
 
+    msg_types = (block.handlers(handler_id(i)).msg_type : i < num_msg_handlers);
+
     array_name = msg_handler_entry_point_array(block.name);
-    defs = ("", "bool (*" & array_name & "[" & _print_(num_msg_handlers) & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
+    defs = ("", "bool (*" & array_name & "[" & array_size_str & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
     for i < num_msg_handlers {
-      line = msg_handler_entry_point_name(block.name, handler_id(i));
+      line = msg_handler_entry_point_name(block.name, handler_id(i), msg_types(i));
       line = line & "," if i != num_msg_handlers - 1;
       defs = (defs | "  " & line);
     }
     defs = (defs | "};", "");
 
     array_name = msg_handler_array(block.name);
-    defs = (defs | "", "bool (*" & array_name & "[" & _print_(num_msg_handlers) & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
+    defs = (defs | "", "bool (*" & array_name & "[" & array_size_str & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
     for i < num_msg_handlers {
-      line = native_name(block.name, handler_id(i));
+      line = native_handler_name(block.name, handler_id(i), msg_types(i));
       line = line & "," if i != num_msg_handlers - 1;
+      defs = (defs | "  " & line);
+    }
+    defs = (defs | "};");
+
+    array_name = msg_handler_apply_array(block.name);
+    defs = (defs | "", "void (*" & array_name & "[" & array_size_str & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *) = {");
+    for i < num_msg_handlers {
+      line = native_apply_method_name(block.name, handler_id(i), msg_types(i));
+      line = line & "," if i != num_msg_handlers - 1;
+      defs = (defs | "  " & line);
+    }
+    defs = (defs | "};");
+
+    array_name = msg_handler_reset_array(block.name);
+    defs = (defs | "", "void (*" & array_name & "[" & array_size_str & "])(" & rel_auto_aux_type & " *) = {");
+    for i < num_msg_handlers {
+      line = native_reset_method_name(block.name, handler_id(i), msg_types(i));
+      line = line & ", " if i != num_msg_handlers - 1;
       defs = (defs | "  " & line);
     }
     defs = (defs | "};");
@@ -1133,24 +1154,25 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String** native_handlers_code(StaticBlock b) {
     sorted_handlers = _isort_([k : k _ <- b.handlers]);
     let block = b
-      code = (native_handler_code(b.name, id, b.handlers(id).args_vars, b.handlers(id).body) : id <- sorted_handlers);
+      code = (native_handler_code(b.name, id, b.handlers(id).msg_type, b.handlers(id).body) : id <- sorted_handlers);
     return code;
   }
 }
 
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
-  String* native_handler_code(DBSymbol block_name, HandlerId handler_id, <StdVar, FnArg>* args, Instr* body) {
-    args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name)) & (obj_type_name & " " & native_var_decl_name(a) : a <- args) & ("ENV &env");
-    args_str = append(("OBJ " & native_var_decl_name(a) & ", " : a <- args));
-    sgn = "bool " & handler_name(block_name, handler_id) & "(" & append(args_decls, ", ") & ") {";
-    vars_decls = gen_vars_decls(body, [a : a <- args, a :: StdVar]);
+  String* native_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
+    arg = :var(:this);
+    args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
+    args_str = ("OBJ " & native_var_decl_name(arg) & ", ");
+    sgn = "bool " & native_handler_name(block_name, handler_id, msg_type) & "(" & append(args_decls, ", ") & ") {";
+    vars_decls = gen_vars_decls(body, [arg]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
     body_text = body_text & run_and_check_dependees_and_check_code(handler_id);
 
     main_method = (sgn) & indent_lines(body_text) & ("}");
-    apply_and_reset_methods = handler_apply_and_reset_methods(handler_id);
-    entry_point_method = handler_entry_point_method(handler_id);
+    apply_and_reset_methods = handler_apply_and_reset_methods(handler_id, msg_type);
+    entry_point_method = handler_entry_point_method(handler_id, msg_type);
 
     return main_method & apply_and_reset_methods & entry_point_method;
 
@@ -1167,10 +1189,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* handler_apply_and_reset_methods(HandlerId handler_id) {
+    String* handler_apply_and_reset_methods(HandlerId handler_id, NeType msg_type) {
       memb_vars = [v : v <- updated_memb_vars(handler_id, ?)];
       value_stores = [v : v <- value_stores_with_insertions(handler_id, ?)];
-      dependees_handlers = [a, h : a h <- updated_dependees(handler_id, ?, ?)];
+      dependees_handlers = [d, t : d t <- updated_dependees(handler_id, ?, ?)];
       dependees = [a : a _ <- dependees_handlers];
       insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
       deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
@@ -1185,27 +1207,27 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       reset_code = updates_reset_code(memb_vars, value_stores, tables);
 
       args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name));
-      apply_sgn = "void " & native_apply_method_name(block.name, handler_id) & "(" & append(args, ", ") & ") {";
+      apply_sgn = "void " & native_apply_method_name(block.name, handler_id, msg_type) & "(" & append(args, ", ") & ") {";
       body = dependees_apply_code & apply_code & finish_code;
       apply_method_text = ("", apply_sgn) & indent_lines(body) & ("}");
 
-      reset_sgn = "void " & native_reset_method_name(block.name, handler_id) & "(" & auxiliary_arg_decl(block.name) & ") {";
+      reset_sgn = "void " & native_reset_method_name(block.name, handler_id, msg_type) & "(" & auxiliary_arg_decl(block.name) & ") {";
       reset_method_text = ("", reset_sgn) & indent_lines(append_with_sep((dependees_reset_code, reset_code))) & ("}");
 
       return apply_method_text & reset_method_text;
     }
 
 
-    String* handler_entry_point_method(HandlerId handler_id) {
+    String* handler_entry_point_method(HandlerId handler_id, NeType msg_type) {
       target_name = auto_or_db_arg_name;
       aux_name = db_auxiliary_arg_name;
 
-      method_name = msg_handler_entry_point_name(block.name, handler_id);
+      method_name = msg_handler_entry_point_name(block.name, handler_id, msg_type);
       formal_args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name), obj_type_name & " msg", env_arg_decl);
 
-      run_and_check_method_name = native_name(block.name, handler_id);
-      apply_method_name = native_apply_method_name(block.name, handler_id);
-      reset_method_name = native_reset_method_name(block.name, handler_id);
+      run_and_check_method_name = native_handler_name(block.name, handler_id, msg_type);
+      apply_method_name = native_apply_method_name(block.name, handler_id, msg_type);
+      reset_method_name = native_reset_method_name(block.name, handler_id, msg_type);
 
       return (
         "",
@@ -1378,55 +1400,69 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* dependees_apply_code([LinkedDBVar, Maybe[HandlerId]] handlers, [LinkedDBVar -> DBSymbol] vars) {
+  String* dependees_apply_code([LinkedDBVar, TargetHandlerId] handlers, [LinkedDBVar -> DBSymbol] vars) {
     code = ();
     for v <- isort(keys(vars)) {
-      dependee_handlers = [h : h <- handlers(v, ?)];
       msg_var_name = dependee_msg_var_ref_name(v);
       args = (v, updater_var_ref_name(v));
-      if |dependee_handlers| == 1 {
-        handler = only(dependee_handlers);
-        if handler != nothing
-          instr = native_call(native_apply_method_name(vars(v), value(handler)), args);
-        else
-          instr = undefined;
-      }
-      else {
-        instr = undefined;
-      }
+      target = target_method_resol_expr(v, vars(v), msg_var_name, handlers);
       code = (code |
         "if (!is_blank(" & msg_var_name & "))",
-        "  " & instr
+        "  " & native_call(target, args)
       );
     }
     return code;
+
+
+    String target_method_resol_expr(LinkedDBVar block_var, DBSymbol rel_auto_id, String msg_var_name, [LinkedDBVar, TargetHandlerId] handlers) {
+      dependee_handlers = [h : h <- handlers(block_var, ?)];
+
+      if |dependee_handlers| == 1 {
+        handler = only(dependee_handlers);
+        if handler != :unknown {
+          msg_type = prg_data.handlers_msg_type(rel_auto_id)(handler);
+          return native_apply_method_name(rel_auto_id, handler, msg_type);
+        }
+      }
+
+      methods_array_name = msg_handler_apply_array(rel_auto_id);
+      resolver_name = handler_dispatch_resolver_name(rel_auto_id);
+      return methods_array_name & "[" & resolver_name & "(" & msg_var_name & ")]";
+    }
   }
 
 
-  String* dependees_reset_code([LinkedDBVar, Maybe[HandlerId]] handlers, [LinkedDBVar -> DBSymbol] vars) {
+  String* dependees_reset_code([LinkedDBVar, TargetHandlerId] handlers, [LinkedDBVar -> DBSymbol] vars) {
     code = ();
     for v <- isort(keys(vars)) {
-      dependee_handlers = [h : h <- handlers(v, ?)];
       msg_var_name = dependee_msg_var_ref_name(v);
       args = (updater_var_ref_name(v));
-      if |dependee_handlers| == 1 {
-        handler = only(dependee_handlers);
-        if handler != nothing
-          instr = native_call(native_reset_method_name(vars(v), value(handler)), args);
-        else
-          instr = undefined;
-      }
-      else {
-        instr = undefined;
-      }
+      target = target_method_resol_expr(v, vars(v), msg_var_name, handlers);
       code = (code |
         "if (!is_blank(" & msg_var_name & ")) {",
-        "  " & instr,
+        "  " & native_call(target, args),
         "  " & msg_var_name & " = make_blank_obj();",
         "}"
       );
     }
     return code;
+
+
+    String target_method_resol_expr(LinkedDBVar block_var, DBSymbol rel_auto_id, String msg_var_name, [LinkedDBVar, TargetHandlerId] handlers) {
+      dependee_handlers = [h : h <- handlers(block_var, ?)];
+
+      if |dependee_handlers| == 1 {
+        handler = only(dependee_handlers);
+        if handler != :unknown {
+          msg_type = prg_data.handlers_msg_type(rel_auto_id)(handler);
+          return native_reset_method_name(rel_auto_id, handler, msg_type);
+        }
+      }
+
+      methods_array_name = msg_handler_reset_array(rel_auto_id);
+      resolver_name = handler_dispatch_resolver_name(rel_auto_id);
+      return methods_array_name & "[" & resolver_name & "(" & msg_var_name & ")]";
+    }
   }
 
 
