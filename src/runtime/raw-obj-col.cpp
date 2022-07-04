@@ -51,6 +51,14 @@ OBJ raw_obj_col_lookup(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 id
   soft_fail(NULL); //## ADD MESSAGE
 }
 
+OBJ raw_obj_col_lookup_unchecked(UNARY_TABLE *master_table, RAW_OBJ_COL *column, uint32 idx) {
+  assert(master_table->count == column->count && master_table->capacity == column->capacity);
+  assert(unary_table_contains(master_table, idx));
+  assert(!is_blank(column->array[idx]));
+
+  return column->array[idx];
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void raw_obj_col_insert(RAW_OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {

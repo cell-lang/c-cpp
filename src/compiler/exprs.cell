@@ -26,12 +26,12 @@ implicit context : NativeContext {
     float_obj(e?)       = "make_float(" & native_expr(e) & ")",
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
     surr_to_value()     = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_surr_to_value", (expr.store, expr.surrogate)),
-    column_lookup()     = native_column_lookup_expr(expr.var, expr.column, expr.key),
+    column_lookup()     = native_column_lookup_expr(expr.var, expr.column, expr.key, expr.safe),
     only_elt(e?)        = "set_only_elt(" & native_expr(e) & ")";
 
 
-  String native_column_lookup_expr(AnyTableVar var, AnyColumn column, Int32Var key) {
-    method_name = native_table_method_prefix(column) & "_lookup";
+  String native_column_lookup_expr(AnyTableVar var, AnyColumn column, Int32Var key, Bool safe) {
+    method_name = native_table_method_prefix(column) & if safe then "_lookup_unchecked" else "_lookup";
     args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
     expr = native_call_expr(method_name, args);
     return match (column.repr)
@@ -172,7 +172,10 @@ implicit context : NativeContext {
         }
         name = name & "_" & suffix if suffix != "";
       }
-      return native_call_expr(name, (table_var) & (native_expr(value(a)) : a <- tuple, a != nothing));
+      tables_args = match (table)
+        slave_tern_table()  = (table.master, table_var),
+        _                   = (table_var);
+      return native_call_expr(name, tables_args & (native_expr(value(a)) : a <- tuple, a != nothing));
     }
   }
 
@@ -206,10 +209,10 @@ implicit context : NativeContext {
 
     int_obj(e1?),       int_obj(e2?)      = native_nary_op(" == ", (e1, e2), parenthesized),
     int_obj(e1?),       column_lookup()   = if expr2.column.repr == :int
-                                              then native_column_lookup_eq(expr2.var, expr2.column, expr2.key, e1)
+                                              then native_column_lookup_eq(expr2.var, expr2.column, expr2.key, expr2.safe, e1)
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
     column_lookup(),    int_obj(e2?)      = if expr1.column.repr == :int
-                                              then native_column_lookup_eq(expr1.var, expr1.column, expr1.key, e2)
+                                              then native_column_lookup_eq(expr1.var, expr1.column, expr1.key, expr1.safe, e2)
                                               else "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")",
     int_obj(e1?),       _                 = "is_int(" & native_expr(expr2) & ", " & native_expr(e1) & ")",
     _,                  int_obj(e2?)      = "is_int(" & native_expr(expr1) & ", " & native_expr(e2) & ")",
@@ -235,8 +238,9 @@ implicit context : NativeContext {
     _,                  _                 = "are_eq(" & native_expr(expr1) & ", " & native_expr(expr2) & ")";
 
 
-  String native_column_lookup_eq(AnyTableVar var, AnyColumn column, Int32Expr key, IntExpr value) {
-    method_name = native_table_method_prefix(column) & "_lookup";
+  ## BAD BAD BAD: IS THIS NECESSARY?
+  String native_column_lookup_eq(AnyTableVar var, AnyColumn column, Int32Expr key, Bool safe, IntExpr value) {
+    method_name = native_table_method_prefix(column) & if safe then "_lookup_unchecked" else "_lookup";
     return native_call_expr(method_name, (var, key)) & " == " & native_expr(value, true);
   }
 
@@ -298,13 +302,13 @@ implicit context : NativeContext {
                               else "get_int(" & native_expr(expr) & ")",
       get_inner_obj(e?)   = "get_inner_long(" & native_expr(e) & ")",
       array_at()          = native_get_int_val_array_at_expr(expr.array, expr.size, expr.idx),
-      column_lookup()     = native_get_int_val_column_lookup_expr(expr, expr.var, expr.column, expr.key),
+      column_lookup()     = native_get_int_val_column_lookup_expr(expr, expr.var, expr.column, expr.key, expr.safe),
       _                   = "get_int(" & native_expr(expr) & ")";
 
 
-    String native_get_int_val_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key) {
+    String native_get_int_val_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key, Bool safe) {
       if column.repr == :int {
-        method_name = native_table_method_prefix(column) & "_lookup";
+        method_name = native_table_method_prefix(column) & if safe then "_lookup_unchecked" else "_lookup";
         args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
         return native_call_expr(method_name, args);
       }
@@ -461,13 +465,13 @@ implicit context : NativeContext {
     array_at()      = if expr.array.repr == :float
                         then "float_array_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")"
                         else "get_float(" & native_expr(expr) & ")",
-    column_lookup() = native_float_value_column_lookup_expr(expr, expr.var, expr.column, expr.key),
+    column_lookup() = native_float_value_column_lookup_expr(expr, expr.var, expr.column, expr.key, expr.safe),
     _               = "get_float(" & native_expr(expr) & ")";
 
 
-  String native_float_value_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key) {
+  String native_float_value_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key, Bool safe) {
     if column.repr == :float {
-      method_name = native_table_method_prefix(column) & "_lookup";
+      method_name = native_table_method_prefix(column) & if safe then "_lookup_unchecked" else "_lookup";
       args = (full_master_path(var, column.master) if is_mandatory_column(column), var, key);
       return native_call_expr(method_name, args);
     }

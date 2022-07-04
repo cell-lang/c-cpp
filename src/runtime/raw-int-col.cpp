@@ -46,6 +46,13 @@ int64 raw_int_col_lookup(UNARY_TABLE *master_table, RAW_INT_COL *column, uint32 
   soft_fail(NULL); //## ADD MESSAGE
 }
 
+int64 raw_int_col_lookup_unchecked(UNARY_TABLE *master_table, RAW_INT_COL *column, uint32 idx) {
+  assert(master_table->capacity == column->capacity);
+  assert(unary_table_contains(master_table, idx));
+
+  return column->array[idx];
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void raw_int_col_insert(RAW_INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *mem_pool) {

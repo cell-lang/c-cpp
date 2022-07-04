@@ -1824,6 +1824,7 @@ void raw_int_col_init(UNARY_TABLE *, RAW_INT_COL *, STATE_MEM_POOL *);
 void raw_int_col_resize(RAW_INT_COL *, uint32 capacity, uint32 new_capacity, STATE_MEM_POOL *);
 
 int64 raw_int_col_lookup(UNARY_TABLE *, RAW_INT_COL *, uint32 idx);
+int64 raw_int_col_lookup_unchecked(UNARY_TABLE *, RAW_INT_COL *, uint32 idx);
 
 void raw_int_col_insert(RAW_INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
 void raw_int_col_update(UNARY_TABLE *, RAW_INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
@@ -1845,6 +1846,7 @@ void raw_float_col_init(UNARY_TABLE *, RAW_FLOAT_COL *, STATE_MEM_POOL *);
 void raw_float_col_resize(RAW_FLOAT_COL *, uint32 capacity, uint32 new_capacity, STATE_MEM_POOL *);
 
 double raw_float_col_lookup(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx);
+double raw_float_col_lookup_unchecked(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx);
 
 void raw_float_col_insert(RAW_FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
 void raw_float_col_update(UNARY_TABLE *, RAW_FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
@@ -1860,19 +1862,19 @@ bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, FLOAT_COL_AUX
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 
-void   raw_obj_col_init(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
-void   raw_obj_col_resize(RAW_OBJ_COL *, uint32, uint32, STATE_MEM_POOL *);
+void raw_obj_col_init(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
+void raw_obj_col_resize(RAW_OBJ_COL *, uint32, uint32, STATE_MEM_POOL *);
 
-// bool   raw_obj_col_contains_1(OBJ_COL *, uint32);
-OBJ    raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
+OBJ raw_obj_col_lookup(UNARY_TABLE *, RAW_OBJ_COL *, uint32);
+OBJ raw_obj_col_lookup_unchecked(UNARY_TABLE *, RAW_OBJ_COL *, uint32 idx);
 
-void   raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
-void   raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
-void   raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
-void   raw_obj_col_clear(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
+void raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+void raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+void raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
+void raw_obj_col_clear(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
 
-void   raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
-void   raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
+void raw_obj_col_copy_to(UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
+void raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
 
 ////////////////////////////// raw-obj-col-aux.cpp /////////////////////////////
 
