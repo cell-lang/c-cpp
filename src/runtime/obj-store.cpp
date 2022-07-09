@@ -3,6 +3,7 @@
 
 static void obj_store_insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
+  assert(hash_idx == hashcode & store->index_mask);
   store->buckets[index] = store->hashtable[hash_idx];
   store->hashtable[hash_idx] = index;
 }
@@ -13,6 +14,7 @@ static void obj_store_remove_from_hashtable(OBJ_STORE *store, uint32 index) {
 
   uint32 hashcode = store->hashcode_or_next_free[index];
   uint32 hash_idx = hashcode % (store->capacity / 2);
+  assert(hash_idx == hashcode & store->index_mask);
   uint32 idx = store->hashtable[hash_idx];
   assert(idx != 0xFFFFFFFF);
 
@@ -52,8 +54,11 @@ void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
 
   uint32 capacity = store->capacity;
   uint32 new_capacity = 2 * capacity;
-  while (new_capacity < min_capacity)
+  uint32 new_index_mask = (store->index_mask << 1) | 1;
+  while (new_capacity < min_capacity) {
     new_capacity *= 2;
+    new_index_mask = (new_index_mask << 1) | 1;
+  }
 
   OBJ *values = extend_state_mem_blanked_obj_array(mem_pool, store->values, capacity, new_capacity);
   //## BUG BUG BUG: store->values IS NEVER RELEASED
@@ -76,6 +81,7 @@ void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
   store->buckets = alloc_state_mem_uint32_array(mem_pool, new_capacity);
 
   store->capacity = new_capacity;
+  store->index_mask = new_index_mask;
 
   for (uint32 i=0 ; i < capacity ; i++) {
     OBJ value = values[i];
@@ -108,6 +114,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
   store->refs_counters = uint8_array;
 
   store->capacity = INIT_SIZE;
+  store->index_mask = 0x7F;
   store->count = 0;
   store->first_free = 0;
 }
@@ -117,8 +124,10 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
+  assert(hash_idx == hashcode & store->index_mask);
+
   uint32 index = store->hashtable[hash_idx];
-  //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT?
+  //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT? (ALREADY TRIED, NO MEASURABLE EFFECT)
   // OBJ *values = store->values;
   // uint32 *hashcode_or_next_free = store->hashcode_or_next_free;
   for ( ; ; ) {
@@ -217,17 +226,24 @@ void obj_store_insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uin
   obj_store_insert_into_hashtable(store, index, hashcode);
 }
 
+uint32 obj_store_insert_new(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value) {
+  assert(obj_store_value_to_surr(store, value) == 0xFFFFFFFF);
+
+  uint32 capacity = store->capacity;
+  uint32 count = store->count;
+  assert(count <= capacity);
+  if (count == capacity)
+    obj_store_resize(store, mem_pool, count + 1);
+  uint32 surr = store->first_free;
+  uint32 hcode = compute_hashcode(value);
+  obj_store_insert(store, mem_pool, value, hcode, surr);
+  return surr;
+}
+
 uint32 obj_store_insert_or_add_ref(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value) {
   uint32 surr = obj_store_value_to_surr(store, value);
-  if (surr == 0xFFFFFFFF) {
-    uint32 capacity = store->capacity;
-    uint32 count = store->count;
-    assert(count <= capacity);
-    if (count == capacity)
-      obj_store_resize(store, mem_pool, count + 1);
-    surr = store->first_free;
-    obj_store_insert(store, mem_pool, value, compute_hashcode(value), surr);
-  }
+  if (surr == 0xFFFFFFFF)
+    surr = obj_store_insert_new(store, mem_pool, value);
   obj_store_add_ref(store, surr);
   return surr;
 }

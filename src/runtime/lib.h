@@ -481,6 +481,7 @@ struct OBJ_STORE {                // VALUE     NO VALUE
   uint32 *buckets;    // Junk when there's no (next?) value
 
   uint32 capacity;
+  uint32 index_mask;
   uint32 count;
   uint32 first_free;
 };
