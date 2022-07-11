@@ -3,7 +3,7 @@
 
 static void obj_store_insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == hashcode & store->index_mask);
+  assert(hash_idx == (hashcode & store->index_mask));
   store->buckets[index] = store->hashtable[hash_idx];
   store->hashtable[hash_idx] = index;
 }
@@ -14,7 +14,7 @@ static void obj_store_remove_from_hashtable(OBJ_STORE *store, uint32 index) {
 
   uint32 hashcode = store->hashcode_or_next_free[index];
   uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == hashcode & store->index_mask);
+  assert(hash_idx == (hashcode & store->index_mask));
   uint32 idx = store->hashtable[hash_idx];
   assert(idx != 0xFFFFFFFF);
 
@@ -124,7 +124,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
   uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == hashcode & store->index_mask);
+  assert(hash_idx == (hashcode & store->index_mask));
 
   uint32 index = store->hashtable[hash_idx];
   //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT? (ALREADY TRIED, NO MEASURABLE EFFECT)
@@ -306,3 +306,38 @@ bool obj_store_try_releasing(OBJ_STORE *store, uint32 index) {
 OBJ obj_store_surr_to_obj(void *store, uint32 surr) {
   return obj_store_surr_to_value((OBJ_STORE *) store, surr);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+#ifndef NDEBUG
+void obj_store_print_collisions_histogram(OBJ_STORE *store) {
+  unordered_map<uint32, uint32> counters;
+
+  for (uint32 i=0 ; i < store->capacity ; i++) {
+    OBJ value = store->values[i];
+    if (!is_blank(value)) {
+      uint32 hashcode = compute_hashcode(value);
+      counters[hashcode]++;
+    }
+  }
+
+  uint32 histogram[9];
+  for (uint32 i=0 ; i < 9 ; i++)
+    histogram[i] = 0;
+
+  for (auto it=counters.begin() ; it != counters.end() ; it++) {
+    uint32 count = it->second;
+    assert(count > 0);
+    uint32 index = count - 1;
+    if (index > 8)
+      index = 8;
+    histogram[index]++;
+  }
+
+  printf("  ");
+  for (uint32 i=0 ; i < 9 ; i++)
+    printf("%8d", histogram[i]);
+  puts("");
+}
+#endif
