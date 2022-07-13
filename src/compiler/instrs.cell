@@ -24,6 +24,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     set_ivar()            |
     set_ivar32()          |
     set_fvar()            = (native_assignment_code(instr.var, instr.value)),
+    set_tvar()            = native_set_tvar_code(instr.var, instr.value),
     set_rc_var()          = set_rc_var_native_code(instr.value, instr.var),
     init_memb_var()       = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
     reset_memb_var()      = (native_var_ref_name(instr.var) & " = " & native_const(instr.new_state) & ";"),
@@ -54,6 +55,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
     _                     = auto_instr_native_code(instr, block_id);
 
+
+  String* native_set_tvar_code(TupleVar var, LowLevelTupleExpr value) {
+    var_name = native_var_ref_name(var);
+    return match (value)
+      tuple_var()     = (var_name & " = " & native_var_ref_name(value) & ";"),
+      tuple_expr(as?) = (native_call(var_name, make_tuple_proc_name((low_level_repr(a) : a <- as)), as)),
+      obj_to_tuple()  = (native_call(var_name, obj_to_tuple_proc_name(value.args_reprs), (value.obj_expr)));
+  }
 
 
   String* set_rc_var_native_code(RefObjExpr value, WriteObjVar var) =

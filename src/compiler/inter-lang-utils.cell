@@ -176,6 +176,20 @@ String uppercase_encoding(Nat n) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+[TupleArgRepr+] program_tuples_args_reprs(CompiledPrg prg) {
+  some_reprs = select(prg, $ :: LowLevelRepr);
+  fail if not some_reprs :: [LowLevelRepr];
+  some_reprs = [ars : r <- some_reprs, tuple(ars?) ?= r];
+
+  tuple_exprs = select(prg, $ :: LowLevelTupleExpr);
+  fail if not tuple_exprs :: [LowLevelTupleExpr];
+  more_reprs = [(low_level_repr(a) : a <- as) : e <- tuple_exprs, tuple_expr(as?) ?= e];
+
+  return some_reprs & more_reprs;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 SymbObj+ program_symbols(CompiledPrg prg) {
   fixed_symbs = (object(a) : a <- special_symbols);
   other_symbs = select(prg, $ :: SymbObj) - set(fixed_symbs);

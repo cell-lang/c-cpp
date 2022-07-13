@@ -14,7 +14,7 @@ implicit context : NativeContext {
 
 
   String native_expr(ObjNatOp expr) =
-    at()                = "get_obj_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
+    at()                = native_at_expr(expr.seq, expr.idx, expr.fast_repr),
     array_at()          = "array_at(" & native_var_ref_name(expr.array) & ", " & native_var_ref_name(expr.size) & ", " & native_expr(expr.idx) & ")",
     lookup()            = "lookup(" & native_expr(expr.rel) & ", " & native_expr(expr.key) & ")",
     lookup_field()      = native_lookup_field_expr(expr.record, expr.field, expr.repr),
@@ -24,10 +24,26 @@ implicit context : NativeContext {
     bool_obj(e?)        = "make_bool(" & native_expr(e, true) & ")",
     int_obj(e?)         = "make_int(" & native_expr(e) & ")",
     float_obj(e?)       = "make_float(" & native_expr(e) & ")",
+    tuple_to_obj(e?)    = native_tuple_to_obj_expr(e),
     get_curr_arg()      = native_get_curr_arg_expr(expr.var, expr.arg),
     surr_to_value()     = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_surr_to_value", (expr.store, expr.surrogate)),
     column_lookup()     = native_column_lookup_expr(expr.var, expr.column, expr.key, expr.safe),
     only_elt(e?)        = "set_only_elt(" & native_expr(e) & ")";
+
+
+  String native_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) =
+    tuple_to_obj(tuple_var() v?)  = native_var_ref_name(v) & ".arg_" & _print_(idx),
+    _                             = native_call_expr("get_obj_at", (seq, idx));
+
+
+  String native_tuple_to_obj_expr(LowLevelTupleExpr expr)  {
+    ## THIS SHOULD PROBABLY GO INTO A SEPARATE FUNCTION BECAUSE IT'S USED ELSEWHERE: args_reprs = tuple_expr_args_reprs(expr);
+    args_reprs = match (expr)
+      tuple_var()     = expr.repr,
+      tuple_expr(as?) = (low_level_repr(a) : a <- as),
+      obj_to_tuple()  = expr.args_reprs;
+    return native_call_expr(tuple_to_obj_proc_name(args_reprs), (expr));
+  }
 
 
   String native_column_lookup_expr(AnyTableVar var, AnyColumn column, Int32Var key, Bool safe) {
@@ -316,7 +332,13 @@ implicit context : NativeContext {
         return "get_int(" & native_expr(expr) & ")";
     }
 
-    String native_get_int_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) {
+
+    String native_get_int_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) =
+      tuple_to_obj(tuple_var() v?)  = native_var_ref_name(v) & ".arg_" & _print_(idx),
+      _                             = native_generic_get_int_at_expr(seq, idx, fast_repr);
+
+
+    String native_generic_get_int_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) {
       method_name = match (fast_repr)
         nat8    = "get_int_at_fast_uint8",
         int8    = "get_int_at_fast_int8",
@@ -457,8 +479,16 @@ implicit context : NativeContext {
     square_root(e?)       = "float_sqrt(" & native_expr(e, false) & ")";
 
 
+  String native_expr(LowLevelTupleExpr expr) = native_expr(expr, false);
+
+  String native_expr(LowLevelTupleExpr expr, Bool parenthesized) =
+    tuple_var()       = native_var_ref_name(expr),
+    tuple_expr(as?)   = native_call_expr(make_tuple_proc_name((low_level_repr(a) : a <- as)), as),
+    obj_to_tuple()    = native_call_expr(obj_to_tuple_proc_name(expr.args_reprs), (expr.obj_expr));
+
+
   String native_float_value_expr(ObjExpr expr, Bool parenthesized) =
-    at()            = "get_float_at(" & native_expr(expr.seq) & ", " & native_expr(expr.idx) & ")",
+    at()            = native_float_value_at_expr(expr.seq, expr.idx, expr.fast_repr),
     lookup_field()  = if expr.repr == just(:float) and expr.record :: OptTagRecExpr
                         then native_ptr_expr(expr.record) & "->" & opt_rec_field_name(untag(expr.field))
                         else "get_float(" & native_expr(expr) & ")",
@@ -467,6 +497,16 @@ implicit context : NativeContext {
                         else "get_float(" & native_expr(expr) & ")",
     column_lookup() = native_float_value_column_lookup_expr(expr, expr.var, expr.column, expr.key, expr.safe),
     _               = "get_float(" & native_expr(expr) & ")";
+
+
+  String native_float_value_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) =
+    tuple_to_obj(tuple_var() v?)  = native_var_ref_name(v) & ".arg_" & _print_(idx),
+    _                             = native_generic_float_value_at_expr(seq, idx, fast_repr);
+
+  String native_generic_float_value_at_expr(ObjExpr seq, IntExpr idx, LowLevelEltRepr fast_repr) {
+    ## BAD BAD BAD: NOT MAKING USE OF fast_repr HERE
+    return native_call_expr("get_float_at", (seq, idx));
+  }
 
 
   String native_float_value_column_lookup_expr(ObjExpr expr, AnyTableVar var, AnyColumn column, Int32Var key, Bool safe) {

@@ -26,6 +26,8 @@ type PrgData =  prg_data(
   has_main = (p <- prg.procs : p.name == proc_symbol(:main));
   has_static_autos = prg.static_blocks != [];
 
+  tuples_args_reprs = program_tuples_args_reprs(prg);
+
   bool_procs = isort(prg.bool_procs);
   fn_procs = isort([p : p <- prg.procs, not p.name :: ProcSymbol]);
   proc_procs = isort([p : p <- prg.procs, p.name :: ProcSymbol]);
@@ -56,11 +58,22 @@ type PrgData =  prg_data(
     symbol_table(program_symbols),
     int_seqs_decls(prg.int_seqs),
     symbols_arrays_decls(values(prg_data.symbols_sets_info)),
+    tuples_decls(tuples_args_reprs, context = :core),
     env_decl(prg.procs),
     abstract_closure_class_decl(prg.procs),
     native_opt_type_decls(prg.opt_reprs, prg_data = prg_data, context = :core),
     tagged_int_stores_accessors(prg.static_blocks)
   );
+
+  // Obj to tuple conversion functions
+  if tuples_args_reprs != [] {
+    gen_content = (gen_content | ("", ""));
+    gen_content = gen_content & make_tuple_fns(tuples_args_reprs, context = :core);
+    gen_content = (gen_content | ("", ""));
+    gen_content = gen_content & obj_to_tuple_conv_fns(tuples_args_reprs, context = :core);
+    gen_content = (gen_content | ("", ""));
+    gen_content = gen_content & tuple_to_obj_conv_fns(tuples_args_reprs, context = :core);
+  }
 
   // Runtime typechecking functions' declarations
   gen_content = (gen_content | ("", "")) if bool_procs != ();
@@ -160,6 +173,133 @@ type PrgData =  prg_data(
   //   "automata.cpp"  -> flatten(wrappers_content) if not has_main,
   //   "automata.txt" -> flatten(automata_docs) if not has_main
   // ];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+implicit context : NativeContext {
+  String* tuples_decls([TupleArgRepr+] tuples_args_reprs) {
+    decls = ();
+    for ars <- tuples_args_reprs {
+      decls = (decls | "") if decls != ();
+      decls = decls & tuple_decl(ars);
+    }
+    return decls;
+
+
+    String* tuple_decl(TupleArgRepr+ args_reprs) {
+      type_name = native_tuple_type(args_reprs);
+      decl = ("struct " & type_name & " {");
+      for r @ i <- args_reprs {
+        arg_decl = "  " & native_type(r) & " arg_" & _print_(i) & ";";
+        decl = (decl | arg_decl);
+      }
+      decl = (decl | "};");
+      return decl;
+    }
+  }
+
+
+  String* make_tuple_fns([TupleArgRepr+] tuples_args_reprs) {
+    code = ();
+    for ars <- tuples_args_reprs {
+      code = (code | "") if code != ();
+      code = code & mk_fn_def(ars);
+    }
+    return code;
+
+
+    String* mk_fn_def(TupleArgRepr+ args_reprs) {
+      type_name = native_tuple_type(args_reprs);
+      fn_name = make_tuple_proc_name(args_reprs);
+
+      code = (
+        "inline " & type_name & " " & fn_name & "(" & append((native_type(r) & " arg_" & _print_(i) : r @ i <- args_reprs), ", ") & ") {",
+        "  " & type_name & " tuple;"
+      );
+
+      for r @ i <- args_reprs {
+        instr = "  tuple.arg_" & _print_(i) & " = arg_" & _print_(i) & ";";
+        code = (code | instr);
+      }
+
+      code = (code | "  return tuple;", "}");
+      return code;
+    }
+  }
+
+
+  String* obj_to_tuple_conv_fns([TupleArgRepr+] tuples_args_reprs) {
+    code = ();
+    for ars <- tuples_args_reprs {
+      code = (code | "") if code != ();
+      code = code & conv_fn_def(ars);
+    }
+    return code;
+
+
+    String* conv_fn_def(TupleArgRepr+ args_reprs) {
+      type_name = native_tuple_type(args_reprs);
+      fn_name = obj_to_tuple_proc_name(args_reprs);
+
+      code = (
+        "inline " & type_name & " " & fn_name & "(OBJ obj) {",
+        "  " & type_name & " tuple;"
+      );
+
+      for r @ i <- args_reprs {
+        lookup_fn_name = match (r)
+          int                 = "get_int_at",
+          float               = "get_float_at",
+          object              |
+          opt_tag_rec_repr()  = "get_obj_at";
+
+        instr = "  tuple.arg_" & _print_(i) & " = " & lookup_fn_name & "(obj, " & _print_(i) & ");";
+        code = (code | instr);
+      }
+
+      code = (code | " return tuple;", "}");
+      return code;
+    }
+  }
+
+
+  String* tuple_to_obj_conv_fns([TupleArgRepr+] tuples_args_reprs) {
+    code = ();
+    for ars <- tuples_args_reprs {
+      code = (code | "") if code != ();
+      code = code & conv_fn_def(ars);
+    }
+    return code;
+
+
+    String* conv_fn_def(TupleArgRepr+ args_reprs) {
+      type_name = native_tuple_type(args_reprs);
+      fn_name = tuple_to_obj_proc_name(args_reprs);
+
+      len_str = _print_(|args_reprs|);
+
+      code = (
+        "OBJ " & fn_name & "(" & type_name & " tuple) {",
+        "  OBJ *objs = new_obj_array(" & len_str & ");"
+      );
+
+      for r @ i <- args_reprs {
+        value_expr = "tuple.arg_" & _print_(i);
+        value_expr = match (r)
+          int                 = native_call_expr("make_int", (value_expr)),
+          float               = native_call_expr("make_float", (value_expr)),
+          object              |
+          opt_tag_rec_repr()  = value_expr;
+
+        instr = "  objs[" & _print_(i) & "] = " & value_expr & ";";
+        code = (code | instr);
+      }
+
+      code = (code | "  return build_seq(objs, " & len_str & ");", "}");
+      return code;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -618,11 +758,11 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     Bool is_mem_boundary(BoolProcDef pd) = false;
 
 
-    True  requires_copying(<StdObjVar, ObjNatOp, OptTagRecExpr>)                  = true;
-    False requires_copying(<InlineObj, BoolExpr, IntExpr, Int32Expr, FloatExpr>)  = false;
+    True  requires_copying(<StdObjVar, ObjNatOp, OptTagRecExpr>)                                    = true;
+    False requires_copying(<InlineObj, BoolExpr, IntExpr, Int32Expr, FloatExpr, LowLevelTupleExpr>) = false;
 
     True  requires_copying(<object, array(type: LowLevelEltRepr), OptTagRecRepr>) = true;
-    False requires_copying(<bool, int, symbol, float>)                            = false;
+    False requires_copying(<bool, int, symbol, float, tuple(TupleArgRepr+)>)      = false;
 
 
     Nat arity(ProcDef pd) =
@@ -658,7 +798,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type NonStringEncodable = blank_obj, ObjExpr, ElemVar, PendingInputVar, VecVar, ArrayVar, BoolExpr,
-                          IntExpr, Int32Expr, FloatExpr, ItVar, StreamVar, AnyClsVar, AnyTableVar,
+                          IntExpr, Int32Expr, FloatExpr, LowLevelTupleExpr, ItVar, StreamVar, AnyClsVar, AnyTableVar,
                           AnyValueStoreId, AnyAutoVar, AnyDBVar;
 
 type Encodable = mem_pool, NonStringEncodable, String;

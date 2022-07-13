@@ -28,7 +28,7 @@
 type QualifiableVars    = ObjVar, PendingInputVar, BoolVar, IntVar, Int32Var, FloatVar,
                           AnyAutoVar, AnyDBVar, AnyTableVar, AnyValueStoreId;
 
-type UnqualifiableVars  = OptTagRecVar, VecVar, ArrayVar, SeqItVar, SetItVar, BinRelItVar, TernRelItVar, StreamVar, AnyClsVar;
+type UnqualifiableVars  = OptTagRecVar, TupleVar, VecVar, ArrayVar, SeqItVar, SetItVar, BinRelItVar, TernRelItVar, StreamVar, AnyClsVar;
 
 
 implicit context : NativeContext {
@@ -57,6 +57,10 @@ implicit context : NativeContext {
       core    = str,
       wrapper = "Cell.Generated.Static." & str;
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_var_name(TupleVar var) = "t" & printed(var.id) & append(("_" & tuple_arg_code(r) : r <- var.repr));
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -382,6 +386,7 @@ implicit context : NativeContext {
   String native_var_type(MembIntVectVar)    = "int64[]";
   String native_var_type(BoolVar)           = "bool";
   String native_var_type(FloatVar)          = "double";
+  String native_var_type(TupleVar var)      = native_tuple_type(var.repr);
 
   String native_var_type(OptTagRecVar var) = qualify("OBJ"); // opt_tag_rec_name(var.tag, var.index);
 
@@ -399,16 +404,20 @@ implicit context : NativeContext {
 
 
   String native_type(LowLevelEltRepr) =
-    bool      = "bool",
-    int8      = "int8",
-    nat8      = "uint8",
-    int16     = "int16",
-    int32     = "int32",
-    int       = "int64",
-    float     = "double",
-    symbol    |
-    object    = qualify("OBJ"),
-    array()   = undefined;
+    bool        = "bool",
+    int8        = "int8",
+    nat8        = "uint8",
+    int16       = "int16",
+    int32       = "int32",
+    int         = "int64",
+    float       = "double",
+    tuple(rs?)  = native_tuple_type(rs),
+    symbol      |
+    object      = qualify("OBJ"),
+    array()     = undefined;
+
+
+  String native_tuple_type(TupleArgRepr+ reprs) = qualify("TUPLE" & append(("_" & native_type(r) : r <- reprs)));
 
 
   String native_type(OptTagRecRepr repr) = qualify("OBJ"); // opt_tag_rec_name(repr.tag, repr.index);
@@ -501,6 +510,17 @@ String opt_rec_field_nonempty_test_var(Symbol label) = printed(label) & "_Ls";
 ////////////////////////////////////////////////////////////////////////////////
 
 String block_label(Int id) = "block" & printed(id);
+
+////////////////////////////////////////////////////////////////////////////////
+
+String make_tuple_proc_name(TupleArgRepr+ args_reprs) = "make_tuple" & append(("_" & tuple_arg_code(r) : r <- args_reprs));
+String obj_to_tuple_proc_name(TupleArgRepr+ args_reprs) = "obj_to_tuple" & append(("_" & tuple_arg_code(r) : r <- args_reprs));
+String tuple_to_obj_proc_name(TupleArgRepr+ args_reprs) = "tuple_to_obj" & append(("_" & tuple_arg_code(r) : r <- args_reprs));
+
+String tuple_arg_code(TupleArgRepr) =
+  int     = "int",
+  float   = "float",
+  object  = "obj";
 
 ////////////////////////////////////////////////////////////////////////////////
 
