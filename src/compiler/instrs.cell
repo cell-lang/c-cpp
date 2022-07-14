@@ -210,6 +210,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     may_break = body != () and may_break(body);
     body_code = native_code(body, block_id, break_target = if may_break then just(label) else nothing);
 
+    ## BUG BUG BUG: USING A DOUBLE LOOP, WHICH WILL MALFUNCTION IF THERE'S A BREAK IN THE BODY
+    ## RIGHT NOT IT DOESN'T MATTER BECAUSE EVERY SEQUENCE IS REPRESENTED AS AN ARRAY
+    ## BUT DOES THE break_target THING FIX THE PROBLEM?
     return (
       idx_var_name & " = 0;",
       "do {",
