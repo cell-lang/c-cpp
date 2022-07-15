@@ -185,7 +185,17 @@ String uppercase_encoding(Nat n) {
   fail if not tuple_exprs :: [LowLevelTupleExpr];
   more_reprs = [(low_level_repr(a) : a <- as) : e <- tuple_exprs, tuple_expr(as?) ?= e];
 
-  return some_reprs & more_reprs;
+  reprs = [(
+      match (r)
+        opt_tag_rec_repr()  = :object,
+        int                 |
+        float               |
+        object              = r
+      : r <- rs
+    ) : rs <- some_reprs | rs <- more_reprs
+  ];
+
+  return reprs;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

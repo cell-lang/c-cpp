@@ -402,7 +402,7 @@ Text env_decl([ObjProcDef] procs) {
       "struct ENV_ {",
       ("OBJ " & native_var_decl_name(impl_arg(bare_id(a))) & ";" : a <- isort(all_impl_args)),
       ("" if all_impl_args != [] and semi_consts_cache_vars != ()),
-      ("OBJ " & memo_var_name(v, context=:core) & ";" : v <- semi_consts_cache_vars),
+      ("OBJ " & memo_var_name(v) & ";" : v <- semi_consts_cache_vars),
       "};",
       "",
       "typedef struct ENV_ ENV;"
@@ -710,7 +710,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
         fail if not pd.cached?;
 
         ret_type_name = ret_type_str(pd);
-        cast = if ret_type_name != "OBJ" then " (" & ret_type_name & ")" else ""; ## WTF?
+        copying_code = copying_code(pd.ret_val_repr, "value");
 
         wrapper_code = (
           "",
@@ -719,10 +719,8 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
           "  static " & ret_type_name & " value;",
           "  static bool initialized = false;",
           "  if (!initialized) {",
-          "    " & ret_type_name & " temp_value = " & fn_name & suffix & "(env);",
-          "    switch_to_static_allocator();",
-          "    value = copy_obj(temp_value);",
-          "    switch_to_twin_stacks_allocator();",
+          "    value = " & fn_name & suffix & "(env);"
+        ) & indent_lines(copying_code, 2) & (
           "    initialized = true;",
           "  }",
           "  return value;",
@@ -738,8 +736,8 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
           "",
           visibility(pd) & ret_type_name & " " & fn_name & "(" & args_list_str & ") {",
           "  if (is_blank(" & cache_var_name & "))",
-          "    " & cache_var_name & " = " & fn_name & suffix & "(env);",
-          "  return " & cache_var_name & ";",
+          "    " & cache_var_name & " = " & copied_to_env(pd.ret_val_repr, fn_name & suffix & "(env)") & ";",
+          "  return " & copied_from_env(pd.ret_val_repr, cache_var_name) & ";",
           "}"
         );
       }
@@ -748,7 +746,6 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     }
 
     return code;
-
 
 
     Bool is_mem_boundary(ObjProcDef pd) = pd.name :: ProcSymbol and pd.name != proc_symbol(:main);
@@ -763,6 +760,50 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 
     True  requires_copying(<object, array(type: LowLevelEltRepr), OptTagRecRepr>) = true;
     False requires_copying(<bool, int, symbol, float, tuple(TupleArgRepr+)>)      = false;
+
+
+    String copied_to_env(<array(type: LowLevelEltRepr)>, String) = undefined;
+    String copied_to_env(<symbol, object, OptTagRecRepr> repr, String value_str) = value_str;
+    String copied_to_env(<bool>, String value_str)  = native_call_expr("make_bool",  (value_str));
+    String copied_to_env(<int>, String value_str)   = native_call_expr("make_int",   (value_str));
+    String copied_to_env(<float>, String value_str) = native_call_expr("make_float", (value_str));
+    String copied_to_env(<tuple(TupleArgRepr+)> repr, String value_str) = native_call_expr(tuple_to_obj_proc_name(_untag_(repr)), (value_str));
+
+
+    String copied_from_env(<array(type: LowLevelEltRepr)>, String) = undefined;
+    String copied_from_env(<symbol, object, OptTagRecRepr> repr, String value_str) = value_str;
+    String copied_from_env(<bool>, String value_str)  = native_call_expr("get_bool",  (value_str));
+    String copied_from_env(<int>, String value_str)   = native_call_expr("get_int",   (value_str));
+    String copied_from_env(<float>, String value_str) = native_call_expr("get_float", (value_str));
+    String copied_from_env(<tuple(TupleArgRepr+)> repr, String value_str) = native_call_expr(obj_to_tuple_proc_name(_untag_(repr)), (value_str));
+
+
+    String* copying_code(<array(type: LowLevelEltRepr)>, String) = undefined;
+
+    String* copying_code(<bool, int, symbol, float>, String) = ();
+
+    String* copying_code(<object, OptTagRecRepr> repr, String var_name) = (
+      "switch_to_static_allocator();",
+      var_name & " = copy_obj(" & var_name & ");",
+      "switch_to_twin_stacks_allocator();"
+    );
+
+    String* copying_code(<tuple(TupleArgRepr+)> repr, String var_name) {
+      reprs = _untag_(repr);
+      code = ();
+      switch_allocator = false;
+      for r @ i <- reprs {
+        code, switch_allocator = match (r)
+          int                 |
+          float               = (code, switch_allocator),
+          object              |
+          opt_tag_rec_repr()  = ( (code | var_name & ".arg_" & _print_(i) & " = copy_obj(" & var_name & ".arg_" & _print_(i) & ");"),
+                                  true
+                                );
+      }
+      code = ("switch_to_static_allocator();") & code & ("switch_to_twin_stacks_allocator();") if switch_allocator;
+      return code;
+    }
 
 
     Nat arity(ProcDef pd) =

@@ -518,9 +518,10 @@ String obj_to_tuple_proc_name(TupleArgRepr+ args_reprs) = "obj_to_tuple" & appen
 String tuple_to_obj_proc_name(TupleArgRepr+ args_reprs) = "tuple_to_obj" & append(("_" & tuple_arg_code(r) : r <- args_reprs));
 
 String tuple_arg_code(TupleArgRepr) =
-  int     = "int",
-  float   = "float",
-  object  = "obj";
+  int                 = "int",
+  float               = "float",
+  object              = "obj",
+  opt_tag_rec_repr()  = "obj";
 
 ////////////////////////////////////////////////////////////////////////////////
 
