@@ -42,17 +42,44 @@ void float_col_aux_update(FLOAT_COL_AUX *col_aux, uint32 index, double value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)(void *, uint32), void (*decr_rc)(void *, void *, uint32), void *store, void *store_aux, STATE_MEM_POOL *mem_pool) {
-  if (col_aux->clear) {
-    double *array = col->array;
-    uint32 count = col->count;
-    uint32 read = 0;
-    for (uint32 idx=0 ; read < count ; idx++)
-      if (!is_float_col_null(array[idx])) {
-        read++;
-        decr_rc(store, store_aux, idx);
-      }
+static void float_col_aux_build_insert_map(FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_status_map_is_dirty(&col_aux->status_map));
 
+  uint32 count = col_aux->insertions.count;
+  if (count != 0) {
+    uint32 *idxs = col_aux->insertions.u32_array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool);
+  }
+
+  count = col_aux->updates.count;
+  if (count != 0) {
+    uint32 *idxs = col_aux->updates.u32_array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool);
+  }
+}
+
+void float_col_aux_apply_deletions(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
+  bool has_insertions_or_updates = col_aux->insertions.count > 0 || col_aux->updates.count > 0;
+  bool status_map_built = !has_insertions_or_updates || col_update_status_map_is_dirty(&col_aux->status_map);
+
+  if (col_aux->clear) {
+    if (remove != NULL) {
+      double *array = col->array;
+      uint32 count = col->count;
+      uint32 read = 0;
+      for (uint32 idx=0 ; read < count ; idx++)
+        if (!is_float_col_null(array[idx])) {
+          read++;
+          if (!status_map_built) {
+            float_col_aux_build_insert_map(col_aux, mem_pool);
+            status_map_built = true;
+          }
+          if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
+            remove(store, idx, mem_pool);
+        }
+    }
     float_col_clear(col, mem_pool);
   }
   else {
@@ -61,41 +88,37 @@ void float_col_aux_apply(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void (*incr_rc)
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        if (float_col_delete(col, idx, mem_pool))
-          decr_rc(store, store_aux, idx);
+        if (float_col_delete(col, idx, mem_pool)) {
+          if (remove != NULL) {
+            if (!status_map_built) {
+              float_col_aux_build_insert_map(col_aux, mem_pool);
+              status_map_built = true;
+            }
+            if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
+              remove(store, idx, mem_pool);
+          }
+        }
       }
     }
   }
+}
 
+void float_col_aux_apply_updates_and_insertions(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = col_aux->updates.count;
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     double *values = col_aux->updates.float_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      double value = values[i];
-      if (!float_col_contains_1(col, idx)) //## NOT TOTALLY SURE ABOUT THIS ONE
-        incr_rc(store, idx);
-      float_col_update(col, idx, value, mem_pool);
-    }
+    for (uint32 i=0 ; i < count ; i++)
+      float_col_update(col, idxs[i], values[i], mem_pool);
   }
 
   count = col_aux->insertions.count;
   if (count > 0) {
     uint32 *idxs = col_aux->insertions.u32_array;
     double *values = col_aux->insertions.float_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      float_col_insert(col, idx, values[i], mem_pool);
-      incr_rc(store, idx);
-    }
+    for (uint32 i=0 ; i < count ; i++)
+      float_col_insert(col, idxs[i], values[i], mem_pool);
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void float_col_aux_slave_apply(FLOAT_COL *column, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  float_col_aux_apply(column, col_aux, null_incr_rc, null_decr_rc, NULL, NULL, mem_pool);
 }
 
 //////////////////////////////////////////////////////////////////////////////

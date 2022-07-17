@@ -3,6 +3,7 @@
 
 void bin_table_aux_init(BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   col_update_bit_map_init(&table_aux->bit_map);
+  col_update_bit_map_init(&table_aux->another_bit_map);
   queue_u64_init(&table_aux->deletions);
   queue_u32_init(&table_aux->deletions_1);
   queue_u32_init(&table_aux->deletions_2);
@@ -11,6 +12,7 @@ void bin_table_aux_init(BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
 }
 
 void bin_table_aux_reset(BIN_TABLE_AUX *table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
   queue_u64_reset(&table_aux->deletions);
   queue_u32_reset(&table_aux->deletions_1);
   queue_u32_reset(&table_aux->deletions_2);
@@ -43,32 +45,83 @@ void bin_table_aux_insert(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr_rc_1)(void *, uint32), void (*decr_rc_1)(void *, void *, uint32), void *store_1, void *store_aux_1, void (*incr_rc_2)(void *, uint32), void (*decr_rc_2)(void *, void *, uint32), void *store_2, void *store_aux_2, STATE_MEM_POOL *mem_pool) {
+static void bin_table_aux_build_col_1_insertion_bitmap(BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 count = table_aux->insertions.count;
+  if (count > 0) {
+    uint64 *args_array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 arg1 = unpack_arg1(args_array[i]);
+      col_update_bit_map_set(bit_map, arg1, mem_pool);
+    }
+  }
+}
+
+static void bin_table_aux_build_col_2_insertion_bitmap(BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 count = table_aux->insertions.count;
+  if (count > 0) {
+    uint64 *args_array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 arg2 = unpack_arg2(args_array[i]);
+      col_update_bit_map_set(bit_map, arg2, mem_pool);
+    }
+  }
+}
+
+void bin_table_aux_apply_deletions(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
     uint32 count = bin_table_size(table);
-    uint32 read = 0;
-    for (uint32 arg1=0 ; read < count ; arg1++) {
-      uint32 count_1 = bin_table_count_1(table, arg1);
-      if (count_1 > 0) {
-        read += count_1;
-        uint32 read_1 = 0;
-        do {
-          uint32 buffer[64];
-          UINT32_ARRAY array = bin_table_range_restrict_1(table, arg1, read_1, buffer, 64);
-          read_1 += array.size;
-          for (uint32 i=0 ; i < array.size ; i++) {
-            uint32 arg2 = array.array[i];
-
-            decr_rc_1(store_1, store_aux_1, arg1);
-            decr_rc_2(store_2, store_aux_2, arg2);
-
-          }
-        } while (read_1 < count_1);
+    if (count > 0) {
+      if (table_aux->insertions.count == 0) {
+        if (remove1 != NULL)
+          remove1(store1, 0xFFFFFFFF, mem_pool);
+        if (remove2 != NULL)
+          remove2(store2, 0xFFFFFFFF, mem_pool);
       }
+      else {
+        if (remove1 != NULL) {
+          bin_table_aux_build_col_1_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+          uint32 read = 0;
+          for (uint32 arg1=0 ; read < count ; arg1++) {
+            uint32 count1 = bin_table_count_1(table, arg1);
+            if (count1 > 0) {
+              read += count1;
+              if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1))
+                remove1(store1, arg1, mem_pool);
+            }
+          }
+          col_update_bit_map_clear(&table_aux->bit_map);
+        }
+
+        if (remove2 != NULL) {
+          bin_table_aux_build_col_2_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+          uint32 read = 0;
+          for (uint32 arg2=0 ; read < count ; arg2++) {
+            uint32 count2 = bin_table_count_2(table, arg2);
+            if (count2 > 0) {
+              read += count2;
+              if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2))
+                remove2(store2, arg2, mem_pool);
+            }
+          }
+          col_update_bit_map_clear(&table_aux->bit_map);
+        }
+      }
+
+      bin_table_clear(table, mem_pool);
     }
-    bin_table_clear(table, mem_pool);
   }
   else {
+    bool has_insertions = table_aux->insertions.count > 0;
+    bool col_1_bit_map_built = !has_insertions;
+    bool col_2_bit_map_built = !has_insertions;
+
+    COL_UPDATE_BIT_MAP *col_1_bit_map = &table_aux->bit_map;
+    COL_UPDATE_BIT_MAP *col_2_bit_map = remove1 == NULL ? &table_aux->bit_map : &table_aux->another_bit_map;
+
     uint32 count = table_aux->deletions.count;
     if (count > 0) {
       uint64 *array = table_aux->deletions.array;
@@ -77,8 +130,22 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
         uint32 arg1 = unpack_arg1(args);
         uint32 arg2 = unpack_arg2(args);
         if (bin_table_delete(table, arg1, arg2)) {
-          decr_rc_1(store_1, store_aux_1, arg1);
-          decr_rc_2(store_2, store_aux_2, arg2);
+          if (remove1 != NULL && bin_table_count_1(table, arg1) == 0) {
+            if (!col_1_bit_map_built) {
+              bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
+              col_1_bit_map_built = true;
+            }
+            if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
+              remove1(store1, arg1, mem_pool);
+          }
+          if (remove2 != NULL && bin_table_count_2(table, arg2) == 0) {
+            if (!col_2_bit_map_built) {
+              bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
+              col_2_bit_map_built = true;
+            }
+            if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
+              remove2(store2, arg2, mem_pool);
+          }
         }
       }
     }
@@ -89,22 +156,38 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg1 = array[i];
 
-        uint32 count1 = bin_table_count_1(table, arg1);
-        uint32 read1 = 0;
-        while (read1 < count1) {
-          uint32 buffer[64];
-          UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
-          read1 += array1.size;
-          for (uint32 i1=0 ; i1 < array1.size ; i1++) {
-            uint32 arg2 = array1.array[i1];
-
-            decr_rc_1(store_1, store_aux_1, arg1);
-            decr_rc_2(store_2, store_aux_2, arg2);
-
+        if (remove2 != NULL) {
+          uint32 count1 = bin_table_count_1(table, arg1);
+          uint32 read1 = 0;
+          while (read1 < count1) {
+            uint32 buffer[64];
+            UINT32_ARRAY array1 = bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
+            read1 += array1.size;
+            for (uint32 i1=0 ; i1 < array1.size ; i1++) {
+              uint32 arg2 = array1.array[i1];
+              assert(bin_table_count_2(table, arg2) > 0);
+              if (bin_table_count_2(table, arg2) == 1) {
+                if (!col_2_bit_map_built) {
+                  bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
+                  col_2_bit_map_built = true;
+                }
+                if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
+                  remove2(store2, arg2, mem_pool);
+              }
+            }
           }
         }
 
         bin_table_delete_1(table, arg1);
+        assert(bin_table_count_1(table, arg1) == 0);
+        if (remove1 != NULL) {
+          if (!col_1_bit_map_built) {
+            bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
+            col_1_bit_map_built = true;
+          }
+          if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
+            remove1(store1, arg1, mem_pool);
+        }
       }
     }
 
@@ -114,25 +197,50 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       for (uint32 i=0 ; i < count ; i++) {
         uint32 arg2 = array[i];
 
-        uint32 count2 = bin_table_count_2(table, arg2);
-        uint32 read2 = 0;
-        while (read2 < count2) {
-          uint32 buffer[64];
-          UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-          read2 += array2.size;
-          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-            uint32 arg1 = array2.array[i2];
-
-            decr_rc_1(store_1, store_aux_1, arg1);
-            decr_rc_2(store_2, store_aux_2, arg2);
-
+        if (remove1 != NULL) {
+          uint32 count2 = bin_table_count_2(table, arg2);
+          uint32 read2 = 0;
+          while (read2 < count2) {
+            uint32 buffer[64];
+            UINT32_ARRAY array2 = bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+            read2 += array2.size;
+            for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+              uint32 arg1 = array2.array[i2];
+              assert(bin_table_count_1(table, arg1) > 0);
+              if (bin_table_count_1(table, arg1) == 1) {
+                if (!col_1_bit_map_built) {
+                  bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
+                  col_1_bit_map_built = true;
+                }
+                if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
+                  remove1(store1, arg1, mem_pool);
+              }
+            }
           }
         }
+
         bin_table_delete_2(table, arg2);
+        assert(bin_table_count_2(table, arg2) == 0);
+        if (remove2 != NULL) {
+          if (!col_2_bit_map_built) {
+            bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
+            col_2_bit_map_built = true;
+          }
+          if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
+            remove2(store2, arg2, mem_pool);
+        }
       }
     }
-  }
 
+    if (has_insertions && col_1_bit_map_built)
+      col_update_bit_map_clear(col_1_bit_map);
+
+    if (has_insertions && col_2_bit_map_built)
+      col_update_bit_map_clear(col_2_bit_map);
+  }
+}
+
+void bin_table_aux_apply_insertions(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint64 *array = table_aux->insertions.array;
@@ -140,10 +248,7 @@ void bin_table_aux_apply(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, void (*incr
       uint64 args = array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
-      if (bin_table_insert(table, arg1, arg2, mem_pool)) {
-        incr_rc_1(store_1, arg1);
-        incr_rc_2(store_2, arg2);
-      }
+      bin_table_insert(table, arg1, arg2, mem_pool);
     }
   }
 }
@@ -161,6 +266,8 @@ static void record_col_2_key_violation(BIN_TABLE *col, BIN_TABLE_AUX *table_aux,
 ////////////////////////////////////////////////////////////////////////////////
 
 inline void bin_table_aux_build_col_1_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
   uint32 del_count = table_aux->deletions.count;
   uint32 del_1_count = table_aux->deletions_1.count;
   uint32 del_2_count = table_aux->deletions_2.count;
@@ -198,9 +305,7 @@ inline void bin_table_aux_build_col_1_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX
         read2 += array2.size;
         for (uint32 i2=0 ; i2 < array2.size ; i2++) {
           uint32 arg1 = array2.array[i2];
-
           col_update_bit_map_set(bit_map, arg1, mem_pool);
-
         }
       }
     }
@@ -208,6 +313,8 @@ inline void bin_table_aux_build_col_1_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX
 }
 
 inline void bin_table_aux_build_col_2_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
   uint32 del_count = table_aux->deletions.count;
   uint32 del_1_count = table_aux->deletions_1.count;
   uint32 del_2_count = table_aux->deletions_2.count;
@@ -239,9 +346,7 @@ inline void bin_table_aux_build_col_2_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX
         read1 += array1.size;
         for (uint32 i1=0 ; i1 < array1.size ; i1++) {
           uint32 arg2 = array1.array[i1];
-
           col_update_bit_map_set(bit_map, arg2, mem_pool);
-
         }
       }
     }

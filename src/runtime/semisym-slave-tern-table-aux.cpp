@@ -78,10 +78,12 @@ void slave_tern_table_aux_insert(MASTER_BIN_TABLE *master_table, SYM_MASTER_BIN_
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void semisym_slave_tern_table_aux_apply(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool) {
-  //## MAYBE bin_table_aux_apply() SHOULD JUST CHECK THAT incr_rc_1() AND decr_rc_1() ARE NOT NULL
-  //## OR MAYBE THERE SHOULD BE 2 VERSIONS OF bin_table_aux_apply()
-  bin_table_aux_apply(slave_table, &table_aux->slave_table_aux, null_incr_rc, null_decr_rc, NULL, NULL, incr_rc_3, decr_rc_3, store_3, store_aux_3, mem_pool);
+void semisym_slave_tern_table_aux_apply_deletions(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {
+  bin_table_aux_apply_deletions(slave_table, &table_aux->slave_table_aux, NULL, NULL, remove3, store3, mem_pool);
+}
+
+void semisym_slave_tern_table_aux_apply_insertions(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
+  bin_table_aux_apply_insertions(slave_table, &table_aux->slave_table_aux, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

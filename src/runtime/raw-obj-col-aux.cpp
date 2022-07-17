@@ -17,10 +17,8 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
     uint32 count = col_aux->deletions.count;
     if (count > 0) {
       uint32 *idxs = col_aux->deletions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 idx = idxs[i];
-        raw_obj_col_delete(column, idx, mem_pool);
-      }
+      for (uint32 i=0 ; i < count ; i++)
+        raw_obj_col_delete(column, idxs[i], mem_pool);
     }
   }
 
@@ -28,22 +26,16 @@ void raw_obj_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_ta
   if (count > 0) {
     uint32 *idxs = col_aux->updates.u32_array;
     OBJ *values = col_aux->updates.obj_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      OBJ value = values[i];
-      assert(!is_blank(value));
-      raw_obj_col_update(master_table, column, idx, value, mem_pool);
-    }
+    for (uint32 i=0 ; i < count ; i++)
+      raw_obj_col_update(master_table, column, idxs[i], values[i], mem_pool);
   }
 
   count = col_aux->insertions.count;
   if (count > 0) {
     uint32 *idxs = col_aux->insertions.u32_array;
     OBJ *values = col_aux->insertions.obj_array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 idx = idxs[i];
-      raw_obj_col_insert(column, idx, values[i], mem_pool);
-    }
+    for (uint32 i=0 ; i < count ; i++)
+      raw_obj_col_insert(column, idxs[i], values[i], mem_pool);
   }
 }
 

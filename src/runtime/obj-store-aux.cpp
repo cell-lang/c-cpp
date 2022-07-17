@@ -2,23 +2,12 @@
 
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode);
-uint32 obj_store_next_free_idx(OBJ_STORE *store, uint32 index);
+uint32 obj_store_next_free_surr(OBJ_STORE *store, uint32 index);
 
-void obj_store_add_ref(OBJ_STORE *store, uint32 index);
-void obj_store_release(OBJ_STORE *store, uint32 index);
-void obj_store_release(OBJ_STORE *store, uint32 index, uint32 amount);
-
-bool obj_store_try_releasing(OBJ_STORE *store, uint32 index, uint32 amount);
-bool obj_store_try_releasing(OBJ_STORE *store, uint32 index);
-
-void obj_store_insert(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, OBJ value, uint32 hashcode, uint32 index);
-void obj_store_resize(OBJ_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
+void obj_store_insert(OBJ_STORE *store, OBJ value, uint32 hashcode, uint32 surr, STATE_MEM_POOL *mem_pool);
+void obj_store_resize(OBJ_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem_pool);
 
 ////////////////////////////////////////////////////////////////////////////////
-
-static OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *obj_store_aux_new_batch_release_entry_array(uint32 size) {
-  return (OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *) new_obj(null_round_up_8(size * sizeof(OBJ_STORE_AUX_BATCH_RELEASE_ENTRY)));
-}
 
 static OBJ_STORE_AUX_INSERT_ENTRY *obj_store_aux_new_insert_entry_array(uint32 size) {
   return (OBJ_STORE_AUX_INSERT_ENTRY *) new_obj(null_round_up_8(size * sizeof(OBJ_STORE_AUX_INSERT_ENTRY)));
@@ -27,14 +16,6 @@ static OBJ_STORE_AUX_INSERT_ENTRY *obj_store_aux_new_insert_entry_array(uint32 s
 ////////////////////////////////////////////////////////////////////////////////
 
 void obj_store_aux_init(OBJ_STORE_AUX *store_aux) {
-  store_aux->deferred_capacity = INLINE_AUX_SIZE;
-  store_aux->deferred_count = 0;
-  store_aux->deferred_release_surrs = store_aux->deferred_release_buffer;
-
-  store_aux->batch_deferred_capacity = INLINE_AUX_SIZE;
-  store_aux->batch_deferred_count = 0;
-  store_aux->batch_deferred_release_entries = store_aux->batch_deferred_release_buffer;
-
   store_aux->capacity = INLINE_AUX_SIZE;
   store_aux->count = 0;
 
@@ -66,14 +47,6 @@ void obj_store_aux_reset(OBJ_STORE_AUX *store_aux) {
       store_aux->hash_range = 0;
     }
   }
-
-  assert(store_aux->deferred_capacity == INLINE_AUX_SIZE);
-  assert(store_aux->deferred_count == 0);
-  assert(store_aux->deferred_release_surrs == store_aux->deferred_release_buffer);
-
-  assert(store_aux->batch_deferred_capacity == INLINE_AUX_SIZE);
-  assert(store_aux->batch_deferred_count == 0);
-  assert(store_aux->batch_deferred_release_entries == store_aux->batch_deferred_release_buffer);
 
   assert(store_aux->capacity == INLINE_AUX_SIZE);
   assert(store_aux->count == 0);
@@ -122,90 +95,19 @@ static void obj_store_aux_resize(OBJ_STORE_AUX *store_aux) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void obj_store_aux_mark_for_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr) {
-  if (!obj_store_try_releasing(store, surr)) {
-    uint32 capacity = store_aux->deferred_capacity;
-    uint32 count = store_aux->deferred_count;
-    uint32 *surrs = store_aux->deferred_release_surrs;
-    assert(count <= capacity);
-    if (count == capacity) {
-      uint32 *new_surrs = new_uint32_array(2 * capacity);
-      memcpy(new_surrs, surrs, capacity * sizeof(uint32));
-      capacity *= 2;
-      surrs = new_surrs;
-      store_aux->deferred_capacity = capacity;
-      store_aux->deferred_release_surrs = surrs;
-    }
-    surrs[count++] = surr;
-    store_aux->deferred_count = count;
-  }
-}
-
-// void obj_store_aux_mark_for_batch_deferred_release(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint32 surr, uint32 rel_count) {
-//   if (!obj_store_try_releasing(store, surr, rel_count)) {
-//     uint32 capacity = store_aux->batch_deferred_capacity;
-//     uint32 count = store_aux->batch_deferred_count;
-//     OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *entries = store_aux->batch_deferred_release_entries;
-//     assert(count <= capacity);
-//     if (count == capacity) {
-//       OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *new_entries = obj_store_aux_new_batch_release_entry_array(2 * capacity);
-//       memcpy(new_entries, entries, capacity * sizeof(OBJ_STORE_AUX_BATCH_RELEASE_ENTRY));
-//       capacity *= 2;
-//       entries = new_entries;
-//       store_aux->batch_deferred_capacity = capacity;
-//       store_aux->batch_deferred_release_entries = entries;
-//     }
-//     OBJ_STORE_AUX_BATCH_RELEASE_ENTRY entry;
-//     entry.surr = surr;
-//     entry.count = rel_count;
-//     entries[count++] = entry;
-//     store_aux->batch_deferred_count = count;
-//   }
-// }
-
-void obj_store_aux_apply_deferred_releases(OBJ_STORE *store, OBJ_STORE_AUX *store_aux) {
-  uint32 count = store_aux->deferred_count;
-  if (count > 0) {
-    uint32 *surrs = store_aux->deferred_release_surrs;
-    for (uint32 i=0 ; i < count ; i++)
-      obj_store_release(store, surrs[i]);
-
-    store_aux->deferred_count = 0;
-    if (count > INLINE_AUX_SIZE) {
-      store_aux->deferred_capacity = INLINE_AUX_SIZE;
-      store_aux->deferred_release_surrs = store_aux->deferred_release_buffer;
-    }
-  }
-
-  count = store_aux->batch_deferred_count;
-  if (count > 0) {
-    OBJ_STORE_AUX_BATCH_RELEASE_ENTRY *entries = store_aux->batch_deferred_release_entries;
-    for (uint32 i=0 ; i < count ; i++) {
-      OBJ_STORE_AUX_BATCH_RELEASE_ENTRY entry = entries[i];
-      obj_store_release(store, entry.surr, entry.count);
-    }
-
-    store_aux->batch_deferred_count = 0;
-    if (count > INLINE_AUX_SIZE) {
-      store_aux->deferred_capacity = INLINE_AUX_SIZE;
-      store_aux->batch_deferred_release_entries = store_aux->batch_deferred_release_buffer;
-    }
-  }
-}
-
-void obj_store_aux_apply(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
+void obj_store_aux_apply_insertions(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = store_aux->count;
   if (count > 0) {
     uint32 capacity = store->capacity;
     uint32 req_capacity = store->count + count;
 
     if (capacity < req_capacity)
-      obj_store_resize(store, mem_pool, req_capacity);
+      obj_store_resize(store, req_capacity, mem_pool);
 
     OBJ_STORE_AUX_INSERT_ENTRY *entries = store_aux->entries;
     for (uint32 i=0 ; i < count ; i++) {
       OBJ_STORE_AUX_INSERT_ENTRY entry = entries[i];
-      obj_store_insert(store, mem_pool, entry.obj, entry.hashcode, entry.surr);
+      obj_store_insert(store, entry.obj, entry.hashcode, entry.surr, mem_pool);
     }
   }
 }
@@ -274,7 +176,7 @@ uint32 obj_store_aux_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ valu
     assert(capacity == store_aux->capacity);
   }
 
-  uint32 surr = obj_store_next_free_idx(store, store_aux->last_surr);
+  uint32 surr = obj_store_next_free_surr(store, store_aux->last_surr);
   assert(surr <= store->capacity + count);
   store_aux->last_surr = surr;
 
@@ -310,21 +212,10 @@ uint32 obj_store_aux_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ valu
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, OBJ value) {
+uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value, STATE_MEM_POOL *mem_pool) {
   uint32 surr = obj_store_aux_value_to_surr(store, store_aux, value);
   if (surr != 0xFFFFFFFF)
     return surr;
   else
     return obj_store_aux_insert(store, store_aux, value);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void obj_store_incr_rc(void *store, uint32 surr) {
-  obj_store_add_ref((OBJ_STORE *) store, surr);
-}
-
-void obj_store_aux_decr_rc(void *store, void *store_aux, uint32 surr) {
-  obj_store_aux_mark_for_deferred_release((OBJ_STORE *) store, (OBJ_STORE_AUX *) store_aux, surr);
 }

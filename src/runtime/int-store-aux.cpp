@@ -2,23 +2,12 @@
 
 
 // int64 int_store_surr_to_value(INT_STORE *store, uint32 surr);
-uint32 int_store_next_free_surr(INT_STORE *store, uint32 index);
+uint32 int_store_next_free_surr(INT_STORE *, uint32 index);
 
-void int_store_add_ref(INT_STORE *store, uint32 index);
-void int_store_release(INT_STORE *store, uint32 index);
-void int_store_release(INT_STORE *store, uint32 index, uint32 amount);
-
-bool int_store_try_releasing(INT_STORE *store, uint32 index, uint32 amount);
-bool int_store_try_releasing(INT_STORE *store, uint32 index);
-
-void int_store_insert(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value, uint32 index);
-void int_store_resize(INT_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity);
+void int_store_insert(INT_STORE *, int64 value, uint32 index, STATE_MEM_POOL *);
+void int_store_resize(INT_STORE *, uint32 min_capacity, STATE_MEM_POOL *);
 
 ////////////////////////////////////////////////////////////////////////////////
-
-static INT_STORE_AUX_BATCH_RELEASE_ENTRY *new_batch_release_entry_array(uint32 size) {
-  return (INT_STORE_AUX_BATCH_RELEASE_ENTRY *) new_obj(null_round_up_8(size * sizeof(INT_STORE_AUX_BATCH_RELEASE_ENTRY)));
-}
 
 static INT_STORE_AUX_INSERT_ENTRY *new_insert_entry_array(uint32 size) {
   return (INT_STORE_AUX_INSERT_ENTRY *) new_obj(null_round_up_8(size * sizeof(INT_STORE_AUX_INSERT_ENTRY)));
@@ -34,14 +23,6 @@ static uint32 quick_hashcode(int64 value) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void int_store_aux_init(INT_STORE_AUX *store_aux) {
-  store_aux->deferred_capacity = INLINE_AUX_SIZE;
-  store_aux->deferred_count = 0;
-  store_aux->deferred_release_surrs = store_aux->deferred_release_buffer;
-
-  store_aux->batch_deferred_capacity = INLINE_AUX_SIZE;
-  store_aux->batch_deferred_count = 0;
-  store_aux->batch_deferred_release_entries = store_aux->batch_deferred_release_buffer;
-
   store_aux->capacity = INLINE_AUX_SIZE;
   store_aux->count = 0;
 
@@ -73,14 +54,6 @@ void int_store_aux_reset(INT_STORE_AUX *store_aux) {
       store_aux->hash_range = 0;
     }
   }
-
-  assert(store_aux->deferred_capacity == INLINE_AUX_SIZE);
-  assert(store_aux->deferred_count == 0);
-  assert(store_aux->deferred_release_surrs == store_aux->deferred_release_buffer);
-
-  assert(store_aux->batch_deferred_capacity == INLINE_AUX_SIZE);
-  assert(store_aux->batch_deferred_count == 0);
-  assert(store_aux->batch_deferred_release_entries == store_aux->batch_deferred_release_buffer);
 
   assert(store_aux->capacity == INLINE_AUX_SIZE);
   assert(store_aux->count == 0);
@@ -138,90 +111,19 @@ static void int_store_aux_resize(INT_STORE_AUX *store_aux) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_store_aux_mark_for_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr) {
-  if (!int_store_try_releasing(store, surr)) {
-    uint32 capacity = store_aux->deferred_capacity;
-    uint32 count = store_aux->deferred_count;
-    uint32 *surrs = store_aux->deferred_release_surrs;
-    assert(count <= capacity);
-    if (count == capacity) {
-      uint32 *new_surrs = new_uint32_array(2 * capacity);
-      memcpy(new_surrs, surrs, capacity * sizeof(uint32));
-      capacity *= 2;
-      surrs = new_surrs;
-      store_aux->deferred_capacity = capacity;
-      store_aux->deferred_release_surrs = surrs;
-    }
-    surrs[count++] = surr;
-    store_aux->deferred_count = count;
-  }
-}
-
-// void int_store_mark_for_batch_deferred_release(INT_STORE *store, INT_STORE_AUX *store_aux, uint32 surr, uint32 rel_count) {
-//   if (!int_store_try_releasing(store, surr, rel_count)) {
-//     uint32 capacity = store_aux->batch_deferred_capacity;
-//     uint32 count = store_aux->batch_deferred_count;
-//     INT_STORE_AUX_BATCH_RELEASE_ENTRY *entries = store_aux->batch_deferred_release_entries;
-//     assert(count <= capacity);
-//     if (count == capacity) {
-//       INT_STORE_AUX_BATCH_RELEASE_ENTRY *new_entries = new_batch_release_entry_array(2 * capacity);
-//       memcpy(new_entries, entries, capacity * sizeof(INT_STORE_AUX_BATCH_RELEASE_ENTRY));
-//       capacity *= 2;
-//       entries = new_entries;
-//       store_aux->batch_deferred_capacity = capacity;
-//       store_aux->batch_deferred_release_entries = entries;
-//     }
-//     INT_STORE_AUX_BATCH_RELEASE_ENTRY entry;
-//     entry.surr = surr;
-//     entry.count = rel_count;
-//     entries[count++] = entry;
-//     store_aux->batch_deferred_count = count;
-//   }
-// }
-
-void int_store_aux_apply_deferred_releases(INT_STORE *store, INT_STORE_AUX *store_aux) {
-  uint32 count = store_aux->deferred_count;
-  if (count > 0) {
-    uint32 *surrs = store_aux->deferred_release_surrs;
-    for (uint32 i=0 ; i < count ; i++)
-      int_store_release(store, surrs[i]);
-
-    store_aux->deferred_count = 0;
-    if (count > INLINE_AUX_SIZE) {
-      store_aux->deferred_capacity = INLINE_AUX_SIZE;
-      store_aux->deferred_release_surrs = store_aux->deferred_release_buffer;
-    }
-  }
-
-  count = store_aux->batch_deferred_count;
-  if (count > 0) {
-    INT_STORE_AUX_BATCH_RELEASE_ENTRY *entries = store_aux->batch_deferred_release_entries;
-    for (uint32 i=0 ; i < count ; i++) {
-      INT_STORE_AUX_BATCH_RELEASE_ENTRY entry = entries[i];
-      int_store_release(store, entry.surr, entry.count);
-    }
-
-    store_aux->batch_deferred_count = 0;
-    if (count > INLINE_AUX_SIZE) {
-      store_aux->deferred_capacity = INLINE_AUX_SIZE;
-      store_aux->batch_deferred_release_entries = store_aux->batch_deferred_release_buffer;
-    }
-  }
-}
-
-void int_store_aux_apply(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
+void int_store_aux_apply_insertions(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = store_aux->count;
   if (count > 0) {
     uint32 capacity = store->capacity;
     uint32 req_capacity = store->count + count;
 
     if (capacity < req_capacity)
-      int_store_resize(store, mem_pool, req_capacity);
+      int_store_resize(store, req_capacity, mem_pool);
 
     INT_STORE_AUX_INSERT_ENTRY *entries = store_aux->entries;
     for (uint32 i=0 ; i < count ; i++) {
       INT_STORE_AUX_INSERT_ENTRY entry = entries[i];
-      int_store_insert(store, mem_pool, entry.value, entry.surr);
+      int_store_insert(store, entry.value, entry.surr, mem_pool);
     }
   }
 }
@@ -330,21 +232,10 @@ uint32 int_store_aux_insert(INT_STORE *store, INT_STORE_AUX *store_aux, int64 va
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 int_store_aux_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, STATE_MEM_POOL *mem_pool, int64 value) {
+uint32 int_store_aux_lookup_or_insert_value(INT_STORE *store, INT_STORE_AUX *store_aux, int64 value, STATE_MEM_POOL *mem_pool) {
   uint32 surr = int_store_aux_value_to_surr(store, store_aux, value);
   if (surr != 0xFFFFFFFF)
     return surr;
   else
     return int_store_aux_insert(store, store_aux, value);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void int_store_incr_rc(void *store, uint32 surr) {
-  int_store_add_ref((INT_STORE *) store, surr);
-}
-
-void int_store_aux_decr_rc(void *store, void *store_aux, uint32 surr) {
-  int_store_aux_mark_for_deferred_release((INT_STORE *) store, (INT_STORE_AUX *) store_aux, surr);
 }

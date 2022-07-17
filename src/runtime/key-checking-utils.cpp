@@ -114,6 +114,10 @@ bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index) {
   return ((word >> bit_idx) & 1) != 0;
 }
 
+bool col_update_bit_map_is_dirty(COL_UPDATE_BIT_MAP *bit_map) {
+  return bit_map->num_dirty > 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -133,8 +137,14 @@ void col_update_status_map_clear(COL_UPDATE_STATUS_MAP *status_map) {
 bool col_update_status_map_is_dirty(COL_UPDATE_STATUS_MAP *status_map) {
   return status_map->bit_map.num_dirty > 0;
 }
+
+//## REMOVE THIS ONE, IT'S REDUNDANT
 void col_update_status_map_mark_deletion(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
   col_update_bit_map_set(&status_map->bit_map, 2 * index, mem_pool);
+}
+
+bool col_update_status_map_check_and_mark_deletion(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
+  return col_update_bit_map_check_and_set(&status_map->bit_map, 2 * index, mem_pool);
 }
 
 bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
@@ -142,5 +152,9 @@ bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *statu
 }
 
 bool col_update_status_map_deleted_flag_is_set(COL_UPDATE_STATUS_MAP *status_map, uint32 index) {
-  col_update_bit_map_is_set(&status_map->bit_map, 2 * index);
+  return col_update_bit_map_is_set(&status_map->bit_map, 2 * index);
+}
+
+bool col_update_status_map_inserted_flag_is_set(COL_UPDATE_STATUS_MAP *status_map, uint32 index) {
+  return col_update_bit_map_is_set(&status_map->bit_map, 2 * index + 1);
 }

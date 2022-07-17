@@ -104,9 +104,12 @@ void semisym_tern_table_aux_insert(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *ta
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, void (*incr_rc_12)(void *, uint32), void (*decr_rc_12)(void *, void *, uint32), void *store_12, void *store_aux_12, void (*incr_rc_3)(void *, uint32), void (*decr_rc_3)(void *, void *, uint32), void *store_3, void *store_aux_3, STATE_MEM_POOL *mem_pool) {
-  sym_master_bin_table_aux_apply(&table->master, &table_aux->master, incr_rc_12, decr_rc_12, store_12, store_aux_12, mem_pool);
-  bin_table_aux_apply(&table->slave, &table_aux->slave, null_incr_rc, null_decr_rc, NULL, NULL, incr_rc_3, decr_rc_3, store_3, store_aux_3, mem_pool);
+void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, void (*remove12)(void *, uint32, STATE_MEM_POOL *), void *store12, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {
+  sym_master_bin_table_aux_apply_deletions(&table->master, &table_aux->master, remove12, store12, mem_pool);
+  bin_table_aux_apply_deletions(&table->slave, &table_aux->slave, NULL, NULL, remove3, store3, mem_pool);
+
+  sym_master_bin_table_aux_apply_insertions(&table->master, &table_aux->master, mem_pool);
+  bin_table_aux_apply_insertions(&table->slave, &table_aux->slave, mem_pool);
 
   uint32 count = table_aux->surr12_follow_ups.count;
   if (count > 0) {
@@ -117,9 +120,14 @@ void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *tab
         if (sym_master_bin_table_contains_surr(&table->master, surr12)) {
           uint32 arg1 = sym_master_bin_table_get_arg_1(&table->master, surr12);
           uint32 arg2 = sym_master_bin_table_get_arg_2(&table->master, surr12);
-          sym_master_bin_table_delete(&table->master, arg1, arg2);
-          decr_rc_12(store_12, store_aux_12, arg1);
-          decr_rc_12(store_12, store_aux_12, arg2);
+          if (sym_master_bin_table_delete(&table->master, arg1, arg2)) {
+            if (remove12 != NULL) {
+              if (sym_master_bin_table_count(&table->master, arg1))
+                remove12(store12, arg1, mem_pool);
+              if (arg2 != arg1 && sym_master_bin_table_count(&table->master, arg2))
+                remove12(store12, arg2, mem_pool);
+            }
+          }
         }
     }
   }

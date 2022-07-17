@@ -265,7 +265,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
-    lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), :mem_pool, instr.value))),
+    lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), instr.value, :mem_pool))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value, instr.forced),
@@ -316,7 +316,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_immediate_insert_or_add_ref(Int32Var res_var, ValueStoreId store, ValueStoreType store_type, <AtomicExpr, IntExpr> value) =
-    (native_call(res_var, native_value_store_method_prefix(store_type) & "_insert_or_add_ref", (store, :mem_pool, value)));
+    (native_call(res_var, native_value_store_method_prefix(store_type) & "_lookup_or_insert", (store, value, :mem_pool)));
 
 
   String* native_immediate_insert_tuple(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
@@ -327,12 +327,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String native_queue_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
+    arity = arity(table);
     args = match (table)
       master_bin_table()  = (table_var, updater),
       slave_tern_table()  = (table.master, pending_updates_var_ref_name(table.master), updater),
-      table()             = (table_var if arity(table) == 3, updater),
+      table()             = (table_var if arity == 1 or arity == 3, updater),
       _                   = (updater);
     args = args & tuple;
+    args = args & match (table)
+      table()             = (:mem_pool if arity == 1),
+      _                   = ();
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);
   }
 
@@ -404,6 +408,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       mandatory_column()  = (table.master if set_args == (true, false)),
       _                   = ();
     call_args = (ad_hoc_args | auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
+    call_args = match (table, set_args)
+      table(),  (true)  = (call_args | :mem_pool),
+      _,        _       = call_args;
     return native_call(method_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [

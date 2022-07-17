@@ -1202,13 +1202,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       dependees_apply_code = dependees_apply_code(dependees_handlers, [a -> linked_db_var_type(block, a) : a <- dependees]);
       dependees_reset_code = dependees_reset_code(dependees_handlers, [a -> linked_db_var_type(block, a) : a <- dependees]);
 
-      apply_code = updates_apply_code(dependees, memb_vars, value_stores, tables);
-      finish_code = updates_finish_code(deletion_tables, block);
+      apply_code = updates_apply_code(dependees, memb_vars, value_stores, deletion_tables, insertion_tables);
       reset_code = updates_reset_code(memb_vars, value_stores, tables);
 
       args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name));
       apply_sgn = "void " & native_apply_method_name(block.name, handler_id, msg_type) & "(" & append(args, ", ") & ") {";
-      body = dependees_apply_code & apply_code & finish_code;
+      body = dependees_apply_code & apply_code;
       apply_method_text = ("", apply_sgn) & indent_lines(body) & ("}");
 
       reset_sgn = "void " & native_reset_method_name(block.name, handler_id, msg_type) & "(" & auxiliary_arg_decl(block.name) & ") {";
@@ -1309,78 +1308,203 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updates_apply_code([LinkedDBVar] dependees, [MembVar] memb_vars, [ValueStoreId] value_stores_with_insertions, [TableVar -> AnyTable] tables) {
+  String* updates_apply_code([LinkedDBVar] dependees, [MembVar] memb_vars, [ValueStoreId] value_stores_with_insertions, [TableVar] tables_with_deletions, [TableVar] tables_with_insertions) {
     code = join((var_apply_code(bare_id(v)) : v <- isort(memb_vars)));
 
     if value_stores_with_insertions != [] {
       value_stores_code = (
-        native_call(native_value_store_method_prefix(block.value_stores(s)) & "_aux_apply", (s, updater_var_ref_name(s), :mem_pool))
+        native_call(native_value_store_method_prefix(block.value_stores(s)) & "_aux_apply_insertions", (s, updater_var_ref_name(s), :mem_pool))
         : s <- isort(value_stores_with_insertions)
       );
       code = (code | "") if code != ();
       code = code & value_stores_code;
     }
 
-    if tables != [] {
-      code = (code | "") if code != ();
+    ## BUG BUG BUG: THIS LINE OF CODE CRASHES THE COMPILER
+    ## ord_table_vars = sort_by_key(tables_with_deletions & tables_with_insertions, arity(block.tables($)));
 
-      ord_tables = sort_by_key(keys(tables), arity(tables($)));
-      for t <- ord_tables {
-        table = tables(t);
+    tables = block.tables;
+    ord_table_vars = sort_by_key(tables_with_deletions & tables_with_insertions, arity(tables($)));
+    for v <- ord_table_vars {
+      table = tables(v);
+      value_stores = table_value_stores(table);
+      owned_value_stores = (maybe(vs, block.value_stores_owners(vs) == phys_col(original_rel_var(v), i)) : vs @ i <- value_stores);
+      table_code = table_updates_apply_code(v, table, tables_with_deletions(v), tables_with_insertions(v), owned_value_stores);
+      code = code & table_code;
+    }
 
-        value_store_args = join(({
-          prefix = native_value_store_method_prefix(block.value_stores(v));
-          return (prefix & "_incr_rc", prefix & "_aux_decr_rc", v, updater_var_ref_name(v));
-        } : v <- table_value_stores(table)));
+    return code;
 
-        args = if is_mandatory_column(table)
-          then (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t), :mem_pool)
-          else (table.master if is_slave_column(table), t, pending_updates_var_ref_name(t)) & value_store_args & (:mem_pool);
 
-        ## THERE ARE ALL SORTS OF UNNECESSARY VALUE STORE ARGUMENTS HERE THAT SHOULD BE ELIMINATED
-        args = match (table)
-          table()             |
-          master_bin_table()  |
-          column()            = (t, pending_updates_var_ref_name(t)) & value_store_args,
-          mandatory_column()  = (table.master, pending_updates_var_ref_name(table.master), t, pending_updates_var_ref_name(t)),
-          slave_tern_table()  = (table.master, t, pending_updates_var_ref_name(t)) & value_store_args,
-          slave_column()      = (t, pending_updates_var_ref_name(t));
-        args = (args | :mem_pool);
+    String* table_updates_apply_code(TableVar table_var, Table table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      arity = arity(table);
+      method_prefix = native_table_method_prefix(table) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
 
-        suffix = match (table)
-          slave_column()  = "_aux_slave_apply",
-          _               = "_aux_apply";
-        method_name = native_table_method_prefix(tables(t)) & suffix;
+      value_stores_args = value_stores_args(owned_value_stores);
 
-        apply_instr = native_call(method_name, args);
+      // Ternary tables have a single apply method
+      if arity == 3 {
+        args = (table_var, table_aux_name) & value_stores_args & (:mem_pool);
+        method_name = method_prefix & "_apply";
+        return (native_call(method_name, args));
+      }
 
+      code = ();
+
+      if has_deletions {
+        args = (table_var, table_aux_name) & value_stores_args & (:mem_pool);
+        method_name = method_prefix & "_apply_deletions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if has_insertions {
+        args = (table_var, table_aux_name, :mem_pool);
+        method_name = method_prefix & "_apply_insertions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if arity == 1 {
         masters_raw_columns = prg_data.masters_raw_columns(block.name);
-        if arity(table) == 1 and masters_raw_columns(t, _) {
-          capacity_var = native_var_decl_name(t) & "_capacity";
-          new_capacity_var = native_var_decl_name(t) & "_new_capacity";
 
-          capacity_expr = native_call(native_table_method_prefix(table) & "_capacity", (native_var_ref_name(t)));
+        if masters_raw_columns(table_var, _) {
+          capacity_var = native_var_decl_name(table_var) & "_capacity";
+          new_capacity_var = native_var_decl_name(table_var) & "_new_capacity";
+
+          capacity_expr = native_call(native_table_method_prefix(table) & "_capacity", (native_var_ref_name(table_var)));
 
           resize_instrs = (
             native_call(native_table_method_prefix(block.tables(c)) & "_resize", (c, capacity_var, new_capacity_var, :mem_pool))
-            : c <- isort([c : c <- masters_raw_columns(t, ?)])
+            : c <- isort([c : c <- masters_raw_columns(table_var, ?)])
           );
 
-          code = code & (
+          code = (
             "uint32 " & capacity_var & " = " & capacity_expr & ";",
-            apply_instr,
+          ) & code & (
             "uint32 " & new_capacity_var & " = " & capacity_expr & ";",
             "if (" & capacity_var & " != " & new_capacity_var & ") {"
           ) & indent_lines(resize_instrs) & (
             "}"
           );
         }
-        else
-          code = (code | apply_instr);
       }
+
+      return code;
     }
 
-    return code;
+    String* table_updates_apply_code(TableVar table_var, MasterBinTable table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      method_prefix = native_table_method_prefix(table) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
+
+      code = ();
+
+      if has_deletions {
+        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
+        method_name = method_prefix & "_apply_deletions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if has_insertions {
+        args = (table_var, table_aux_name, :mem_pool);
+        method_name = method_prefix & "_apply_insertions";
+        code = (code | native_call(method_name, args));
+      }
+
+      return code;
+    }
+
+
+    String* table_updates_apply_code(TableVar table_var, SlaveTernTable table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      method_prefix = native_table_method_prefix(table) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
+
+      code = ();
+
+      if has_deletions {
+        args = (table_var, table_aux_name) & value_stores_args(nonempty(drop(owned_value_stores, 2))) & (:mem_pool);
+        method_name = method_prefix & "_apply_deletions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if has_insertions {
+        args = (table_var, table_aux_name, :mem_pool);
+        method_name = method_prefix & "_apply_insertions";
+        code = (code | native_call(method_name, args));
+      }
+
+      return code;
+    }
+
+
+    String* table_updates_apply_code(TableVar table_var, Column column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      method_prefix = native_table_method_prefix(column) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
+
+      code = ();
+
+      if has_deletions {
+        remove_method_name = native_value_store_method_prefix(block.value_stores(column.value_store)) & "_remove_untyped";
+        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
+        method_name = method_prefix & "_apply_deletions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if has_insertions {
+        args = (table_var, table_aux_name, :mem_pool);
+        method_name = method_prefix & "_apply_updates_and_insertions";
+        code = (code | native_call(method_name, args));
+      }
+
+      return code;
+    }
+
+
+    String* table_updates_apply_code(TableVar table_var, MandatoryColumn column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      method_prefix = native_table_method_prefix(column) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
+      master_aux_name = pending_updates_var_ref_name(column.master);
+      args = (column.master, master_aux_name, table_var, table_aux_name, :mem_pool);
+      method_name = method_prefix & "_apply";
+      return (native_call(method_name, args));
+    }
+
+
+    String* table_updates_apply_code(TableVar table_var, SlaveColumn column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      method_prefix = native_table_method_prefix(column) & "_aux";
+      table_aux_name = pending_updates_var_ref_name(table_var);
+
+      code = ();
+
+      if has_deletions {
+        args = (table_var, table_aux_name) & value_stores_args(nonempty(drop(owned_value_stores, 2))) & (:mem_pool);
+        method_name = method_prefix & "_apply_deletions";
+        code = (code | native_call(method_name, args));
+      }
+
+      if has_insertions {
+        args = (table_var, table_aux_name, :mem_pool);
+        method_name = method_prefix & "_apply_updates_and_insertions";
+        code = (code | native_call(method_name, args));
+      }
+
+      return code;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    Encodable* value_stores_args(Maybe[ValueStoreId]+ owned_value_stores) {
+      vs_args = ();
+      for maybe_vs <- owned_value_stores {
+        if maybe_vs != nothing {
+          vs = value(maybe_vs);
+          remove_method_name = native_value_store_method_prefix(block.value_stores(vs)) & "_remove_untyped";
+          vs_args = (vs_args | remove_method_name, vs);
+        }
+        else
+          vs_args = (vs_args | "NULL", "NULL");
+      }
+      return vs_args;
+    }
   }
 }
 
@@ -1463,16 +1587,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       resolver_name = handler_dispatch_resolver_name(rel_auto_id);
       return methods_array_name & "[" & resolver_name & "(" & msg_var_name & ")]";
     }
-  }
-
-
-  String* updates_finish_code([TableVar] deletion_tables, StaticBlock block) {
-    value_stores_with_deletions = [s : v <- deletion_tables, s <- table_value_stores(block.tables(v))];
-    code = (
-      native_call(native_value_store_method_prefix(block.value_stores(v)) & "_aux_apply_deferred_releases", (v, updater_var_ref_name(v)))
-      : v <- isort(value_stores_with_deletions)
-    );
-    return code;
   }
 
 
@@ -1639,8 +1753,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
 ## THIS ONE PROBABLY BELONGS SOMEWHERE ELSE
-ValueStoreId* table_value_stores(AnyTable table) =
-  table()             = if table.symmetric then drop(table.value_stores, 1) else table.value_stores,
+ValueStoreId+ table_value_stores(AnyTable table) =
+  table()             = if table.symmetric then nonempty(drop(table.value_stores, 1)) else table.value_stores,
   master_bin_table()  |
   slave_tern_table()  = {assert not table.symmetric; return table.value_stores;},
   mandatory_column()  |

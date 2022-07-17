@@ -68,26 +68,9 @@
 // }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-static void int_store_release_surr(INT_STORE *store, uint32 index) {
-  assert(store->refs_counters[index] == 0);
-
-  int64 *surr_to_value_array = store->surr_to_value_array;
-  int64 value = surr_to_value_array[index];
-  surr_to_value_array[index] = store->first_free_surr;
-  store->first_free_surr = index;
-  store->count--;
-
-  if (value >= 0 && value < store->capacity)
-    store->partial_value_to_surr_array[value] = 0xFFFFFFFF;
-  else
-    store->value_to_surr_map.erase(value);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_store_resize(INT_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_capacity) {
+void int_store_resize(INT_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem_pool) {
   assert(min_capacity > store->capacity);
 
   uint32 curr_capacity = store->capacity;
@@ -118,12 +101,6 @@ void int_store_resize(INT_STORE *store, STATE_MEM_POOL *mem_pool, uint32 min_cap
 
   for (uint32 i=curr_capacity ; i < new_capacity ; i++)
     new_surr_to_value_array[i] = i + 1;
-
-  uint8 *curr_refs_counters = store->refs_counters; //## REMEMBER TO RELEASE
-  uint8 *new_refs_counters = extend_state_mem_zeroed_uint8_array(mem_pool, curr_refs_counters, curr_capacity, new_capacity);
-  store->refs_counters = new_refs_counters;
-  for (uint32 i=curr_capacity ; i < new_capacity ; i++)
-    assert(new_refs_counters[i] == 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -140,10 +117,6 @@ void int_store_init(INT_STORE *store, STATE_MEM_POOL *mem_pool) {
   uint32 *partial_value_to_surr_array = alloc_state_mem_uint32_array(mem_pool, INIT_CAPACITY);
   store->partial_value_to_surr_array = partial_value_to_surr_array;
   memset(partial_value_to_surr_array, 0xFF, sizeof(uint32) * INIT_CAPACITY);
-
-  uint8 *refs_counters = alloc_state_mem_uint8_array(mem_pool, INIT_CAPACITY);
-  store->refs_counters = refs_counters;
-  memset(refs_counters, 0, INIT_CAPACITY * sizeof(uint8));
 
   store->capacity = INIT_CAPACITY;
   store->count = 0;
@@ -185,78 +158,40 @@ int64 int_store_surr_to_value(INT_STORE *store, uint32 surr) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_store_add_ref(INT_STORE *store, uint32 surr) {
-  assert(surr < store->capacity);
-  uint8 *refs_counters = store->refs_counters;
-  uint32 count = refs_counters[surr] + 1;
-  if (count == 256) {
-    store->extra_refs[surr]++;
-    count -= 64;
-  }
-  refs_counters[surr] = count;
+void int_store_clear(INT_STORE *store) {
+  uint32 capacity = store->capacity;
+
+  int64 *surr_to_value_array = store->surr_to_value_array;
+  for (int i=0 ; i < capacity ; i++)
+    surr_to_value_array[i] = i + 1;
+
+  memset(store->partial_value_to_surr_array, 0xFF, sizeof(uint32) * capacity);
+
+  store->value_to_surr_map.clear();
+
+  store->count = 0;
+  store->first_free_surr = 0;
 }
 
-void int_store_release(INT_STORE *store, uint32 surr) {
-  assert(surr < store->capacity);
-  uint8 *refs_counters = store->refs_counters;
-  assert(refs_counters[surr] > 0);
-  uint32 count = refs_counters[surr] - 1;
-  if (count == 127) {
-    if (store->extra_refs.count(surr) > 0) {
-      uint32 extra_count = store->extra_refs[surr] - 1;
-      if (extra_count == 0)
-        store->extra_refs.erase(surr);
-      else
-        store->extra_refs[surr] = extra_count;
-      count += 64;
-    }
-  }
+void int_store_remove(INT_STORE *store, uint32 index) {
+  int64 *surr_to_value_array = store->surr_to_value_array;
+  int64 value = surr_to_value_array[index];
+  surr_to_value_array[index] = store->first_free_surr;
+  store->first_free_surr = index;
+  store->count--;
 
-  refs_counters[surr] = count;
-
-  if (count == 0)
-    int_store_release_surr(store, surr);
+  if (value >= 0 && value < store->capacity)
+    store->partial_value_to_surr_array[value] = 0xFFFFFFFF;
+  else
+    store->value_to_surr_map.erase(value);
 }
 
-void int_store_release(INT_STORE *store, uint32 surr, uint32 amount) {
-  uint8 *refs_counters = store->refs_counters;
-  uint32 count = refs_counters[surr];
-  assert(count > 0);
-
-  if (count < 128 || store->extra_refs.count(surr) == 0) {
-    count -= amount;
-  }
-  else {
-    count += 64 * store->extra_refs[surr];
-    count -= amount;
-    if (count >= 256) {
-      uint32 new_extra_count = (count / 64) - 2;
-      count -= 64 * new_extra_count;
-      store->extra_refs[surr] = new_extra_count;
-    }
-    else
-      store->extra_refs.erase(surr);
-  }
-
-  assert(count < 256);
-
-  refs_counters[surr] = count;
-  if (count == 0)
-    int_store_release_surr(store, surr);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void int_store_insert(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value, uint32 surr) {
+void int_store_insert(INT_STORE *store, int64 value, uint32 surr, STATE_MEM_POOL *mem_pool) {
   assert(store->first_free_surr == surr);
   assert(surr < store->capacity);
   assert(int_store_value_to_surr(store, value) == 0xFFFFFFFF);
-  assert(store->refs_counters[surr] == 0);
   assert(store->surr_to_value_array[surr] >= 0);
   assert(store->surr_to_value_array[surr] <= store->capacity);
-  // for (uint32 i=store->count ; i < store->capacity ; i++)
-  //   assert(store->refs_counters[i] == 0);
 
   int64 *surr_to_value_array = store->surr_to_value_array;
   uint32 next_free_surr = (uint32) surr_to_value_array[surr];
@@ -271,18 +206,23 @@ void int_store_insert(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value, u
     store->value_to_surr_map[value] = surr;
 }
 
-uint32 int_store_insert_or_add_ref(INT_STORE *store, STATE_MEM_POOL *mem_pool, int64 value) {
+static uint32 int_store_insert(INT_STORE *store, int64 value, STATE_MEM_POOL *mem_pool) {
+  assert(int_store_value_to_surr(store, value) == 0xFFFFFFFF);
+
+  uint32 capacity = store->capacity;
+  uint32 count = store->count;
+  assert(count <= capacity);
+  if (count == capacity)
+    int_store_resize(store, count + 1, mem_pool);
+  uint32 surr = store->first_free_surr;
+  int_store_insert(store, value, surr, mem_pool);
+  return surr;
+}
+
+uint32 int_store_lookup_or_insert(INT_STORE *store, int64 value, STATE_MEM_POOL *mem_pool) {
   uint32 surr = int_store_value_to_surr(store, value);
-  if (surr == 0xFFFFFFFF) {
-    uint32 capacity = store->capacity;
-    uint32 count = store->count;
-    assert(count <= capacity);
-    if (count == capacity)
-      int_store_resize(store, mem_pool, count + 1);
-    surr = store->first_free_surr;
-    int_store_insert(store, mem_pool, value, surr);
-  }
-  int_store_add_ref(store, surr);
+  if (surr == 0xFFFFFFFF)
+    surr = int_store_insert(store, value, mem_pool);
   return surr;
 }
 
@@ -301,46 +241,20 @@ uint32 int_store_next_free_surr(INT_STORE *store, uint32 surr) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-bool int_store_try_releasing(INT_STORE *store, uint32 index, uint32 amount) {
-  uint8 *refs_counters = store->refs_counters;
-  uint32 count = refs_counters[index];
-  assert(count > 0);
-
-  if (count < 128) {
-    if (count <= amount)
-      return false;
-    count -= amount;
-    assert(count > 0);
-    refs_counters[index] = count;
-    return true;
-  }
-  else if (store->extra_refs.count(index) > 0) {
-    count += 64 * store->extra_refs[index];
-    if (count <= amount)
-      return false;
-    count -= amount;
-    assert(count > 0);
-    if (count >= 256) {
-      uint32 new_extra_count = (count / 64) - 2;
-      count -= 64 * new_extra_count;
-      store->extra_refs[index] = new_extra_count;
-    }
-    else
-      store->extra_refs.erase(index);
-    refs_counters[index] = count;
-    return true;
-  }
-  else
-    return false;
-}
-
-bool int_store_try_releasing(INT_STORE *store, uint32 index) {
-  return int_store_try_releasing(store, index, 1);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ int_store_surr_to_obj(void *store, uint32 surr) {
   return make_int(int_store_surr_to_value((INT_STORE *) store, surr));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void int_store_remove_untyped(void *ptr, uint32 surr, STATE_MEM_POOL *) {
+  INT_STORE *store = (INT_STORE *) ptr;
+  if (surr != 0xFFFFFFFF) {
+    assert(int_store_value_to_surr(store, int_store_surr_to_value(store, surr)) == surr);
+    int_store_clear(store);
+  }
+  else
+    int_store_remove(store, surr);
 }
