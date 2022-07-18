@@ -105,6 +105,8 @@ void semisym_tern_table_aux_insert(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *ta
 ////////////////////////////////////////////////////////////////////////////////
 
 void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, void (*remove12)(void *, uint32, STATE_MEM_POOL *), void *store12, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {
+  sym_master_bin_table_aux_apply_surrs_acquisition(&table->master, &table_aux->master);
+
   sym_master_bin_table_aux_apply_deletions(&table->master, &table_aux->master, remove12, store12, mem_pool);
   bin_table_aux_apply_deletions(&table->slave, &table_aux->slave, NULL, NULL, remove3, store3, mem_pool);
 
@@ -120,13 +122,13 @@ void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *tab
         if (sym_master_bin_table_contains_surr(&table->master, surr12)) {
           uint32 arg1 = sym_master_bin_table_get_arg_1(&table->master, surr12);
           uint32 arg2 = sym_master_bin_table_get_arg_2(&table->master, surr12);
-          if (sym_master_bin_table_delete(&table->master, arg1, arg2)) {
-            if (remove12 != NULL) {
-              if (sym_master_bin_table_count(&table->master, arg1))
-                remove12(store12, arg1, mem_pool);
-              if (arg2 != arg1 && sym_master_bin_table_count(&table->master, arg2))
-                remove12(store12, arg2, mem_pool);
-            }
+          bool found = sym_master_bin_table_delete(&table->master, arg1, arg2);
+          assert(found);
+          if (remove12 != NULL) {
+            if (sym_master_bin_table_count(&table->master, arg1) == 0)
+              remove12(store12, arg1, mem_pool);
+            if (arg2 != arg1 && sym_master_bin_table_count(&table->master, arg2) == 0)
+              remove12(store12, arg2, mem_pool);
           }
         }
     }

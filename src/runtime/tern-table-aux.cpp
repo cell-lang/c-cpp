@@ -153,6 +153,8 @@ void tern_table_aux_insert(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 
 ////////////////////////////////////////////////////////////////////////////////
 
 void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {
+  master_bin_table_aux_apply_surrs_acquisition(&table->master, &table_aux->master);
+
   master_bin_table_aux_apply_deletions(&table->master, &table_aux->master, remove1, store1, remove2, store2, mem_pool);
   bin_table_aux_apply_deletions(&table->slave, &table_aux->slave, NULL, NULL, remove3, store3, mem_pool);
 
@@ -168,12 +170,12 @@ void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*r
         if (master_bin_table_contains_surr(&table->master, surr12)) {
           uint32 arg1 = master_bin_table_get_arg_1(&table->master, surr12);
           uint32 arg2 = master_bin_table_get_arg_2(&table->master, surr12);
-          if (master_bin_table_delete(&table->master, arg1, arg2)) {
-            if (remove1 != NULL && master_bin_table_count_1(&table->master, arg1))
-              remove1(store1, arg1, mem_pool);
-            if (remove2 != NULL && master_bin_table_count_2(&table->master, arg2))
-              remove2(store2, arg2, mem_pool);
-          }
+          bool found = master_bin_table_delete(&table->master, arg1, arg2);
+          assert(found);
+          if (remove1 != NULL && master_bin_table_count_1(&table->master, arg1) == 0)
+            remove1(store1, arg1, mem_pool);
+          if (remove2 != NULL && master_bin_table_count_2(&table->master, arg2) == 0)
+            remove2(store2, arg2, mem_pool);
         }
     }
   }

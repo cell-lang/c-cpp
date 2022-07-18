@@ -28,10 +28,10 @@ bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3,
 //   return false;
 // }
 
-void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  master_bin_table_clear(&table->master, mem_pool);
-  bin_table_clear(&table->slave, mem_pool);
-}
+// void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+//   master_bin_table_clear(&table->master, mem_pool);
+//   bin_table_clear(&table->slave, mem_pool);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 

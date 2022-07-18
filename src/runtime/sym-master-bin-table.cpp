@@ -158,8 +158,8 @@ void sym_master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg) {
   }
 }
 
-void sym_master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  master_bin_table_clear(table, mem_pool);
+void sym_master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr, STATE_MEM_POOL *mem_pool) {
+  master_bin_table_clear(table, highest_locked_surr, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

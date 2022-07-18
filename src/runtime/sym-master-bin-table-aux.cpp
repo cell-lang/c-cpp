@@ -1,10 +1,18 @@
 #include "lib.h"
 
 
+bool is_locked(uint64 slot);
+
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
 
+bool master_bin_table_lock_surr(MASTER_BIN_TABLE *, uint32 surr);
+bool master_bin_table_unlock_surr(MASTER_BIN_TABLE *, uint32 surr);
+
 bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool);
+
+uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *, QUEUE_U32 *);
+void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *, QUEUE_U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -23,6 +31,7 @@ void sym_master_bin_table_aux_init(SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_ME
   queue_u64_init(&table_aux->deletions);
   queue_u32_init(&table_aux->deletions_1);
   queue_3u32_init(&table_aux->insertions);
+  queue_u32_init(&table_aux->locked_surrs);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -33,6 +42,7 @@ void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u64_reset(&table_aux->deletions);
   queue_u32_reset(&table_aux->deletions_1);
   queue_3u32_reset(&table_aux->insertions);
+  queue_u32_reset(&table_aux->locked_surrs);
   table_aux->reserved_surrs.clear();
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
@@ -94,6 +104,8 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
       }
     }
   }
+  else
+    queue_u32_insert(&table_aux->locked_surrs, surr);
 
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
   return surr;
@@ -148,7 +160,7 @@ static void sym_master_bin_table_aux_build_insertion_bitmap(SYM_MASTER_BIN_TABLE
   }
 }
 
-void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
+void sym_master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
   assert(table_aux->reserved_surrs.empty());
@@ -157,12 +169,32 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
   // from the list of free ones, so we can append to that list while deleting
   uint32 ins_count = table_aux->insertions.count_;
   if (ins_count != 0) {
-    assert(table_aux->last_surr != 0xFFFFFFFF);
+#ifndef NDEBUG
+    if (table_aux->last_surr == 0xFFFFFFFF) {
+      uint32 (*ptr)[3] = table_aux->insertions.array;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg1 = (*ptr)[0];
+        uint32 arg2 = (*ptr)[1];
+        uint32 surr = (*ptr)[2];
+        assert(master_bin_table_contains(table, arg1, arg2));
+        assert(master_bin_table_lookup_surr(table, arg1, arg2) == surr);
+        ptr++;
+      }
+    }
+#endif
     uint32 next_surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
     master_bin_table_set_next_free_surr(table, next_surr);
   }
+}
 
-  //## FROM HERE ON THIS IS BASICALLY IDENTICAL TO sym_bin_table_aux_apply_deletions(..)
+void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
+  //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
+  //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
+  assert(table_aux->reserved_surrs.empty());
+
+  bool locks_applied = table_aux->locked_surrs.count == 0;
+
+  //## FROM HERE ON THIS IS BASICALLY IDENTICAL TO sym_bin_table_aux_apply_deletions(..). The most important difference is the locking of the surrogates
 
   if (table_aux->clear) {
     uint32 size = sym_master_bin_table_size(table);
@@ -186,17 +218,32 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
         }
       }
 
-      sym_master_bin_table_clear(table, mem_pool);
+      uint32 highest_locked_surr = 0xFFFFFFFF;
+      if (!locks_applied) {
+        highest_locked_surr = master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        locks_applied = true;
+      }
+
+      sym_master_bin_table_clear(table, highest_locked_surr, mem_pool);
     }
   }
   else {
     bool has_insertions = table_aux->insertions.count_ > 0;
     bool bit_map_built = !has_insertions;
 
-    uint32 count = table_aux->deletions.count;
-    if (count > 0) {
+    uint32 del_count = table_aux->deletions.count;
+    uint32 del_1_count = table_aux->deletions_1.count;
+
+    if (del_count > 0 | del_1_count > 0) {
+      if (!locks_applied) {
+        master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        locks_applied = true;
+      }
+    }
+
+    if (del_count > 0) {
       uint64 *array = table_aux->deletions.array;
-      for (uint32 i=0 ; i < count ; i++) {
+      for (uint32 i=0 ; i < del_count ; i++) {
         uint64 args = array[i];
         uint32 minor_arg = get_low_32(args);
         uint32 major_arg = get_high_32(args);
@@ -222,10 +269,9 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
       }
     }
 
-    count = table_aux->deletions_1.count;
-    if (count > 0) {
+    if (del_1_count > 0) {
       uint32 *array = table_aux->deletions_1.array;
-      for (uint32 i=0 ; i < count ; i++) {
+      for (uint32 i=0 ; i < del_1_count ; i++) {
         uint32 arg = array[i];
 
         if (remove != NULL) {
@@ -266,6 +312,9 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
     if (has_insertions && bit_map_built)
       col_update_bit_map_clear(&table_aux->bit_map);
   }
+
+  if (locks_applied && table_aux->locked_surrs.count > 0)
+    master_bin_table_aux_unlock_surrs(table, &table_aux->locked_surrs);
 }
 
 void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {

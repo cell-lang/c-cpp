@@ -1371,7 +1371,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           capacity_var = native_var_decl_name(table_var) & "_capacity";
           new_capacity_var = native_var_decl_name(table_var) & "_new_capacity";
 
-          capacity_expr = native_call(native_table_method_prefix(table) & "_capacity", (native_var_ref_name(table_var)));
+          capacity_expr = native_call_expr(native_table_method_prefix(table) & "_capacity", (native_var_ref_name(table_var)));
 
           resize_instrs = (
             native_call(native_table_method_prefix(block.tables(c)) & "_resize", (c, capacity_var, new_capacity_var, :mem_pool))
@@ -1397,6 +1397,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       table_aux_name = pending_updates_var_ref_name(table_var);
 
       code = ();
+
+      if has_insertions {
+        args = (table_var, table_aux_name);
+        method_name = method_prefix & "_apply_surrs_acquisition";
+        code = (code | native_call(method_name, args));
+      }
 
       if has_deletions {
         args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
@@ -1638,6 +1644,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     String* aux_prepare_code(TableVar var, StaticBlock block) {
       table_type = block.tables(var);
       needs_preparation = match (table_type)
+        table()             = arity(table_type) != 1,
         mandatory_column()  = false,
         _                   = true;
       return () if not needs_preparation;

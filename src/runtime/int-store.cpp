@@ -253,8 +253,8 @@ void int_store_remove_untyped(void *ptr, uint32 surr, STATE_MEM_POOL *) {
   INT_STORE *store = (INT_STORE *) ptr;
   if (surr != 0xFFFFFFFF) {
     assert(int_store_value_to_surr(store, int_store_surr_to_value(store, surr)) == surr);
-    int_store_clear(store);
+    int_store_remove(store, surr);
   }
   else
-    int_store_remove(store, surr);
+    int_store_clear(store);
 }

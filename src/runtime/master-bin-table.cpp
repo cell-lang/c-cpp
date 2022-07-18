@@ -255,20 +255,20 @@ uint32 master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32
   return surr;
 }
 
-uint32 master_bin_table_lookup_possibly_locked_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  uint32 surr = loaded_one_way_bin_table_payload(&table->table.forward, arg1, arg2);
-#ifndef NDEBUG
-  if (surr != 0xFFFFFFFF) {
-    assert(surr < table->capacity);
-    uint64 slot = table->slots[surr];
-    if (is_locked(slot))
-      slot = unlock_slot(slot);
-    assert(unpack_arg1(slot) == arg1);
-    assert(unpack_arg2(slot) == arg2);
-  }
-#endif
-  return surr;
-}
+// uint32 master_bin_table_lookup_possibly_locked_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+//   uint32 surr = loaded_one_way_bin_table_payload(&table->table.forward, arg1, arg2);
+// #ifndef NDEBUG
+//   if (surr != 0xFFFFFFFF) {
+//     assert(surr < table->capacity);
+//     uint64 slot = table->slots[surr];
+//     if (is_locked(slot))
+//       slot = unlock_slot(slot);
+//     assert(unpack_arg1(slot) == arg1);
+//     assert(unpack_arg2(slot) == arg2);
+//   }
+// #endif
+//   return surr;
+// }
 
 uint64 *master_bin_table_slots(MASTER_BIN_TABLE *table) {
   return table->slots;
@@ -328,26 +328,61 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
   }
 }
 
-void master_bin_table_clear(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr, STATE_MEM_POOL *mem_pool) {
   loaded_one_way_bin_table_clear(&table->table.forward, mem_pool);
   one_way_bin_table_clear(&table->table.backward, mem_pool);
 
   uint32 capacity = table->capacity;
   uint64 *slots = table->slots;
 
-  if (capacity != INIT_SIZE) {
-    release_state_mem_uint64_array(mem_pool, slots, capacity);
+  if (highest_locked_surr == 0xFFFFFFFF) {
+    if (capacity != INIT_SIZE) {
+      release_state_mem_uint64_array(mem_pool, slots, capacity);
 
-    capacity = INIT_SIZE;
-    slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
+      capacity = INIT_SIZE;
+      slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
 
-    table->capacity = INIT_SIZE;
-    table->slots = slots;
+      table->capacity = INIT_SIZE;
+      table->slots = slots;
+    }
+
+    table->first_free = 0;
+    for (uint32 i=0 ; i < capacity ; i++)
+      slots[i] = empty_slot(i + 1);
   }
+  else {
+    if (capacity != INIT_SIZE) {
+      uint32 new_capacity = pow_2_ceiling(highest_locked_surr + 1, INIT_SIZE);
+      uint64 *new_slots = alloc_state_mem_uint64_array(mem_pool, new_capacity);
 
-  table->first_free = 0;
-  for (uint32 i=0 ; i < capacity ; i++)
-    slots[i] = empty_slot(i + 1);
+      table->capacity = new_capacity;
+      table->slots = new_slots;
+
+      uint32 last_free = new_capacity;
+      for (uint32 i=capacity-1 ; i >= 0 ; i--) {
+        uint64 slot = slots[i];
+        if (is_locked(slot)) {
+          new_slots[i] = slot;
+        }
+        else {
+          new_slots[i] = empty_slot(last_free);
+          last_free = i;
+        }
+      }
+      table->first_free = last_free;
+    }
+    else {
+      uint32 last_free = INIT_SIZE;
+      for (uint32 i=INIT_SIZE-1 ; i >= 0 ; i--) {
+        uint64 *slot_ptr = slots + i;
+        uint64 slot = *slot_ptr;
+        if (!is_locked(slot)) {
+          *slot_ptr = empty_slot(last_free);
+          last_free = i;
+        }
+      }
+    }
+  }
 }
 
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
