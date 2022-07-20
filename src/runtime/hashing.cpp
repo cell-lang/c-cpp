@@ -80,10 +80,59 @@ static uint64 extra_data_hashcode(OBJ obj) {
 
 static uint32 compute_ne_int_seq_hashcode(OBJ obj) {
   uint32 len = read_size_field_unchecked(obj);
+
   uint64 hashcode = extra_data_hashcode(obj);
-  for (uint32 i=0 ; i < len ; i++)
-    hashcode = 31 * hashcode + hashcode_64(get_int_at_unchecked(obj, i));
-  return hashcode_64(hashcode);
+
+  if (is_signed(obj)) {
+    if (is_8_bit_wide(obj)) {
+      int8 *ptr = get_seq_elts_ptr_int8(obj);
+      for (uint32 i=0 ; i < len ; i++)
+        hashcode = 31 * hashcode + ptr[i];
+    }
+    else if (is_16_bit_wide(obj)) {
+      int16 *ptr = get_seq_elts_ptr_int16(obj);
+      for (uint32 i=0 ; i < len ; i++)
+        hashcode = 31 * hashcode + ptr[i];
+    }
+    else if (is_32_bit_wide(obj)) {
+      int32 *ptr = get_seq_elts_ptr_int32(obj);
+      for (uint32 i=0 ; i < len ; i++)
+        hashcode = 31 * hashcode + ptr[i];
+    }
+    else {
+      int64 *ptr = get_seq_elts_ptr_int64(obj);
+      for (uint32 i=0 ; i < len ; i++)
+        hashcode = 31 * hashcode + ptr[i];
+    }
+  }
+  else {
+    assert(is_8_bit_wide(obj));
+
+    uint8 *ptr = get_seq_elts_ptr_uint8(obj);
+    for (uint32 i=0 ; i < len ; i++)
+      hashcode = 31 * hashcode + ptr[i];
+
+    //## THIS DIDN'T WORK, NO IDEA WHY
+    // uint64 *ptr = (uint64 *) get_seq_elts_ptr_uint8(obj);
+    // for (uint32 i=0 ; i < len / 8 ; i++) {
+    //   uint64 word = ptr[i];
+    //   for (uint32 j=0 ; j < 8 ; j++) {
+    //     hashcode = 31 * hashcode + (word & 0xFF);
+    //     word >>= 8;
+    //   }
+    // }
+
+    // uint32 left = len % 8;
+    // if (left > 0) {
+    //   uint64 word = ptr[len / 8];
+    //   do {
+    //     hashcode = 31 * hashcode + (word & 0xFF);
+    //     word >>= 8;
+    //   } while (--left > 0);
+    // }
+  }
+
+  return (uint32) hashcode; //## WHAT ABOUT hashcode_64(hashcode), AS IT WAS BEFORE?
 }
 
 static uint32 compute_ne_float_seq_hashcode(OBJ obj) {
