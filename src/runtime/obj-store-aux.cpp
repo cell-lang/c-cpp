@@ -115,8 +115,7 @@ void obj_store_aux_apply_insertions(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 obj_store_aux_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
-  uint32 hashcode = compute_hashcode(value);
+uint32 obj_store_aux_value_to_surr(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value, uint32 hashcode) {
   uint32 surr = obj_store_value_to_surr(store, value, hashcode);
   if (surr != 0xFFFFFFFF)
     return surr;
@@ -163,9 +162,7 @@ OBJ obj_store_aux_surr_to_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, uint
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 obj_store_aux_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value) {
-  uint32 hashcode = compute_hashcode(value);
-
+uint32 obj_store_aux_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value, uint32 hashcode) {
   uint32 capacity = store_aux->capacity;
   uint32 count = store_aux->count;
   assert(count <= capacity);
@@ -213,9 +210,10 @@ uint32 obj_store_aux_insert(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ valu
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *store, OBJ_STORE_AUX *store_aux, OBJ value, STATE_MEM_POOL *mem_pool) {
-  uint32 surr = obj_store_aux_value_to_surr(store, store_aux, value);
+  uint32 hashcode = compute_hashcode(value);
+  uint32 surr = obj_store_aux_value_to_surr(store, store_aux, value, hashcode);
   if (surr != 0xFFFFFFFF)
     return surr;
   else
-    return obj_store_aux_insert(store, store_aux, value);
+    return obj_store_aux_insert(store, store_aux, value, hashcode);
 }
