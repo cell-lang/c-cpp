@@ -2,8 +2,8 @@
 
 
 static void obj_store_insert_into_hashtable(OBJ_STORE *store, uint32 index, uint32 hashcode) {
-  uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == (hashcode & store->index_mask));
+  uint32 hash_idx = hashcode & store->index_mask;
+  assert(hash_idx == hashcode % (store->capacity / 2));
   store->buckets[index] = store->hashtable[hash_idx];
   store->hashtable[hash_idx] = index;
 }
@@ -13,8 +13,8 @@ static void obj_store_remove_from_hashtable(OBJ_STORE *store, uint32 index) {
   uint32 *buckets = store->buckets;
 
   uint32 hashcode = store->hashcode_or_next_free[index];
-  uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == (hashcode & store->index_mask));
+  uint32 hash_idx = hashcode & store->index_mask;
+  assert(hash_idx == hashcode % (store->capacity / 2));
   uint32 idx = store->hashtable[hash_idx];
   assert(idx != 0xFFFFFFFF);
 
@@ -104,8 +104,8 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
-  uint32 hash_idx = hashcode % (store->capacity / 2);
-  assert(hash_idx == (hashcode & store->index_mask));
+  uint32 hash_idx = hashcode & store->index_mask;
+  assert(hash_idx == hashcode % (store->capacity / 2));
 
   uint32 index = store->hashtable[hash_idx];
   //## MAYBE THESE WOULD SPEED UP THE CODE A TINY BIT? (ALREADY TRIED, NO MEASURABLE EFFECT)
@@ -186,7 +186,7 @@ void obj_store_insert(OBJ_STORE *store, OBJ value, uint32 hashcode, uint32 surr,
   obj_store_insert_into_hashtable(store, surr, hashcode);
 }
 
-static uint32 obj_store_insert(OBJ_STORE *store, OBJ value, STATE_MEM_POOL *mem_pool) {
+static uint32 obj_store_insert(OBJ_STORE *store, OBJ value, uint32 hashcode, STATE_MEM_POOL *mem_pool) {
   assert(obj_store_value_to_surr(store, value) == 0xFFFFFFFF);
 
   uint32 capacity = store->capacity;
@@ -195,17 +195,68 @@ static uint32 obj_store_insert(OBJ_STORE *store, OBJ value, STATE_MEM_POOL *mem_
   if (count == capacity)
     obj_store_resize(store, count + 1, mem_pool);
   uint32 surr = store->first_free_surr;
-  uint32 hcode = compute_hashcode(value);
-  obj_store_insert(store, value, hcode, surr, mem_pool);
+  obj_store_insert(store, value, hashcode, surr, mem_pool);
   return surr;
 }
 
 uint32 obj_store_lookup_or_insert(OBJ_STORE *store, OBJ value, STATE_MEM_POOL *mem_pool) {
-  uint32 surr = obj_store_value_to_surr(store, value);
+  uint32 hashcode = compute_hashcode(value);
+  uint32 surr = obj_store_value_to_surr(store, value, hashcode);
   if (surr == 0xFFFFFFFF)
-    surr = obj_store_insert(store, value, mem_pool);
+    surr = obj_store_insert(store, value, hashcode, mem_pool);
   return surr;
 }
+
+// uint32 obj_store_lookup_or_insert(OBJ_STORE *store, OBJ value, STATE_MEM_POOL *mem_pool) {
+//   uint32 hashcode = compute_hashcode(value);
+
+//   uint32 capacity = store->capacity;
+//   uint32 *hashtable = store->hashtable;
+//   uint32 *hashcode_or_next_free = store->hashcode_or_next_free;
+//   uint32 *buckets = store->buckets;
+//   OBJ *values = store->values;
+
+//   uint32 hash_idx = hashcode & store->index_mask;
+//   assert(hash_idx == hashcode % (capacity / 2));
+
+//   uint32 index = hashtable[hash_idx];
+//   for ( ; ; ) {
+//     if (index == 0xFFFFFFFF)
+//       break;
+//     assert(!is_blank(values[index]));
+//     if (hashcode_or_next_free[index] == hashcode && are_eq(value, values[index]))
+//       return index;
+//     index = buckets[index];
+//   }
+
+//   uint32 count = store->count;
+//   assert(count <= capacity);
+//   if (count == capacity) {
+//     obj_store_resize(store, count + 1, mem_pool);
+
+//     // capacity = store->capacity; // Not used anymore from now on
+//     hashtable = store->hashtable;
+//     hashcode_or_next_free = store->hashcode_or_next_free;
+//     buckets = store->buckets;
+//     values = store->values;
+
+//     hash_idx = hashcode & store->index_mask;
+//     assert(hash_idx == hashcode % (store->capacity / 2));
+//   }
+
+//   store->count = count + 1;
+
+//   uint32 surr = store->first_free_surr;
+//   store->first_free_surr = hashcode_or_next_free[surr];
+
+//   values[surr] = copy_to_pool(mem_pool, value);
+//   hashcode_or_next_free[surr] = hashcode;
+
+//   buckets[surr] = hashtable[hash_idx];
+//   hashtable[hash_idx] = surr;
+
+//   return surr;
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 
