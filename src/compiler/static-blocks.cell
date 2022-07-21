@@ -1301,7 +1301,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     } : v <- isort(keys(tables)));
 
     ## BAD BAD BAD AND MAYBE ALSO BUGGY
-    masters_to_partially_reset = isort([t.master : _ t <- tables, t :: <SlaveTernTable, SlaveColumn>]);
+    masters_to_partially_reset = isort([t.master : _ t <- tables, t :: <SlaveTernTable, SlaveColumn>, not tables(t.master, _)]);
     masters_partial_reset_code = (native_call("master_bin_table_aux_partial_reset", (pending_updates_var_ref_name(t))) : t <- masters_to_partially_reset);
 
     return append_with_sep((memb_vars_code, value_stores_code, tables_code, masters_partial_reset_code));
