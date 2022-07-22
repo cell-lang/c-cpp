@@ -110,6 +110,10 @@ void slave_tern_table_aux_insert(MASTER_BIN_TABLE *master_table, MASTER_BIN_TABL
   bin_table_aux_insert(&table_aux->slave_table_aux, surr12, arg3);
 }
 
+void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3) {
+  bin_table_aux_insert(&table_aux->slave_table_aux, surr12, arg3);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void slave_tern_table_aux_apply_deletions(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {

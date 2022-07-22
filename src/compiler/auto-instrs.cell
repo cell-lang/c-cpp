@@ -267,6 +267,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), instr.value, :mem_pool))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
+    queue_insert_master_tuple() = (native_queue_insert_master_tuple_code(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value, instr.forced),
     // ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.surrs, instr.value, instr.forced),
@@ -325,19 +326,29 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_queue_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
+  String native_queue_insert_tuple_code(TableVar table_var, Table table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
     arity = arity(table);
-    args = match (table)
-      master_bin_table()  = (table_var, updater),
-      slave_tern_table()  = (table.master, pending_updates_var_ref_name(table.master), updater),
-      table()             = (table_var if arity == 1 or arity == 3, updater),
-      _                   = (updater);
-    args = args & tuple;
-    args = args & match (table)
-      table()             = (:mem_pool if arity == 1),
-      _                   = ();
+    args = (table_var if arity == 1 or arity == 3, updater) & tuple & (:mem_pool if arity == 1);
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);
+  }
+
+
+  String native_queue_insert_tuple_code(TableVar table_var, SlaveTernTable table, Int32Var+ tuple) {
+    assert |tuple| == 2 or |tuple| == 3;
+
+    updater = pending_updates_var_ref_name(table_var);
+    args = if |tuple| == 3
+      then (table.master, pending_updates_var_ref_name(table.master), updater) & tuple
+      else (updater) & tuple;
+    return native_call(native_table_method_prefix(table) & "_aux_insert", args);
+  }
+
+
+  String native_queue_insert_master_tuple_code(Int32Var assoc_surr_var, TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
+    updater = pending_updates_var_ref_name(table_var);
+    args = (table_var, updater) & tuple;
+    return native_call(assoc_surr_var, native_table_method_prefix(table) & "_aux_insert", args);
   }
 
 
