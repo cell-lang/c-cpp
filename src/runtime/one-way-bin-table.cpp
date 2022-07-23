@@ -324,6 +324,29 @@ bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 sur
   return false;
 }
 
+void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1) {
+  if (surr1 >= table->capacity)
+    return;
+
+  uint64 *slot_ptr = table->column + surr1;
+  uint64 slot = *slot_ptr;
+
+  if (is_empty(slot))
+    return;
+
+  *slot_ptr = EMPTY_SLOT;
+
+  if (is_index(slot)) {
+    uint32 slot_count = get_count(slot);
+    overflow_table_delete(&table->array_pool, slot);
+    table->count -= slot_count;
+  }
+  else {
+    assert(get_tag(get_low_32(slot)) == INLINE_SLOT);
+    table->count -= get_high_32(slot) != EMPTY_MARKER ? 2 : 1;
+  }
+}
+
 void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 *surrs2) {
   if (surr1 >= table->capacity)
     return;
@@ -409,3 +432,23 @@ bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *table) {
 //   }
 //   assert(next == 2 * table->count);
 // }
+
+
+void one_way_bin_table_build_reverse(ONE_WAY_BIN_TABLE *table, ONE_WAY_BIN_TABLE *rev_table, STATE_MEM_POOL *mem_pool) {
+  uint32 capacity = table->capacity;
+  for (uint32 i=0 ; i < capacity ; i++) {
+    uint64 slot = table->column[i];
+    if (!is_empty(slot)) {
+      if (is_index(slot)) {
+        overflow_table_insert_reversed(&table->array_pool, i, slot, rev_table, mem_pool);
+      }
+      else {
+        uint32 low = get_low_32(slot);
+        uint32 high = get_high_32(slot);
+        one_way_bin_table_insert_unique(rev_table, low, i, mem_pool);
+        if (high != EMPTY_MARKER)
+          one_way_bin_table_insert_unique(rev_table, high, i, mem_pool);
+      }
+    }
+  }
+}

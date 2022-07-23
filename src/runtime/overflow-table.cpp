@@ -814,6 +814,56 @@ static uint32 copy_hashed_block_range(ARRAY_MEM_POOL *array_pool, uint32 block_i
   return passed - first;
 }
 
+static void hashed_block_insert_reversed(ARRAY_MEM_POOL *array_pool, uint32 key, uint32 block_idx, uint32 shift, uint32 least_bits, ONE_WAY_BIN_TABLE *target, STATE_MEM_POOL *mem_pool) {
+  uint64 *slots = array_pool->slots;
+
+  uint32 subshift = shift + 4;
+
+  for (uint32 i=0 ; i < 16 ; i++) {
+    uint32 slot_least_bits = (i << shift) + least_bits;
+    uint64 slot = slots[block_idx + i];
+    uint32 low = get_low_32(slot);
+
+    if (low != EMPTY_MARKER) {
+      uint32 tag = get_tag(low);
+      if (tag == INLINE_SLOT) {
+        uint32 value = (get_payload(low) << shift) + least_bits;
+        one_way_bin_table_insert_unique(target, value, key, mem_pool);
+
+        uint32 high = get_high_32(slot);
+        if (high != EMPTY_MARKER) {
+          uint32 value = (get_payload(high) << shift) + least_bits;
+          one_way_bin_table_insert_unique(target, value, key, mem_pool);
+        }
+      }
+      else if (tag == HASHED_BLOCK) {
+        hashed_block_insert_reversed(array_pool, key, get_payload(low), subshift, slot_least_bits, target, mem_pool);
+      }
+      else {
+        uint32 subblock_idx = get_payload(low);
+        uint32 count = get_count(slot);
+        uint32 end = (count + 1) / 2;
+
+        for (uint32 j=0 ; j < end ; j++) {
+          uint64 subslot = slots[subblock_idx + j];
+          uint32 sublow = get_low_32(subslot);
+          uint32 subhigh = get_high_32(subslot);
+
+          assert(sublow != EMPTY_MARKER & get_tag(sublow) == 0);
+
+          uint32 value = (sublow << subshift) + slot_least_bits;
+          one_way_bin_table_insert_unique(target, value, key, mem_pool);
+
+          if (subhigh != EMPTY_MARKER) {
+            value = (subhigh << subshift) + slot_least_bits;
+            one_way_bin_table_insert_unique(target, value, key, mem_pool);
+          }
+        }
+      }
+    }
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -964,3 +1014,38 @@ UINT32_ARRAY overflow_table_range_copy(ARRAY_MEM_POOL *array_pool, uint64 handle
 //   // assert(get_high_32(slot) > 2); // Not true when initializing a hashed block
 //   return get_high_32(slot);
 // }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void overflow_table_insert_reversed(ARRAY_MEM_POOL *array_pool, uint32 key, uint64 handle, ONE_WAY_BIN_TABLE *target, STATE_MEM_POOL *mem_pool) {
+  uint32 low = get_low_32(handle);
+  uint32 tag = get_tag(low);
+  uint32 block_idx = get_payload(low);
+
+  assert(tag != INLINE_SLOT);
+  assert(pack_tag_payload(tag, block_idx) == get_low_32(handle));
+
+  if (tag != HASHED_BLOCK) {
+    uint32 count = get_count(handle);
+    uint32 end = (count + 1) / 2;
+
+    uint64 *src_slots = array_pool->slots + block_idx;
+
+    for (uint32 i=0 ; i < end ; i++) {
+      uint64 slot = src_slots[i];
+      uint32 slot_low = get_low_32(slot);
+      uint32 slot_high = get_high_32(slot);
+
+      assert(slot_low != EMPTY_MARKER & get_tag(slot_low) == INLINE_SLOT);
+
+      one_way_bin_table_insert_unique(target, slot_low, key, mem_pool);
+
+      if (slot_high != EMPTY_MARKER) {
+        assert(get_tag(slot_high) == INLINE_SLOT);
+        one_way_bin_table_insert_unique(target, slot_high, key, mem_pool);
+      }
+    }
+  }
+  else
+    hashed_block_insert_reversed(array_pool, key, block_idx, 0, 0, target, mem_pool);
+}

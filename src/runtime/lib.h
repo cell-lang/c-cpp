@@ -271,6 +271,12 @@ struct COL_UPDATE_STATUS_MAP {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef struct {
+  void *subpools[9];
+} STATE_MEM_POOL;
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct UNARY_TABLE {
   uint64 *bitmap;
   uint32 capacity; // Number of bits
@@ -304,9 +310,19 @@ struct ONE_WAY_BIN_TABLE {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct COUNTER {
+  uint32 capacity;
+  uint8 *counters;
+  unordered_map<uint32, uint32> overflows;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct BIN_TABLE {
   ONE_WAY_BIN_TABLE forward;
   ONE_WAY_BIN_TABLE backward;
+  COUNTER col_2_counter;
+  STATE_MEM_POOL *mem_pool;
 };
 
 struct BIN_TABLE_AUX {
@@ -571,10 +587,6 @@ const uint16 symb_id_success  = 8;
 const uint16 symb_id_failure  = 9;
 
 ////////////////////////////// auto-mem-alloc.cpp //////////////////////////////
-
-typedef struct {
-  void *subpools[9];
-} STATE_MEM_POOL;
 
 void init_mem_pool(STATE_MEM_POOL *);
 void release_mem_pool(STATE_MEM_POOL *);
@@ -2107,6 +2119,18 @@ void queue_3u32_sort_unique(QUEUE_3U32 *);
 void queue_3u32_permute_132(QUEUE_3U32 *);
 void queue_3u32_permute_231(QUEUE_3U32 *);
 void queue_3u32_permute_312(QUEUE_3U32 *);
+
+////////////////////////////////////////////////////////////////////////////////
+
+void counter_init(COUNTER *, STATE_MEM_POOL *);
+void counter_clear(COUNTER *, STATE_MEM_POOL *);
+void counter_resize(COUNTER *, uint32 min_capacity, STATE_MEM_POOL *);
+
+uint32 counter_read(COUNTER *, uint32 index);
+
+void counter_incr(COUNTER *, uint32 index, STATE_MEM_POOL *);
+void counter_decr(COUNTER *, uint32 index, STATE_MEM_POOL *);
+void counter_decr(COUNTER *, uint32 index, uint32 amount, STATE_MEM_POOL *);
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

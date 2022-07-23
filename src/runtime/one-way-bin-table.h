@@ -114,6 +114,7 @@ void overflow_table_delete(ARRAY_MEM_POOL *, uint64 handle);
 bool overflow_table_contains(ARRAY_MEM_POOL *, uint64 handle, uint32 value);
 void overflow_table_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 *dest, uint32 offset);
 UINT32_ARRAY overflow_table_range_copy(ARRAY_MEM_POOL *, uint64 handle, uint32 first, uint32 *dest, uint32 capacity);
+void overflow_table_insert_reversed(ARRAY_MEM_POOL *, uint32 key, uint64 handle, ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -134,10 +135,13 @@ void one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 s
 uint32 one_way_bin_table_update(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, STATE_MEM_POOL *);
 
 bool one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1);
 void one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2);
 
 bool one_way_bin_table_is_map(ONE_WAY_BIN_TABLE *);
 void one_way_bin_table_copy(ONE_WAY_BIN_TABLE *, uint32 *dest);
+
+void one_way_bin_table_build_reverse(ONE_WAY_BIN_TABLE *, ONE_WAY_BIN_TABLE *, STATE_MEM_POOL *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
