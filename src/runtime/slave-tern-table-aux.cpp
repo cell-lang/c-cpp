@@ -15,100 +15,19 @@ void slave_tern_table_aux_clear(SLAVE_TERN_TABLE_AUX *table_aux) {
   bin_table_aux_clear(&table_aux->slave_table_aux);
 }
 
-void slave_tern_table_aux_delete(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
-  if (surr12 != 0xFFFFFFFF)
-    bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
+void slave_tern_table_aux_delete(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3) {
+  bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
 }
 
-void slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
-  if (surr12 != 0xFFFFFFFF)
-    bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
+void slave_tern_table_aux_delete_12(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12) {
+  bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
 }
 
-void slave_tern_table_aux_delete_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3) {
-  uint32 count1 = master_bin_table_count_1(master_table, arg1);
-  uint32 read = 0;
-  while (read < count1) {
-    uint32 buffer[128];
-    //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-    UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(master_table, arg1, read, buffer, 64);
-    read += array1.size;
-    uint32 *surrs = array1.array + array1.offset;
-    for (uint32 j=0 ; j < array1.size ; j++) {
-      uint32 surr12 = surrs[j];
-
-      bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
-
-    }
-  }
-}
-
-void slave_tern_table_aux_delete_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg2, uint32 arg3) {
-  uint32 count2 = master_bin_table_count_2(master_table, arg2);
-  uint32 read = 0;
-  while (read < count2) {
-    uint32 buffer[64];
-    UINT32_ARRAY array2 = master_bin_table_range_restrict_2(master_table, arg2, read, buffer, 64);
-    read += array2.size;
-    for (uint32 j=0 ; j < array2.size ; j++) {
-      uint32 arg1 = array2.array[j];
-      uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
-
-      bin_table_aux_delete(slave_table, &table_aux->slave_table_aux, surr12, arg3);
-
-    }
-  }
-}
-
-void slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1) {
-  uint32 count1 = master_bin_table_count_1(master_table, arg1);
-  uint32 read = 0;
-  while (read < count1) {
-    uint32 buffer[128];
-    //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-    UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(master_table, arg1, read, buffer, 64);
-    read += array1.size;
-    uint32 *surrs = array1.array + array1.offset;
-    for (uint32 j=0 ; j < array1.size ; j++) {
-      uint32 surr12 = surrs[j];
-
-      bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
-
-    }
-  }
-}
-
-void slave_tern_table_aux_delete_2(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg2) {
-  uint32 count2 = master_bin_table_count_2(master_table, arg2);
-  uint32 read = 0;
-  while (read < count2) {
-    uint32 buffer[64];
-    UINT32_ARRAY array2 = master_bin_table_range_restrict_2(master_table, arg2, read, buffer, 64);
-    read += array2.size;
-    for (uint32 j=0 ; j < array2.size ; j++) {
-      uint32 arg1 = array2.array[j];
-      uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
-
-      bin_table_aux_delete_1(&table_aux->slave_table_aux, surr12);
-
-    }
-  }
-}
-
-void slave_tern_table_aux_delete_3(MASTER_BIN_TABLE *master_table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg3) {
+void slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg3) {
   bin_table_aux_delete_2(&table_aux->slave_table_aux, arg3);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-//## BAD BAD BAD: THIS IS ALL WRONG. THE SIGNATURE OUGHT TO BE:
-//##   void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3)
-void slave_tern_table_aux_insert(MASTER_BIN_TABLE *master_table, MASTER_BIN_TABLE_AUX *master_table_aux, SLAVE_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
-  uint32 surr12 = master_bin_table_aux_lookup_surr(master_table, master_table_aux, arg1, arg2);
-  bin_table_aux_insert(&table_aux->slave_table_aux, surr12, arg3);
-}
 
 void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3) {
   bin_table_aux_insert(&table_aux->slave_table_aux, surr12, arg3);

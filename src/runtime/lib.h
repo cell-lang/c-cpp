@@ -1606,15 +1606,10 @@ void slave_tern_table_aux_init(SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
 void slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
 void slave_tern_table_aux_clear(SLAVE_TERN_TABLE_AUX *);
-void slave_tern_table_aux_delete(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
-void slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-void slave_tern_table_aux_delete_13(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg3);
-void slave_tern_table_aux_delete_23(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg2, uint32 arg3);
-void slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1);
-void slave_tern_table_aux_delete_2(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg2);
-void slave_tern_table_aux_delete_3(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg3);
+void slave_tern_table_aux_delete(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
+void slave_tern_table_aux_delete_12(SLAVE_TERN_TABLE_AUX *, uint32 surr12);
+void slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *, uint32 arg3);
 
-void slave_tern_table_aux_insert(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, SLAVE_TERN_TABLE_AUX *, uint32, uint32, uint32);
 void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
 
 bool slave_tern_table_aux_check_key_12(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1667,13 +1662,11 @@ void semisym_slave_tern_table_aux_init(SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *)
 void semisym_slave_tern_table_aux_reset(SLAVE_TERN_TABLE_AUX *);
 
 void semisym_slave_tern_table_aux_clear(SLAVE_TERN_TABLE_AUX *);
-void semisym_slave_tern_table_aux_delete(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
-void semisym_slave_tern_table_aux_delete_12(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-void semisym_slave_tern_table_aux_delete_13(MASTER_BIN_TABLE *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1, uint32 arg3);
-void semisym_slave_tern_table_aux_delete_1(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg1);
-void semisym_slave_tern_table_aux_delete_3(MASTER_BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 arg3);
+void semisym_slave_tern_table_aux_delete(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
+void semisym_slave_tern_table_aux_delete_12(SLAVE_TERN_TABLE_AUX *, uint32 surr12);
+void semisym_slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *, uint32 arg3);
 
-void slave_tern_table_aux_insert(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *, SLAVE_TERN_TABLE_AUX *, uint32, uint32, uint32);
+void semisym_slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
 
 void semisym_slave_tern_table_aux_apply_deletions(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void semisym_slave_tern_table_aux_apply_insertions(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);

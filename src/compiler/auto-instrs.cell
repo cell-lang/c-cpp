@@ -393,7 +393,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   // }
 
 
-  String native_queue_deletes_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_queue_deletes_code(TableVar table_var, <Table, MasterBinTable, AnyColumn> table, Maybe[Int32Var]+ args, Bool symmetric) {
     set_args = (a != nothing : a <- args);
     base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
     prefix = match (table)
@@ -413,11 +413,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
                                 _                   = false
                             ),
       master_bin_table()  = (table_var if set_args == (true, true)),
-      slave_tern_table()  = (table.master if set_args != (false, false, false)),
       column()            = (table_var if set_args == (true, false)),
       slave_column()      = (table_var if set_args == (true, false)),
-      mandatory_column()  = (table.master if set_args == (true, false)),
-      _                   = ();
+      mandatory_column()  = (table.master if set_args == (true, false));
     call_args = (ad_hoc_args | auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
     call_args = match (table, set_args)
       table(),  (true)  = (call_args | :mem_pool),
@@ -454,6 +452,33 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       (false, true,  false)   -> "delete_1_2",
       (false, false, true)    -> "delete_3",
       (false, false, false)   -> "clear"
+    ];
+  }
+
+
+  String native_queue_deletes_code(TableVar table_var, SlaveTernTable table, Maybe[Int32Var]+ args, Bool symmetric) {
+    assert |args| == 2;
+
+    set_args = (a != nothing : a <- args);
+    base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
+    prefix = native_table_method_prefix(table);
+    method_name = prefix & "_aux_" & base_names(set_args);
+    auxiliary = pending_updates_var_ref_name(table_var);
+    call_args = (table_var if set_args == (true, true), auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
+    return native_call(method_name, call_args);
+
+    [Bool+ -> String] fn_names_by_args = [
+      (true,  true)           -> "delete",
+      (true,  false)          -> "delete_12",
+      (false, true)           -> "delete_3",
+      (false, false)          -> "clear"
+    ];
+
+    [Bool+ -> String] sym_fn_names_by_args = [
+      (true,  true)           -> "delete",
+      (true,  false)          -> "delete_1",
+      // (false, true)           -> undefined,
+      (false, false)          -> "clear"
     ];
   }
 
