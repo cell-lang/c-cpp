@@ -1056,6 +1056,18 @@ OBJ *alloc_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, uint32 size) {
   return ptr;
 }
 
+OBJ *extend_state_mem_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 && new_size > 0);
+  uint32 byte_size = size * null_round_up_8(sizeof(OBJ));
+  uint32 new_byte_size = new_size * null_round_up_8(sizeof(OBJ));
+  OBJ *new_ptr = (OBJ *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  for (uint32 i=0 ; i < size ; i++)
+    assert(are_shallow_eq(new_ptr[i], ptr[i]));
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
 OBJ *extend_state_mem_blanked_obj_array(STATE_MEM_POOL *mem_pool, OBJ *ptr, uint32 size, uint32 new_size) {
   assert(size > 0 && new_size > 0);
   uint32 byte_size = size * null_round_up_8(sizeof(OBJ));

@@ -13,6 +13,8 @@ void quasi_map_u32_u32_resize(QUASI_MAP_U32_U32 *table, uint32 new_size, STATE_M
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 index, STATE_MEM_POOL *mem_pool) {
   uint32 &index_ref = table->main_hashtable[hashcode];
   if (index_ref == 0) {
@@ -33,9 +35,64 @@ void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 
   // }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 index) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  assert(table->main_hashtable.find(hashcode) != table->main_hashtable.end());
+
+  auto main_it = table->main_hashtable.find(hashcode);
+  uint32 code = main_it->second;
+
+  if (code >> 31 == 0) {
+    // Easy case, no collisions
+    assert(code - 1 == index);
+    table->main_hashtable.erase(main_it);
+    return;
+  }
+
+  // There are collisions
+  uint32 first_index = (code & 0x7FFFFFFF) - 1;
+
+  auto colls_it = table->collisions.find(hashcode);
+  assert(colls_it != table->collisions.end());
+
+  vector<uint32> &colls = colls_it->second;
+
+  if (first_index == index) {
+    if (colls.size() == 1) {
+      main_it->second = colls.front() + 1;
+      table->collisions.erase(colls_it);
+    }
+    else {
+      main_it->second = (colls.back() + 1) | (1u << 31);
+      colls.pop_back();
+    }
+  }
+  else {
+    if (colls.size() == 1) {
+      assert(colls.front() == index);
+      main_it->second = code & 0x7FFFFFFF;
+      table->collisions.erase(colls_it);
+    }
+    else {
+      assert(std::find(colls.begin(), colls.end(), index) != colls.end());
+      for (uint32 i=0 ; i < colls.size() ; i++) {
+        if (colls[i] == index) {
+          colls[i] = colls.back();
+          colls.pop_back();
+          break;
+        }
+      }
+    }
+  }
 }
+
+void quasi_map_u32_u32_clear(QUASI_MAP_U32_U32 *table) {
+  table->main_hashtable.clear();
+  table->collisions.clear();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *table, uint32 hashcode, OBJ *slots, OBJ value) {
   auto main_it = table->main_hashtable.find(hashcode);

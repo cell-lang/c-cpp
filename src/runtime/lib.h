@@ -497,39 +497,17 @@ struct QUASI_MAP_U32_U32 {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// struct OBJ_STORE_ {
-//   OBJ *slots; // If the slot is empty, core_data contains the index of the next free slot
+struct OBJ_STORE {
+  OBJ *slots; // If the slot is empty, core_data contains the index of the next free slot
 
-//   QUASI_MAP_U32_U32 hashtable;
-
-//   //                                 // VALUE     NO VALUE
-//   // OBJ    *values;                 //           blank
-//   // uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
-
-//   // uint32 *hashtable;  // 0xFFFFFFFF when there's no value in that bucket
-//   // uint32 *buckets;    // Junk when there's no (next?) value
-
-//   uint32 capacity;
-//   uint32 index_mask;
-//   uint32 count;
-//   uint32 first_free;
-// };
-
-////////////////////////////////////////////////////////////////////////////////
-
-struct OBJ_STORE {                // VALUE     NO VALUE
-  OBJ    *values;                 //           blank
-  uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
-
-  uint32 *hashtable;  // 0xFFFFFFFF when there's no value in that bucket
-  uint32 *buckets;    // Junk when there's no (next?) value
+  QUASI_MAP_U32_U32 hashtable;
 
   uint32 capacity;
-  uint32 index_mask;
   uint32 count;
   uint32 first_free_surr;
 };
 
+////////////////////////////////////////////////////////////////////////////////
 
 const uint32 INLINE_AUX_SIZE = 16;
 
@@ -2088,6 +2066,8 @@ void quasi_map_u32_u32_init(QUASI_MAP_U32_U32 *, STATE_MEM_POOL *);
 void quasi_map_u32_u32_resize(QUASI_MAP_U32_U32 *, uint32 new_capacity, STATE_MEM_POOL *);
 void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index, STATE_MEM_POOL *);
 void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index);
+void quasi_map_u32_u32_clear(QUASI_MAP_U32_U32 *);
+
 uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *, uint32 hashcode, OBJ *slots, OBJ value);
 
 ////////////////////////////////// queues.cpp //////////////////////////////////
