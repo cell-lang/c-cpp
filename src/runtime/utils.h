@@ -7,12 +7,13 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <vector>
 #include <unordered_set>
 #include <unordered_map>
 
 #include "../external/flat-hash-map.h"
 
-
+using std::vector;
 using std::unordered_set;
 using std::unordered_map;
 

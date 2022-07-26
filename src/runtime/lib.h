@@ -490,6 +490,33 @@ struct RAW_FLOAT_COL {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct QUASI_MAP_U32_U32 {
+  flat_hash_map<uint32, uint32, ska::power_of_two_std_hash<uint32>> main_hashtable;
+  unordered_map<uint32, vector<uint32>> collisions;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+// struct OBJ_STORE_ {
+//   OBJ *slots; // If the slot is empty, core_data contains the index of the next free slot
+
+//   QUASI_MAP_U32_U32 hashtable;
+
+//   //                                 // VALUE     NO VALUE
+//   // OBJ    *values;                 //           blank
+//   // uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
+
+//   // uint32 *hashtable;  // 0xFFFFFFFF when there's no value in that bucket
+//   // uint32 *buckets;    // Junk when there's no (next?) value
+
+//   uint32 capacity;
+//   uint32 index_mask;
+//   uint32 count;
+//   uint32 first_free;
+// };
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct OBJ_STORE {                // VALUE     NO VALUE
   OBJ    *values;                 //           blank
   uint32 *hashcode_or_next_free;  // hashcode  index of the next free slot (can be out of bounds)
@@ -2054,6 +2081,14 @@ void obj_store_aux_reset(OBJ_STORE_AUX *);
 void obj_store_aux_apply_insertions(OBJ_STORE *, OBJ_STORE_AUX *, STATE_MEM_POOL *);
 
 uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, STATE_MEM_POOL *);
+
+//////////////////////////////// hashtables.cpp ////////////////////////////////
+
+void quasi_map_u32_u32_init(QUASI_MAP_U32_U32 *, STATE_MEM_POOL *);
+void quasi_map_u32_u32_resize(QUASI_MAP_U32_U32 *, uint32 new_capacity, STATE_MEM_POOL *);
+void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index, STATE_MEM_POOL *);
+void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index);
+uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *, uint32 hashcode, OBJ *slots, OBJ value);
 
 ////////////////////////////////// queues.cpp //////////////////////////////////
 
