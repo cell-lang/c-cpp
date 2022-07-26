@@ -10,8 +10,16 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "../external/flat-hash-map.h"
+
+
 using std::unordered_set;
 using std::unordered_map;
+
+using ska::flat_hash_map;
+
+// flat_hash_map<uint64, uint32>;
+// flat_hash_map<uint64, uint32, ska::power_of_two_std_hash<uint64>>;
 
 
 typedef signed   char       int8;
