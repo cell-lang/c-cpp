@@ -95,10 +95,11 @@ void obj_store_remove(OBJ_STORE *store, uint32 surr, STATE_MEM_POOL *mem_pool) {
 
   OBJ *slot_ptr = store->slots + surr;
   OBJ value = *slot_ptr;
+
   uint32 hashcode = compute_hashcode(value); //## BAD BAD BAD: SHOULD THE HASHCODE BE STORED, INSTEAD OF BEING RECOMPUTED?
   quasi_map_u32_u32_delete(&store->hashtable, hashcode, surr);
 
-  //## BUG BUG BUG: AND WHEN IS THE MEMORY FREED?
+  remove_from_pool(mem_pool, value);
 
   *slot_ptr = make_store_blank(store->first_free_surr);
   store->first_free_surr = surr;

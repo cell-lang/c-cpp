@@ -169,7 +169,7 @@ const uint32 INIT_SIZE = 256;
 
 void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   loaded_one_way_bin_table_init(&table->table.forward, mem_pool);
-  one_way_bin_table_init(&table->table.backward, mem_pool);
+  loaded_one_way_bin_table_init(&table->table.backward, mem_pool);
 
   uint64 *slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
   for (uint32 i=0 ; i < INIT_SIZE ; i++)
@@ -212,12 +212,20 @@ bool master_bin_table_contains_surr(MASTER_BIN_TABLE *table, uint32 surr) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *arg2s) {
+  return one_way_bin_table_restrict(&table->table.forward, arg1, arg2s);
+}
+
 uint32 master_bin_table_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 *arg2s, uint32 *surrs) {
   return loaded_one_way_bin_table_restrict(&table->table.forward, arg1, arg2s, surrs);
 }
 
 uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *arg1s) {
   return one_way_bin_table_restrict(&table->table.backward, arg2, arg1s);
+}
+
+uint32 master_bin_table_restrict_2(MASTER_BIN_TABLE *table, uint32 arg2, uint32 *arg1s, uint32 *surrs) {
+  return loaded_one_way_bin_table_restrict(&table->table.backward, arg2, arg1s, surrs);
 }
 
 UINT32_ARRAY master_bin_table_range_restrict_1(MASTER_BIN_TABLE *table, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity) {
@@ -230,6 +238,10 @@ UINT32_ARRAY master_bin_table_range_restrict_2(MASTER_BIN_TABLE *table, uint32 a
 
 UINT32_ARRAY master_bin_table_range_restrict_1_with_surrs(MASTER_BIN_TABLE *table, uint32 arg1, uint32 first, uint32 *arg2s_surrs, uint32 capacity) {
   return loaded_one_way_bin_table_range_restrict(&table->table.forward, arg1, first, arg2s_surrs, capacity);
+}
+
+UINT32_ARRAY master_bin_table_range_restrict_2_with_surrs(MASTER_BIN_TABLE *table, uint32 arg2, uint32 first, uint32 *arg1s_surrs, uint32 capacity) {
+  return loaded_one_way_bin_table_range_restrict(&table->table.backward, arg2, first, arg1s_surrs, capacity);
 }
 
 uint32 master_bin_table_lookup_1(MASTER_BIN_TABLE *table, uint32 arg1) {
@@ -251,6 +263,7 @@ uint32 master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32
     assert(unpack_arg1(slot) == arg1);
     assert(unpack_arg2(slot) == arg2);
   }
+  assert(surr == loaded_one_way_bin_table_payload(&table->table.backward, arg2, arg1));
 #endif
   return surr;
 }
@@ -304,10 +317,10 @@ int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 ar
   assert(!one_way_bin_table_contains(&table->table.forward, arg1, arg2));
   assert(!one_way_bin_table_contains(&table->table.backward, arg2, arg1));
 
-  uint32 idx = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
-  loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, idx, mem_pool);
-  one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
-  return idx;
+  uint32 surr = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
+  loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
+  loaded_one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, surr, mem_pool);
+  return surr;
 }
 
 bool master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
@@ -319,7 +332,7 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
   if (!master_bin_table_contains(table, arg1, arg2)) {
     master_bin_table_claim_reserved_surr(table, arg1, arg2, surr, mem_pool);
     loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
-    one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
+    loaded_one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, surr, mem_pool);
     return true;
   }
   else {
@@ -330,7 +343,7 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
 
 void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr, STATE_MEM_POOL *mem_pool) {
   loaded_one_way_bin_table_clear(&table->table.forward, mem_pool);
-  one_way_bin_table_clear(&table->table.backward, mem_pool);
+  loaded_one_way_bin_table_clear(&table->table.backward, mem_pool);
 
   uint32 capacity = table->capacity;
   uint64 *slots = table->slots;
@@ -386,7 +399,7 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
 }
 
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  if (one_way_bin_table_delete(&table->table.backward, arg2, arg1)) {
+  if (loaded_one_way_bin_table_delete(&table->table.backward, arg2, arg1)) {
     uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1, arg2);
     assert(surr != 0xFFFFFFFF);
     master_bin_table_release_surr(table, surr);
@@ -405,7 +418,7 @@ void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
     loaded_one_way_bin_table_delete_by_key(&table->table.forward, arg1, arg2s, surrs);
 
     for (uint32 i=0 ; i < count ; i++) {
-      one_way_bin_table_delete(&table->table.backward, arg2s[i], arg1);
+      loaded_one_way_bin_table_delete(&table->table.backward, arg2s[i], arg1);
       master_bin_table_release_surr(table, surrs[i]);
     }
   }
@@ -415,8 +428,9 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   uint32 count = one_way_bin_table_get_count(&table->table.backward, arg2);
   if (count > 0) {
     uint32 inline_array[256];
-    uint32 *arg1s = count <= 256 ? inline_array : new_uint32_array(count);
-    one_way_bin_table_delete_by_key(&table->table.backward, arg2, arg1s);
+    uint32 *arg1s = count <= 128 ? inline_array : new_uint32_array(2 * count);
+    uint32 *surrs = arg1s + count;
+    loaded_one_way_bin_table_delete_by_key(&table->table.backward, arg2, arg1s, surrs);
 
     for (uint32 i=0 ; i < count ; i++) {
       uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1s[i], arg2);
