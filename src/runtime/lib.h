@@ -325,12 +325,49 @@ struct BIN_TABLE {
   STATE_MEM_POOL *mem_pool;
 };
 
+struct SINGLE_KEY_BIN_TABLE {
+  uint32 *forward_array;
+  ONE_WAY_BIN_TABLE backward;
+  COUNTER col_2_counter;
+  STATE_MEM_POOL *mem_pool;
+  uint32 capacity;
+  uint32 count;
+};
+
+struct DOUBLE_KEY_BIN_TABLE {
+  uint32 *forward_array;
+  uint32 *backward_array;
+  STATE_MEM_POOL *mem_pool;
+  uint32 forward_capacity;
+  uint32 backward_capacity;
+  uint32 count;
+};
+
 struct BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
+  QUEUE_U64 insertions;
+  bool clear;
+};
+
+struct SINGLE_KEY_BIN_TABLE_AUX {
+  COL_UPDATE_BIT_MAP bit_map;
+  COL_UPDATE_BIT_MAP another_bit_map;
+  QUEUE_U64 deletions;
+  QUEUE_U32 deletions_1;
+  QUEUE_U32 deletions_2;
+  QUEUE_U64 insertions;
+  bool clear;
+};
+
+struct DOUBLE_KEY_BIN_TABLE_AUX {
+  COL_UPDATE_STATUS_MAP col_1_status_map;
+  COL_UPDATE_STATUS_MAP col_2_status_map;
+  COL_UPDATE_BIT_MAP bit_map;
+  QUEUE_U64 deletions;
   QUEUE_U64 insertions;
   bool clear;
 };
@@ -639,6 +676,7 @@ void release_state_mem_int64_array(STATE_MEM_POOL *, int64 *ptr, uint32 size);
 uint32 *alloc_state_mem_uint32_array(STATE_MEM_POOL *, uint32 size);
 uint32 *alloc_state_mem_oned_uint32_array(STATE_MEM_POOL *, uint32 size);
 uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *, uint32 *ptr, uint32 size, uint32 new_size);
+uint32 *extend_state_mem_oned_uint32_array(STATE_MEM_POOL *, uint32 *ptr, uint32 size, uint32 new_size);
 void release_state_mem_uint32_array(STATE_MEM_POOL *, uint32 *ptr, uint32 size);
 
 uint8 *alloc_state_mem_uint8_array(STATE_MEM_POOL *, uint32 size);
@@ -1403,6 +1441,133 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *, BIN_TAB
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *, BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
+/////////////////////////// single-key-bin-table.cpp ///////////////////////////
+
+void single_key_bin_table_init(SINGLE_KEY_BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 single_key_bin_table_size(SINGLE_KEY_BIN_TABLE *);
+
+bool single_key_bin_table_contains(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool single_key_bin_table_contains_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
+bool single_key_bin_table_contains_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
+
+uint32 single_key_bin_table_count_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
+uint32 single_key_bin_table_count_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
+
+uint32 single_key_bin_table_restrict_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 *arg2s);
+uint32 single_key_bin_table_restrict_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2, uint32 *arg1s);
+
+UINT32_ARRAY single_key_bin_table_range_restrict_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity);
+UINT32_ARRAY single_key_bin_table_range_restrict_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity);
+
+uint32 single_key_bin_table_lookup_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
+uint32 single_key_bin_table_lookup_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
+
+void single_key_bin_table_insert(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+
+bool single_key_bin_table_delete(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
+void single_key_bin_table_delete_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
+void single_key_bin_table_delete_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
+
+void single_key_bin_table_clear(SINGLE_KEY_BIN_TABLE *, STATE_MEM_POOL *);
+
+bool single_key_bin_table_col_1_is_key(SINGLE_KEY_BIN_TABLE *);
+bool single_key_bin_table_col_2_is_key(SINGLE_KEY_BIN_TABLE *);
+
+void single_key_bin_table_copy_to(SINGLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
+void single_key_bin_table_write(WRITE_FILE_STATE *write_state, SINGLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
+
+///////////////////////// single-key-bin-table-aux.cpp /////////////////////////
+
+void single_key_bin_table_aux_init(SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+void single_key_bin_table_aux_reset(SINGLE_KEY_BIN_TABLE_AUX *);
+
+void single_key_bin_table_aux_clear(SINGLE_KEY_BIN_TABLE_AUX *);
+void single_key_bin_table_aux_delete(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void single_key_bin_table_aux_delete_1(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
+void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
+void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+
+void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
+void single_key_bin_table_aux_apply_insertions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *);
+
+bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+bool single_key_bin_table_aux_contains_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
+bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
+bool single_key_bin_table_aux_is_empty(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *);
+
+bool single_key_bin_table_aux_check_foreign_key_unary_table_1_forward(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool single_key_bin_table_aux_check_foreign_key_unary_table_2_forward(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool single_key_bin_table_aux_check_foreign_key_unary_table_1_backward(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+/////////////////////////// double-key-bin-table.cpp ///////////////////////////
+
+void double_key_bin_table_init(DOUBLE_KEY_BIN_TABLE *, STATE_MEM_POOL *);
+
+uint32 double_key_bin_table_size(DOUBLE_KEY_BIN_TABLE *);
+bool double_key_bin_table_contains(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool double_key_bin_table_contains_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
+bool double_key_bin_table_contains_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
+uint32 double_key_bin_table_count_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
+uint32 double_key_bin_table_count_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
+uint32 double_key_bin_table_restrict_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 *arg2s);
+uint32 double_key_bin_table_restrict_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2, uint32 *arg1s);
+UINT32_ARRAY double_key_bin_table_range_restrict_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity);
+UINT32_ARRAY double_key_bin_table_range_restrict_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2, uint32 first, uint32 *arg1s, uint32 capacity);
+uint32 double_key_bin_table_lookup_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
+uint32 double_key_bin_table_lookup_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
+
+void double_key_bin_table_insert(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+
+bool double_key_bin_table_delete(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
+void double_key_bin_table_delete_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
+void double_key_bin_table_delete_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
+
+void double_key_bin_table_clear(DOUBLE_KEY_BIN_TABLE *, STATE_MEM_POOL *);
+
+bool double_key_bin_table_col_1_is_key(DOUBLE_KEY_BIN_TABLE *);
+bool double_key_bin_table_col_2_is_key(DOUBLE_KEY_BIN_TABLE *);
+
+void double_key_bin_table_copy_to(DOUBLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *strm_1, STREAM *strm_2);
+void double_key_bin_table_write(WRITE_FILE_STATE *, DOUBLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
+
+///////////////////////// double-key-bin-table-aux.cpp /////////////////////////
+
+void double_key_bin_table_aux_init(DOUBLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+void double_key_bin_table_aux_reset(DOUBLE_KEY_BIN_TABLE_AUX *);
+
+void double_key_bin_table_aux_clear(DOUBLE_KEY_BIN_TABLE_AUX *);
+
+void double_key_bin_table_aux_delete(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void double_key_bin_table_aux_delete_1(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
+void double_key_bin_table_aux_delete_2(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
+void double_key_bin_table_aux_insert(DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+
+void double_key_bin_table_aux_apply_deletions(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
+void double_key_bin_table_aux_apply_insertions(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+void double_key_bin_table_aux_prepare(DOUBLE_KEY_BIN_TABLE_AUX *);
+
+bool double_key_bin_table_aux_contains(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+bool double_key_bin_table_aux_contains_1(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
+bool double_key_bin_table_aux_contains_2(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
+bool double_key_bin_table_aux_is_empty(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *);
+
+bool double_key_bin_table_aux_check_foreign_key_unary_table_1_forward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *)
+bool double_key_bin_table_aux_check_foreign_key_unary_table_2_forward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 
 void sym_bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
@@ -2137,6 +2302,7 @@ void counter_clear(COUNTER *, STATE_MEM_POOL *);
 void counter_resize(COUNTER *, uint32 min_capacity, STATE_MEM_POOL *);
 
 uint32 counter_read(COUNTER *, uint32 index);
+bool counter_is_cleared(COUNTER *);
 
 void counter_incr(COUNTER *, uint32 index, STATE_MEM_POOL *);
 void counter_decr(COUNTER *, uint32 index, STATE_MEM_POOL *);

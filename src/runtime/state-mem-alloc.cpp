@@ -1210,11 +1210,27 @@ uint32 *extend_state_mem_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uin
   uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint32));
   uint32 *new_ptr = (uint32 *) alloc_state_mem_block(mem_pool, new_byte_size);
   memcpy(new_ptr, ptr, byte_size);
-  // memset(new_ptr + size, 0, new_byte_size - byte_size);
-  // for (uint32 i=0 ; i < new_size ; i++)
-  //   assert(new_ptr[i] == (i < capacity ? ptr[i] : 0));
+#ifndef NDEBUG
   for (uint32 i=0 ; i < size ; i++)
     assert(new_ptr[i] == ptr[i]);
+#endif
+  release_state_mem_block(mem_pool, ptr, byte_size);
+  return new_ptr;
+}
+
+uint32 *extend_state_mem_oned_uint32_array(STATE_MEM_POOL *mem_pool, uint32 *ptr, uint32 size, uint32 new_size) {
+  assert(size > 0 & new_size > 0 & size % 2 == 0 & new_size % 2 == 0);
+  uint32 byte_size = null_round_up_8(size * sizeof(uint32));
+  uint32 new_byte_size = null_round_up_8(new_size * sizeof(uint32));
+  uint32 *new_ptr = (uint32 *) alloc_state_mem_block(mem_pool, new_byte_size);
+  memcpy(new_ptr, ptr, byte_size);
+  memset(new_ptr + size, 0xFF, new_byte_size - byte_size);
+#ifndef NDEBUG
+  for (uint32 i=0 ; i < size ; i++)
+    assert(new_ptr[i] == ptr[i]);
+  for (uint32 i=size ; i < new_size ; i++)
+    assert(new_ptr[i] == 0xFFFFFFFF);
+#endif
   release_state_mem_block(mem_pool, ptr, byte_size);
   return new_ptr;
 }

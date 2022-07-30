@@ -159,8 +159,7 @@ implicit context : NativeContext {
 
   String native_table_contains(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ tuple, Bool symmetric) {
     fail if not tuple :: (Just[Int32Var], Nothing);
-    method_name = native_table_method_prefix(1, false) & "_contains";
-    return native_call_expr(method_name, (column.master, value(tuple(0))));
+    return native_call_expr("unary_table_contains", (column.master, value(tuple(0))));
   }
 
 

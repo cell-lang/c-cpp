@@ -911,13 +911,24 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (sgn) & indent_lines(body) & ("}");
 
 
-    String key_check_method_name(AnyTable table, [+Nat] key) =
-      table()             = key_check_method_names((arity(table), key), !),
-      master_bin_table()  = master_bin_table_key_check_method_names(key, !),
-      slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
-      column()            |
-      slave_column()      = undefined;
+    String key_check_method_name(Table table, [+Nat] key) {
+      if arity(table) == 2 and not table.symmetric {
+        if table.keys == [[0]] {
+          assert key == [0];
+          return "single_key_bin_table_col_1_is_key";
+        }
+        else if table.keys == [[0], [1]] {
+          assert key == [0] or key == [1];
+          return if key == [0] then "double_key_bin_table_col_1_is_key" else "double_key_bin_table_col_1_is_key";
+        }
+      }
+      return key_check_method_names((arity(table), key), !);
+    }
 
+    String key_check_method_name(MasterBinTable table, [+Nat] key) = master_bin_table_key_check_method_names(key, !);
+    String key_check_method_name(SlaveTernTable table, [+Nat] key) = slave_tern_table_key_check_method_names(key, !);
+
+    String key_check_method_name(<Column, SlaveColumn>, [+Nat]) = undefined;
 
     [(NzNat, [+Nat]) -> String] key_check_method_names = [
       (2, [0])    -> "bin_table_col_1_is_key",
@@ -1600,9 +1611,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     mutated_tables = insertion_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
-    keys = [(v, arity(t), k) : v t <- block.tables, insertion_tables(v), k <- keys(t)];
-    keys = sort_by_key(keys, order);
-
     insert_checked_foreign_keys = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)];
     insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
 
@@ -1614,11 +1622,24 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     for t <- mutated_tables
       check_code = check_code & aux_prepare_code(t, block);
 
-    check_code = (check_code | "") if keys != () and not ends_with_empty_line(check_code);
-
-    for v, a, k <- keys {
-      fn_call = check_call(v, a, k, block);
-      check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+    insertion_tables_with_keys = isort([v : v <- insertion_tables, keys(block.tables(v)) != []]);
+    if insertion_tables_with_keys != () {
+      check_code = (check_code | "") if not ends_with_empty_line(check_code);
+      for v <- insertion_tables_with_keys {
+        table = block.tables(v);
+        arity = arity(table);
+        keys = keys(table);
+        if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
+          fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (v, pending_updates_var_ref_name(v), :mem_pool));
+          check_code = (check_code | "if (!" & fn_call & ")", "  return false;");
+        }
+        else {
+          for k <- keys {
+            fn_call = check_call(v, table, k);
+            check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+          }
+        }
+      }
     }
 
     check_code = (check_code | "") if insert_checked_foreign_keys != () and not ends_with_empty_line(check_code);
@@ -1654,25 +1675,45 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String check_call(TableVar var, NzNat arity, [+Nat] key, StaticBlock block) {
-      table_type = block.tables(var);
-      method_name = match (table_type)
-        table()             = if not table_type.symmetric
-                                then table_key_check_method_names(arity, key, !)
-                                else semisym_table_key_check_method_names(arity, key, !),
-        master_bin_table()  = undefined,
-        slave_tern_table()  = slave_tern_table_key_check_method_names(key, !),
-        mandatory_column()  = native_table_method_prefix(table_type) & "_aux_check_key_1",
-        column()            = native_column_method_prefix(table_type.repr) & "_aux_check_key_1",
-        slave_column()      = native_column_method_prefix(table_type.repr) & "_aux_check_key_1";
+    String check_call(TableVar var, Table table, [+Nat] key) {
+      assert table.keys(key);
+
+      arity = arity(table);
+      method_name = if      table.symmetric                    then semisym_table_key_check_method_names(arity, key, !)
+                    else if arity == 2 and table.keys == [[0]] then "single_key_bin_table_aux_check_key_1"
+                                                               else table_key_check_method_names(arity, key, !);
       aux_var = pending_updates_var_ref_name(var);
-      args = match (table_type)
-        column()            = (var, aux_var, :mem_pool),
-        mandatory_column()  = (table_type.master, var, aux_var, :mem_pool),
-        slave_tern_table()  = (table_type.master, var, pending_updates_var_ref_name(table_type.master) if key == [0, 1], aux_var),
-        table()             = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2]))),
-        master_bin_table()  = (var, aux_var),
-        slave_column()      = (var, aux_var, :mem_pool);
+      args = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2])));
+      return native_call_expr(method_name, args);
+    }
+
+    String check_call(TableVar var, MasterBinTable table, [+Nat] key) = undefined;
+
+    String check_call(TableVar var, SlaveTernTable table, [+Nat] key) {
+      method_name = slave_tern_table_key_check_method_names(key, !);
+      aux_var = pending_updates_var_ref_name(var);
+      args = (table.master, var, pending_updates_var_ref_name(table.master) if key == [0, 1], aux_var);
+      return native_call_expr(method_name, args);
+    }
+
+    String check_call(TableVar var, MandatoryColumn column, [+Nat] key) {
+      method_name = native_table_method_prefix(column) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (column.master, var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    String check_call(TableVar var, Column column, [+Nat] key) {
+      method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    String check_call(TableVar var, SlaveColumn column, [+Nat] key) {
+      method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool);
       return native_call_expr(method_name, args);
     }
 

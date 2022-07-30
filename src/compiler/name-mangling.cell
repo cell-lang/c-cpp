@@ -543,7 +543,9 @@ Bool is_nullable(OptTagRecRepr) = true;
 String native_table_type(Table table) =
   match (arity(table))
     1   = "UNARY_TABLE",
-    2   = "BIN_TABLE",
+    2   = if      table.keys == [[0]]      then "SINGLE_KEY_BIN_TABLE"
+          else if table.keys == [[0], [1]] then "DOUBLE_KEY_BIN_TABLE"
+                                           else "BIN_TABLE",
     3   = "TERN_TABLE";
 
 String native_table_type(MasterBinTable) = "MASTER_BIN_TABLE";
@@ -564,15 +566,17 @@ String native_column_type(ColumnRepr) =
   float     = "FLOAT_COL";
 
 
-String native_table_method_prefix(Table table) = native_table_method_prefix(arity(table), table.symmetric);
+String native_table_method_prefix(Table table) =
+ match (arity(table), table.symmetric)
+    1,  false   = "unary_table",
+    1,  _       = undefined,
+    2,  false   = if      table.keys == [[0]]      then "single_key_bin_table"
+                  else if table.keys == [[0], [1]] then "double_key_bin_table"
+                                                   else "bin_table",
+    2,  true    = "sym_bin_table",
+    3,  false   = "tern_table",
+    3,  true    = "semisym_tern_table";
 
-String native_table_method_prefix(NzNat arity, Bool symmetric) =
-  1,  false   = "unary_table",
-  1,  _       = undefined,
-  2,  false   = "bin_table",
-  2,  true    = "sym_bin_table",
-  3,  false   = "tern_table",
-  3,  true    = "semisym_tern_table";
 
 String native_table_method_prefix(MasterBinTable) = "master_bin_table";
 String native_table_method_prefix(SlaveTernTable) = "slave_tern_table";

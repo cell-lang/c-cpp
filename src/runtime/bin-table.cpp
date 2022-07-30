@@ -95,7 +95,7 @@ bool bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL
   //## WHY IS THIS VERSION FASTER?
   if (!one_way_bin_table_contains(&table->forward, arg1, arg2)) {
     one_way_bin_table_insert_unique(&table->forward, arg1, arg2, mem_pool);
-    if (table->backward.count > 0)
+    if (table->backward.count > 0) //## BUG BUG BUG: WRONG WAY TO DETECT IF THE BACKWARD TABLE HAS BEEN BUILT
       one_way_bin_table_insert_unique(&table->backward, arg2, arg1, mem_pool);
     else
       counter_incr(&table->col_2_counter, arg2, mem_pool);

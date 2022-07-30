@@ -50,6 +50,10 @@ uint32 counter_read(COUNTER *counter, uint32 index) {
   return count;
 }
 
+bool counter_is_cleared(COUNTER *counter) { //## BAD BAD BAD: FIND BETTER NAME
+  return counter->counters == NULL;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void counter_incr(COUNTER *counter, uint32 index, STATE_MEM_POOL *mem_pool) {
