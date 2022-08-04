@@ -399,9 +399,10 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
 }
 
 bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  if (loaded_one_way_bin_table_delete(&table->table.backward, arg2, arg1)) {
-    uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1, arg2);
-    assert(surr != 0xFFFFFFFF);
+  uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1, arg2);
+  if (surr != 0xFFFFFFFF) {
+    uint32 surr_ = loaded_one_way_bin_table_delete(&table->table.backward, arg2, arg1);
+    assert(surr_ == surr);
     master_bin_table_release_surr(table, surr);
     return true;
   }

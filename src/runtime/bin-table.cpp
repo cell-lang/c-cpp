@@ -3,13 +3,7 @@
 
 
 inline bool bin_table_reverse_one_way_table_has_been_built(BIN_TABLE *table) {
-  assert(table->backward.count == 0 || table->backward.count == table->forward.count);
-  return (table->forward.count == table->backward.count);
-}
-
-inline bool bin_table_reverse_one_way_table_has_been_built_after_forward_delete(BIN_TABLE *table) {
-  assert(table->backward.count == 0 || table->backward.count == table->forward.count + 1);
-  return (table->forward.count + 1 == table->backward.count);
+  return counter_is_cleared(&table->col_2_counter);
 }
 
 inline void bin_table_build_reverse_one_way_table(BIN_TABLE *table) {
@@ -95,7 +89,7 @@ bool bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL
   //## WHY IS THIS VERSION FASTER?
   if (!one_way_bin_table_contains(&table->forward, arg1, arg2)) {
     one_way_bin_table_insert_unique(&table->forward, arg1, arg2, mem_pool);
-    if (table->backward.count > 0) //## BUG BUG BUG: WRONG WAY TO DETECT IF THE BACKWARD TABLE HAS BEEN BUILT
+    if (bin_table_reverse_one_way_table_has_been_built(table))
       one_way_bin_table_insert_unique(&table->backward, arg2, arg1, mem_pool);
     else
       counter_incr(&table->col_2_counter, arg2, mem_pool);
@@ -130,7 +124,7 @@ void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
     uint32 *arg2s = count <= 1024 ? inline_array : new_uint32_array(count);
     one_way_bin_table_delete_by_key(&table->forward, arg1, arg2s);
 
-    if (bin_table_reverse_one_way_table_has_been_built_after_forward_delete(table)) {
+    if (bin_table_reverse_one_way_table_has_been_built(table)) {
       for (uint32 i=0 ; i < count ; i++) {
         bool found = one_way_bin_table_delete(&table->backward, arg2s[i], arg1);
         assert(found);

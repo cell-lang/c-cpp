@@ -321,6 +321,23 @@ bool queue_u64_contains_2(QUEUE_U64 *queue, uint32 value) {
   return false;
 }
 
+bool queue_u64_count_2(QUEUE_U64 *queue, uint32 value) {
+  uint32 len = queue->count;
+  if (len == 0)
+    return 0;
+
+  uint64 *array = queue->array;
+  uint32 count = 0;
+  if (len > 16) {
+    //## IMPLEMENT IMPLEMENT IMPLEMENT
+    //## IMPLEMENT FOR REAL
+  }
+  for (uint32 i=0 ; i < len ; i++)
+    if (unpack_arg2(array[i]) == value)
+      count++;
+  return count;
+}
+
 bool queue_u64_unique_count(QUEUE_U64 *queue) {
   return queue->count;
 }

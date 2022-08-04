@@ -196,6 +196,8 @@ static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_A
 }
 
 void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
+  assert(table->table.forward.count == table->table.backward.count);
+
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
   assert(table_aux->reserved_surrs.empty());
@@ -220,9 +222,13 @@ void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTE
     uint32 next_surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
     master_bin_table_set_next_free_surr(table, next_surr);
   }
+
+  assert(table->table.forward.count == table->table.backward.count);
 }
 
 void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, STATE_MEM_POOL *mem_pool) {
+  assert(table->table.forward.count == table->table.backward.count);
+
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
   assert(table_aux->reserved_surrs.empty());
@@ -414,9 +420,13 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
 
   if (locks_applied && table_aux->locked_surrs.count > 0)
     master_bin_table_aux_unlock_surrs(table, &table_aux->locked_surrs);
+
+  assert(table->table.forward.count == table->table.backward.count);
 }
 
 void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
+  assert(table->table.forward.count == table->table.backward.count);
+
   uint32 ins_count = table_aux->insertions.count_;
   if (ins_count > 0) {
     uint32 (*ptr)[3] = table_aux->insertions.array;
@@ -428,6 +438,8 @@ void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, MASTER_BIN_T
       ptr++;
     }
   }
+
+  assert(table->table.forward.count == table->table.backward.count);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -50,7 +50,7 @@ update-cellcr-inline:
 	g++ -O3 -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp -o cellcr
 
 runtime-dbg-objs:
-	@rm -f objs/dbg/*
+	rm -f objs/dbg/*
 	cd objs/dbg/ ; g++ -c -ggdb -I ../../src/runtime/ ../../src/runtime/*.cpp
 
 codegen.net:

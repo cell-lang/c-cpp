@@ -31,7 +31,7 @@ static void double_key_bin_table_aux_delete_existing(DOUBLE_KEY_BIN_TABLE *table
   assert(col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1) == col_update_status_map_deleted_flag_is_set(&table_aux->col_2_status_map, arg2));
 
   if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, table->mem_pool)) {
-    col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg2, table->mem_pool);
+    col_update_status_map_check_and_mark_deletion(&table_aux->col_2_status_map, arg2, table->mem_pool);
     queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
   }
 }
@@ -187,8 +187,8 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
         }
 
         if (double_key_bin_table_contains_2(table, arg2)) {
-          if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
-            double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, arg2, false);
+          if (!col_update_status_map_deleted_flag_is_set(&table_aux->col_2_status_map, arg2)) {
+            double_key_bin_table_aux_record_col_2_key_violation(table, table_aux, arg1, arg2, false);
             return false;
           }
         }

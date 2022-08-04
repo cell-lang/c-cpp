@@ -329,7 +329,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String native_queue_insert_tuple_code(TableVar table_var, Table table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
     arity = arity(table);
-    needs_table_var_arg = arity == 1 or arity == 3 or (arity == 2 and table.keys != []);
+    needs_table_var_arg = arity == 1 or arity == 3 or (arity == 2 and table.keys == [[0]]);
     needs_mem_pool_arg = arity == 1 or (arity == 2 and table.keys != []);
     args = (table_var if needs_table_var_arg, updater) & tuple & (:mem_pool if needs_mem_pool_arg);
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);

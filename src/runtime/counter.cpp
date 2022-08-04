@@ -19,6 +19,7 @@ void counter_clear(COUNTER *counter, STATE_MEM_POOL *mem_pool) {
 }
 
 void counter_resize(COUNTER *counter, uint32 min_capacity, STATE_MEM_POOL *mem_pool) {
+  assert(counter->counters != NULL && counter->capacity != 0);
   assert(min_capacity > counter->capacity);
 
   uint32 capacity = counter->capacity;

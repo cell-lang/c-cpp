@@ -9,7 +9,7 @@ static void single_key_bin_table_aux_record_col_1_key_violation(SINGLE_KEY_BIN_T
 
 void single_key_bin_table_aux_init(SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   col_update_status_map_init(&table_aux->col_1_status_map);
-  col_update_bit_map_init(&table_aux->arg_2_insertion_map);
+  col_update_bit_map_init(&table_aux->arg2_insertion_map);
   queue_u64_init(&table_aux->deletions);
   queue_u32_init(&table_aux->deletions_2);
   queue_u64_init(&table_aux->insertions);
@@ -19,9 +19,8 @@ void single_key_bin_table_aux_init(SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_ME
 }
 
 void single_key_bin_table_aux_reset(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-  assert(!col_update_bit_map_is_dirty(&table_aux->arg_2_insertion_map));
-
   col_update_status_map_clear(&table_aux->col_1_status_map);
+  col_update_bit_map_clear(&table_aux->arg2_insertion_map);
   queue_u64_reset(&table_aux->deletions);
   queue_u32_reset(&table_aux->deletions_2);
   queue_u64_reset(&table_aux->insertions);
@@ -84,13 +83,13 @@ void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool single_key_bin_table_aux_arg2_insertion_map_has_been_built(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-  return table_aux->insertions.count == 0 || col_update_bit_map_is_dirty(&table_aux->arg_2_insertion_map);
+  return table_aux->insertions.count == 0 || col_update_bit_map_is_dirty(&table_aux->arg2_insertion_map);
 }
 
 inline bool single_key_bin_table_aux_arg2_was_inserted(SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
   assert(single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux));
 
-  return col_update_bit_map_is_set(&table_aux->arg_2_insertion_map, arg2);
+  return col_update_bit_map_is_set(&table_aux->arg2_insertion_map, arg2);
 }
 
 static void single_key_bin_table_aux_build_col_2_insertion_bitmap(SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
@@ -99,7 +98,7 @@ static void single_key_bin_table_aux_build_col_2_insertion_bitmap(SINGLE_KEY_BIN
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint64 *args_array = table_aux->insertions.array;
-    COL_UPDATE_BIT_MAP *bit_map = &table_aux->arg_2_insertion_map;
+    COL_UPDATE_BIT_MAP *bit_map = &table_aux->arg2_insertion_map;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 arg2 = unpack_arg2(args_array[i]);
       col_update_bit_map_set(bit_map, arg2, mem_pool);
@@ -256,27 +255,6 @@ bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KE
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 single_key_bin_table_aux_all_arg2s_have_been_deleted(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
-
-      // uint32 count2 = single_key_bin_table_count_2(table, arg2);
-      // uint32 read2 = 0;
-      // while (read2 < count2) {
-      //   uint32 buffer[64];
-      //   UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-      //   read2 += array2.size;
-      //   for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-      //     uint32 arg1 = array2.array[i2];
-
-      //     unique_deletions.insert(pack_args(arg1, arg2));
-
-      //   }
-      // }
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
   //## CHECK WHAT ACTUALLY NEEDS TO BE PREPARED
   queue_u64_prepare(&table_aux->deletions);
@@ -330,7 +308,9 @@ bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY
   if (queue_u32_contains(&table_aux->deletions_2, arg2))
     return false;
 
-  if (single_key_bin_table_aux_all_arg2s_have_been_deleted(table, table_aux, arg2))
+  assert(queue_u64_count_2(&table_aux->deletions, arg2) <= single_key_bin_table_count_2(table, arg2));
+
+  if (queue_u64_count_2(&table_aux->deletions, arg2) == single_key_bin_table_count_2(table, arg2))
     return false;
 
   return true;

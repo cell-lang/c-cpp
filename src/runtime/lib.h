@@ -355,7 +355,7 @@ struct BIN_TABLE_AUX {
 
 struct SINGLE_KEY_BIN_TABLE_AUX {
   COL_UPDATE_STATUS_MAP col_1_status_map;
-  COL_UPDATE_BIT_MAP arg_2_insertion_map;
+  COL_UPDATE_BIT_MAP arg2_insertion_map;
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_2;
   QUEUE_U64 insertions;
@@ -2282,6 +2282,7 @@ void queue_u64_prepare_1(QUEUE_U64 *);
 bool queue_u64_contains_1(QUEUE_U64 *, uint32);
 void queue_u64_prepare_2(QUEUE_U64 *);
 bool queue_u64_contains_2(QUEUE_U64 *, uint32);
+bool queue_u64_count_2(QUEUE_U64 *, uint32);
 bool queue_u64_unique_count(QUEUE_U64 *);
 
 void queue_3u32_init(QUEUE_3U32 *queue);
