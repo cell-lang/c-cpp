@@ -52,10 +52,10 @@ bool single_key_bin_table_contains_1(SINGLE_KEY_BIN_TABLE *table, uint32 arg1) {
 }
 
 bool single_key_bin_table_contains_2(SINGLE_KEY_BIN_TABLE *table, uint32 arg2) {
-  if (!single_key_bin_table_reverse_one_way_table_has_been_built(table))
-    single_key_bin_table_build_reverse_one_way_table(table);
-
-  return one_way_bin_table_contains_key(&table->backward, arg2);
+  if (single_key_bin_table_reverse_one_way_table_has_been_built(table))
+    return one_way_bin_table_contains_key(&table->backward, arg2);
+  else
+    return counter_read(&table->col_2_counter, arg2) > 0;
 }
 
 uint32 single_key_bin_table_count_1(SINGLE_KEY_BIN_TABLE *table, uint32 arg1) {

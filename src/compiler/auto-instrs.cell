@@ -329,7 +329,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String native_queue_insert_tuple_code(TableVar table_var, Table table, Int32Var+ tuple) {
     updater = pending_updates_var_ref_name(table_var);
     arity = arity(table);
-    args = (table_var if arity == 1 or arity == 3, updater) & tuple & (:mem_pool if arity == 1);
+    needs_table_var_arg = arity == 1 or arity == 3 or (arity == 2 and table.keys != []);
+    needs_mem_pool_arg = arity == 1 or (arity == 2 and table.keys != []);
+    args = (table_var if needs_table_var_arg, updater) & tuple & (:mem_pool if needs_mem_pool_arg);
     return native_call(native_table_method_prefix(table) & "_aux_insert", args);
   }
 
@@ -410,6 +412,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
                                 (true, _,    _)     |
                                 (_,    true, _)     |
                                 (_,    _,    true)  = true,
+                                (true, false)       |
+                                (false, true)       = arity(table) == 2 and table.keys != [],
                                 _                   = false
                             ),
       master_bin_table()  = (table_var if set_args == (true, true)),
@@ -421,6 +425,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       table(),  (true)  = (call_args | :mem_pool),
       _,        _       = call_args;
     return native_call(method_name, call_args);
+
 
     [Bool+ -> String] fn_names_by_args = [
       (true)                  -> "delete",

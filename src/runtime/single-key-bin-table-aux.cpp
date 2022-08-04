@@ -1,22 +1,32 @@
 #include "lib.h"
 
 
+static void single_key_bin_table_aux_record_col_1_key_violation(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
+  //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void single_key_bin_table_aux_init(SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
-  col_update_bit_map_init(&table_aux->bit_map);
-  col_update_bit_map_init(&table_aux->another_bit_map);
+  col_update_status_map_init(&table_aux->col_1_status_map);
+  col_update_bit_map_init(&table_aux->arg_2_insertion_map);
   queue_u64_init(&table_aux->deletions);
-  queue_u32_init(&table_aux->deletions_1);
   queue_u32_init(&table_aux->deletions_2);
   queue_u64_init(&table_aux->insertions);
+  table_aux->unique_deletes_count = 0;
+  table_aux->key_violation_detected = false;
   table_aux->clear = false;
 }
 
 void single_key_bin_table_aux_reset(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+  assert(!col_update_bit_map_is_dirty(&table_aux->arg_2_insertion_map));
+
+  col_update_status_map_clear(&table_aux->col_1_status_map);
   queue_u64_reset(&table_aux->deletions);
-  queue_u32_reset(&table_aux->deletions_1);
   queue_u32_reset(&table_aux->deletions_2);
   queue_u64_reset(&table_aux->insertions);
+  table_aux->unique_deletes_count = 0;
+  table_aux->key_violation_detected = false;
   table_aux->clear = false;
 }
 
@@ -28,48 +38,76 @@ void single_key_bin_table_aux_clear(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
 
 void single_key_bin_table_aux_delete(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   if (single_key_bin_table_contains(table, arg1, arg2))
-    queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
+    if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, table->mem_pool)) {
+      queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
+      table_aux->unique_deletes_count++;
+    }
 }
 
-void single_key_bin_table_aux_delete_1(SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  queue_u32_insert(&table_aux->deletions_1, arg1);
+void single_key_bin_table_aux_delete_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  uint32 arg2 = single_key_bin_table_lookup_1(table, arg1);
+  if (arg2 != 0xFFFFFFFF)
+    if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, table->mem_pool)) {
+      queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
+      table_aux->unique_deletes_count++;
+    }
 }
 
-void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  queue_u32_insert(&table_aux->deletions_2, arg2);
+void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  uint32 count2 = single_key_bin_table_count_2(table, arg2);
+  if (count2 > 0) {
+    uint32 read2 = 0;
+    do {
+      uint32 buffer[64];
+      UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+      read2 += array2.size;
+      for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+        uint32 arg1 = array2.array[i2];
+        if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, table->mem_pool))
+          table_aux->unique_deletes_count++;
+      }
+    } while (read2 < count2);
+
+    queue_u32_insert(&table_aux->deletions_2, arg2);
+  }
 }
 
-void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
   queue_u64_insert(&table_aux->insertions, pack_args(arg1, arg2));
+  if (col_update_status_map_check_and_mark_insertion(&table_aux->col_1_status_map, arg1, mem_pool)) {
+    //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
+    single_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, arg2, true);
+    table_aux->key_violation_detected = true;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void single_key_bin_table_aux_build_col_1_insertion_bitmap(SINGLE_KEY_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
-  assert(!col_update_bit_map_is_dirty(bit_map));
-
-  uint32 count = table_aux->insertions.count;
-  if (count > 0) {
-    uint64 *args_array = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 arg1 = unpack_arg1(args_array[i]);
-      col_update_bit_map_set(bit_map, arg1, mem_pool);
-    }
-  }
+inline bool single_key_bin_table_aux_arg2_insertion_map_has_been_built(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
+  return table_aux->insertions.count == 0 || col_update_bit_map_is_dirty(&table_aux->arg_2_insertion_map);
 }
 
-static void single_key_bin_table_aux_build_col_2_insertion_bitmap(SINGLE_KEY_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
-  assert(!col_update_bit_map_is_dirty(bit_map));
+inline bool single_key_bin_table_aux_arg2_was_inserted(SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  assert(single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux));
+
+  return col_update_bit_map_is_set(&table_aux->arg_2_insertion_map, arg2);
+}
+
+static void single_key_bin_table_aux_build_col_2_insertion_bitmap(SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
+  assert(!single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux));
 
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint64 *args_array = table_aux->insertions.array;
+    COL_UPDATE_BIT_MAP *bit_map = &table_aux->arg_2_insertion_map;
     for (uint32 i=0 ; i < count ; i++) {
       uint32 arg2 = unpack_arg2(args_array[i]);
       col_update_bit_map_set(bit_map, arg2, mem_pool);
     }
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
@@ -83,31 +121,27 @@ void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *table, SINGL
       }
       else {
         if (remove1 != NULL) {
-          single_key_bin_table_aux_build_col_1_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
           uint32 read = 0;
           for (uint32 arg1=0 ; read < count ; arg1++) {
-            uint32 count1 = single_key_bin_table_count_1(table, arg1);
-            if (count1 > 0) {
-              read += count1;
-              if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1))
+            if (single_key_bin_table_contains_1(table, arg1)) {
+              read++;
+              if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
                 remove1(store1, arg1, mem_pool);
             }
           }
-          col_update_bit_map_clear(&table_aux->bit_map);
         }
 
         if (remove2 != NULL) {
-          single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+          single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, mem_pool);
           uint32 read = 0;
           for (uint32 arg2=0 ; read < count ; arg2++) {
             uint32 count2 = single_key_bin_table_count_2(table, arg2);
             if (count2 > 0) {
               read += count2;
-              if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2))
+              if (!single_key_bin_table_aux_arg2_was_inserted(table_aux, arg2))
                 remove2(store2, arg2, mem_pool);
             }
           }
-          col_update_bit_map_clear(&table_aux->bit_map);
         }
       }
 
@@ -116,13 +150,24 @@ void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *table, SINGL
   }
   else {
     bool has_insertions = table_aux->insertions.count > 0;
-    bool col_1_bit_map_built = !has_insertions;
-    bool col_2_bit_map_built = !has_insertions;
 
-    COL_UPDATE_BIT_MAP *col_1_bit_map = &table_aux->bit_map;
-    COL_UPDATE_BIT_MAP *col_2_bit_map = remove1 == NULL ? &table_aux->bit_map : &table_aux->another_bit_map;
+    uint32 count = table_aux->deletions_2.count;
+    if (count > 0) {
+      if (remove2 != NULL && !single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux))
+        single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, mem_pool);
 
-    uint32 count = table_aux->deletions.count;
+      uint32 *array = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < count ; i++) {
+        uint32 arg2 = array[i];
+        single_key_bin_table_delete_2(table, arg2);
+        assert(single_key_bin_table_count_2(table, arg2) == 0);
+        if (remove2 != NULL)
+          if (!has_insertions || !single_key_bin_table_aux_arg2_was_inserted(table_aux, arg2))
+            remove2(store2, arg2, mem_pool);
+      }
+    }
+
+    count = table_aux->deletions.count;
     if (count > 0) {
       uint64 *array = table_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
@@ -130,113 +175,22 @@ void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *table, SINGL
         uint32 arg1 = unpack_arg1(args);
         uint32 arg2 = unpack_arg2(args);
         if (single_key_bin_table_delete(table, arg1, arg2)) {
-          if (remove1 != NULL && single_key_bin_table_count_1(table, arg1) == 0) {
-            if (!col_1_bit_map_built) {
-              single_key_bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
-              col_1_bit_map_built = true;
-            }
-            if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
+          assert(!single_key_bin_table_contains_1(table, arg1));
+          assert(single_key_bin_table_count_1(table, arg1) == 0);
+          if (remove1 != NULL) {
+            if (!has_insertions || !col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
               remove1(store1, arg1, mem_pool);
           }
-          if (remove2 != NULL && single_key_bin_table_count_2(table, arg2) == 0) {
-            if (!col_2_bit_map_built) {
-              single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
-              col_2_bit_map_built = true;
-            }
-            if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
+          if (remove2 != NULL && !single_key_bin_table_contains_2(table, arg2)) {
+            if (!single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux))
+              single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, mem_pool);
+
+            if (!has_insertions || !single_key_bin_table_aux_arg2_was_inserted(table_aux, arg2))
               remove2(store2, arg2, mem_pool);
           }
         }
       }
     }
-
-    count = table_aux->deletions_1.count;
-    if (count > 0) {
-      uint32 *array = table_aux->deletions_1.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg1 = array[i];
-
-        if (remove2 != NULL) {
-          uint32 count1 = single_key_bin_table_count_1(table, arg1);
-          uint32 read1 = 0;
-          while (read1 < count1) {
-            uint32 buffer[64];
-            UINT32_ARRAY array1 = single_key_bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
-            read1 += array1.size;
-            for (uint32 i1=0 ; i1 < array1.size ; i1++) {
-              uint32 arg2 = array1.array[i1];
-              assert(single_key_bin_table_count_2(table, arg2) > 0);
-              if (single_key_bin_table_count_2(table, arg2) == 1) {
-                if (!col_2_bit_map_built) {
-                  single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
-                  col_2_bit_map_built = true;
-                }
-                if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
-                  remove2(store2, arg2, mem_pool);
-              }
-            }
-          }
-        }
-
-        single_key_bin_table_delete_1(table, arg1);
-        assert(single_key_bin_table_count_1(table, arg1) == 0);
-        if (remove1 != NULL) {
-          if (!col_1_bit_map_built) {
-            single_key_bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
-            col_1_bit_map_built = true;
-          }
-          if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
-            remove1(store1, arg1, mem_pool);
-        }
-      }
-    }
-
-    count = table_aux->deletions_2.count;
-    if (count > 0) {
-      uint32 *array = table_aux->deletions_2.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg2 = array[i];
-
-        if (remove1 != NULL) {
-          uint32 count2 = single_key_bin_table_count_2(table, arg2);
-          uint32 read2 = 0;
-          while (read2 < count2) {
-            uint32 buffer[64];
-            UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-            read2 += array2.size;
-            for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-              uint32 arg1 = array2.array[i2];
-              assert(single_key_bin_table_count_1(table, arg1) > 0);
-              if (single_key_bin_table_count_1(table, arg1) == 1) {
-                if (!col_1_bit_map_built) {
-                  single_key_bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
-                  col_1_bit_map_built = true;
-                }
-                if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
-                  remove1(store1, arg1, mem_pool);
-              }
-            }
-          }
-        }
-
-        single_key_bin_table_delete_2(table, arg2);
-        assert(single_key_bin_table_count_2(table, arg2) == 0);
-        if (remove2 != NULL) {
-          if (!col_2_bit_map_built) {
-            single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
-            col_2_bit_map_built = true;
-          }
-          if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
-            remove2(store2, arg2, mem_pool);
-        }
-      }
-    }
-
-    if (has_insertions && col_1_bit_map_built)
-      col_update_bit_map_clear(col_1_bit_map);
-
-    if (has_insertions && col_2_bit_map_built)
-      col_update_bit_map_clear(col_2_bit_map);
   }
 }
 
@@ -255,104 +209,45 @@ void single_key_bin_table_aux_apply_insertions(SINGLE_KEY_BIN_TABLE *table, SING
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void record_col_1_key_violation(SINGLE_KEY_BIN_TABLE *col, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-inline void single_key_bin_table_aux_build_col_1_del_bitmap(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
-  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
-
-  uint32 del_count = table_aux->deletions.count;
-  uint32 del_1_count = table_aux->deletions_1.count;
-  uint32 del_2_count = table_aux->deletions_2.count;
-
-  if (del_count == 0 & del_1_count == 0 & del_2_count == 0)
-    return;
-
-  COL_UPDATE_BIT_MAP *bit_map = &table_aux->bit_map;
-
-  if (del_count != 0) {
-    uint64 *array = table_aux->deletions.array;
-    for (uint32 i=0 ; i < del_count ; i++) {
-      uint64 args = array[i];
-      uint32 arg1 = unpack_arg1(args);
-      col_update_bit_map_set(bit_map, arg1, mem_pool);
-    }
-  }
-
-  if (del_1_count != 0) {
-    uint32 *array = table_aux->deletions_1.array;
-    for (uint32 i=0 ; i < del_1_count ; i++)
-      col_update_bit_map_set(bit_map, array[i], mem_pool);
-  }
-
-  if (del_2_count > 0) {
-    uint32 *array = table_aux->deletions_2.array;
-    for (uint32 i=0 ; i < del_2_count ; i++) {
-      uint32 arg2 = array[i];
-
-      uint32 count2 = single_key_bin_table_count_2(table, arg2);
-      uint32 read2 = 0;
-      while (read2 < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-        read2 += array2.size;
-        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-          uint32 arg1 = array2.array[i2];
-          col_update_bit_map_set(bit_map, arg1, mem_pool);
-        }
-      }
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   uint32 ins_count = table_aux->insertions.count;
   if (ins_count != 0) {
     uint64 *ins_array = table_aux->insertions.array;
 
-    // Checking for conflicting insertions
-    if (ins_count > 1) {
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint64 args = ins_array[i];
-        uint32 arg1 = unpack_arg1(args);
-        if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool)) {
-          //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
-          //## RECORD THE ERROR
-          col_update_bit_map_clear(&table_aux->bit_map);
-          return false;
-        }
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
-    }
+    // // Checking for conflicting insertions
+    // if (ins_count > 1) {
+    //   for (uint32 i=0 ; i < ins_count ; i++) {
+    //     uint64 args = ins_array[i];
+    //     uint32 arg1 = unpack_arg1(args);
+    //     if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool)) {
+    //       //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
+    //       single_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, unpack_arg2(args), true);
+    //       col_update_bit_map_clear(&table_aux->bit_map);
+    //       return false;
+    //     }
+    //   }
+    //   col_update_bit_map_clear(&table_aux->bit_map);
+    // }
+
+    // The above check is already being done in single_key_bin_table_aux_insert(..)
+    if (table_aux->key_violation_detected)
+      return false;
 
     if (!table_aux->clear) {
       // Checking for conflicts between the new insertions and the preexisting tuples
-      bool deletion_bit_map_built = false;
-
       for (uint32 i=0 ; i < ins_count ; i++) {
         uint64 args = ins_array[i];
         uint32 arg1 = unpack_arg1(args);
         if (single_key_bin_table_contains_1(table, arg1)) {
-          if (!deletion_bit_map_built) {
-            single_key_bin_table_aux_build_col_1_del_bitmap(table, table_aux, mem_pool);
-            deletion_bit_map_built = true;
-          }
-
-          if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
-            //## RECORD THE ERROR
-            col_update_bit_map_clear(&table_aux->bit_map);
-            return false;
+          if (!col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1)) {
+            uint32 arg2 = unpack_arg2(args);
+            if (single_key_bin_table_lookup_1(table, arg1) != arg2) {
+              single_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, arg2, false);
+              return false;
+            }
           }
         }
       }
-
-      if (deletion_bit_map_built)
-        col_update_bit_map_clear(&table_aux->bit_map);
     }
   }
 
@@ -361,165 +256,38 @@ bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KE
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 single_key_bin_table_aux_number_of_deletions_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  assert(!queue_u32_contains(&table_aux->deletions_1, arg1));
+static uint32 single_key_bin_table_aux_all_arg2s_have_been_deleted(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 
-  unordered_map<uint32, unordered_set<uint32>> deletions;
+      // uint32 count2 = single_key_bin_table_count_2(table, arg2);
+      // uint32 read2 = 0;
+      // while (read2 < count2) {
+      //   uint32 buffer[64];
+      //   UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
+      //   read2 += array2.size;
+      //   for (uint32 i2=0 ; i2 < array2.size ; i2++) {
+      //     uint32 arg1 = array2.array[i2];
 
-  uint32 num_dels = table_aux->deletions.count;
-  if (num_dels > 0) {
-    uint64 *args_array = table_aux->deletions.array;
-    for (uint32 i=0 ; i < num_dels ; i++) {
-      uint64 args = args_array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      assert(single_key_bin_table_contains(table, arg1, arg2));
-      deletions[arg1].insert(arg2);
-    }
-  }
+      //     unique_deletions.insert(pack_args(arg1, arg2));
 
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-  if (num_dels_2 > 0) {
-    uint32 *arg2s = table_aux->deletions_2.array;
-    for (uint32 i=0 ; i < num_dels_2 ; i++) {
-      uint32 arg2 = arg2s[i];
+      //   }
+      // }
 
-      uint32 count2 = single_key_bin_table_count_2(table, arg2);
-      uint32 read2 = 0;
-      while (read2 < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-        read2 += array2.size;
-        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-          uint32 arg1 = array2.array[i2];
-
-          deletions[arg1].insert(arg2);
-
-        }
-      }
-    }
-  }
-
-  return deletions[arg1].size();
-}
-
-static uint32 single_key_bin_table_aux_number_of_deletions_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  assert(!queue_u32_contains(&table_aux->deletions_2, arg2));
-
-  unordered_map<uint32, unordered_set<uint32>> deletions;
-
-  uint32 num_dels = table_aux->deletions.count;
-  if (num_dels > 0) {
-    uint64 *args_array = table_aux->deletions.array;
-    for (uint32 i=0 ; i < num_dels ; i++) {
-      uint64 args = args_array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      assert(single_key_bin_table_contains(table, arg1, arg2));
-      deletions[arg2].insert(arg1);
-    }
-  }
-
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-  if (num_dels_1 > 0) {
-    uint32 *arg1s = table_aux->deletions_1.array;
-    for (uint32 i=0 ; i < num_dels_1 ; i++) {
-      uint32 arg1 = arg1s[i];
-
-      uint32 count1 = single_key_bin_table_count_1(table, arg1);
-      uint32 read1 = 0;
-      while (read1 < count1) {
-        uint32 buffer[64];
-        UINT32_ARRAY array1 = single_key_bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
-        read1 += array1.size;
-        for (uint32 i1=0 ; i1 < array1.size ; i1++) {
-          uint32 arg2 = array1.array[i1];
-
-          deletions[arg2].insert(arg1);
-
-        }
-      }
-    }
-  }
-
-  return deletions[arg2].size();
-}
-
-static uint32 single_key_bin_table_aux_number_of_deletions(SINGLE_KEY_BIN_TABLE *table, QUEUE_U64 *deletions, QUEUE_U32 *deletions_1, QUEUE_U32 *deletions_2) {
-  unordered_set<uint64> unique_deletions;
-
-  uint32 num_dels = deletions->count;
-  if (num_dels > 0) {
-    uint64 *args_array = deletions->array;
-    for (uint32 i=0 ; i < num_dels ; i++) {
-      uint64 args = args_array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      assert(single_key_bin_table_contains(table, arg1, arg2));
-      unique_deletions.insert(args);
-    }
-  }
-
-  uint32 num_dels_1 = deletions_1->count;
-  if (num_dels_1 > 0) {
-    uint32 *arg1s = deletions_1->array;
-    for (uint32 i=0 ; i < num_dels_1 ; i++) {
-      uint32 arg1 = arg1s[i];
-
-      uint32 count1 = single_key_bin_table_count_1(table, arg1);
-      uint32 read1 = 0;
-      while (read1 < count1) {
-        uint32 buffer[64];
-        UINT32_ARRAY array1 = single_key_bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
-        read1 += array1.size;
-        for (uint32 i1=0 ; i1 < array1.size ; i1++) {
-          uint32 arg2 = array1.array[i1];
-
-          unique_deletions.insert(pack_args(arg1, arg2));
-        }
-      }
-    }
-  }
-
-  uint32 num_dels_2 = deletions_2->count;
-  if (num_dels_2 > 0) {
-    uint32 *arg2s = deletions_2->array;
-    for (uint32 i=0 ; i < num_dels_2 ; i++) {
-      uint32 arg2 = arg2s[i];
-
-      uint32 count2 = single_key_bin_table_count_2(table, arg2);
-      uint32 read2 = 0;
-      while (read2 < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
-        read2 += array2.size;
-        for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-          uint32 arg1 = array2.array[i2];
-
-          unique_deletions.insert(pack_args(arg1, arg2));
-
-        }
-      }
-    }
-  }
-
-  return unique_deletions.size();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-  queue_u64_sort_unique(&table_aux->deletions); // Needs to support unique_count(..)
-  queue_u32_prepare(&table_aux->deletions_1);
+  //## CHECK WHAT ACTUALLY NEEDS TO BE PREPARED
+  queue_u64_prepare(&table_aux->deletions);
   queue_u32_prepare(&table_aux->deletions_2);
   queue_u64_prepare(&table_aux->insertions);
 }
 
 bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  uint64 args = pack_args(arg1, arg2);
-
-  if (queue_u64_contains(&table_aux->insertions, args))
-    return true;
+  if (col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+    if (queue_u64_contains(&table_aux->insertions, pack_args(arg1, arg2)))
+      return true;
 
   if (table_aux->clear)
     return false;
@@ -527,20 +295,14 @@ bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_B
   if (!single_key_bin_table_contains(table, arg1, arg2))
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
-    return false;
-
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
-    return false;
-
-  if (queue_u64_contains(&table_aux->deletions, args))
+  if (col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1))
     return false;
 
   return true;
 }
 
 bool single_key_bin_table_aux_contains_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  if (queue_u64_contains_1(&table_aux->insertions, arg1))
+  if (col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
     return true;
 
   if (table_aux->clear)
@@ -549,16 +311,10 @@ bool single_key_bin_table_aux_contains_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY
   if (!single_key_bin_table_contains_1(table, arg1))
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+  if (col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1))
     return false;
 
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels == 0 & num_dels_2 == 0)
-    return true;
-
-  return single_key_bin_table_aux_number_of_deletions_1(table, table_aux, arg1) < single_key_bin_table_count_1(table, arg1);
+  return true;
 }
 
 bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg2) {
@@ -574,13 +330,10 @@ bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY
   if (queue_u32_contains(&table_aux->deletions_2, arg2))
     return false;
 
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_1 = table_aux->deletions_1.count;
+  if (single_key_bin_table_aux_all_arg2s_have_been_deleted(table, table_aux, arg2))
+    return false;
 
-  if (num_dels == 0 & num_dels_1 == 0)
-    return true;
-
-  return single_key_bin_table_aux_number_of_deletions_2(table, table_aux, arg2) < single_key_bin_table_count_2(table, arg2);
+  return true;
 }
 
 bool single_key_bin_table_aux_is_empty(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
@@ -591,65 +344,9 @@ bool single_key_bin_table_aux_is_empty(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_B
     return true;
 
   uint32 size = single_key_bin_table_size(table);
-  if (size == 0)
-    return true;
-
-  uint32 num_dels = queue_u64_unique_count(&table_aux->deletions);
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels > 0) {
-    if (num_dels_1 > 0) {
-      if (num_dels_2 > 0) {
-        // NZ NZ NZ
-        return single_key_bin_table_aux_number_of_deletions(table, &table_aux->deletions, &table_aux->deletions_1, &table_aux->deletions_2) == size;
-      }
-      else {
-        // NZ NZ Z
-        return single_key_bin_table_aux_number_of_deletions(table, &table_aux->deletions, &table_aux->deletions_1, &table_aux->deletions_2) == size;
-      }
-    }
-    else {
-      if (num_dels_2 > 0) {
-        // NZ Z NZ
-        return single_key_bin_table_aux_number_of_deletions(table, &table_aux->deletions, &table_aux->deletions_1, &table_aux->deletions_2) == size;
-      }
-      else {
-        // NZ Z Z
-        return num_dels == size; //## BUG BUG BUG (WHY? CAN'T REMEMBER)
-      }
-    }
-  }
-  else {
-    if (num_dels_1 > 0) {
-      if (num_dels_2 > 0) {
-        // Z NZ NZ
-        return single_key_bin_table_aux_number_of_deletions(table, &table_aux->deletions, &table_aux->deletions_1, &table_aux->deletions_2) == size;
-      }
-      else {
-        // Z NZ Z
-        uint32 total_num_dels = 0;
-        uint32 *arg1s = table_aux->deletions_1.array;
-        for (uint32 i=0 ; i < num_dels_1 ; i++)
-          total_num_dels += single_key_bin_table_count_1(table, arg1s[i]);
-        return total_num_dels == size;
-      }
-    }
-    else {
-      if (num_dels_2 > 0) {
-        // Z Z NZ
-        uint32 total_num_dels = 0;
-        uint32 *arg2s = table_aux->deletions_2.array;
-        for (uint32 i=0 ; i < num_dels_2 ; i++)
-          total_num_dels += single_key_bin_table_count_2(table, arg2s[i]);
-        return total_num_dels == size;
-      }
-      else {
-        // Z Z Z
-        return false;
-      }
-    }
-  }
+  uint32 num_dels = table_aux->unique_deletes_count;
+  assert(num_dels <= size);
+  return size == num_dels;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -688,86 +385,51 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_2_forward(SINGLE_KEY
 
 bool single_key_bin_table_aux_check_foreign_key_unary_table_1_backward(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
     }
-  }
-
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-  if (num_dels_1 > 0) {
-    uint32 *arg1s = table_aux->deletions_1.array;
-    for (uint32 i=0 ; i < num_dels_1 ; i++) {
-      uint32 arg1 = arg1s[i];
-      if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!single_key_bin_table_aux_contains_1(table, table_aux, arg1)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
-          //## RECORD THE ERROR
-          return false;
-        }
+    else {
+      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+        //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
+        //## RECORD THE ERROR
+        return false;
       }
     }
   }
-
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels > 0 | num_dels_2 > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
-
-    unordered_map<uint32, unordered_set<uint32>> deleted;
-    unordered_set<uint32> inserted;
-
+  else {
+    uint32 num_dels = table_aux->deletions.count;
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
         uint32 arg1 = unpack_arg1(args);
-        uint32 arg2 = unpack_arg2(args);
-        if (single_key_bin_table_contains(table, arg1, arg2))
-          deleted[arg1].insert(arg2);
+        if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+            //## RECORD THE ERROR
+            return false;
+          }
       }
     }
 
+    uint32 num_dels_2 = table_aux->deletions_2.count;
     if (num_dels_2 > 0) {
       uint32 *arg2s = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < num_dels_2 ; i++) {
         uint32 arg2 = arg2s[i];
-
         uint32 count2 = single_key_bin_table_count_2(table, arg2);
         uint32 read2 = 0;
         while (read2 < count2) {
           uint32 buffer[64];
           UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
           read2 += array2.size;
-          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-            uint32 arg1 = array2.array[i2];
-
-            deleted[arg1].insert(arg2);
-
+          for (uint32 j=0 ; j < array2.size ; j++) {
+            uint32 arg1 = array2.array[j];
+            if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+              if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+                //## RECORD THE ERROR
+                return false;
+              }
           }
-        }
-      }
-    }
-
-    uint32 num_ins = table_aux->insertions.count / 3;
-    if (num_ins > 0) {
-      uint64 *args_array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg1 = unpack_arg1(args_array[i]);
-        inserted.insert(arg1);
-      }
-    }
-
-    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 arg1 = it->first;
-      uint32 num_del = it->second.size();
-      uint32 curr_num = single_key_bin_table_count_1(table, arg1);
-      assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(arg1) == 0) {
-        if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-          //## RECORD THE ERROR
-          return false;
         }
       }
     }
@@ -778,86 +440,50 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_1_backward(SINGLE_KE
 
 bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
     }
-  }
-
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-  if (num_dels_1 > 0) {
-    uint32 *surrs = table_aux->deletions_1.array;
-    for (uint32 i=0 ; i < num_dels_1 ; i++) {
-      uint32 surr = surrs[i];
-      if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-        if (!single_key_bin_table_aux_contains_1(table, table_aux, surr)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
-          //## RECORD THE ERROR
-          return false;
-        }
+    else {
+      if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
+        //## RECORD THE ERROR
+        return false;
       }
     }
   }
-
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels > 0 | num_dels_2 > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
-
-    unordered_map<uint32, unordered_set<uint32>> deleted;
-    unordered_set<uint32> inserted;
-
+  else {
+    uint32 num_dels = table_aux->deletions.count;
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
         uint32 arg1 = unpack_arg1(args);
-        uint32 arg2 = unpack_arg2(args);
-        if (single_key_bin_table_contains(table, arg1, arg2))
-          deleted[arg1].insert(arg2);
+        if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+          if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1)) {
+            //## RECORD THE ERROR
+            return false;
+          }
       }
     }
 
+    uint32 num_dels_2 = table_aux->deletions_2.count;
     if (num_dels_2 > 0) {
       uint32 *arg2s = table_aux->deletions_2.array;
       for (uint32 i=0 ; i < num_dels_2 ; i++) {
         uint32 arg2 = arg2s[i];
-
         uint32 count2 = single_key_bin_table_count_2(table, arg2);
         uint32 read2 = 0;
         while (read2 < count2) {
           uint32 buffer[64];
           UINT32_ARRAY array2 = single_key_bin_table_range_restrict_2(table, arg2, read2, buffer, 64);
           read2 += array2.size;
-          for (uint32 i2=0 ; i2 < array2.size ; i2++) {
-            uint32 arg1 = array2.array[i2];
-
-            deleted[arg1].insert(arg2);
-
+          for (uint32 j=0 ; j < array2.size ; j++) {
+            uint32 arg1 = array2.array[j];
+            if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+              if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1)) {
+                //## RECORD THE ERROR
+                return false;
+              }
           }
-        }
-      }
-    }
-
-    uint32 num_ins = table_aux->insertions.count / 3;
-    if (num_ins > 0) {
-      uint64 *args_array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg1 = unpack_arg1(args_array[i]);
-        inserted.insert(arg1);
-      }
-    }
-
-    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 surr = it->first;
-      uint32 num_del = it->second.size();
-      uint32 curr_num = single_key_bin_table_count_1(table, surr);
-      assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(surr) == 0) {
-        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-          //## RECORD THE ERROR
-          return false;
         }
       }
     }
@@ -868,88 +494,59 @@ bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE
 
 bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
     }
-  }
-
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-  if (num_dels_2 > 0) {
-    uint32 *arg2s = table_aux->deletions_2.array;
-    for (uint32 i=0 ; i < num_dels_2 ; i++) {
-      uint32 arg2 = arg2s[i];
-      if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!single_key_bin_table_aux_contains_2(table, table_aux, arg2)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS
-          //## RECORD THE ERROR
-          return false;
-        }
+    else {
+      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+        //## RECORD THE ERROR
+        return false;
       }
     }
   }
+  else {
+    uint32 num_dels_2 = table_aux->deletions_2.count;
+    if (num_dels_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < num_dels_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+          if (!single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux))
+            single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, table->mem_pool);
 
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-
-  if (num_dels > 0 | num_dels_1 > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
-
-    unordered_map<uint32, unordered_set<uint32>> deleted;
-    unordered_set<uint32> inserted;
-
-    if (num_dels > 0) {
-      uint64 *args_array = table_aux->deletions.array;
-      for (uint32 i=0 ; i < num_dels ; i++) {
-        uint64 args = args_array[i];
-        uint32 arg1 = unpack_arg1(args);
-        uint32 arg2 = unpack_arg2(args);
-        if (single_key_bin_table_contains(table, arg1, arg2))
-          deleted[arg2].insert(arg1);
-      }
-    }
-
-    if (num_dels_1 > 0) {
-      uint32 *arg1s = table_aux->deletions_1.array;
-      for (uint32 i=0 ; i < num_dels_1 ; i++) {
-        uint32 arg1 = arg1s[i];
-        if (single_key_bin_table_contains_1(table, arg1)) {
-
-          uint32 count1 = single_key_bin_table_count_1(table, arg1);
-          uint32 read1 = 0;
-          while (read1 < count1) {
-            uint32 buffer[64];
-            UINT32_ARRAY array1 = single_key_bin_table_range_restrict_1(table, arg1, read1, buffer, 64);
-            read1 += array1.size;
-            for (uint32 i1=0 ; i1 < array1.size ; i1++) {
-              uint32 arg2 = array1.array[i1];
-
-              deleted[arg2].insert(arg1);
-
-            }
+          if (!single_key_bin_table_aux_arg2_was_inserted(table_aux, arg2)) {
+            //## RECORD THE ERROR
+            return false;
           }
         }
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count / 3;
-    if (num_ins > 0) {
-      uint64 *args_array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg2 = unpack_arg2(args_array[i]);
-        inserted.insert(arg2);
-      }
-    }
+    uint32 num_dels = table_aux->deletions.count;
+    if (num_dels > 0) {
+      unordered_map<uint32, uint32> deleted;
 
-    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 arg2 = it->first;
-      uint32 num_del = it->second.size();
-      uint32 curr_num = single_key_bin_table_count_2(table, arg2);
-      assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(arg2) == 0) {
-        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-          //## RECORD THE ERROR
-          return false;
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg2 = unpack_arg2(args);
+        deleted[arg2]++;
+      }
+
+      for (unordered_map<uint32, uint32>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
+        uint32 arg2 = it->first;
+        uint32 num_del = it->second;
+        uint32 curr_num = single_key_bin_table_count_2(table, arg2);
+        assert(num_del <= curr_num);
+        if (num_del == curr_num) {
+          if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+            if (!single_key_bin_table_aux_arg2_insertion_map_has_been_built(table_aux))
+              single_key_bin_table_aux_build_col_2_insertion_bitmap(table_aux, table->mem_pool);
+
+            if (!single_key_bin_table_aux_arg2_was_inserted(table_aux, arg2)) {
+            //## RECORD THE ERROR
+            return false;
+          }
         }
       }
     }

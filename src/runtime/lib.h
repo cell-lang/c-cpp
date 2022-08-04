@@ -354,12 +354,13 @@ struct BIN_TABLE_AUX {
 };
 
 struct SINGLE_KEY_BIN_TABLE_AUX {
-  COL_UPDATE_BIT_MAP bit_map;
-  COL_UPDATE_BIT_MAP another_bit_map;
+  COL_UPDATE_STATUS_MAP col_1_status_map;
+  COL_UPDATE_BIT_MAP arg_2_insertion_map;
   QUEUE_U64 deletions;
-  QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
   QUEUE_U64 insertions;
+  uint32 unique_deletes_count;
+  bool key_violation_detected;
   bool clear;
 };
 
@@ -1418,6 +1419,7 @@ void bin_table_aux_clear(BIN_TABLE_AUX *);
 void bin_table_aux_delete(BIN_TABLE *, BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 void bin_table_aux_delete_1(BIN_TABLE_AUX *, uint32 arg1);
 void bin_table_aux_delete_2(BIN_TABLE_AUX *, uint32 arg2);
+
 void bin_table_aux_insert(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 bool bin_table_aux_check_key_1(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1484,11 +1486,12 @@ void single_key_bin_table_aux_reset(SINGLE_KEY_BIN_TABLE_AUX *);
 
 void single_key_bin_table_aux_clear(SINGLE_KEY_BIN_TABLE_AUX *);
 void single_key_bin_table_aux_delete(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
-void single_key_bin_table_aux_delete_1(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
-void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
-void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
+void single_key_bin_table_aux_delete_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
+void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
 
-void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
+void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+
+void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, STATE_MEM_POOL *);
 void single_key_bin_table_aux_apply_insertions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
 bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1548,6 +1551,7 @@ void double_key_bin_table_aux_clear(DOUBLE_KEY_BIN_TABLE_AUX *);
 void double_key_bin_table_aux_delete(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 void double_key_bin_table_aux_delete_1(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
 void double_key_bin_table_aux_delete_2(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
+
 void double_key_bin_table_aux_insert(DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 
 void double_key_bin_table_aux_apply_deletions(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
@@ -1562,11 +1566,12 @@ bool double_key_bin_table_aux_contains_1(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_
 bool double_key_bin_table_aux_contains_2(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
 bool double_key_bin_table_aux_is_empty(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *);
 
-bool double_key_bin_table_aux_check_foreign_key_unary_table_1_forward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *)
+bool double_key_bin_table_aux_check_foreign_key_unary_table_1_forward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool double_key_bin_table_aux_check_foreign_key_unary_table_2_forward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 /////////////////////////////// sym-bin-table.cpp //////////////////////////////
 

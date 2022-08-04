@@ -101,6 +101,7 @@ void double_key_bin_table_aux_apply_deletions(DOUBLE_KEY_BIN_TABLE *table, DOUBL
         uint64 args = array[i];
         uint32 arg1 = unpack_arg1(args);
         uint32 arg2 = unpack_arg2(args);
+        assert(double_key_bin_table_contains(table, arg1, arg2));
         if (double_key_bin_table_delete(table, arg1, arg2)) {
           if (remove1 != NULL && (!has_insertions || !col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1)))
             remove1(store1, arg1, mem_pool);
@@ -316,23 +317,58 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_forward(DOUBLE_KEY
 
 bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    else {
+      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  else {
+    uint32 num_dels = table_aux->deletions.count;
+    if (num_dels > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint32 arg1 = unpack_arg1(args_array[i]);
+        if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+            //## RECORD THE ERROR
+            return false;
+          }
+      }
     }
   }
 
-  uint32 num_dels = table_aux->deletions.count;
-  if (num_dels > 0) {
-    uint64 *args_array = table_aux->deletions.array;
-    for (uint32 i=0 ; i < num_dels ; i++) {
-      uint32 arg1 = unpack_arg1(args_array[i]);
-      if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
-        if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-          //## RECORD THE ERROR
-          return false;
-        }
+  return true;
+}
+
+bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+  if (table_aux->clear) {
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    else {
+      if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  else {
+    uint32 num_dels = table_aux->deletions.count;
+    if (num_dels > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < num_dels ; i++) {
+        uint32 arg1 = unpack_arg1(args_array[i]);
+        if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
+          if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1)) {
+            //## RECORD THE ERROR
+            return false;
+          }
+      }
     }
   }
 
@@ -341,10 +377,14 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KE
 
 bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    if (table_aux->insertions.count > 0) {
+      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+    else {
+      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+        //## RECORD THE ERROR
+        return false;
+      }
     }
   }
 
