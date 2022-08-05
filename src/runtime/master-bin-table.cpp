@@ -410,7 +410,7 @@ bool master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) 
     return false;
 }
 
-void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
+uint32 master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
   uint32 count = one_way_bin_table_get_count(&table->table.forward, arg1);
   if (count > 0) {
     uint32 inline_array[256];
@@ -423,9 +423,10 @@ void master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
       master_bin_table_release_surr(table, surrs[i]);
     }
   }
+  return count;
 }
 
-void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
+uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   uint32 count = one_way_bin_table_get_count(&table->table.backward, arg2);
   if (count > 0) {
     uint32 inline_array[256];
@@ -435,12 +436,18 @@ void master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
 
     for (uint32 i=0 ; i < count ; i++) {
       uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1s[i], arg2);
+#ifndef NDEBUG
       assert(surr != 0xFFFFFFFF && surr < table->capacity);
-      assert(unpack_arg1(table->slots[surr]) == arg1s[i]);
-      assert(unpack_arg2(table->slots[surr]) == arg2);
+      uint64 slot = table->slots[surr];
+      if (is_locked(slot))
+        slot = unlock_slot(slot);
+      assert(unpack_arg1(slot) == arg1s[i]);
+      assert(unpack_arg2(slot) == arg2);
+#endif
       master_bin_table_release_surr(table, surr);
     }
   }
+  return count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -462,3 +469,33 @@ void master_bin_table_copy_to(MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void
 void master_bin_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, bool flipped) {
   bin_table_write(write_state, &table->table, surr_to_obj_1, store_1, surr_to_obj_2, store_2, false, flipped);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+#ifndef NDEBUG
+void master_bin_table_self_check(MASTER_BIN_TABLE *table) {
+  uint32 errors = 0;
+  uint32 left = master_bin_table_size(table);
+  for (uint32 i=0 ; left > 0 ; i++) {
+    assert(i < table->capacity);
+    uint64 args = table->slots[i];
+    if (!master_bin_table_slot_is_empty(args)) {
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      uint32 fwd_surr = loaded_one_way_bin_table_payload(&table->table.forward, arg1, arg2);
+      uint32 bkwd_surr = loaded_one_way_bin_table_payload(&table->table.backward, arg2, arg1);
+      if (fwd_surr != bkwd_surr) {
+        errors++;
+        printf("%d, %d -> %d != %d\n", arg1, arg2, fwd_surr, bkwd_surr);
+      }
+      left--;
+    }
+  }
+  if (errors == 0) {
+    puts("All is fine");
+  }
+  else {
+    printf("Number of errors = %d\n", errors);
+  }
+}
+#endif

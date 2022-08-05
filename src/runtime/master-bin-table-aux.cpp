@@ -358,15 +358,17 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
           }
         }
 
-        master_bin_table_delete_1(table, arg1);
-        assert(master_bin_table_count_1(table, arg1) == 0);
-        if (remove1 != NULL) {
-          if (!col_1_bit_map_built) {
-            master_bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
-            col_1_bit_map_built = true;
+        if (master_bin_table_delete_1(table, arg1) > 0) {
+          assert(master_bin_table_count_1(table, arg1) == 0);
+          if (remove1 != NULL) {
+            if (!col_1_bit_map_built) {
+              master_bin_table_aux_build_col_1_insertion_bitmap(table_aux, col_1_bit_map, mem_pool);
+              col_1_bit_map_built = true;
+            }
+            if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
+              remove1(store1, arg1, mem_pool);
           }
-          if (!has_insertions || !col_update_bit_map_is_set(col_1_bit_map, arg1))
-            remove1(store1, arg1, mem_pool);
+
         }
       }
     }
@@ -398,15 +400,16 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
           }
         }
 
-        master_bin_table_delete_2(table, arg2);
-        assert(master_bin_table_count_2(table, arg2) == 0);
-        if (remove2 != NULL) {
-          if (!col_2_bit_map_built) {
-            master_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
-            col_2_bit_map_built = true;
+        if (master_bin_table_delete_2(table, arg2) > 0) {
+          assert(master_bin_table_count_2(table, arg2) == 0);
+          if (remove2 != NULL) {
+            if (!col_2_bit_map_built) {
+              master_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_bit_map, mem_pool);
+              col_2_bit_map_built = true;
+            }
+            if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
+              remove2(store2, arg2, mem_pool);
           }
-          if (!has_insertions || !col_update_bit_map_is_set(col_2_bit_map, arg2))
-            remove2(store2, arg2, mem_pool);
         }
       }
     }

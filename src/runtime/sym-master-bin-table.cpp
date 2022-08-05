@@ -90,7 +90,7 @@ int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint3
   uint32 surr = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
   loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
   if (arg1 != arg2)
-    one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
+    loaded_one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, surr, mem_pool);
 
   return surr;
 }
@@ -107,7 +107,7 @@ bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1,
     master_bin_table_claim_reserved_surr(table, arg1, arg2, surr, mem_pool);
     loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
     if (arg1 != arg2)
-      one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, mem_pool);
+      loaded_one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, surr, mem_pool);
     return true;
   }
   else {
@@ -120,7 +120,7 @@ bool sym_master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 ar
   sort_args(arg1, arg2);
   uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1, arg2);
   if (surr != 0xFFFFFFFF & arg1 != arg2) {
-    bool found = one_way_bin_table_delete(&table->table.backward, arg2, arg1);
+    bool found = loaded_one_way_bin_table_delete(&table->table.backward, arg2, arg1);
     assert(found);
     master_bin_table_release_surr(table, surr);
     return true;
@@ -133,22 +133,26 @@ void sym_master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg) {
   uint32 inline_array[1024];
 
   uint32 fwd_count = one_way_bin_table_get_count(&table->table.forward, arg);
+  uint32 bkwd_count = one_way_bin_table_get_count(&table->table.backward, arg);
+
+  uint32 max_count = fwd_count > bkwd_count ? fwd_count : bkwd_count;
+  uint32 *other_args = max_count <= 512 ? inline_array : new_uint32_array(2 * max_count);
+  uint32 *surrs = other_args + fwd_count;
+
   if (fwd_count > 0) {
-    uint32 *other_args = fwd_count <= 512 ? inline_array : new_uint32_array(2 * fwd_count);
-    uint32 *surrs = other_args + fwd_count;
+    //## HERE THE SURROGATES ARE NOT NEEDED. THERE SHOULD BE A VERSION OF loaded_one_way_bin_table_delete_by_key THAT DOESN'T RETURN THE SURROGATES
     loaded_one_way_bin_table_delete_by_key(&table->table.forward, arg, other_args, surrs);
 
     for (uint32 i=0 ; i < fwd_count ; i++) {
-      bool found = one_way_bin_table_delete(&table->table.backward, other_args[i], arg);
+      bool found = loaded_one_way_bin_table_delete(&table->table.backward, other_args[i], arg);
       assert(found);
       master_bin_table_release_surr(table, surrs[i]);
     }
   }
 
-  uint32 bkwd_count = one_way_bin_table_get_count(&table->table.backward, arg);
   if (bkwd_count > 0) {
-    uint32 *other_args = (bkwd_count <= 1024 | bkwd_count <= 2 * fwd_count) ? inline_array : new_uint32_array(bkwd_count);
-    one_way_bin_table_delete_by_key(&table->table.backward, arg, other_args);
+    //## DITTO
+    loaded_one_way_bin_table_delete_by_key(&table->table.backward, arg, other_args, surrs);
 
     for (uint32 i=0 ; i < bkwd_count ; i++) {
       uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, other_args[i], arg);

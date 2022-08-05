@@ -296,15 +296,17 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
           }
         }
 
-        sym_master_bin_table_delete_1(table, arg);
-        assert(sym_master_bin_table_count(table, arg) == 0);
-        if (remove != NULL) {
-          if (!bit_map_built) {
-            sym_master_bin_table_aux_build_insertion_bitmap(table_aux, mem_pool);
-            bit_map_built = true;
+        if (sym_master_bin_table_contains_1(table, arg)) {
+          sym_master_bin_table_delete_1(table, arg);
+          assert(sym_master_bin_table_count(table, arg) == 0);
+          if (remove != NULL) {
+            if (!bit_map_built) {
+              sym_master_bin_table_aux_build_insertion_bitmap(table_aux, mem_pool);
+              bit_map_built = true;
+            }
+            if (!has_insertions || !col_update_bit_map_is_set(&table_aux->bit_map, arg))
+              remove(store, arg, mem_pool);
           }
-          if (!has_insertions || !col_update_bit_map_is_set(&table_aux->bit_map, arg))
-            remove(store, arg, mem_pool);
         }
       }
     }

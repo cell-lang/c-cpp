@@ -1487,13 +1487,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     String* table_updates_apply_code(TableVar table_var, SlaveColumn column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+      assert owned_value_stores == (nothing, nothing);
+
       method_prefix = native_table_method_prefix(column) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
 
       code = ();
 
       if has_deletions {
-        args = (table_var, table_aux_name) & value_stores_args(nonempty(drop(owned_value_stores, 2))) & (:mem_pool);
+        args = (table_var, table_aux_name) & value_stores_args((nothing)) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
       }

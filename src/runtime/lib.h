@@ -1646,8 +1646,8 @@ uint32 master_bin_table_get_arg_2(MASTER_BIN_TABLE *, uint32 surr);
 
 void master_bin_table_clear(MASTER_BIN_TABLE *, uint32 highest_locked_surr, STATE_MEM_POOL *);
 bool master_bin_table_delete(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
-void master_bin_table_delete_1(MASTER_BIN_TABLE *, uint32 arg1);
-void master_bin_table_delete_2(MASTER_BIN_TABLE *, uint32 arg2);
+uint32 master_bin_table_delete_1(MASTER_BIN_TABLE *, uint32 arg1);
+uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *, uint32 arg2);
 
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool master_bin_table_insert(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
