@@ -169,8 +169,9 @@ src/compiler/inter-lang-utils.cell
 src/compiler/name-mangling.cell
 src/compiler/native-code-gen.cell
 src/compiler/opt-types.cell
-src/compiler/static-blocks.cell
 src/compiler/table-iters.cell
+src/compiler/static-blocks.cell
+src/compiler/react-blocks.cell
 
 
 // Main file

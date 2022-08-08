@@ -50,6 +50,12 @@ type PrgData =  prg_data(
   static_blocks_by_name = [b.name -> b : b <- prg.static_blocks];
   ord_static_blocks = (static_blocks_by_name(b, !) : b <- ord_static_block_names);
 
+  // Sorting reactive blocks in topological order
+  react_blocks_dep_map = [b.name -> [t : _ t <- b.nested_auto_vars] : b <- prg.react_blocks];
+  ord_react_blocks_names = join((isort(bs) : bs <- topological_sort(react_blocks_dep_map)));
+  react_blocks_by_name = [b.name -> b : b <- prg.react_blocks];
+  ord_react_blocks = (react_blocks_by_name(b, !) : b <- ord_react_blocks_names);
+
   gen_content = (
     ( "#include \"lib.h\"",
       "#include \"iolib.h\""
@@ -109,6 +115,12 @@ type PrgData =  prg_data(
     gen_content = (gen_content | ("", "")) & def;
   }
 
+  // Reactive blocks' implementations (in topological order)
+  for block <- ord_react_blocks {
+    def = native_react_block_decl(block, prg_data = prg_data, context = :core, debug_mode = debug_mode);
+    gen_content = (gen_content | ("", "")) & def;
+  }
+
   // Procedure declarations
   gen_content = (gen_content | ("", "")) if proc_procs != ();
   for d @ i <- proc_procs {
@@ -149,6 +161,12 @@ type PrgData =  prg_data(
       debug_mode = debug_mode,
       skip_integrity_checks = skip_integrity_checks
     );
+    gen_content = (gen_content | ("", "")) & def;
+  }
+
+  // Reactive blocks' implementations (in topological order)
+  for block <- ord_react_blocks {
+    def = native_react_block_impl(block, prg_data = prg_data, context = :core, debug_mode = debug_mode);
     gen_content = (gen_content | ("", "")) & def;
   }
 

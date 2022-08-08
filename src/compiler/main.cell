@@ -745,8 +745,6 @@ implicit typedefs : [TypeName -> NeType] {
 
 Text decl_types_export_functs(Any, Any) = undefined;
 
-String* native_react_block_decl(ReactBlock block) = ();
-
 (String, Text, String*) react_auto_wrapper(ReactBlock block) = undefined;
 (String, String*, String*) static_auto_wrapper(StaticBlock block) = undefined;
 
