@@ -76,6 +76,15 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
+  String base_name(StdVar) =
+    var(s?)       = { match (hidden_var_id(s))
+                        just(n?)  = "h" & _print_(n),
+                        nothing   = _print_(s)
+                    },
+    repl_var(n?)  = "r" & _print_(n);
+
+  //////////////////////////////////////////////////////////////////////////////
+
   String native_var_decl_name(QualifiableVars v) = native_var_name(v, false);
   String native_var_ref_name(QualifiableVars v)  = native_var_name(v, true);
 
@@ -99,7 +108,7 @@ implicit context : NativeContext {
 
   String native_var_name(ArrayVar var) =
     avar()              = "y" & printed(var.id) & "_" & native_type(var.repr, context = :core),
-    shadow_array_var()  = printed(var.id) & "_Y_" & native_type(var.repr, context = :core);
+    shadow_array_var()  = base_name(var.var) & "_Y_" & native_type(var.repr, context = :core);
 
   String native_var_name(AnyClsVar v) =
     cls_var(<+> a?)     = _print_(a) & "_C",
@@ -150,10 +159,7 @@ implicit context : NativeContext {
       else "";
 
     return match (var)
-      var(<+> a?)                   = { match (hidden_var_id(a))
-                                          just(n?)  = "h" & _print_(n),
-                                          nothing   = _print_(a) & "_V"
-                                      },
+      var() | repl_var()            = base_name(var) & "_V",
       fn_arg(<*..*> n?)             = "a" & printed(n),
       impl_arg(<+> a?)              = prefix & _print_(a) & "_V",
       capt_var(<*..*> n?)           = "capt_vars["  & printed(n) & "]",
@@ -232,8 +238,8 @@ implicit context : NativeContext {
   String native_var_name(Int32Var, Bool add_prefix) =
     ivar32(n?)                    = "i" & printed(n),
     shadow_surr_var(v?)           = _print_(bare_id(v)) & "_Vs",
-    shadow_array_size_var(s?)     = _print_(s) & "_Ys",
-    shadow_array_capacity_var(s?) = _print_(s) & "_Yc";
+    shadow_array_size_var(v?)     = base_name(v) & "_Ys",
+    shadow_array_capacity_var(v?) = base_name(v) & "_Yc";
 
 
   String native_var_name(FloatVar v, Bool add_prefix) =
