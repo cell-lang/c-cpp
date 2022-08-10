@@ -603,7 +603,7 @@ OBJ concat(OBJ left, OBJ right) {
   if (left_obj_type == TYPE_NE_SEQ && right_obj_type == TYPE_NE_SEQ)
     return concat_ne_seqs(left, lenl, right, lenr);
 
-  if (is_ne_int_seq(left), is_ne_int_seq(right))
+  if (is_ne_int_seq(left) && is_ne_int_seq(right))
     return concat_ints(left, right);
 
   if (left_obj_type == TYPE_NE_FLOAT_SEQ && right_obj_type == TYPE_NE_FLOAT_SEQ)
