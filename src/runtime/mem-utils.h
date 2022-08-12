@@ -142,6 +142,10 @@ const uint64 EX_TYPE_AD_HOC_TAG_REC       = TYPE_AD_HOC_TAG_REC      << TAGS_COU
 
 ////////////////////////////////////////////////////////////////////////////////
 
+const uint64 NULL_OBJ_CORE_DATA = 0xFFFFFFFFFFFFFFFF;
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 inline OBJ_TYPE get_obj_type(OBJ obj) {
   return (OBJ_TYPE) GET(obj.extra_data, TYPE_SHIFT, TYPE_WIDTH);
@@ -224,6 +228,13 @@ inline bool is_single_tag_type(OBJ_TYPE type) {
 inline OBJ make_blank_obj() {
   OBJ obj;
   obj.core_data.int_ = 0;
+  obj.extra_data = 0;
+  return obj;
+}
+
+inline OBJ make_null_obj() {
+  OBJ obj;
+  obj.core_data.int_ = NULL_OBJ_CORE_DATA;
   obj.extra_data = 0;
   return obj;
 }
@@ -761,7 +772,11 @@ inline uint16 get_opt_repr_id(OBJ obj) {
 ////////////////////////////////////////////////////////////////////////////////
 
 inline bool is_blank(OBJ obj) {
-  return obj.extra_data == 0;
+  return obj.extra_data == 0 && obj.core_data.int_ == 0;
+}
+
+inline bool is_null(OBJ obj) {
+  return obj.extra_data == 0 && obj.core_data.int_ == NULL_OBJ_CORE_DATA;
 }
 
 inline bool is_symb(OBJ obj) {

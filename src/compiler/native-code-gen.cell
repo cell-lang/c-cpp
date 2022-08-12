@@ -178,8 +178,8 @@ type PrgData =  prg_data(
     gen_content = gen_content & def;
   }
 
-  gen_content = (gen_content | runtime_callbacks(|program_symbols|));
-  gen_content = (gen_content | main_fn(debug_mode)) if has_main;
+  gen_content = gen_content & runtime_callbacks(|program_symbols|);
+  gen_content = gen_content & main_fn(debug_mode) if has_main;
 
   return ["generated.cpp" -> flatten(gen_content)];
 
@@ -880,25 +880,4 @@ implicit context : NativeContext {
 
   String native_assignment_code(Encodable var, Encodable value) =
     native_code(var) & " = " & native_code(value) & ";";
-
-
-  String native_method_call_expr(Encodable target, String method_name, Encodable* args) =
-    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ")";
-
-  String native_method_call(Encodable target, String method_name, Encodable* args) =
-    native_method_call_expr(target, method_name, args) & ";";
-
-  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
-    native_code(res) & " = " & native_method_call(target, method_name, args);
-
-
-  String native_static_call(String static_name, Encodable* args) =
-    static_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
-
-  String native_static_call(Encodable res, String static_name, Encodable* args) =
-    native_code(res) & " = " & native_static_call(static_name, args);
-
-
-  String native_new_call(Encodable res, String obj_type, Encodable* args) =
-    native_code(res) & " = new " & obj_type & "(" & append((native_code(a) : a <- args), ", ") & ");";
 }

@@ -119,7 +119,7 @@ implicit context : NativeContext {
       is_out_of_range(v?)   = append_if_nonempty(it_var_method_prefix(v), "_") & "is_out_of_range(" & native_var_ref_name(v) & ")",
 
       is_blank(v?)          = "is_blank(" & native_var_ref_name(v) & ")",
-      is_null(v?)           = "is_null_obj(" & native_var_ref_name(v) & ")",
+      is_null(v?)           = "is_null(" & native_var_ref_name(v) & ")",
 
       has_field()           = "has_field(" & native_expr(expr.record) & ", " & symb_id_name(expr.field) & ")",
 
@@ -127,7 +127,7 @@ implicit context : NativeContext {
       table_contains()      = native_table_contains(expr.table_var, expr.table, expr.tuple, expr.symmetric),
 
       is_member()           = native_fn_name(expr.pred) & "(" & native_expr(expr.obj) & ")",
-      state_is_def()        = native_var_ref_name(expr.auto_var) & "." & state_is_def_proc_name(expr.type) & "()",
+      state_is_def()        = native_call_expr(state_is_def_proc_name(expr.type), (expr.auto_var)),
 
       neg(are_eq(e1?, e2?)) = native_neq_expr(e1, e2, parenthesized),
       neg(e?)               = parenthesize("!" & native_expr(e, true), parenthesized),
@@ -543,6 +543,7 @@ implicit context : NativeContext {
   String native_expr(
     <ElemVar, VecVar, ArrayVar, ItVar, StreamVar, AnyClsVar, AnyTableVar, AnyValueStoreId, AnyAutoVar, AnyDBVar> var
   ) = native_var_ref_name(var);
+
 
   String native_expr(<blank_obj>) = "make_blank_obj()";
   String native_expr(<null_obj>)  = "make_null_obj()";

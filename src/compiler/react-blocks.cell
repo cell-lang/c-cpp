@@ -18,45 +18,34 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     vars_decls = (vars_decls | "") if vars_decls != ();
 
     ## THERE MIGHT BE A BUG HERE
-    all_loc_vars = vars_to_declare(block.apply_code) &
-                   union([vars_to_declare(c) : id c <- block.nodes_update_code]);
+    all_loc_vars = vars_to_declare(block.apply_code) & union([vars_to_declare(c) : id c <- block.nodes_update_code]);
     aux_vars = [v : v <- all_loc_vars, v :: AuxVar] & [curr_time if has_time_rules];
     aux_vars_decls = (var_decl(v) : v <- isort(aux_vars));
     aux_vars_decls = (aux_vars_decls | "") if aux_vars != ();
 
-    // aux_name_str = native_updater_name(block.name);
-    // aux_decls = ("struct " & aux_name_str & " {",) & indent_lines((var_decl(v) : v <- isort(aux_vars))) & ("};");
+    const_data = (gen_const_data(block.name, c) : c <- isort(block.const_data));
 
-    ctor_vars_decl = gen_vars_decls(block.pre_init_code, []);
-    ctor_vars_decl = ctor_vars_decl & ("") if ctor_vars_decl != ();
-    ctor_body = ctor_vars_decl & native_code(block.pre_init_code, nothing, break_target = nothing);
+    return join((
+      ( "struct " & class_name & " {",
+        "  STATE_MEM_POOL mem_pool;"
+      ),
+      indent_lines(vars_decls),
+      indent_lines(aux_vars_decls),
+      ("};"),
+      ("", "") if const_data != (),
+      const_data
+    ));
+  }
 
-    ctor_sgn = "public " & class_name & "(Env env) {";
-    ctor_code = (ctor_sgn) & indent_lines(ctor_body) & ("}", "");
 
-    // cleanup_body = native_code(block.cleanup_code, nothing);
-    // cleanup_proc = ("", "public ~" & class_name & "() {") & indent_lines(cleanup_body) & ("}");
-    // class_decl = class_decl & cleanup_proc;
+  String* native_react_block_impl(ReactBlock block) {
+    has_time_rules = block.time_rules_count != 0;
 
-    apply_method_vars_decls = gen_vars_decls(block.apply_code, []);
-    apply_method_vars_decls = (apply_method_vars_decls | "") if apply_method_vars_decls != ();
-    apply_method_body = apply_method_vars_decls & native_code(block.apply_code, nothing, break_target = nothing);
-    apply_method_sgn = "public void " & apply_method_name(block.name) & "(Env env) {";
-    apply_method_code = (apply_method_sgn) & indent_lines(apply_method_body) & ("}");
+    queue_input_updates = |block.ord_inputs| > 2; ## BAD BAD BAD: THE NUMBER 2 IS REPEATED IN THE CODE GENERATION PHASE
+    input_setters_code = (gen_input_setter(block.name, id, i, queue_input_updates) : id @ i <- block.ord_inputs);
 
-    time_arg = if has_time_rules then "long " & native_var_decl_name(curr_time) & ", " else "";
-    node_update_methods_code = [{
-        sgn = "void " & node_update_method_name(block.name, id) & "(" & time_arg & "Env env) {";
-        loc_vars_decls = gen_vars_decls(body, []);
-        loc_vars_decls = (loc_vars_decls | "") if loc_vars_decls != ();
-        return ("", sgn) & indent_lines(loc_vars_decls & native_code(body, nothing, break_target = nothing)) & ("}");
-      } : id body <- block.nodes_update_code
-    ];
-
-    queue_update_methods_code = [
-      gen_queue_update_method(block.name, id, method.body, method.args)
-      : id method <- block.queue_update_code
-    ];
+    ord_queue_updates = isort(block.queue_update_code);
+    queue_update_methods_code = (gen_queue_update_method(block.name, id, method.body, method.args) : id, method <- ord_queue_updates);
 
     state_is_def_code = native_state_is_def_code(block.name, block.state_is_def_code);
     copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
@@ -65,198 +54,158 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     insert_timer_method_code = gen_insert_timer_method(block.name);
     clear_timer_method_code = gen_clear_timer_method(block.name);
 
-    queue_input_updates = |block.ord_inputs| > 2; ## BAD BAD BAD: THE NUMBER 2 IS REPEATED IN THE CODE GENERATION PHASE
-    input_setters_code = (
-      gen_input_setter(block.name, id, i, queue_input_updates) : id @ i <- block.ord_inputs
-    );
-
-    user_def_methods_code = [native_user_def_method_code(block.name, id, m.args_vars, m.code) : id m <- block.methods];
-
-    const_data = [gen_const_data(block.name, c) : c <- block.const_data];
+    ord_methods = sort(isort(keys(block.methods)), method_id_ord($a, $b));
+    user_def_methods_code = (native_user_def_method_code(block.name, id, block.methods(id).args_vars, block.methods(id).code) : id <- ord_methods);
 
     return join((
-      ("struct " & class_name & " {"),
-      indent_lines(vars_decls),
-      indent_lines(aux_vars_decls),
-      indent_lines(join((("", c) : c <- isort(const_data)))),
-      ("}")
-      // ("") & indent_lines(ctor_code),
-      // join((("") & indent_lines(m) : m <- input_setters_code)),
-      // ("") & indent_lines(apply_method_code),
-      // join((("") & indent_lines(m) : m <- isort(node_update_methods_code))),
-      // join((("") & indent_lines(m) : m <- isort(queue_update_methods_code))),
-      // ("") & indent_lines(state_is_def_code),
-      // ("") & indent_lines(copy_state_code),
-      // ("") & indent_lines(set_state_code),
-      // join((("") & indent_lines(m) : m <- isort(user_def_methods_code))),
-      // ("") & indent_lines(insert_timer_method_code) if has_time_rules,
-      // ("") & indent_lines(clear_timer_method_code) if has_time_rules,
+      pre_init_method(block),
+      insert_timer_method_code if has_time_rules,
+      clear_timer_method_code if has_time_rules,
+      join((("") & m : m <- input_setters_code)),
+      join(queue_update_methods_code),
+      nodes_updates_methods(block),
+      apply_method(block),
+      state_is_def_code,
+      copy_state_code,
+      set_state_code,
+      join(user_def_methods_code)
     ));
+
+
+    Bool method_id_ord(MethodId id1, MethodId id2) {
+      if id1.symbol != id2.symbol {
+        a1 = bare_id(id1.symbol);
+        a2 = bare_id(id2.symbol);
+        return isort([a1, a2]) == (a1, a2);
+      }
+
+      if id1.arity != id2.arity
+        return id1.arity < id2.arity;
+
+      if not id1.id?
+        return false;
+
+      if not id2.id?
+        return true;
+
+      return id1.id < id2.id;
+    }
   }
 
 
-  String* native_react_block_impl(ReactBlock block) {
-    return ();
+  String* pre_init_method(ReactBlock block) {
+    type_name = native_name(block.name);
+    method_name = pre_init_method_name(block.name);
+    vars_decl = gen_vars_decls(block.pre_init_code, []);
+    vars_decl = vars_decl & ("") if vars_decl != ();
+    body = vars_decl & native_code(block.pre_init_code, nothing, break_target = nothing);
+    return (
+      "void " & method_name & "(" & type_name & "*target, ENV &env) {",
+      "  init_mem_pool(&target->mem_pool);"
+    ) & indent_lines(body) & (
+      "}",
+      ""
+    );
+  }
 
-    // has_time_rules = block.time_rules_count != 0;
 
-    // class_name = native_name(block.name);
+  String* apply_method(ReactBlock block) {
+    type_name = native_name(block.name);
+    method_name = apply_method_name(block.name);
+    body = gen_vars_decls(block.apply_code, []);
+    body = (body | "") if body != ();
+    body = body & native_code(block.apply_code, nothing, break_target = nothing);
+    signature = "void " & method_name & "(" & type_name & " *" & auto_or_db_arg_name & ", ENV &env) {";
+    return ("", signature) & indent_lines(body) & ("}");
+  }
 
-    // memb_vars_decl = (memb_var_decl(v) : v <- isort(block.memb_vars));
-    // auto_vars_decl = (native_name(t) & " " & native_var_decl_name(v) & ";" : v, t <- isort(block.nested_auto_vars));
-    // vars_decls = memb_vars_decl & auto_vars_decl;
 
-    // if block.time_rules_count != 0 {
-    //   size_str = printed(block.time_rules_count);
-    //   vars_decls = vars_decls & (
-    //     "public long[] trigger_times_heap = new long[" & size_str & "];",
-    //     "public int[] time_varying_cond_ids_heap = new int[" & size_str & "];"
-    //   );
-    // }
-    // vars_decls = (vars_decls | "") if vars_decls != ();
-
-    // ## THERE MIGHT BE A BUG HERE
-    // all_loc_vars = vars_to_declare(block.apply_code) &
-    //                union([vars_to_declare(c) : id c <- block.nodes_update_code]);
-    // aux_vars = [v : v <- all_loc_vars, v :: AuxVar] & [curr_time if has_time_rules];
-    // aux_vars_decls = (var_decl(v) : v <- isort(aux_vars));
-    // aux_vars_decls = (aux_vars_decls | "") if aux_vars != ();
-
-    // // aux_name_str = native_updater_name(block.name);
-    // // aux_decls = ("struct " & aux_name_str & " {",) & indent_lines((var_decl(v) : v <- isort(aux_vars))) & ("};");
-
-    // ctor_vars_decl = gen_vars_decls(block.pre_init_code, []);
-    // ctor_vars_decl = ctor_vars_decl & ("") if ctor_vars_decl != ();
-    // ctor_body = ctor_vars_decl & native_code(block.pre_init_code, nothing, break_target = nothing);
-
-    // ctor_sgn = "public " & class_name & "(Env env) {";
-    // ctor_code = (ctor_sgn) & indent_lines(ctor_body) & ("}", "");
-
-    // // cleanup_body = native_code(block.cleanup_code, nothing);
-    // // cleanup_proc = ("", "public ~" & class_name & "() {") & indent_lines(cleanup_body) & ("}");
-    // // class_decl = class_decl & cleanup_proc;
-
-    // apply_method_vars_decls = gen_vars_decls(block.apply_code, []);
-    // apply_method_vars_decls = (apply_method_vars_decls | "") if apply_method_vars_decls != ();
-    // apply_method_body = apply_method_vars_decls & native_code(block.apply_code, nothing, break_target = nothing);
-    // apply_method_sgn = "public void " & apply_method_name(block.name) & "(Env env) {";
-    // apply_method_code = (apply_method_sgn) & indent_lines(apply_method_body) & ("}");
-
-    // time_arg = if has_time_rules then "long " & native_var_decl_name(curr_time) & ", " else "";
-    // node_update_methods_code = [{
-    //     sgn = "void " & node_update_method_name(block.name, id) & "(" & time_arg & "Env env) {";
-    //     loc_vars_decls = gen_vars_decls(body, []);
-    //     loc_vars_decls = (loc_vars_decls | "") if loc_vars_decls != ();
-    //     return ("", sgn) & indent_lines(loc_vars_decls & native_code(body, nothing, break_target = nothing)) & ("}");
-    //   } : id body <- block.nodes_update_code
-    // ];
-
-    // queue_update_methods_code = [
-    //   gen_queue_update_method(block.name, id, method.body, method.args)
-    //   : id method <- block.queue_update_code
-    // ];
-
-    // state_is_def_code = native_state_is_def_code(block.name, block.state_is_def_code);
-    // copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
-    // set_state_code = native_set_state_code(block.name, block.set_state_code);
-
-    // insert_timer_method_code = gen_insert_timer_method(block.name);
-    // clear_timer_method_code = gen_clear_timer_method(block.name);
-
-    // queue_input_updates = |block.ord_inputs| > 2; ## BAD BAD BAD: THE NUMBER 2 IS REPEATED IN THE CODE GENERATION PHASE
-    // input_setters_code = (
-    //   gen_input_setter(block.name, id, i, queue_input_updates) : id @ i <- block.ord_inputs
-    // );
-
-    // user_def_methods_code = [native_user_def_method_code(block.name, id, m.args_vars, m.code) : id m <- block.methods];
-
-    // const_data = [gen_const_data(block.name, c) : c <- block.const_data];
-
-    // return join((
-    //   ("static class " & class_name & " {"),
-    //   indent_lines(vars_decls),
-    //   indent_lines(aux_vars_decls),
-    //   indent_lines(join((("", c) : c <- isort(const_data)))),
-    //   ("") & indent_lines(ctor_code),
-    //   join((("") & indent_lines(m) : m <- input_setters_code)),
-    //   ("") & indent_lines(apply_method_code),
-    //   join((("") & indent_lines(m) : m <- isort(node_update_methods_code))),
-    //   join((("") & indent_lines(m) : m <- isort(queue_update_methods_code))),
-    //   ("") & indent_lines(state_is_def_code),
-    //   ("") & indent_lines(copy_state_code),
-    //   ("") & indent_lines(set_state_code),
-    //   join((("") & indent_lines(m) : m <- isort(user_def_methods_code))),
-    //   ("") & indent_lines(insert_timer_method_code) if has_time_rules,
-    //   ("") & indent_lines(clear_timer_method_code) if has_time_rules,
-    //   ("}")
-    // ));
+  String* nodes_updates_methods(ReactBlock block) {
+    type_name = native_name(block.name);
+    has_time_rules = block.time_rules_count != 0;
+    time_arg = if has_time_rules then "long " & native_var_decl_name(curr_time) & ", " else "";
+    methods_code = [{
+        sgn = "void " & node_update_method_name(block.name, id) & "(" & type_name & " *" & auto_or_db_arg_name & ", " & time_arg & "ENV &env) {";
+        loc_vars_decls = gen_vars_decls(body, []);
+        loc_vars_decls = (loc_vars_decls | "") if loc_vars_decls != ();
+        return ("", sgn) & indent_lines(loc_vars_decls & native_code(body, nothing, break_target = nothing)) & ("}");
+      } : id body <- block.nodes_update_code
+    ];
+    return join(isort(methods_code));
   }
 
 
   String* gen_queue_update_method(AutoSymbol block_name, BlockNodeId node_id, Instr* body, IntVar* args) {
     method_name = queue_node_update_method_name(block_name, node_id);
-    args_str = append((native_var_type(v) & " " & native_var_decl_name(v) : v <- args), ", ");
-    sgn = "void " & method_name & "(" & args_str & ") {";
+    args_decls = (target_arg_decl(block_name)) & (native_var_type(v) & " " & native_var_decl_name(v) : v <- args);
+    sgn = "void " & method_name & "(" & append(args_decls, ", ") & ") {";
     vars_decl_text = gen_vars_decls(body, []);
     vars_decl_text = (vars_decl_text | "") if vars_decl_text != ();
     body_text = vars_decl_text & native_code(body, nothing, break_target = nothing);
-    return (sgn) & indent_lines(body_text) & ("}");
+    return ("", sgn) & indent_lines(body_text) & ("}");
   }
 
 
   String* native_state_is_def_code(AutoSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    sng = "public boolean " & state_is_def_proc_name(name) & "()";
-    return (sng & " {",) & indent_lines(body) & ("}");
+    sng = "bool " & state_is_def_proc_name(name) & "(" & target_arg_decl(name) & ")";
+    return ("", sng & " {") & indent_lines(body) & ("}");
   }
 
 
   String* native_copy_state_code(AutoSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    sgn = "public Obj " & copy_state_proc_name(name) & "()";
-    return (sgn & " {",) & indent_lines(body) & ("}");
+    sgn = "OBJ " & copy_state_proc_name(name) & "(" & target_arg_decl(name) & ")";
+    return ("", sgn & " {") & indent_lines(body) & ("}");
   }
 
 
   String* native_set_state_code(AutoSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    ## WHY DOES THIS RETURN AN OBJ?
-    sgn = "public void " & set_state_proc_name(name) & "(Obj a0)";
-    return (sgn & " {",) & indent_lines(body) & ("}");
+    sgn = "void " & set_state_proc_name(name) & "(" & target_arg_decl(name) & ", OBJ a0)";
+    return ("", sgn & " {") & indent_lines(body) & ("}");
   }
 
 
-  String gen_const_data(AutoSymbol block_name, ConstBlockData const) =
-    "long[] " & time_slots_table_name(block_name, const.expr_id) & " = {" &
-    append((printed(l) & "L" : l <- const.lengths), ", ") & "}; // CONSTANT";
+  String gen_const_data(AutoSymbol block_name, ConstBlockData const) {
+    values = (printed(l) & "ULL" : l <- const.lengths);
+    return "uint64 " & time_slots_table_name(block_name, const.expr_id) & "[" & _print_(|values|) & "] = {" & append(values, ", ") & "}; // CONSTANT";
+  }
 
 
   String* native_user_def_method_code(AutoSymbol block_name, MethodId name, Maybe[StdVar]* args, Instr* body) {
     final_args = (if a != nothing then value(a) else fn_arg(i) : a @ i <- args);
-    args_str = append(("Obj " & native_var_decl_name(a) & ", " : a <- final_args));
-    sgn = "public Obj " & user_def_method_name(block_name, name) & "(" & args_str & "Env env)";
+    args_decls = (target_arg_decl(block_name)) & ("OBJ " & native_var_decl_name(a) : a <- final_args) & ("ENV &env");
+    signature_line = "OBJ " & user_def_method_name(block_name, name) & "(" & append(args_decls, ", ") & ") {";
     vars_decls = gen_vars_decls(body, [value(a) : a <- args, a != nothing]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
-    return (sgn & " {",) & indent_lines(body_text) & ("}");
+    return ("", signature_line) & indent_lines(body_text) & ("}");
   }
 
 
   String* gen_input_setter(AutoSymbol block_name, Atom input_name, Nat node_idx, Bool queue_node) {
+    auto_type_name = native_name(block_name);
+    method_name = input_set_method_name(block_name, input_name);
     pending_input_var_str = native_var_ref_name(pending_input_var(input_name));
     up_to_date_var = native_var_ref_name(up_to_date_var(std_block_node_id(input_name)));
+    idx_var = ivar32(0);
+    idx_var_str = native_var_ref_name(idx_var);
+    input_layer_update_count_var_str = native_var_ref_name(update_count_var(0));
+    input_layer_nodes_to_update_var_str = native_var_ref_name(nodes_to_update_var(0, idx_var));
+
     return (
-      "public void " & input_set_method_name(block_name, input_name) & "(Obj value) {",
+      "void " & method_name & "(" & auto_type_name & " *" & auto_or_db_arg_name & ", OBJ value) {",
       "  if (!" & up_to_date_var & ") {",
       "    " & pending_input_var_str & " = value;",
       "  }",
       "  else {",
       "    " & pending_input_var_str & " = value;",
-      "    long idx = this.updateCount0;" if queue_node,
-      "    this.nodesToUpdate0[(int) idx] = " & printed(node_idx) & ";" if queue_node,
-      "    this.updateCount0 = idx + 1;" if queue_node,
+      "    " & native_var_type(idx_var) & " " & idx_var_str & " = " & input_layer_update_count_var_str & ";" if queue_node,
+      "    " & input_layer_nodes_to_update_var_str & " = " & printed(node_idx) & ";" if queue_node,
+      "    " & input_layer_update_count_var_str & " = " & idx_var_str & " + 1;" if queue_node,
       "    " & up_to_date_var & " = false;",
       "  }",
       "}"
@@ -265,44 +214,46 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 
 
   String* gen_insert_timer_method(AutoSymbol block_name) = (
-    "public void " & insert_timer_method_name(block_name) & "(long condIdx, long time) {",
-    "  int n = (int) this.time_triggers_count;",
-    "  long[] tt = this.trigger_times_heap;",
-    "  int[] ids = this.time_varying_cond_ids_heap;",
+    "",
+    "void " & insert_timer_method_name(block_name) & "(" & target_arg_decl(block_name) & ", uint32 cond_idx, int64 time) {",
+    "  uint32 count = " & auto_or_db_arg_name & "->time_triggers_count;",
+    "  int64 *times_heap = " & auto_or_db_arg_name & "->trigger_times_heap;",
+    "  int32 *cond_ids_heap = " & auto_or_db_arg_name & "->time_varying_cond_ids_heap;",
 
-    "  int i = 0;",
-    "  while (i < n && tt[i] < time)",
+    "  uint32 i = 0;",
+    "  while (i < count && times_heap[i] < time)",
     "    i++;",
 
-    "  for (int j=n ; j > i ; j--) {",
-    "    tt[j] = tt[j-1];",
-    "    ids[j] = ids[j-1];",
+    "  for (uint32 j=count ; j > i ; j--) {",
+    "    times_heap[j] = times_heap[j - 1];",
+    "    cond_ids_heap[j] = cond_ids_heap[j - 1];",
     "  }",
 
-    "  tt[i] = time;",
-    "  ids[i] = (int) condIdx;",
+    "  times_heap[i] = time;",
+    "  cond_ids_heap[i] = cond_idx;",
 
-    "  this.time_triggers_count = n + 1;",
+    "  " & auto_or_db_arg_name & "->time_triggers_count = count + 1;",
     "}"
   );
 
 
   String* gen_clear_timer_method(AutoSymbol block_name) = (
-    "public void " & clear_timer_method_name(block_name) & "(long condIdx) {",
-    "  int n = (int) this.time_triggers_count;",
-    "  long[] tt = this.trigger_times_heap;",
-    "  int[] ids = this.time_varying_cond_ids_heap;",
+    "",
+    "void " & clear_timer_method_name(block_name) & "(" & target_arg_decl(block_name) & ", uint32 cond_idx) {",
+    "  uint32 count = " & auto_or_db_arg_name & "->time_triggers_count;",
+    "  int64 *times_heap = " & auto_or_db_arg_name & "->trigger_times_heap;",
+    "  int32 *cond_ids_heap = " & auto_or_db_arg_name & "->time_varying_cond_ids_heap;",
 
     "  int i = 0;",
-    "  while (i < n && ids[i] != condIdx)",
+    "  while (i < count && cond_ids_heap[i] != cond_idx)",
     "    i++;",
 
-    "  if (i < n)",
-    "    this.time_triggers_count = n - 1;",
+    "  if (i < count)",
+    "    " & auto_or_db_arg_name & "->time_triggers_count = count - 1;",
 
-    "  for ( ; i < n - 1 ; i++) {",
-    "    tt[i] = tt[i+1];",
-    "    ids[i] = ids[i+1];",
+    "  for ( ; i + 1 < count ; i++) {",
+    "    times_heap[i] = times_heap[i + 1];",
+    "    cond_ids_heap[i] = cond_ids_heap[i + 1];",
     "  }",
     "}"
   );

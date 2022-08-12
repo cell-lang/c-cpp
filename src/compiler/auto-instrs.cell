@@ -2,7 +2,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) =
     copy_state()              = native_call(var, copy_state_proc_name(expr.type), (native_var_ref_name(expr.var))),
     copy_rel()                = undefined,
-    copy_persistent_state()   = native_method_call(var, expr.var, copy_state_proc_name(expr.type), ()),
+    copy_persistent_state()   = native_call(var, copy_state_proc_name(expr.type), (expr.var)),
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
 
 
@@ -234,35 +234,35 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* auto_instr_native_code(Instr instr, Maybe[Nat] block_id) =
     try_block()           = native_try_block_code(instr.var, instr.body, block_id),
 
-    queue_node_update()   = (native_method_call("this", queue_node_update_method_name(instr.type, instr.id), instr.args)),
+    queue_node_update()   = (native_call(queue_node_update_method_name(instr.type, instr.id), (auto_or_db_arg_name) & instr.args)),
 
-    insert_timer()        = (native_method_call("this", insert_timer_method_name(instr.type), (instr.idx, instr.time))),
-    clear_timer()         = (native_method_call("this", clear_timer_method_name(instr.type), (instr.idx))),
+    insert_timer()        = (native_call(insert_timer_method_name(instr.type), (auto_or_db_arg_name, instr.idx, instr.time))),
+    clear_timer()         = (native_call(clear_timer_method_name(instr.type), (auto_or_db_arg_name, instr.idx))),
 
-    auto_pre_init()       = (native_new_call(instr.var, native_name(instr.type), ("env"))),
-    auto_cleanup()        = (), //(native_method_call(instr.var, cleanup_method_name(instr.type), ())),
-    clear_input()         = (native_method_call(if instr.var? then instr.var else "this", input_set_method_name(instr.type, instr.input), ("NullObj.singleton"))),
-    auto_update_node()    = (native_method_call("this", node_update_method_name(instr.type, instr.node), (instr.time_var if instr.time_var?, "env"))),
+    auto_pre_init()       = native_auto_pre_init_code(instr.var, instr.type),
+    auto_cleanup()        = (), //(native_call(cleanup_method_name(instr.type), (instr.var))),
+    clear_input()         = (native_call(input_set_method_name(instr.type, instr.input), (auto_or_db_arg_name, "make_null_obj()"))),
+    auto_update_node()    = (native_call(node_update_method_name(instr.type, instr.node), (auto_or_db_arg_name, instr.time_var if instr.time_var?, "env"))),
 
-    set_input()           = (native_method_call(instr.var, input_set_method_name(instr.type, instr.input), (instr.value))),
-    auto_apply()          = (native_method_call(if instr.var? then instr.var else "this", apply_method_name(instr.type), ("env"))),
+    set_input()           = (native_call(input_set_method_name(instr.type, instr.input), (instr.var, instr.value))),
+    auto_apply()          = (native_call(apply_method_name(instr.type), (if instr.var? then instr.var else auto_or_db_arg_name, "env"))),
 
-    set_persistent_state()  = (native_method_call(instr.auto_var, set_state_proc_name(instr.type), (instr.state))),
+    set_persistent_state()  = (native_call(set_state_proc_name(instr.type), (instr.auto_var, instr.state))),
 
     init_db()             = native_init_db_code(instr.db_var, instr.links, instr.type),
-    cleanup_db()          = (), //(native_method_call(instr.db_var, cleanup_method_name(instr.type), ())),
+    cleanup_db()          = (), //(native_call(cleanup_method_name(instr.type), (instr.db_var))),
 
     send_external_msg()   = native_send_external_msg_code(instr.db_var, instr.type, instr.msg, instr.res_var, instr.handler_id),
     send_internal_msg()   = native_send_internal_msg_code(instr.db_var, instr.type, instr.msg, instr.handler_id),
 
     set_state()           = native_set_state_code(instr.state, instr.db_var, instr.type, instr.res_var),
-    invoke_auto_method()  = (native_method_call(instr.res_var, if instr.auto_var? then instr.auto_var else "this", user_def_method_name(instr.type, instr.method_id), (instr.args | "env"))),
+    invoke_auto_method()  = (native_call(instr.res_var, user_def_method_name(instr.type, instr.method_id), (if instr.auto_var? then instr.auto_var else auto_or_db_arg_name) & (instr.args | "env"))),
     invoke_db_method()    = native_invoke_db_method_code(instr.res_var, if instr.db_var? then just(instr.db_var) else nothing, instr.type, instr.method_id, instr.args),
 
-    init_value_store()    = (), //(native_method_call(instr.store,   "init",    ())),
-    cleanup_value_store() = (), //(native_method_call(instr.store,   "cleanup", ())),
-    init_table()          = (), //(native_method_call(instr.rel_var, "init",    ())),
-    cleanup_table()       = (), //(native_method_call(instr.rel_var, "cleanup", ())),
+    init_value_store()    = (), //(native_call("init",    (instr.store))),
+    cleanup_value_store() = (), //(native_call("cleanup", (instr.store))),
+    init_table()          = (), //(native_call("init",    (instr.rel_var))),
+    cleanup_table()       = (), //(native_call("cleanup", (instr.rel_var))),
 
     queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), instr.value, :mem_pool))),
@@ -280,6 +280,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     raise_load_error()        = ("return false;"),
     surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
     surr_set_clear            = (native_call("surr_set_clear", ("&surr_set")));
+
+
+  String* native_auto_pre_init_code(AnyAutoVar var, AutoSymbol type) {
+    method_name = pre_init_method_name(type);
+    return (native_call(method_name, (var, "env")));
+  }
 
 
   String* native_resize_mandatory_column_code(AnyTableVar table_var, MandatoryColumn column, Int32Expr curr_capacity, Int32Expr new_capacity) {
@@ -377,8 +383,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     "try {"
   ) & indent_lines(native_code(body, block_id)) & (
     "}",
-    "catch (Exception e) {",
-    "  " & native_var_ref_name(var) & " = NullObj.singleton;",
+    "catch (...) {",
+    "  " & native_var_ref_name(var) & " = make_null_obj();",
     "}"
   );
 

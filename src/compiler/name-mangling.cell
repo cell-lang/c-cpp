@@ -94,8 +94,8 @@ implicit context : NativeContext {
   //////////////////////////////////////////////////////////////////////////////
 
   String native_var_decl_name(MembIntVectVar v) =
-    nodes_to_update_vect_var()  = "nodesToUpdate" & printed(v.level),
-    changed_outputs()           = "changedOutputs";
+    nodes_to_update_vect_var()  = "nodes_to_update" & printed(v.level),
+    changed_outputs()           = "changed_outputs";
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -137,7 +137,7 @@ implicit context : NativeContext {
 
   // String symb_repr_proc_name = "symb_repr";
 
-  String target_arg_decl(DBSymbol db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;
+  String target_arg_decl(<DBSymbol, AutoSymbol> db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;
   String auxiliary_arg_decl(DBSymbol db_type) = native_auxiliary_name(db_type) & " *" & db_auxiliary_arg_name;
 
   String env_arg_decl = env_type_name & " &" & env_arg_name;
@@ -165,7 +165,7 @@ implicit context : NativeContext {
       capt_var(<*..*> n?)           = "capt_vars["  & printed(n) & "]",
       memb_var(<+> a?)              = prefix & _print_(a) & "_M",
       signal_var(a?)                = prefix & _print_(a) & "_S",
-      qual_signal_var()             = native_var_name(var.auto_var, true) & "->" & native_var_name(var.memb_var, false),
+      qual_signal_var()             = native_deref_var_name(var.auto_var) & "." & native_var_name(var.memb_var, false),
       qual_memb_var()               = native_var_name(var.db_var, true) & "->" & native_var_name(var.memb_var, false),
       watched_signal_value_var(a?)  = prefix & _print_(a) & "_Sw",
       prev_var_value(v?)            = prefix & ad_hoc_var_name(v) & "d",
@@ -183,7 +183,7 @@ implicit context : NativeContext {
 
 
   String native_var_name(BoolVar var, Bool add_prefix) {
-    prefix = if add_prefix then "this." else "";
+    prefix = if add_prefix then auto_or_db_arg_name & "->" else "";
     return match (var)
       bvar(<+> s?)                                  = { match (hidden_var_id(s))
                                                           just(n?)  = "hb" & _print_(n),
@@ -209,7 +209,7 @@ implicit context : NativeContext {
       elapsed_time()    = add_prefix,
       _                 = true;
 
-    prefix = if add_prefix then "this." else "";
+    prefix = if add_prefix then auto_or_db_arg_name & "->" else "";
     return match (v)
       ivar(<+> s?)                        = printed(s) & "_Vl",
       ivar(<*..*> n?)                     = "l" & printed(n),
@@ -219,8 +219,8 @@ implicit context : NativeContext {
       update_expr_index                   = "update_expr_index",
       update_source_var(a?)               = prefix & _print_(a) & "_V_update_source",
       null_locks_count_var(a?)            = prefix & _print_(a) & "_V_null_locks_count",
-      update_count_var(l?)                = prefix & "updateCount" & printed(l),
-      nodes_to_update_var()               = prefix & "nodesToUpdate" & printed(v.level) & "[(int) (" & native_idx_expr(v.index) & ")]",
+      update_count_var(l?)                = prefix & "update_count" & printed(l),
+      nodes_to_update_var()               = prefix & "nodes_to_update" & printed(v.level) & "[" & native_idx_expr(v.index) & "]",
       next_trigger_time_var(a?)           = prefix & _print_(a) & "_V_next_trigger_time",
       curr_time_slot_var(a?)              = prefix & _print_(a) & "_V_curr_time_slot",
       time_triggers_count_var             = prefix & "time_triggers_count",
@@ -228,10 +228,10 @@ implicit context : NativeContext {
       time_varying_cond_ids_heap_var(i?)  = prefix & "time_varying_cond_ids_heap[" & printed(i) & "]",
       last_update_time                    = prefix & "last_update_time",
       elapsed_time                        = prefix & "elapsed_time",
-      changed_outputs_count               = prefix & "changedOutputsCount",
-      changed_output()                    = prefix & "changedOutputs[(int) (" & native_idx_expr(v.index) & ")]",
-      elapsed_time(av?)                   = native_var_name(av, false) & ".elapsed_time",
-      nested_auto_int_var()               = native_var_name(v.auto_var, true) & "." & native_var_name(v.memb_var, false);
+      changed_outputs_count               = prefix & "changed_outputs_count",
+      changed_output()                    = prefix & "changed_outputs[" & native_idx_expr(v.index) & "]",
+      elapsed_time(av?)                   = native_deref_var_name(av) & ".elapsed_time",
+      nested_auto_int_var()               = native_deref_var_name(v.auto_var) & "." & native_var_name(v.memb_var, false);
   }
 
 
@@ -249,8 +249,13 @@ implicit context : NativeContext {
 
 
   String native_var_name(AnyAutoVar v, Bool add_prefix) =
+    loc_auto_var(a?)    = {if add_prefix then "&" else ""} & _print_(a) & "_R",
+    nested_auto_var(a?) = {if add_prefix then "&" & auto_or_db_arg_name & "->" else ""} & _print_(a) & "_R";
+
+
+  String native_deref_var_name(AnyAutoVar v) =
     loc_auto_var(a?)    = _print_(a) & "_R",
-    nested_auto_var(a?) = {if add_prefix then "this." else ""} & _print_(a) & "_R";
+    nested_auto_var(a?) = auto_or_db_arg_name & "->" & _print_(a) & "_R";
 
 
   String native_var_name(AnyDBVar v, Bool add_prefix) =
@@ -296,9 +301,10 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  String native_idx_expr(Nat n)                             = printed(n);
-  String native_idx_expr(IntVar v)                          = native_var_ref_name(v);
-  String native_idx_expr(<add(val1: IntVar, val2: Nat)> e)  = native_var_ref_name(e.val1) & " + " & printed(e.val2);
+  String native_idx_expr(Nat n)                             = if n < 2147483648 then printed(n) else undefined;
+  String native_idx_expr(Int32Var v)                        = native_var_ref_name(v); ## BUG BUG BUG: COULD BE NEGATIVE
+  String native_idx_expr(IntVar v)                          = native_call_expr("cast_int32", (v));
+  String native_idx_expr(<add(val1: IntVar, val2: Nat)> e)  = native_call_expr("cast_int32", (native_var_ref_name(e.val1) & " + " & printed(e.val2)));
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
@@ -389,7 +395,7 @@ implicit context : NativeContext {
   String native_var_type(ObjVar)            = qualify("OBJ");
   String native_var_type(IntVar)            = "int64";
   String native_var_type(Int32Var)          = "int32";
-  String native_var_type(MembIntVectVar)    = "int64[]";
+  String native_var_type(MembIntVectVar)    = "int64"; // Actually int64[]
   String native_var_type(BoolVar)           = "bool";
   String native_var_type(FloatVar)          = "double";
   String native_var_type(TupleVar var)      = native_tuple_type(var.repr);
@@ -734,16 +740,20 @@ String user_def_method_name(<AutoSymbol, DBSymbol> type, MethodId method) = nati
 
 String handler_dispatch_resolver_name(DBSymbol db_type) = qualified_name(db_type, "msg_handler_dispatch_id");
 
-String input_set_method_name(AutoSymbol auto, Atom input) = _print_(input) & "_S_set";
+String input_set_method_name(AutoSymbol auto_type, Atom input) = qualified_name(auto_type, _print_(input) & "_S_set");
 
-String node_update_method_name(AutoSymbol auto_type,  BlockNodeId node_id) = node_specific_method_name_prefix(node_id, auto_type) & "_update";
-String queue_node_update_method_name(AutoSymbol auto_type, BlockNodeId node_id) = node_specific_method_name_prefix(node_id, auto_type) & "_invalidate";
+String node_update_method_name(AutoSymbol auto_type,  BlockNodeId node_id) = node_specific_method_name_prefix(auto_type, node_id, auto_type) & "_update";
+String queue_node_update_method_name(AutoSymbol auto_type, BlockNodeId node_id) = node_specific_method_name_prefix(auto_type, node_id, auto_type) & "_invalidate";
 
-String node_specific_method_name_prefix(BlockNodeId id, AutoSymbol auto) =
-  std_block_node_id(a?)   = _print_(a) & "_N",
-  cond_node_id(n?)        = "cond_node_" & printed(n),
-  nested_auto_node_id(a?) = _print_(a) & "_Na",
-  nested_auto_input_id()  = _print_(id.auto) & "_Na_" & _print_(id.input);
+String node_specific_method_name_prefix(AutoSymbol auto_type, BlockNodeId id, AutoSymbol auto) =
+  qualified_name(
+    auto_type,
+    match (id)
+      std_block_node_id(a?)   = _print_(a) & "_N",
+      cond_node_id(n?)        = "cond_node_" & printed(n),
+      nested_auto_node_id(a?) = _print_(a) & "_Na",
+      nested_auto_input_id()  = _print_(id.auto) & "_Na_" & _print_(id.input)
+  );
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
