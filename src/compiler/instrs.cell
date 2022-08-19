@@ -242,11 +242,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_set_var_code(<WriteObjVar, LocOptTagRecVar> var, ObjExpr value) {
-    if var :: MembVar {
+    assert not var :: <QualMembVar, QualSignalVar>;
+
+    if var :: <MembVar, SignalVar> {
       return (
         native_call("remove_from_pool", (:mem_pool, var)),
         native_call(var, "copy_to_pool", (:mem_pool, value))
       );
+    }
+    else if var :: PrevVarValue {
+      return (native_call(var, "copy_from_pool", (value)));
     }
     else
       return (native_assignment_code(var, value));

@@ -854,6 +854,21 @@ void remove_from_pool(STATE_MEM_POOL *mem_pool, OBJ obj) {
   }
 }
 
+OBJ copy_from_pool(OBJ obj) {
+  if (is_inline_obj(obj))
+    return obj;
+
+  uint32 total_mem_size = obj_mem_size(obj);
+  assert(total_mem_size % 8 == 0);
+
+  void *mem_start = new_obj(total_mem_size);
+  void *mem_var = mem_start;
+  OBJ copy = copy_obj_to(obj, &mem_var);
+  assert(mem_var == ((uint8 *) mem_start) + total_mem_size);
+  assert(obj_mem_size(copy) == total_mem_size);
+  return copy;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 OBJ copy_str_to_pool(STATE_MEM_POOL *mem_pool, OBJ str, void *slot16) {

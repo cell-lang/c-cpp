@@ -640,6 +640,8 @@ void release_state_mem_block(STATE_MEM_POOL *, void *, uint32);
 OBJ copy_to_pool(STATE_MEM_POOL *, OBJ);
 void remove_from_pool(STATE_MEM_POOL *, OBJ);
 
+OBJ copy_from_pool(OBJ);
+
 uint32 obj_mem_size(OBJ);
 OBJ copy_obj_to(OBJ, void **);
 
