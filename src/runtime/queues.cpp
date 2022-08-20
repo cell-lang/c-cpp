@@ -346,12 +346,12 @@ bool queue_u64_unique_count(QUEUE_U64 *queue) {
 
 void queue_3u32_init(QUEUE_3U32 *queue) {
   queue->capacity = QUEUE_INLINE_SIZE;
-  queue->count_ = 0;
+  queue->count = 0;
   queue->array = queue->inline_array;
 }
 
 void queue_3u32_reset(QUEUE_3U32 *queue) {
-  queue->count_ = 0;
+  queue->count = 0;
   if (queue->capacity != QUEUE_INLINE_SIZE) {
     queue->capacity = QUEUE_INLINE_SIZE;
     queue->array = queue->inline_array;
@@ -360,7 +360,7 @@ void queue_3u32_reset(QUEUE_3U32 *queue) {
 
 void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
   uint32 capacity = queue->capacity;
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   assert(count <= capacity);
   if (3 * (count + 1) > capacity) {
@@ -373,7 +373,7 @@ void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 v
   ptr[0] = value1;
   ptr[1] = value2;
   ptr[2] = value3;
-  queue->count_ = count + 1;
+  queue->count = count + 1;
 }
 
 void queue_3u32_prepare(QUEUE_3U32 *queue) {
@@ -381,7 +381,7 @@ void queue_3u32_prepare(QUEUE_3U32 *queue) {
 }
 
 bool queue_3u32_contains(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++)
     if (array[i][0] == value1 && array[i][1] == value2 && array[i][2] == value3)
@@ -390,7 +390,7 @@ bool queue_3u32_contains(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32
 }
 
 bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++)
     if (array[i][0] == value1 && array[i][1] == value2)
@@ -399,7 +399,7 @@ bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2) {
 }
 
 bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++)
     if (array[i][0] == value1)
@@ -408,7 +408,7 @@ bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1) {
 }
 
 bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++)
     if (array[i][1] == value2)
@@ -417,7 +417,7 @@ bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2) {
 }
 
 bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*array)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++)
     if (array[i][2] == value3)
@@ -426,11 +426,11 @@ bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3) {
 }
 
 void queue_3u32_sort_unique(QUEUE_3U32 *queue) {
-  sort_unique_3u32(queue->array, &queue->count_);
+  sort_unique_3u32(queue->array, &queue->count);
 }
 
 void queue_3u32_permute_132(QUEUE_3U32 *queue) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*ptr)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++) {
     uint32 arg2 = (*ptr)[1];
@@ -442,7 +442,7 @@ void queue_3u32_permute_132(QUEUE_3U32 *queue) {
 }
 
 void queue_3u32_permute_231(QUEUE_3U32 *queue) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*ptr)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++) {
     uint32 arg1 = (*ptr)[0];
@@ -456,7 +456,7 @@ void queue_3u32_permute_231(QUEUE_3U32 *queue) {
 }
 
 void queue_3u32_permute_312(QUEUE_3U32 *queue) {
-  uint32 count = queue->count_;
+  uint32 count = queue->count;
   uint32 (*ptr)[3] = queue->array;
   for (uint32 i=0 ; i < count ; i++) {
     uint32 arg1 = (*ptr)[0];

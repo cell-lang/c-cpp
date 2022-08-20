@@ -204,7 +204,7 @@ bool tern_table_aux_check_key_12(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, S
 }
 
 bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  uint32 count = table_aux->insertions.count_;
+  uint32 count = table_aux->insertions.count;
   if (count == 0)
     return true;
 
@@ -265,7 +265,7 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 }
 
 bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
-  uint32 count = table_aux->insertions.count_;
+  uint32 count = table_aux->insertions.count;
   if (count == 0)
     return true;
 

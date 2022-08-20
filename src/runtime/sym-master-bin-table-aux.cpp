@@ -75,7 +75,7 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
 
   if (surr == 0xFFFFFFFF) {
-    uint32 count = table_aux->insertions.count_;
+    uint32 count = table_aux->insertions.count;
     if (count > 0) {
       //## BAD BAD BAD: IMPLEMENT FOR REAL
       uint32 (*ptr)[3] = table_aux->insertions.array;
@@ -120,7 +120,7 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_
     return surr;
 
   //## BAD BAD BAD: IMPLEMENT FOR REAL
-  uint32 count = table_aux->insertions.count_;
+  uint32 count = table_aux->insertions.count;
   uint32 (*ptr)[3] = table_aux->insertions.array;
   for (uint32 i=0 ; i < count ; i++) {
     uint32 curr_arg1 = (*ptr)[0];
@@ -147,7 +147,7 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_
 static void sym_master_bin_table_aux_build_insertion_bitmap(SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
-  uint32 count = table_aux->insertions.count_;
+  uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint32 (*ptr)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < count ; i++) {
@@ -167,7 +167,7 @@ void sym_master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, S
 
   // Removing from the surrogates already reserved for newly inserted tuples
   // from the list of free ones, so we can append to that list while deleting
-  uint32 ins_count = table_aux->insertions.count_;
+  uint32 ins_count = table_aux->insertions.count;
   if (ins_count != 0) {
 #ifndef NDEBUG
     if (table_aux->last_surr == 0xFFFFFFFF) {
@@ -200,7 +200,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
     uint32 size = sym_master_bin_table_size(table);
     if (size > 0) {
       if (remove != NULL) {
-        if (table_aux->insertions.count_ == 0) {
+        if (table_aux->insertions.count == 0) {
           remove(store, 0xFFFFFFFF, mem_pool);
         }
         else {
@@ -228,7 +228,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
     }
   }
   else {
-    bool has_insertions = table_aux->insertions.count_ > 0;
+    bool has_insertions = table_aux->insertions.count > 0;
     bool bit_map_built = !has_insertions;
 
     uint32 del_count = table_aux->deletions.count;
@@ -320,7 +320,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
 }
 
 void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
-  uint32 count = table_aux->insertions.count_;
+  uint32 count = table_aux->insertions.count;
   if (count > 0) {
     uint32 (*ptr)[3] = table_aux->insertions.array;
     for (uint32 i=0 ; i < count ; i++) {

@@ -215,7 +215,7 @@ struct QUEUE_U64 {
 
 struct QUEUE_3U32 {
   uint32 capacity;
-  uint32 count_;
+  uint32 count;
   uint32 (*array)[3];
   uint32 inline_array[QUEUE_INLINE_SIZE][3];
 };
