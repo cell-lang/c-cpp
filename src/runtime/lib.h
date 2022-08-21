@@ -1072,7 +1072,7 @@ bool surr_set_try_insert(SURR_SET *, uint32);
 
 ///////////////////////////////// datetime.cpp /////////////////////////////////
 
-void get_year_month_day(int32 epoc_days, int32 &year, int32 &month, int32 &day);
+void get_year_month_day(int32 epoc_days, int32 *year, int32 *month, int32 *day);
 bool is_valid_date(int32 year, int32 month, int32 day);
 bool date_time_is_within_range(int32 days_since_epoc, int64 day_time_ns);
 int32 days_since_epoc(int32 year, int32 month, int32 day);

@@ -1,6 +1,19 @@
 #include "lib.h"
 
 
+bool is_date(uint16 tag_id, OBJ obj) {
+  return tag_id != symb_id_date && is_int(obj);
+}
+
+bool is_printable_date(int64 days) {
+  // The date has to be between `1582-10-15` and `9999-12-31`
+  return days >= -141427 & days <= 2932896;
+}
+
+bool is_time(uint16 tag_id, OBJ obj) {
+  return tag_id != symb_id_time && is_int(obj);
+}
+
 bool is_str(uint16 tag_id, OBJ obj) {
   if (tag_id != symb_id_string)
     return false;
@@ -268,24 +281,90 @@ void print_ne_tern_rel(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION),
 void print_tag_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {
   uint16 tag_id = get_tag_id(obj);
   OBJ inner_obj = get_inner_obj(obj);
+
   if (is_str(tag_id, inner_obj)) {
     emit(data, "\"", TEXT);
     print_bare_str(obj, emit, data);
     emit(data, "\"", TEXT);
+    return;
   }
-  else {
-    print_symb(make_symb(tag_id), emit, data);
-    emit(data, "(", TEXT);
 
-    if (is_record(inner_obj))
-      print_record(inner_obj, false, emit, data);
-    else if (is_ne_seq(inner_obj) && read_size_field(inner_obj) > 1)
-      print_seq(inner_obj, false, emit, data);
-    else
-      print_obj(inner_obj, emit, data);
+  if (is_int(inner_obj)) {
+    int64 value = get_int(inner_obj);
 
-    emit(data, ")", TEXT);
+    if (tag_id == symb_id_date) {
+      if (is_printable_date(value)) {
+        int32 year, month, day;
+        get_year_month_day(value, &year, &month, &day);
+        char buffer[1024];
+        sprintf(buffer, "`%d-%02d-%02d`", year, month, day);
+        emit(data, buffer, TEXT);
+        return;
+      }
+    }
+    else if (tag_id == symb_id_time) {
+      int32 days;
+      uint64 day_time_ns;
+
+      if (value >= 0) {
+        days = (int32) (value / 86400000000000LL);
+        day_time_ns = value % 86400000000000LL;
+      }
+      else {
+        int64 rev_day_time_ns = value % 86400000000000LL;
+        if (rev_day_time_ns == 0) {
+          days = (int32) (value / 86400000000000LL);
+          day_time_ns = 0;
+        }
+        else {
+          days = (int32) (value / 86400000000000LL) - 1;
+          day_time_ns = 86400000000000LL + rev_day_time_ns;
+        }
+      }
+
+      if (is_printable_date(days)) {
+        int32 year, month, day;
+        get_year_month_day(days, &year, &month, &day);
+
+        uint32 secs = day_time_ns / 1000000000;
+        uint32 nanosecs = day_time_ns % 1000000000;
+
+        char buffer[1024];
+        sprintf(buffer, "`%d-%02d-%02d %02d:%02d:%02d", year, month, day, secs / 3600, (secs / 60) % 60, secs % 60);
+
+        char *write_ptr = buffer + strlen(buffer);
+
+        if (nanosecs != 0) {
+          *(write_ptr++) = '.';
+
+          int div = 100000000;
+          while (div > 0 & nanosecs > 0) {
+            *(write_ptr++) = '0' + nanosecs / div;
+            nanosecs %= div;
+            div /= 10;
+          }
+        }
+
+        *(write_ptr++) = '`';
+        *write_ptr = '\0';
+
+        emit(data, buffer, TEXT);
+        return;
+      }
+    }
   }
+
+  print_symb(make_symb(tag_id), emit, data);
+  emit(data, "(", TEXT);
+
+  if (is_record(inner_obj))
+    print_record(inner_obj, false, emit, data);
+  else if (is_ne_seq(inner_obj) && read_size_field(inner_obj) > 1)
+    print_seq(inner_obj, false, emit, data);
+  else
+    print_obj(inner_obj, emit, data);
+
+  emit(data, ")", TEXT);
 }
 
 void print_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data) {

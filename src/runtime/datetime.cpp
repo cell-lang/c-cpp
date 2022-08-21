@@ -48,6 +48,7 @@ void get_year_month_day(int32 epoc_days, int32 *year_, int32 *month_, int32 *day
             *year_ = year;
             *month_ = month_idx + 1;
             *day_ = epoc_days + 1;
+            return;
           }
           epoc_days = epoc_days - month_len;
         }
