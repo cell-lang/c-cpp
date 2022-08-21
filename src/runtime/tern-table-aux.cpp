@@ -340,16 +340,90 @@ bool tern_table_aux_prepare(TERN_TABLE_AUX *table_aux) {
   bin_table_aux_prepare(&table_aux->slave);
 }
 
-bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool tern_table_aux_contains_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1) {
+  assert(table_aux->master.clear == table_aux->slave.clear);
+
+  if (queue_3u32_contains_1(&table_aux->master.insertions, arg1))
+    return true;
+
+  if (!master_bin_table_contains_1(&table->master, arg1))
+    return false;
+
+  if (table_aux->slave.clear)
+    return false;
+
+  if (queue_u32_contains(&table_aux->master.deletions_1, arg1))
+    return false;
+
+  if (!bin_table_aux_has_deletions(&table_aux->slave))
+    return true;
+
+  // Here we know that no tuple with that specific value for the first argument was inserted
+  // We just iterater through all the possible (arg1, ?) pairs, and check if the corresponding
+  // surrogate is still in the slave table
+
+  //## BAD BAD BAD: THIS IS VERY INEFFICIENT
+
+  uint32 count = master_bin_table_count_1(&table->master, arg1);
+  uint32 read = 0;
+  while (read < count) {
+    uint32 buffer[128];
+    UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(&table->master, arg1, read, buffer, 64);
+    read += array.size;
+    uint32 *surrs = array.array + array.offset;
+    for (uint32 i=0 ; i < array.size ; i++) {
+      assert(bin_table_contains_1(&table->slave, surrs[i]));
+      if (bin_table_aux_contains_1(&table->slave, &table_aux->slave, surrs[i]))
+        return true;
+    }
+  }
+
+  return false;
 }
 
-bool tern_table_aux_contains_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool tern_table_aux_contains_2(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg2) {
+  assert(table_aux->master.clear == table_aux->slave.clear);
+
+  if (queue_3u32_contains_2(&table_aux->master.insertions, arg2))
+    return true;
+
+  if (!master_bin_table_contains_2(&table->master, arg2))
+    return false;
+
+  if (table_aux->slave.clear)
+    return false;
+
+  if (queue_u32_contains(&table_aux->master.deletions_2, arg2))
+    return false;
+
+  if (!bin_table_aux_has_deletions(&table_aux->slave))
+    return true;
+
+  // Here we know that no tuple with that specific value for the first argument was inserted
+  // We just iterater through all the possible (?, arg2) pairs, and check if the corresponding
+  // surrogate is still in the slave table
+
+  //## BAD BAD BAD: THIS IS VERY INEFFICIENT
+
+  uint32 count = master_bin_table_count_2(&table->master, arg2);
+  uint32 read = 0;
+  while (read < count) {
+    uint32 buffer[128];
+    UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(&table->master, arg2, read, buffer, 64);
+    read += array.size;
+    uint32 *surrs = array.array + array.offset;
+    for (uint32 i=0 ; i < array.size ; i++) {
+      assert(bin_table_contains_2(&table->slave, surrs[i]));
+      if (bin_table_aux_contains_2(&table->slave, &table_aux->slave, surrs[i]))
+        return true;
+    }
+  }
+
+  return false;
 }
 
-bool tern_table_aux_contains_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool tern_table_aux_contains_3(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg3) {
+  return bin_table_aux_contains_2(&table->slave, &table_aux->slave, arg3);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

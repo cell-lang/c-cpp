@@ -151,6 +151,8 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
         uint32 arg1 = unpack_arg1(args);
         if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool)) {
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
+          //## AND IN THAT CASE MAKE SURE TO REMOVE THE DUPLICATE INSERTION SO THAT THE OTHER PARTS OF THE CODE
+          //## (LIKE THAT WHICH CHECKS BACKWARD FOREING KEYS) CAN QUICKLY DETERMINE THE NUMBER OF UNIQUE INSERTIONS
           double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, unpack_arg2(args), true);
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
@@ -164,6 +166,8 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
         uint32 arg2 = unpack_arg2(args);
         if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool)) {
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE FIRST ARGUMENT
+          //## AND IN THAT CASE MAKE SURE TO REMOVE THE DUPLICATE INSERTION SO THAT THE OTHER PARTS OF THE CODE
+          //## (LIKE THAT WHICH CHECKS BACKWARD FOREING KEYS) CAN QUICKLY DETERMINE THE NUMBER OF UNIQUE INSERTIONS
           double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, unpack_arg1(args), arg2, true);
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
@@ -317,14 +321,33 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_forward(DOUBLE_KEY
 
 bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
-    }
-    else {
-      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+    // If no key violation was detected, then all insertions are unique
+    //## MAYBE I SHOULD BE CHECKING THIS
+    uint32 count = table_aux->insertions.count;
+
+    if (count > 0) {
+      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+      if (src_size > count) {
         //## RECORD THE ERROR
         return false;
       }
+
+      uint32 found = 0;
+      uint64 *array = table_aux->insertions.array;
+      for (uint32 i=0 ; i < count ; i++) {
+        uint32 arg1 = unpack_arg1(array[i]);
+        if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+          found++;
+      }
+
+      if (src_size > found) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+    else if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
+      //## RECORD THE ERROR
+      return false;
     }
   }
   else {
@@ -347,8 +370,29 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KE
 
 bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    // If no key violation was detected, then all insertions are unique
+    //## MAYBE I SHOULD BE CHECKING THIS
+    uint32 count = table_aux->insertions.count;
+
+    if (count > 0) {
+      uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
+      if (src_size > count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      uint32 found = 0;
+      uint64 *array = table_aux->insertions.array;
+      for (uint32 i=0 ; i < count ; i++) {
+        uint32 arg1 = unpack_arg1(array[i]);
+        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
+          found++;
+      }
+
+      if (src_size > found) {
+        //## RECORD THE ERROR
+        return false;
+      }
     }
     else {
       if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
@@ -377,8 +421,29 @@ bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE
 
 bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    // If no key violation was detected, then all insertions are unique
+    //## MAYBE I SHOULD BE CHECKING THIS
+    uint32 count = table_aux->insertions.count;
+
+    if (count > 0) {
+      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+      if (src_size > count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      uint32 found = 0;
+      uint64 *array = table_aux->insertions.array;
+      for (uint32 i=0 ; i < count ; i++) {
+        uint32 arg2 = unpack_arg2(array[i]);
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+          found++;
+      }
+
+      if (src_size > found) {
+        //## RECORD THE ERROR
+        return false;
+      }
     }
     else {
       if (!unary_table_aux_is_empty(src_table, src_table_aux)) {

@@ -461,6 +461,10 @@ bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool bin_table_aux_has_deletions(BIN_TABLE_AUX *table_aux) {
+  return table_aux->deletions.count > 0 || table_aux->deletions_1.count > 0 || table_aux->deletions_2.count > 0;
+}
+
 // SO FAR THIS IS ONLY USED BY tern_table_aux_check_key_13(..) AND tern_table_aux_check_key_23(..),
 // SO IT'S NOT SUPER IMPORTANT FOR PERFORMANCE.
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {

@@ -130,3 +130,29 @@ uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *table, uint32 hashcode, OBJ *sl
     return 0xFFFFFFFF;
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void trns_map_surr_surr_surr_clear(TRNS_MAP_SURR_SURR_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2, uint32 surr3) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 trns_map_surr_surr_surr_extract(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}

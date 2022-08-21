@@ -6,7 +6,7 @@ void unary_table_aux_init(UNARY_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   queue_u32_init(&table_aux->deletions);
   queue_u32_init(&table_aux->insertions);
   table_aux->clear = false;
-  table_aux->has_reinsertions = false;
+  table_aux->reinsertions_count = 0;
 }
 
 void unary_table_aux_reset(UNARY_TABLE_AUX *table_aux) {
@@ -14,7 +14,7 @@ void unary_table_aux_reset(UNARY_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->insertions);
   queue_u32_reset(&table_aux->deletions);
   table_aux->clear = false;
-  table_aux->has_reinsertions = false;
+  table_aux->reinsertions_count = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +24,7 @@ uint32 unary_table_aux_insert(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, ui
     if (!unary_table_contains(table, elt))
       queue_u32_insert(&table_aux->insertions, elt);
     else
-      table_aux->has_reinsertions = true;
+      table_aux->reinsertions_count++;
 }
 
 void unary_table_aux_delete(UNARY_TABLE_AUX *table_aux, uint32 elt, STATE_MEM_POOL *mem_pool) {
@@ -40,7 +40,7 @@ void unary_table_aux_clear(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
 
 void unary_table_aux_apply_deletions(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
-    if (!table_aux->has_reinsertions) {
+    if (table_aux->reinsertions_count == 0) {
       unary_table_clear(table);
       if (remove != NULL)
         remove(store, 0xFFFFFFFF, mem_pool);
@@ -94,6 +94,25 @@ void unary_table_aux_apply_insertions(UNARY_TABLE *table, UNARY_TABLE_AUX *table
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 unary_table_aux_size(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
+  if (table_aux->clear)
+    return table_aux->insertions.count + table_aux->reinsertions_count;
+
+  uint32 dels_count = table_aux->deletions.count;
+  uint32 size = unary_table_size(table) - dels_count + table_aux->insertions.count;
+
+  // Uncounting the elements that were deleted and reinserted
+  //## BAD BAD BAD: THIS SHOULD BE COMPUTED AS YOU GO, OR OTHERWISE THE RESULT SHOULD BE CACHED
+  if (dels_count > 0 && table_aux->reinsertions_count > 0) {
+    uint32 *elts = table_aux->deletions.array;
+    for (uint32 i=0 ; i < dels_count ; i++)
+      if (col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elts[i]))
+        dels_count++;
+  }
+
+  return size;
+}
+
 bool unary_table_aux_contains(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, uint32 elt) {
   if (col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
     return true;
@@ -105,7 +124,7 @@ bool unary_table_aux_contains(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, ui
 }
 
 bool unary_table_aux_is_empty(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
-  if (table_aux->insertions.count > 0 | table_aux->has_reinsertions)
+  if (table_aux->insertions.count > 0 | table_aux->reinsertions_count > 0)
     return false;
 
   if (table_aux->clear)

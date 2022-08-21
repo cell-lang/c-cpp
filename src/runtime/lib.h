@@ -271,6 +271,17 @@ struct COL_UPDATE_STATUS_MAP {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct QUASI_MAP_U32_U32 {
+  flat_hash_map<uint32, uint32, ska::power_of_two_std_hash<uint32>> main_hashtable;
+  unordered_map<uint32, vector<uint32>> collisions;
+};
+
+struct TRNS_MAP_SURR_SURR_SURR {
+  flat_hash_map<uint64, uint32> hashtable;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 typedef struct {
   void *subpools[9];
 } STATE_MEM_POOL;
@@ -288,8 +299,8 @@ struct UNARY_TABLE_AUX {
   QUEUE_U32 deletions;
   QUEUE_U32 insertions;
   uint32 init_capacity; // Capacity before the update is executed (DO WE STILL NEED THIS?)
+  uint32 reinsertions_count;
   bool clear;
-  bool has_reinsertions;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -391,14 +402,15 @@ struct MASTER_BIN_TABLE {
 };
 
 struct MASTER_BIN_TABLE_AUX {
+  STATE_MEM_POOL *mem_pool;
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
-  QUEUE_U64 deletions;
+  QUEUE_U64 deletions;    // Only existing tuples, but with possible duplicates
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
-  QUEUE_3U32 insertions;
+  QUEUE_3U32 insertions;  // Only new tuples and no duplicates
   QUEUE_U32 locked_surrs;
-  unordered_map<uint64, uint32> reserved_surrs;
+  TRNS_MAP_SURR_SURR_SURR reserved_surrs;
   uint32 last_surr;
   bool clear;
 };
@@ -524,13 +536,6 @@ struct RAW_FLOAT_COL {
 #ifndef NDEBUG
   uint32 capacity;
 #endif
-};
-
-////////////////////////////////////////////////////////////////////////////////
-
-struct QUASI_MAP_U32_U32 {
-  flat_hash_map<uint32, uint32, ska::power_of_two_std_hash<uint32>> main_hashtable;
-  unordered_map<uint32, vector<uint32>> collisions;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1359,6 +1364,7 @@ void   unary_table_aux_clear(UNARY_TABLE *, UNARY_TABLE_AUX *);
 void unary_table_aux_apply_deletions(UNARY_TABLE *, UNARY_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void unary_table_aux_apply_insertions(UNARY_TABLE *, UNARY_TABLE_AUX *, STATE_MEM_POOL *);
 
+uint32 unary_table_aux_size(UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool unary_table_aux_contains(UNARY_TABLE *, UNARY_TABLE_AUX *, uint32);
 bool unary_table_aux_is_empty(UNARY_TABLE *, UNARY_TABLE_AUX *);
 
@@ -1430,6 +1436,7 @@ bool bin_table_aux_check_key_2(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
 void bin_table_aux_apply_deletions(BIN_TABLE *, BIN_TABLE_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void bin_table_aux_apply_insertions(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
+bool bin_table_aux_has_deletions(BIN_TABLE_AUX *);
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 void bin_table_aux_prepare(BIN_TABLE_AUX *);
@@ -1684,6 +1691,8 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *);
 void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *);
 
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
+
+uint32 master_bin_table_aux_size(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
@@ -2243,6 +2252,16 @@ void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index
 void quasi_map_u32_u32_clear(QUASI_MAP_U32_U32 *);
 
 uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *, uint32 hashcode, OBJ *slots, OBJ value);
+
+
+void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *);
+void trns_map_surr_surr_surr_clear(TRNS_MAP_SURR_SURR_SURR *);
+
+void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3);
+uint32 trns_map_surr_surr_surr_extract(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
+
+uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
+bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *);
 
 ////////////////////////////////// queues.cpp //////////////////////////////////
 
