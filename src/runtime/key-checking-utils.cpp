@@ -44,7 +44,7 @@ void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map) {
 bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *mem_pool) {
   uint32 num_bits_words = bit_map->num_bits_words;
   if (index >= 64 * num_bits_words) {
-    uint32 new_num_bits_words = pow_2_ceiling(index + 1);
+    uint32 new_num_bits_words = pow_2_ceiling(index + 1); //## BUG BUG BUG: SHOULDN'T IT BE pow_2_ceiling(word_idx + 1) INSTEAD?
     if (num_bits_words == 0) {
       num_bits_words = max_u32(32, new_num_bits_words);
       bit_map->num_bits_words = num_bits_words;
@@ -104,6 +104,53 @@ void col_update_bit_map_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM
   col_update_bit_map_check_and_set(bit_map, index, mem_pool);
 }
 
+bool col_update_bit_map_clear_bit(COL_UPDATE_BIT_MAP *bit_map, uint32 index) {
+  uint32 num_bits_words = bit_map->num_bits_words;
+  if (index < 64 * num_bits_words) {
+    uint32 word_idx = index / 64;
+    uint32 bit_idx = index % 64;
+    uint64 mask = 1ULL << bit_idx;
+
+    uint64 *word_ptr = bit_map->bits + word_idx;
+    uint64 word = *word_ptr;
+    if ((word & mask) != 0) {
+      *word_ptr = word & mask;
+
+      if (word == 0) {
+        const uint32 inline_capacity = lengthof(bit_map->inline_dirty);
+
+        uint32 num_dirty = bit_map->num_dirty;
+        if (num_dirty < inline_capacity) {
+          bit_map->inline_dirty[num_dirty] = word_idx;
+        }
+        else if (num_dirty == inline_capacity) {
+          assert(bit_map->more_dirty == NULL);
+          uint32 *more_dirty = new_uint32_array(inline_capacity);
+          more_dirty[0] = word_idx;
+          bit_map->more_dirty = more_dirty;
+        }
+        else {
+          uint32 num_more_dirty = num_dirty - inline_capacity;
+          uint32 *more_dirty = bit_map->more_dirty;
+
+          if (num_more_dirty >= inline_capacity & is_pow_2(num_more_dirty)) {
+            uint32 *new_more_dirty = new_uint32_array(2 * num_more_dirty);
+            memcpy(new_more_dirty, more_dirty, num_more_dirty * sizeof(uint32));
+            more_dirty = new_more_dirty;
+            bit_map->more_dirty = more_dirty;
+          }
+
+          more_dirty[num_more_dirty] = word_idx;
+        }
+
+        bit_map->num_dirty = num_dirty + 1;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index) {
   uint32 num_bits_words = bit_map->num_bits_words;
   if (index >= 64 * num_bits_words)
@@ -148,6 +195,12 @@ bool col_update_status_map_check_and_mark_deletion(COL_UPDATE_STATUS_MAP *status
 }
 
 bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
+  return col_update_bit_map_check_and_set(&status_map->bit_map, 2 * index + 1, mem_pool);
+}
+
+bool col_update_status_map_check_and_mark_update_return_previous_inserted_flag(COL_UPDATE_STATUS_MAP *status_map, uint32 index, STATE_MEM_POOL *mem_pool) {
+  //## BAD BAD BAD: SHOULD BE DONE IN JUST ONE OPERATION
+  col_update_bit_map_check_and_set(&status_map->bit_map, 2 * index, mem_pool);
   return col_update_bit_map_check_and_set(&status_map->bit_map, 2 * index + 1, mem_pool);
 }
 

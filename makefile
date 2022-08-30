@@ -162,5 +162,6 @@ clean:
 	@rm -rf automata.cs automata.txt runtime.cs typedefs.cs dump-*.txt *.o gmon.out
 	@mkdir tmp/ tmp/null/
 
-objs/dbg/%.o: src/runtime/%.cpp
-	g++ -c -ggdb -I src/runtime/ $< -o $@
+%: src/runtime/%.cpp
+	rm -f objs/dbg/$@.o
+	g++ -c -ggdb -I src/runtime/ $< -o objs/dbg/$@.o

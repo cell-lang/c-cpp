@@ -69,6 +69,33 @@ void obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_
     remove_from_pool(mem_pool, curr_value);
 }
 
+void obj_col_insert_no_copy(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
+  if (idx >= column->capacity)
+    obj_col_resize(column, idx + 1, mem_pool);
+  OBJ *array = column->array;
+  OBJ curr_value = array[idx];
+  if (is_blank(curr_value)) {
+    column->count++;
+    array[idx] = value;
+  }
+  else if (!are_eq(curr_value, value)) {
+    soft_fail(NULL); //## ADD A MESSAGE?
+  }
+}
+
+void obj_col_update_no_copy(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *mem_pool) {
+  if (idx >= column->capacity)
+    obj_col_resize(column, idx + 1, mem_pool);
+  OBJ *array = column->array;
+  OBJ curr_value = array[idx];
+  //## SHOULD WE BE CHECKING THAT curr_value AND value ARE NOT EQUAL BEFORE PROCEEDING?
+  array[idx] = value;
+  if (is_blank(curr_value))
+    column->count++;
+  else
+    remove_from_pool(mem_pool, curr_value);
+}
+
 bool obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
   if (idx < column->capacity) {
     OBJ *array = column->array;

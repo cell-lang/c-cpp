@@ -31,7 +31,7 @@ void obj_store_resize(OBJ_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem
     slots[i] = make_store_blank(i + 1);
   store->slots = slots;
 
-  quasi_map_u32_u32_resize(&store->hashtable, new_capacity, mem_pool);
+  quasi_map_hcode_surr_resize(&store->hashtable, new_capacity, mem_pool);
 
   store->capacity = new_capacity;
 }
@@ -47,7 +47,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
     slots[i] = make_store_blank(i + 1);
   store->slots = slots;
 
-  quasi_map_u32_u32_init(&store->hashtable, mem_pool);
+  quasi_map_hcode_surr_init(&store->hashtable, mem_pool);
 
   store->capacity = INIT_SIZE;
   store->count = 0;
@@ -58,7 +58,7 @@ void obj_store_init(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value, uint32 hashcode) {
-  return quasi_map_u32_u32_find(&store->hashtable, hashcode, store->slots, value);
+  return quasi_map_hcode_surr_find(&store->hashtable, hashcode, store->slots, value);
 }
 
 uint32 obj_store_value_to_surr(OBJ_STORE *store, OBJ value) {
@@ -84,7 +84,7 @@ void obj_store_clear(OBJ_STORE *store, STATE_MEM_POOL *mem_pool) {
     //## BUG BUG BUG: AND WHEN IS THE MEMORY FREED?
     slots[i] = make_store_blank(i + 1);
 
-  quasi_map_u32_u32_clear(&store->hashtable);
+  quasi_map_hcode_surr_clear(&store->hashtable);
 
   store->count = 0;
   store->first_free_surr = 0;
@@ -97,7 +97,7 @@ void obj_store_remove(OBJ_STORE *store, uint32 surr, STATE_MEM_POOL *mem_pool) {
   OBJ value = *slot_ptr;
 
   uint32 hashcode = compute_hashcode(value); //## BAD BAD BAD: SHOULD THE HASHCODE BE STORED, INSTEAD OF BEING RECOMPUTED?
-  quasi_map_u32_u32_delete(&store->hashtable, hashcode, surr);
+  quasi_map_hcode_surr_delete(&store->hashtable, hashcode, surr);
 
   remove_from_pool(mem_pool, value);
 
@@ -119,7 +119,7 @@ void obj_store_insert(OBJ_STORE *store, OBJ value, uint32 hashcode, uint32 surr,
   store->first_free_surr = index_next(slot_ptr);
   *slot_ptr = copy_to_pool(mem_pool, value);
 
-  quasi_map_u32_u32_insert(&store->hashtable, hashcode, surr, mem_pool);
+  quasi_map_hcode_surr_insert(&store->hashtable, hashcode, surr, mem_pool);
 }
 
 static uint32 obj_store_insert(OBJ_STORE *store, OBJ value, uint32 hashcode, STATE_MEM_POOL *mem_pool) {

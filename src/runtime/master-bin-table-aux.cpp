@@ -187,6 +187,20 @@ static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_A
   }
 }
 
+static void master_bin_table_aux_build_surr_insertion_bitmap(MASTER_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 count = table_aux->insertions.count;
+  if (count > 0) {
+    uint32 (*ptr)[3] = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 surr = (*ptr)[2];
+      col_update_bit_map_set(bit_map, surr, mem_pool);
+      ptr++;
+    }
+  }
+}
+
 void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
   assert(table->table.forward.count == table->table.backward.count);
 
@@ -591,6 +605,8 @@ void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *table_aux) {
   queue_3u32_prepare(&table_aux->insertions);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 uint32 master_bin_table_aux_size(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
   if (table_aux->clear)
     return table_aux->insertions.count;
@@ -862,11 +878,42 @@ bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *
 
 // unary(X) -> binary(X, _)
 bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg1 = insertions[i][0];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool ok = found == src_size;
+      if (!ok) {
+        //## RECORD THE ERROR
+      }
+      return ok;
+    }
+    else {
+      bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -876,7 +923,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!master_bin_table_aux_contains_1(table, table_aux, arg1)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS/REINSERTIONS
+        if (!queue_3u32_contains_1(&table_aux->insertions, arg1)) {
           //## RECORD THE ERROR
           return false;
         }
@@ -888,19 +935,41 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
   uint32 num_dels_2 = table_aux->deletions_2.count;
 
   if (num_dels > 0 | num_dels_2 > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-    unordered_map<uint32, unordered_set<uint32>> deleted;
-    unordered_set<uint32> inserted;
+    if (table_aux->insertions.count > 0)
+      master_bin_table_aux_build_col_1_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+
+    COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
+
+    TRNS_MAP_SURR_U32 remaining;
+    trns_map_surr_u32_init(&remaining, mem_pool);
 
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
         uint32 arg1 = unpack_arg1(args);
-        uint32 arg2 = unpack_arg2(args);
-        if (master_bin_table_contains(table, arg1, arg2))
-          deleted[arg1].insert(arg2);
+        if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+            uint32 arg2 = unpack_arg2(args);
+            assert(master_bin_table_contains(table, arg1, arg2));
+            uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
+            if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surr, mem_pool)) {
+              uint32 count = trns_map_surr_u32_lookup(&remaining, arg1, 0);
+              if (count == 0)
+                count = master_bin_table_count_1(table, arg1);
+              assert(count > 0);
+              if (count == 1) {
+                // No more references left
+                //## RECORD THE ERROR
+                return false;
+              }
+              else
+                trns_map_surr_u32_set(&remaining, arg1, count - 1);
+            }
+          }
+        }
       }
     }
 
@@ -912,51 +981,79 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
         uint32 count2 = master_bin_table_count_2(table, arg2);
         uint32 read = 0;
         while (read < count2) {
-          uint32 buffer[64];
-          UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-          read += array2.size;
-          for (uint32 j=0 ; j < array2.size ; j++) {
-            uint32 arg1 = array2.array[j];
-
-            deleted[arg1].insert(arg2);
-
+          uint32 buffer[128];
+          UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+          read += array.size;
+          uint32 *surrs = array.array + array.offset;
+          for (uint32 j=0 ; j < array.size ; j++) {
+            uint32 arg1 = array.array[j];
+            if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
+              if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
+                if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surrs[j], mem_pool)) {
+                  uint32 count1 = trns_map_surr_u32_lookup(&remaining, arg1, 0);
+                  if (count1 == 0)
+                    count1 = master_bin_table_count_1(table, arg1);
+                  assert(count1 > 0);
+                  if (count1 == 1) {
+                    // No more references left
+                    //## RECORD THE ERROR
+                    return false;
+                  }
+                  else
+                    trns_map_surr_u32_set(&remaining, arg1, count1 - 1);
+                }
+              }
+            }
           }
         }
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count;
-    if (num_ins > 0) {
-      uint32 (*insertions)[3] = table_aux->insertions.array;
-      for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg1 = insertions[i][0];
-        inserted.insert(arg1);
-      }
-    }
-
-    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 arg1 = it->first;
-      uint32 num_del = it->second.size();
-      uint32 curr_num = master_bin_table_count_1(table, arg1);
-      assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(arg1) == 0) {
-        if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-          //## RECORD THE ERROR
-          return false;
-        }
-      }
-    }
+    col_update_bit_map_clear(&table_aux->bit_map);
+    col_update_bit_map_clear(&table_aux->another_bit_map);
   }
 
   return true;
 }
 
+// unary(Y) -> binary(_, Y)
 bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
   if (table_aux->clear) {
-    if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg2 = insertions[i][1];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool all_src_elts_found = found == src_size;
+      if (!all_src_elts_found) {
+        //## RECORD THE ERROR
+      }
+      return all_src_elts_found;
+    }
+    else {
+      bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -966,7 +1063,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!master_bin_table_aux_contains_2(table, table_aux, arg2)) { //## NOT THE MOST EFFICIENT WAY TO DO IT. SHOULD ONLY CHECK INSERTIONS/REINSERTIONS
+        if (!queue_3u32_contains_2(&table_aux->insertions, arg2)) {
           //## RECORD THE ERROR
           return false;
         }
@@ -978,19 +1075,40 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
   uint32 num_dels_1 = table_aux->deletions_1.count;
 
   if (num_dels > 0 | num_dels_1 > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-    unordered_map<uint32, unordered_set<uint32>> deleted;
-    unordered_set<uint32> inserted;
+    if (table_aux->insertions.count > 0)
+      master_bin_table_aux_build_col_2_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+
+    COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
+
+    TRNS_MAP_SURR_U32 remaining;
+    trns_map_surr_u32_init(&remaining, mem_pool);
 
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
-        uint32 arg1 = unpack_arg1(args);
         uint32 arg2 = unpack_arg2(args);
-        if (master_bin_table_contains(table, arg1, arg2))
-          deleted[arg2].insert(arg1);
+        if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
+          if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+            uint32 arg1 = unpack_arg1(args);
+            assert(master_bin_table_contains(table, arg2, arg1));
+            uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
+            if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surr, mem_pool)) {
+              uint32 count = trns_map_surr_u32_lookup(&remaining, arg2, 0);
+              if (count == 0)
+                count = master_bin_table_count_2(table, arg2);
+              assert(count > 0);
+              if (count == 1) {
+                // No more references left
+                //## RECORD THE ERROR
+                return false;
+              }
+              trns_map_surr_u32_set(&remaining, arg2, count - 1);
+            }
+          }
+        }
       }
     }
 
@@ -1002,73 +1120,110 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
         uint32 count1 = master_bin_table_count_1(table, arg1);
         uint32 read = 0;
         while (read < count1) {
-          uint32 buffer[64];
-          UINT32_ARRAY array1 = master_bin_table_range_restrict_1(table, arg1, read, buffer, 64);
-          read += array1.size;
-          for (uint32 j=0 ; j < array1.size ; j++) {
-            uint32 arg2 = array1.array[j];
-            deleted[arg2].insert(arg1);
+          uint32 buffer[128];
+          UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+          read += array.size;
+          uint32 *surrs = array.array + array.offset;
+          for (uint32 j=0 ; j < array.size ; j++) {
+            uint32 arg2 = array.array[j];
+            if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
+              if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+                if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surrs[j], mem_pool)) {
+                  uint32 count2 = trns_map_surr_u32_lookup(&remaining, arg2, 0);
+                  if (count2 == 0)
+                    count2 = master_bin_table_count_2(table, arg2);
+                  assert(count2 > 0);
+                  if (count2 == 1) {
+                    // No more references left
+                    //## RECORD THE ERROR
+                    return false;
+                  }
+                  trns_map_surr_u32_set(&remaining, arg2, count2 - 1);
+                }
+              }
+            }
           }
         }
       }
     }
 
-    uint32 num_ins = table_aux->insertions.count;
-    if (num_ins > 0) {
-      uint32 (*insertions)[3] = table_aux->insertions.array;
-      for (uint32 i=0 ; i < num_ins ; i++) {
-        uint32 arg2 = insertions[i][1];
-        inserted.insert(arg2);
-      }
-    }
+    col_update_bit_map_clear(&table_aux->bit_map);
+    col_update_bit_map_clear(&table_aux->another_bit_map);
+  }
 
-    for (unordered_map<uint32, unordered_set<uint32>>::iterator it = deleted.begin() ; it != deleted.end() ; it++) {
-      uint32 arg2 = it->first;
-      uint32 num_del = it->second.size();
-      uint32 curr_num = master_bin_table_count_2(table, arg2);
-      assert(num_del <= curr_num);
-      if (num_del == curr_num && inserted.count(arg2) == 0) {
-        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
+  return true;
+}
+
+// ternary(X, Y, _) -> binary(X, Y)
+bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
+  if (table_aux->clear) {
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = slave_tern_table_aux_size(src_table, src_table_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 surr = insertions[i][2];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
+          if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool all_src_elts_found = found == src_size;
+      if (!all_src_elts_found) {
+        //## RECORD THE ERROR
+      }
+      return all_src_elts_found;
+    }
+    else {
+      bool src_is_empty = slave_tern_table_aux_is_empty(src_table, src_table_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
+    }
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
+    return true;
+
+  STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  if (table_aux->insertions.count > 0)
+    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+
+  if (num_dels > 0) {
+    uint64 *args_array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      uint64 args = args_array[i];
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      assert(master_bin_table_contains(table, arg1, arg2));
+      //## BAD BAD BAD: SINCE WE CHECK THAT THE TUPLE EXISTS BEFORE ADDING IT
+      //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
+      assert(surr != 0xFFFFFFFF);
+      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+        if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
           //## RECORD THE ERROR
           return false;
         }
-      }
-    }
-  }
-
-  return true;
-}
-
-bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SLAVE_TERN_TABLE_AUX *src_table_aux) {
-  if (table_aux->clear) {
-    if (!bin_table_aux_is_empty(src_table, &src_table_aux->slave_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
-    }
-  }
-
-  uint32 num_dels = table_aux->deletions.count;
-  uint32 num_dels_1 = table_aux->deletions_1.count;
-  uint32 num_dels_2 = table_aux->deletions_2.count;
-
-  if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
-    return true;
-
-  if (num_dels > 0) {
-    uint64 *args_array = table_aux->deletions.array;
-    for (uint32 i=0 ; i < num_dels ; i++) {
-      uint64 args = args_array[i];
-      uint32 arg1 = unpack_arg1(args);
-      uint32 arg2 = unpack_arg2(args);
-      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-      if (surr != 0xFFFFFFFF)
-        if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
-          if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
-            //## RECORD THE ERROR
-            return false;
-          }
-        }
     }
   }
 
@@ -1076,25 +1231,21 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-
       uint32 count1 = master_bin_table_count_1(table, arg1);
       uint32 read = 0;
       while (read < count1) {
         uint32 buffer[128];
         //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-        UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
-        read += array1.size;
-        uint32 *surrs = array1.array + array1.offset;
-        for (uint32 j=0 ; j < array1.size ; j++) {
+        UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-
-          if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1104,24 +1255,21 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-
       uint32 count2 = master_bin_table_count_2(table, arg2);
       uint32 read = 0;
       while (read < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-        read += array2.size;
-        for (uint32 j=0 ; j < array2.size ; j++) {
-          uint32 arg1 = array2.array[j];
-          uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-
-          if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+        uint32 buffer[128];
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1130,12 +1278,44 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
   return true;
 }
 
+// ternary(X, Y, _) -> binary(X, Y)
 bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *src_col, OBJ_COL_AUX *src_col_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
   if (table_aux->clear) {
-    if (!obj_col_aux_is_empty(src_col, src_col_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = obj_col_aux_size(src_col, src_col_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 surr = insertions[i][2];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
+          if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool all_src_elts_found = found == src_size;
+      if (!all_src_elts_found) {
+        //## RECORD THE ERROR
+      }
+      return all_src_elts_found;
+    }
+    else {
+      bool src_is_empty = obj_col_aux_is_empty(src_col, src_col_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -1146,19 +1326,27 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
   if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
     return true;
 
+  STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  if (table_aux->insertions.count > 0)
+    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
+      assert(master_bin_table_contains(table, arg1, arg2));
+      //## BAD BAD BAD: SINCE WE CHECK THAT THE TUPLE EXISTS BEFORE ADDING IT
+      //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-      if (surr != 0xFFFFFFFF)
+      assert(surr != 0xFFFFFFFF);
+      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
         if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
-            //## RECORD THE ERROR
-            return false;
-          }
+          //## RECORD THE ERROR
+          return false;
         }
     }
   }
@@ -1167,25 +1355,21 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-
       uint32 count1 = master_bin_table_count_1(table, arg1);
       uint32 read = 0;
       while (read < count1) {
         uint32 buffer[128];
-        //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-        UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
-        read += array1.size;
-        uint32 *surrs = array1.array + array1.offset;
-        for (uint32 j=0 ; j < array1.size ; j++) {
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-
-          if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1195,24 +1379,21 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-
       uint32 count2 = master_bin_table_count_2(table, arg2);
       uint32 read = 0;
       while (read < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-        read += array2.size;
-        for (uint32 j=0 ; j < array2.size ; j++) {
-          uint32 arg1 = array2.array[j];
-          uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-
-          if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+        uint32 buffer[128];
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1222,11 +1403,42 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
 }
 
 bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *src_col, INT_COL_AUX *src_col_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
   if (table_aux->clear) {
-    if (!int_col_aux_is_empty(src_col, src_col_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = int_col_aux_size(src_col, src_col_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 surr = insertions[i][2];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
+          if (int_col_aux_contains_1(src_col, src_col_aux, surr))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool all_src_elts_found = found == src_size;
+      if (!all_src_elts_found) {
+        //## RECORD THE ERROR
+      }
+      return all_src_elts_found;
+    }
+    else {
+      bool src_is_empty = int_col_aux_is_empty(src_col, src_col_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -1237,19 +1449,27 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
   if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
     return true;
 
+  STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  if (table_aux->insertions.count > 0)
+    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
+      assert(master_bin_table_contains(table, arg1, arg2));
+      //## BAD BAD BAD: SINCE WE CHECK THAT THE TUPLE EXISTS BEFORE ADDING IT
+      //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-      if (surr != 0xFFFFFFFF)
+      assert(surr != 0xFFFFFFFF);
+      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
         if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
-            //## RECORD THE ERROR
-            return false;
-          }
+          //## RECORD THE ERROR
+          return false;
         }
     }
   }
@@ -1258,25 +1478,21 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-
       uint32 count1 = master_bin_table_count_1(table, arg1);
       uint32 read = 0;
       while (read < count1) {
         uint32 buffer[128];
-        //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-        UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
-        read += array1.size;
-        uint32 *surrs = array1.array + array1.offset;
-        for (uint32 j=0 ; j < array1.size ; j++) {
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-
-          if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1286,24 +1502,21 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-
       uint32 count2 = master_bin_table_count_2(table, arg2);
       uint32 read = 0;
       while (read < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-        read += array2.size;
-        for (uint32 j=0 ; j < array2.size ; j++) {
-          uint32 arg1 = array2.array[j];
-          uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-
-          if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+        uint32 buffer[128];
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1313,11 +1526,42 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
 }
 
 bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *src_col, FLOAT_COL_AUX *src_col_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
   if (table_aux->clear) {
-    if (!float_col_aux_is_empty(src_col, src_col_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = float_col_aux_size(src_col, src_col_aux);
+      if (src_size > ins_count) {
+        //## RECORD THE ERROR
+        return false;
+      }
+
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+      uint32 (*insertions)[3] = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 surr = insertions[i][2];
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
+          if (float_col_aux_contains_1(src_col, src_col_aux, surr))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+
+      assert(found <= src_size);
+      bool all_src_elts_found = found == src_size;
+      if (!all_src_elts_found) {
+        //## RECORD THE ERROR
+      }
+      return all_src_elts_found;
+    }
+    else {
+      bool src_is_empty = float_col_aux_is_empty(src_col, src_col_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -1328,19 +1572,27 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
   if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
     return true;
 
+  STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  if (table_aux->insertions.count > 0)
+    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint64 args = args_array[i];
       uint32 arg1 = unpack_arg1(args);
       uint32 arg2 = unpack_arg2(args);
+      assert(master_bin_table_contains(table, arg1, arg2));
+      //## BAD BAD BAD: SINCE WE CHECK THAT THE TUPLE EXISTS BEFORE ADDING IT
+      //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-      if (surr != 0xFFFFFFFF)
+      assert(surr != 0xFFFFFFFF);
+      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
         if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
-            //## RECORD THE ERROR
-            return false;
-          }
+          //## RECORD THE ERROR
+          return false;
         }
     }
   }
@@ -1349,25 +1601,21 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
     uint32 *arg1s = table_aux->deletions_1.array;
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
-
       uint32 count1 = master_bin_table_count_1(table, arg1);
       uint32 read = 0;
       while (read < count1) {
         uint32 buffer[128];
-        //## HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
-        UINT32_ARRAY array1 = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
-        read += array1.size;
-        uint32 *surrs = array1.array + array1.offset;
-        for (uint32 j=0 ; j < array1.size ; j++) {
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-
-          if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }
@@ -1377,24 +1625,21 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
     uint32 *arg2s = table_aux->deletions_2.array;
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
-
       uint32 count2 = master_bin_table_count_2(table, arg2);
       uint32 read = 0;
       while (read < count2) {
-        uint32 buffer[64];
-        UINT32_ARRAY array2 = master_bin_table_range_restrict_2(table, arg2, read, buffer, 64);
-        read += array2.size;
-        for (uint32 j=0 ; j < array2.size ; j++) {
-          uint32 arg1 = array2.array[j];
-          uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-
-          if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-            if (!queue_3u32_contains_3(&table_aux->insertions, surr)) {
+        uint32 buffer[128];
+        //## BAD BAD BAD: HERE I ONLY NEED THE SURROGATES, NOT THE SECOND ARGUMENTS
+        UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+        read += array.size;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+            if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
               //## RECORD THE ERROR
               return false;
             }
-          }
-
         }
       }
     }

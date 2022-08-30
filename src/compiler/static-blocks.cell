@@ -1459,6 +1459,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       code = ();
 
+      if has_insertions and column.repr == :object {
+        method_name = "obj_col_aux_copy_values_into_mem_pool";
+        args = (table_aux_name, :mem_pool);
+        code = (code | native_call(method_name, args));
+      }
+
       if has_deletions {
         remove_method_name = native_value_store_method_prefix(block.value_stores(column.value_store)) & "_remove_untyped";
         args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
@@ -1621,6 +1627,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     check_code = ("" if mutated_tables != ());
 
+    //## BAD BAD BAD: *_prepare(...) ENDS UP BEING CALLED EVEN WHEN ALL FOREIGN KEYS ARE STATICALLY CHECKED
     for t <- mutated_tables
       check_code = check_code & aux_prepare_code(t, block);
 

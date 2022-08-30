@@ -32,6 +32,7 @@ void sym_master_bin_table_aux_init(SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_ME
   queue_u32_init(&table_aux->deletions_1);
   queue_3u32_init(&table_aux->insertions);
   queue_u32_init(&table_aux->locked_surrs);
+  trns_map_surr_surr_surr_init(&table_aux->reserved_surrs);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -43,7 +44,7 @@ void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->deletions_1);
   queue_3u32_reset(&table_aux->insertions);
   queue_u32_reset(&table_aux->locked_surrs);
-  table_aux->reserved_surrs.clear();
+  trns_map_surr_surr_surr_clear(&table_aux->reserved_surrs);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -72,40 +73,33 @@ void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint
 
 uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
+
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
+  if (surr != 0xFFFFFFFF) {
+    queue_u32_insert(&table_aux->locked_surrs, surr);
+    return surr;
+  }
 
-  if (surr == 0xFFFFFFFF) {
-    uint32 count = table_aux->insertions.count;
-    if (count > 0) {
-      //## BAD BAD BAD: IMPLEMENT FOR REAL
-      uint32 (*ptr)[3] = table_aux->insertions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 curr_arg1 = (*ptr)[0];
-        uint32 curr_arg2 = (*ptr)[1];
-        if (curr_arg1 == arg1 & curr_arg2 == arg2) {
-          surr = (*ptr)[2];
-          break;
-        }
-        ptr++;
+  uint32 count = table_aux->insertions.count;
+  if (count > 0) {
+    //## BAD BAD BAD: IMPLEMENT FOR REAL
+    uint32 (*ptr)[3] = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 curr_arg1 = (*ptr)[0];
+      uint32 curr_arg2 = (*ptr)[1];
+      if (curr_arg1 == arg1 & curr_arg2 == arg2) {
+        surr = (*ptr)[2];
+        return surr;
       }
-    }
-
-    if (surr == 0xFFFFFFFF) {
-      unordered_map<uint64, uint32> &reserved_surrs = table_aux->reserved_surrs;
-      unordered_map<uint64, uint32>::iterator it = reserved_surrs.find(pack_args(arg1, arg2));
-      if (it != reserved_surrs.end()) {
-        surr = it->second;
-        reserved_surrs.erase(it);
-        assert(reserved_surrs.count(pack_args(arg1, arg2)) == 0);
-      }
-      else {
-        surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
-        table_aux->last_surr = surr;
-      }
+      ptr++;
     }
   }
-  else
-    queue_u32_insert(&table_aux->locked_surrs, surr);
+
+  surr = trns_map_surr_surr_surr_extract(&table_aux->reserved_surrs, arg1, arg2);
+  if (surr == 0xFFFFFFFF) {
+    surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+    table_aux->last_surr = surr;
+  }
 
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
   return surr;
@@ -115,6 +109,7 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
 
 uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   sort_args(arg1, arg2);
+
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF)
     return surr;
@@ -130,15 +125,13 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_
     ptr++;
   }
 
-  uint64 args = pack_args(arg1, arg2);
-
-  unordered_map<uint64, uint32>::iterator it = table_aux->reserved_surrs.find(pack_args(arg1, arg2));
-  if (it != table_aux->reserved_surrs.end())
-    return it->second;
+  surr = trns_map_surr_surr_surr_lookup(&table_aux->reserved_surrs, arg1, arg2);
+  if (surr != 0xFFFFFFFF)
+    return surr;
 
   surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
   table_aux->last_surr = surr;
-  table_aux->reserved_surrs[args] = surr;
+  trns_map_surr_surr_surr_insert_new(&table_aux->reserved_surrs, arg1, arg2, surr);
   return surr;
 }
 
@@ -163,7 +156,7 @@ static void sym_master_bin_table_aux_build_insertion_bitmap(SYM_MASTER_BIN_TABLE
 void sym_master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
-  assert(table_aux->reserved_surrs.empty());
+  assert(trns_map_surr_surr_surr_is_empty(&table_aux->reserved_surrs));
 
   // Removing from the surrogates already reserved for newly inserted tuples
   // from the list of free ones, so we can append to that list while deleting
@@ -190,7 +183,7 @@ void sym_master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, S
 void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
-  assert(table_aux->reserved_surrs.empty());
+  assert(trns_map_surr_surr_surr_is_empty(&table_aux->reserved_surrs));
 
   bool locks_applied = table_aux->locked_surrs.count == 0;
 

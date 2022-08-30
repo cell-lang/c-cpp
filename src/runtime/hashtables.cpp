@@ -1,21 +1,64 @@
 #include "lib.h"
 
 
-void quasi_map_u32_u32_init(QUASI_MAP_U32_U32 *table, STATE_MEM_POOL *mem_pool) {
+void map_surr_u32_init(MAP_SURR_U32 *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void map_surr_u32_clear(MAP_SURR_U32 *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+void map_surr_u32_delete(MAP_SURR_U32 *, uint32 key) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void map_surr_u32_set(MAP_SURR_U32 *, uint32 key, uint32 value) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 map_surr_u32_lookup(MAP_SURR_U32 *, uint32 key, uint32 default_) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void map_i64_surr_init(MAP_I64_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void map_i64_surr_clear(MAP_I64_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void map_i64_surr_delete(MAP_I64_SURR *map, int64) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void map_i64_surr_insert_new(MAP_I64_SURR *map, int64, uint32) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 map_i64_surr_lookup(MAP_I64_SURR *map, int64) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void quasi_map_hcode_surr_init(QUASI_MAP_HCODE_SURR *table, STATE_MEM_POOL *mem_pool) {
 
 }
 
-void quasi_map_u32_u32_release(QUASI_MAP_U32_U32 *table, STATE_MEM_POOL *mem_pool) {
+void quasi_map_hcode_surr_release(QUASI_MAP_HCODE_SURR *table, STATE_MEM_POOL *mem_pool) {
 
 }
 
-void quasi_map_u32_u32_resize(QUASI_MAP_U32_U32 *table, uint32 new_size, STATE_MEM_POOL *mem_pool) {
+void quasi_map_hcode_surr_resize(QUASI_MAP_HCODE_SURR *table, uint32 new_size, STATE_MEM_POOL *mem_pool) {
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 index, STATE_MEM_POOL *mem_pool) {
+void quasi_map_hcode_surr_insert(QUASI_MAP_HCODE_SURR *table, uint32 hashcode, uint32 index, STATE_MEM_POOL *mem_pool) {
   uint32 &index_ref = table->main_hashtable[hashcode];
   if (index_ref == 0) {
     index_ref = index + 1;
@@ -37,7 +80,7 @@ void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 index) {
+void quasi_map_hcode_surr_delete(QUASI_MAP_HCODE_SURR *table, uint32 hashcode, uint32 index) {
   assert(table->main_hashtable.find(hashcode) != table->main_hashtable.end());
 
   auto main_it = table->main_hashtable.find(hashcode);
@@ -87,14 +130,14 @@ void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *table, uint32 hashcode, uint32 
   }
 }
 
-void quasi_map_u32_u32_clear(QUASI_MAP_U32_U32 *table) {
+void quasi_map_hcode_surr_clear(QUASI_MAP_HCODE_SURR *table) {
   table->main_hashtable.clear();
   table->collisions.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *table, uint32 hashcode, OBJ *slots, OBJ value) {
+uint32 quasi_map_hcode_surr_find(QUASI_MAP_HCODE_SURR *table, uint32 hashcode, OBJ *slots, OBJ value) {
   auto main_it = table->main_hashtable.find(hashcode);
   if (main_it == table->main_hashtable.end())
     return 0xFFFFFFFF;
@@ -154,5 +197,19 @@ uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1
 }
 
 bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *map) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *, STATE_MEM_POOL *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+void trns_map_surr_u32_set(TRNS_MAP_SURR_U32 *, uint32 key, uint32 value) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *, uint32 key, uint32 default_) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }

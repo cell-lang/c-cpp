@@ -14,6 +14,7 @@ void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool) {
   column->array = array;
   column->capacity = INIT_SIZE;
   column->count = 0;
+  bit_map_init(&column->collisions);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -34,7 +35,7 @@ static void int_col_resize(INT_COL *column, uint32 min_capacity, STATE_MEM_POOL 
 
 inline bool is_collision(INT_COL *column, uint32 idx) {
   assert(idx < column->capacity && column->array[idx] == INT_NULL);
-  return column->collisions.count(idx) != 0;
+  return bit_map_is_set(&column->collisions, idx);
 }
 
 bool is_set_at(INT_COL *column, uint32 idx, int64 value) {
@@ -77,7 +78,7 @@ void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *me
     column->count++;
     array[idx] = value;
     if (value == INT_NULL)
-      column->collisions.insert(idx);
+      bit_map_set(&column->collisions, idx, mem_pool);
   }
   else if (curr_value != value) {
     soft_fail(NULL); //## ADD A MESSAGE?
@@ -94,13 +95,13 @@ void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *me
     // There is an existing value, and it's not INT_NULL
     array[idx] = value;
     if (value == INT_NULL)
-      column->collisions.insert(idx);
+      bit_map_set(&column->collisions, idx, mem_pool);
   }
-  else if (column->collisions.count(idx) != 0) {
+  else if (bit_map_is_set(&column->collisions, idx)) {
     // The existing value happens to be INT_NULL
     if (value != INT_NULL) {
       array[idx] = value;
-      column->collisions.erase(idx);
+      bit_map_clear(&column->collisions, idx);
     }
   }
   else {
@@ -108,7 +109,7 @@ void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *me
     column->count++;
     array[idx] = value;
     if (value == INT_NULL)
-      column->collisions.insert(idx);
+      bit_map_set(&column->collisions, idx, mem_pool);
   }
 }
 
@@ -122,7 +123,7 @@ bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
       return true;
     }
     else if (is_collision(column, idx)) {
-      column->collisions.erase(idx);
+      bit_map_clear(&column->collisions, idx);
       column->count--;
       return true;
     }
@@ -144,7 +145,7 @@ void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool) {
     int64 *array = column->array;
     for (uint32 i=0 ; i < capacity ; i++)
       array[i] = INT_NULL;
-    column->collisions.clear();
+    bit_map_clear(&column->collisions, mem_pool);
   }
 }
 

@@ -88,7 +88,7 @@ void int_store_resize(INT_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem
   store->partial_value_to_surr_array = new_partial_value_to_surr_array;
 
   memset(new_partial_value_to_surr_array, 0xFF, sizeof(uint32) * new_capacity);
-  store->value_to_surr_map.clear();
+  map_i64_surr_clear(&store->value_to_surr_map);
 
   for (uint32 i=0 ; i < curr_capacity ; i++) {
     int64 value = curr_surr_to_value_array[i];
@@ -96,7 +96,7 @@ void int_store_resize(INT_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem
     if (value >= 0 & value < new_capacity)
       new_partial_value_to_surr_array[value] = i;
     else
-      store->value_to_surr_map[value] = i;
+      map_i64_surr_insert_new(&store->value_to_surr_map, value, i);
   }
 
   for (uint32 i=curr_capacity ; i < new_capacity ; i++)
@@ -118,6 +118,8 @@ void int_store_init(INT_STORE *store, STATE_MEM_POOL *mem_pool) {
   store->partial_value_to_surr_array = partial_value_to_surr_array;
   memset(partial_value_to_surr_array, 0xFF, sizeof(uint32) * INIT_CAPACITY);
 
+  map_i64_surr_init(&store->value_to_surr_map);
+
   store->capacity = INIT_CAPACITY;
   store->count = 0;
   store->first_free_surr = 0;
@@ -129,12 +131,8 @@ void int_store_init(INT_STORE *store, STATE_MEM_POOL *mem_pool) {
 uint32 int_store_value_to_surr(INT_STORE *store, int64 value) {
   if (value >= 0 && value < store->capacity)
     return store->partial_value_to_surr_array[value];
-
-  unordered_map<int64, uint32>::const_iterator it = store->value_to_surr_map.find(value);
-  if (it != store->value_to_surr_map.end())
-    return it->second;
   else
-    return 0xFFFFFFFF;
+    return map_i64_surr_lookup(&store->value_to_surr_map, value);
 
   // uint32 hash_idx = hash_index(value, store->capacity);
   // uint32 idx = store->hashtable[hash_idx];
@@ -167,7 +165,7 @@ void int_store_clear(INT_STORE *store) {
 
   memset(store->partial_value_to_surr_array, 0xFF, sizeof(uint32) * capacity);
 
-  store->value_to_surr_map.clear();
+  map_i64_surr_clear(&store->value_to_surr_map);
 
   store->count = 0;
   store->first_free_surr = 0;
@@ -183,7 +181,7 @@ void int_store_remove(INT_STORE *store, uint32 index) {
   if (value >= 0 && value < store->capacity)
     store->partial_value_to_surr_array[value] = 0xFFFFFFFF;
   else
-    store->value_to_surr_map.erase(value);
+    map_i64_surr_delete(&store->value_to_surr_map, value);
 }
 
 void int_store_insert(INT_STORE *store, int64 value, uint32 surr, STATE_MEM_POOL *mem_pool) {
@@ -203,7 +201,7 @@ void int_store_insert(INT_STORE *store, int64 value, uint32 surr, STATE_MEM_POOL
   if (value >= 0 && value < store->capacity)
     store->partial_value_to_surr_array[value] = surr;
   else
-    store->value_to_surr_map[value] = surr;
+    map_i64_surr_insert_new(&store->value_to_surr_map, value, surr);
 }
 
 static uint32 int_store_insert(INT_STORE *store, int64 value, STATE_MEM_POOL *mem_pool) {

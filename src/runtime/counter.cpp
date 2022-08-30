@@ -9,13 +9,15 @@ void counter_init(COUNTER *counter, STATE_MEM_POOL *mem_pool) {
   uint8 *uint8_array = alloc_state_mem_uint8_array(mem_pool, INIT_SIZE);
   memset(uint8_array, 0, INIT_SIZE * sizeof(uint8));
   counter->counters = uint8_array;
+
+  map_surr_u32_init(&counter->overflows);
 }
 
 void counter_clear(COUNTER *counter, STATE_MEM_POOL *mem_pool) {
   release_state_mem_uint8_array(mem_pool, counter->counters, counter->capacity);
   counter->capacity = 0;
   counter->counters = NULL;
-  counter->overflows.clear();
+  map_surr_u32_clear(&counter->overflows);
 }
 
 void counter_resize(COUNTER *counter, uint32 min_capacity, STATE_MEM_POOL *mem_pool) {
@@ -45,8 +47,7 @@ uint32 counter_read(COUNTER *counter, uint32 index) {
   if (index < counter->capacity) {
     count = counter->counters[index];
     if (count > 127)
-      if (counter->overflows.count(index) > 0)
-        count += counter->overflows[index];
+      count += map_surr_u32_lookup(&counter->overflows, index, 0);
   }
   return count;
 }
@@ -66,7 +67,8 @@ void counter_incr(COUNTER *counter, uint32 index, STATE_MEM_POOL *mem_pool) {
   uint8 *counters = counter->counters;
   uint32 count = counters[index] + 1;
   if (count == 256) {
-    counter->overflows[index]++;
+    uint32 extra_count = map_surr_u32_lookup(&counter->overflows, index, 0);
+    map_surr_u32_set(&counter->overflows, index, extra_count + 1);
     count -= 64;
   }
   counters[index] = count;
@@ -79,12 +81,12 @@ void counter_decr(COUNTER *counter, uint32 index, STATE_MEM_POOL *mem_pool) {
   assert(counters[index] > 0);
   uint32 count = counters[index] - 1;
   if (count == 127) {
-    if (counter->overflows.count(index) > 0) {
-      uint32 extra_count = counter->overflows[index] - 1;
-      if (extra_count == 0)
-        counter->overflows.erase(index);
+    uint32 extra_count = map_surr_u32_lookup(&counter->overflows, index, 0);
+    if (extra_count > 0) {
+      if (extra_count == 1)
+        map_surr_u32_delete(&counter->overflows, index);
       else
-        counter->overflows[index] = extra_count;
+        map_surr_u32_set(&counter->overflows, index, extra_count - 1);
       count += 64;
     }
   }
@@ -93,27 +95,32 @@ void counter_decr(COUNTER *counter, uint32 index, STATE_MEM_POOL *mem_pool) {
 
 void counter_decr(COUNTER *counter, uint32 index, uint32 amount, STATE_MEM_POOL *mem_pool) {
   assert(index < counter->capacity);
+  assert(amount <= counter_read(counter, index));
 
   uint8 *counters = counter->counters;
   uint32 count = counters[index];
   assert(count > 0);
 
-  if (count < 128 || counter->overflows.count(index) == 0) {
-    count -= amount;
-  }
-  else {
-    count += 64 * counter->overflows[index];
-    count -= amount;
-    if (count >= 256) {
-      uint32 new_extra_count = (count / 64) - 2;
-      count -= 64 * new_extra_count;
-      counter->overflows[index] = new_extra_count;
+  if (count > 127) {
+    uint32 extra_count = map_surr_u32_lookup(&counter->overflows, index, 0);
+    if (extra_count > 0) {
+      count += 64 * extra_count;
+      assert(count >= amount);
+      count -= amount;
+      if (count >= 256) {
+        uint32 new_extra_count = (count / 64) - 2;
+        count -= 64 * new_extra_count;
+        map_surr_u32_set(&counter->overflows, index, new_extra_count);
+      }
+      else
+        map_surr_u32_delete(&counter->overflows, index);
     }
     else
-      counter->overflows.erase(index);
+      count -= amount;
   }
+  else
+    count -= amount;
 
   assert(count < 256);
-
   counters[index] = count;
 }

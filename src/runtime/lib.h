@@ -249,6 +249,13 @@ struct QUEUE_U32_OBJ {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct BIT_MAP {
+  uint64 *words; // Stored in state memory
+  uint32 num_words;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
 struct SURR_SET {
   uint64 *bitmap;
   uint32 capacity;
@@ -271,13 +278,25 @@ struct COL_UPDATE_STATUS_MAP {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct QUASI_MAP_U32_U32 {
+struct MAP_SURR_U32 {
+  flat_hash_map<uint32, uint32, ska::power_of_two_std_hash<uint32>> hashtable;
+};
+
+struct MAP_I64_SURR {
+  flat_hash_map<int64, uint32> hashtable;
+};
+
+struct QUASI_MAP_HCODE_SURR {
   flat_hash_map<uint32, uint32, ska::power_of_two_std_hash<uint32>> main_hashtable;
-  unordered_map<uint32, vector<uint32>> collisions;
+  flat_hash_map<uint32, vector<uint32>> collisions;
 };
 
 struct TRNS_MAP_SURR_SURR_SURR {
   flat_hash_map<uint64, uint32> hashtable;
+};
+
+struct TRNS_MAP_SURR_U32 {
+  flat_hash_map<uint32, uint32> hashtable;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -324,7 +343,7 @@ struct ONE_WAY_BIN_TABLE {
 struct COUNTER {
   uint32 capacity;
   uint8 *counters;
-  unordered_map<uint32, uint32> overflows;
+  MAP_SURR_U32 overflows;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -367,9 +386,10 @@ struct BIN_TABLE_AUX {
 struct SINGLE_KEY_BIN_TABLE_AUX {
   COL_UPDATE_STATUS_MAP col_1_status_map;
   COL_UPDATE_BIT_MAP arg2_insertion_map;
-  QUEUE_U64 deletions;
-  QUEUE_U32 deletions_2;
-  QUEUE_U64 insertions;
+  COL_UPDATE_BIT_MAP arg2_deletion_map; // Only records deletions by the second argument: delete binary(*, y)
+  QUEUE_U32 deletions_1; // No duplicates, only existing values
+  QUEUE_U32 deletions_2; // No duplicates, only existing values
+  QUEUE_U64 insertions;  // No duplicates
   uint32 unique_deletes_count;
   bool key_violation_detected;
   bool clear;
@@ -419,11 +439,11 @@ struct MASTER_BIN_TABLE_AUX {
 
 struct SYM_MASTER_BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
-  QUEUE_U64 deletions;
+  QUEUE_U64 deletions;    // Only existing tuples, but with possible duplicates
   QUEUE_U32 deletions_1;
-  QUEUE_3U32 insertions;
+  QUEUE_3U32 insertions;  // Only new tuples and no duplicates
   QUEUE_U32 locked_surrs;
-  unordered_map<uint64, uint32> reserved_surrs;
+  TRNS_MAP_SURR_SURR_SURR reserved_surrs;
   uint32 last_surr;
   bool clear;
 };
@@ -469,11 +489,14 @@ struct OBJ_COL {
 };
 
 struct OBJ_COL_AUX {
+  STATE_MEM_POOL *mem_pool;
   COL_UPDATE_STATUS_MAP status_map;
-  QUEUE_U32 deletions;
-  QUEUE_U32_OBJ insertions;
-  QUEUE_U32_OBJ updates;
+  QUEUE_U32 deletions;        // Only existing tuples, no duplicates
+  QUEUE_U32_OBJ insertions;   // No duplicates (conflicts), not even with updates
+  QUEUE_U32_OBJ updates;      // No duplicates (conflicts), not even with insertions. Contains only actual updates that overwrites an existing value
+  uint32 undeleted_inserts;
   bool clear;
+  bool has_conflicts;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -482,16 +505,18 @@ struct INT_COL {
   int64 *array;
   uint32 capacity;
   uint32 count;
-
-  unordered_set<uint32> collisions;
+  BIT_MAP collisions;
 };
 
 struct INT_COL_AUX {
+  STATE_MEM_POOL *mem_pool;
   COL_UPDATE_STATUS_MAP status_map;
-  QUEUE_U32 deletions;
-  QUEUE_U32_I64 insertions;
-  QUEUE_U32_I64 updates;
+  QUEUE_U32 deletions;        // Only existing tuples, no duplicates
+  QUEUE_U32_I64 insertions;   // No duplicates (conflicts), not even with updates
+  QUEUE_U32_I64 updates;      // No duplicates (conflicts), not even with insertions. Contains only actual updates that overwrites an existing value
+  uint32 undeleted_inserts;
   bool clear;
+  bool has_conflicts;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -503,11 +528,14 @@ struct FLOAT_COL {
 };
 
 struct FLOAT_COL_AUX {
+  STATE_MEM_POOL *mem_pool;
   COL_UPDATE_STATUS_MAP status_map;
-  QUEUE_U32 deletions;
-  QUEUE_U32_FLOAT insertions;
-  QUEUE_U32_FLOAT updates;
+  QUEUE_U32 deletions;          // Only existing tuples, no duplicates
+  QUEUE_U32_FLOAT insertions;   // No duplicates (conflicts), not even with updates
+  QUEUE_U32_FLOAT updates;      // No duplicates (conflicts), not even with insertions. Contains only actual updates that overwrites an existing value
+  uint32 undeleted_inserts;
   bool clear;
+  bool has_conflicts;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -543,7 +571,7 @@ struct RAW_FLOAT_COL {
 struct OBJ_STORE {
   OBJ *slots; // If the slot is empty, core_data contains the index of the next free slot
 
-  QUASI_MAP_U32_U32 hashtable;
+  QUASI_MAP_HCODE_SURR hashtable;
 
   uint32 capacity;
   uint32 count;
@@ -583,7 +611,7 @@ struct INT_STORE {
 
   // Lookup structures
   uint32 *partial_value_to_surr_array;
-  unordered_map<int64, uint32> value_to_surr_map;
+  MAP_I64_SURR value_to_surr_map;
 
   uint32 capacity;
   uint32 count;
@@ -1067,6 +1095,15 @@ uint32 find_idxs_range(uint32 *index, OBJ *major_col, OBJ *minor_col, uint32 len
 int comp_objs(OBJ obj1, OBJ obj2);
 int cmp_objs(OBJ obj1, OBJ obj2);
 
+///////////////////////////////// bit-map.cpp //////////////////////////////////
+
+void bit_map_init(BIT_MAP *);
+void bit_map_clear(BIT_MAP *, STATE_MEM_POOL *); // Clears everything
+
+bool bit_map_set(BIT_MAP *, uint32, STATE_MEM_POOL *);
+bool bit_map_clear(BIT_MAP *, uint32); // Clears only that particular bit
+bool bit_map_is_set(BIT_MAP *, uint32);
+
 ///////////////////////////////// surr-set.cpp /////////////////////////////////
 
 uint32 surr_set_size(SURR_SET *);
@@ -1333,6 +1370,7 @@ bool col_update_status_map_is_dirty(COL_UPDATE_STATUS_MAP *);
 void col_update_status_map_mark_deletion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
 bool col_update_status_map_check_and_mark_deletion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
 bool col_update_status_map_check_and_mark_insertion(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
+bool col_update_status_map_check_and_mark_update_return_previous_inserted_flag(COL_UPDATE_STATUS_MAP *, uint32 index, STATE_MEM_POOL *);
 bool col_update_status_map_deleted_flag_is_set(COL_UPDATE_STATUS_MAP *, uint32 index);
 bool col_update_status_map_inserted_flag_is_set(COL_UPDATE_STATUS_MAP *, uint32 index);
 
@@ -1808,6 +1846,10 @@ void slave_tern_table_aux_apply_insertions(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, 
 
 void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *);
 
+uint32 slave_tern_table_aux_size(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool slave_tern_table_aux_is_empty(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
+bool slave_tern_table_aux_contains_surr(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 surr);
+
 bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool slave_tern_table_aux_check_foreign_key_unary_table_3_forward(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
@@ -2044,6 +2086,8 @@ OBJ raw_obj_col_lookup_unchecked(UNARY_TABLE *, RAW_OBJ_COL *, uint32 idx);
 
 void raw_obj_col_insert(RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
 void raw_obj_col_update(UNARY_TABLE *, RAW_OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+void obj_col_insert_no_copy(OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
+void obj_col_update_no_copy(OBJ_COL *, uint32, OBJ, STATE_MEM_POOL *);
 void raw_obj_col_delete(RAW_OBJ_COL *, uint32, STATE_MEM_POOL *);
 void raw_obj_col_clear(UNARY_TABLE *, RAW_OBJ_COL *, STATE_MEM_POOL *);
 
@@ -2066,17 +2110,17 @@ void raw_obj_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 
-void int_col_init(INT_COL *column, STATE_MEM_POOL *);
+void int_col_init(INT_COL *, STATE_MEM_POOL *);
 
 uint32 int_col_size(INT_COL*);
 
-bool int_col_contains_1(INT_COL *column, uint32 idx);
-int64 int_col_lookup(INT_COL *column, uint32 idx);
+bool int_col_contains_1(INT_COL *, uint32 idx);
+int64 int_col_lookup(INT_COL *, uint32 idx);
 
-void int_col_insert(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *);
-void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *);
-bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *);
-void int_col_clear(INT_COL *column, STATE_MEM_POOL *);
+void int_col_insert(INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
+void int_col_update(INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
+bool int_col_delete(INT_COL *, uint32 idx, STATE_MEM_POOL *);
+void int_col_clear(INT_COL *, STATE_MEM_POOL *);
 
 void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void int_col_write(WRITE_FILE_STATE *write_state, INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
@@ -2091,8 +2135,8 @@ void int_col_aux_reset(INT_COL_AUX *);
 
 void int_col_aux_clear(INT_COL_AUX *);
 void int_col_aux_delete_1(INT_COL *, INT_COL_AUX *, uint32);
-void int_col_aux_insert(INT_COL_AUX *, uint32 index, int64 value);
-void int_col_aux_update(INT_COL_AUX *, uint32 index, int64 value);
+void int_col_aux_insert(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
+void int_col_aux_update(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
 
 void int_col_aux_apply_deletions(INT_COL *, INT_COL_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void int_col_aux_apply_updates_and_insertions(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
@@ -2100,6 +2144,8 @@ void int_col_aux_apply_updates_and_insertions(INT_COL *, INT_COL_AUX *, STATE_ME
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *, STATE_MEM_POOL *);
 
 void int_col_aux_prepare(INT_COL_AUX *);
+
+uint32 int_col_aux_size(INT_COL *, INT_COL_AUX *);
 bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
 bool int_col_aux_is_empty(INT_COL *, INT_COL_AUX *);
 // int64 int_col_aux_lookup(INT_COL *, INT_COL_AUX *, uint32);
@@ -2111,17 +2157,17 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *, INT_COL_
 
 ///////////////////////////////// float-col.cpp ////////////////////////////////
 
-void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *);
+void float_col_init(FLOAT_COL *, STATE_MEM_POOL *);
 
 uint32 float_col_size(FLOAT_COL *);
 
-bool float_col_contains_1(FLOAT_COL *column, uint32 idx);
-double float_col_lookup(FLOAT_COL *column, uint32 idx);
+bool float_col_contains_1(FLOAT_COL *, uint32 idx);
+double float_col_lookup(FLOAT_COL *, uint32 idx);
 
-void float_col_insert(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *);
-void float_col_update(FLOAT_COL *column, uint32 idx, double value, STATE_MEM_POOL *);
-bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *);
-void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *);
+void float_col_insert(FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
+void float_col_update(FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
+bool float_col_delete(FLOAT_COL *, uint32 idx, STATE_MEM_POOL *);
+void float_col_clear(FLOAT_COL *, STATE_MEM_POOL *);
 
 void float_col_copy_to(FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
 void float_col_write(WRITE_FILE_STATE *, FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, bool flip);
@@ -2136,8 +2182,8 @@ void float_col_aux_reset(FLOAT_COL_AUX *);
 
 void float_col_aux_clear(FLOAT_COL_AUX *);
 void float_col_aux_delete_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index);
-void float_col_aux_insert(FLOAT_COL_AUX *, uint32 index, double value);
-void float_col_aux_update(FLOAT_COL_AUX *, uint32 index, double value);
+void float_col_aux_insert(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
+void float_col_aux_update(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
 
 void float_col_aux_apply_deletions(FLOAT_COL *, FLOAT_COL_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void float_col_aux_apply_updates_and_insertions(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
@@ -2145,6 +2191,8 @@ void float_col_aux_apply_updates_and_insertions(FLOAT_COL *, FLOAT_COL_AUX *, ST
 bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 void float_col_aux_prepare(FLOAT_COL_AUX *);
+
+uint32 float_col_aux_size(FLOAT_COL *, FLOAT_COL_AUX *);
 bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
 bool float_col_aux_is_empty(FLOAT_COL *, FLOAT_COL_AUX *);
 // double float_col_aux_lookup(FLOAT_COL *col, FLOAT_COL_AUX *, uint32 surr_1);
@@ -2156,17 +2204,17 @@ bool float_col_aux_check_foreign_key_master_bin_table_backward(FLOAT_COL *, FLOA
 
 ////////////////////////////////// obj-col.cpp /////////////////////////////////
 
-void   obj_col_init(OBJ_COL *column, STATE_MEM_POOL *);
+void   obj_col_init(OBJ_COL *, STATE_MEM_POOL *);
 
 uint32 obj_col_size(OBJ_COL *);
 
-bool   obj_col_contains_1(OBJ_COL *column, uint32 idx);
-OBJ    obj_col_lookup(OBJ_COL *column, uint32 idx);
+bool   obj_col_contains_1(OBJ_COL *, uint32 idx);
+OBJ    obj_col_lookup(OBJ_COL *, uint32 idx);
 
-void   obj_col_insert(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *);
-void   obj_col_update(OBJ_COL *column, uint32 idx, OBJ value, STATE_MEM_POOL *);
-bool   obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *);
-void   obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *);
+void   obj_col_insert(OBJ_COL *, uint32 idx, OBJ value, STATE_MEM_POOL *);
+void   obj_col_update(OBJ_COL *, uint32 idx, OBJ value, STATE_MEM_POOL *);
+bool   obj_col_delete(OBJ_COL *, uint32 idx, STATE_MEM_POOL *);
+void   obj_col_clear(OBJ_COL *, STATE_MEM_POOL *);
 
 void   obj_col_copy_to(OBJ_COL *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void   obj_col_write(WRITE_FILE_STATE *, OBJ_COL *, OBJ (*)(void *, uint32), void *, bool);
@@ -2181,15 +2229,18 @@ void obj_col_aux_reset(OBJ_COL_AUX *);
 
 void obj_col_aux_clear(OBJ_COL_AUX *);
 void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *, uint32 index);
-void obj_col_aux_insert(OBJ_COL_AUX *, uint32 index, OBJ value);
+void obj_col_aux_insert(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
 void obj_col_aux_update(OBJ_COL_AUX *, uint32 index, OBJ value);
 
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
+void obj_col_aux_copy_values_into_mem_pool(OBJ_COL_AUX *, STATE_MEM_POOL *);
 void obj_col_aux_apply_deletions(OBJ_COL *, OBJ_COL_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void obj_col_aux_apply_updates_and_insertions(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
 void obj_col_aux_prepare(OBJ_COL_AUX *);
+
+uint32 obj_col_aux_size(OBJ_COL *, OBJ_COL_AUX *);
 bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32);
 bool obj_col_aux_is_empty(OBJ_COL *, OBJ_COL_AUX *);
 // OBJ  obj_col_aux_lookup(OBJ_COL *, OBJ_COL_AUX *, uint32);
@@ -2245,13 +2296,32 @@ uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, S
 
 //////////////////////////////// hashtables.cpp ////////////////////////////////
 
-void quasi_map_u32_u32_init(QUASI_MAP_U32_U32 *, STATE_MEM_POOL *);
-void quasi_map_u32_u32_resize(QUASI_MAP_U32_U32 *, uint32 new_capacity, STATE_MEM_POOL *);
-void quasi_map_u32_u32_insert(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index, STATE_MEM_POOL *);
-void quasi_map_u32_u32_delete(QUASI_MAP_U32_U32 *, uint32 hashcode, uint32 index);
-void quasi_map_u32_u32_clear(QUASI_MAP_U32_U32 *);
+void map_surr_u32_init(MAP_SURR_U32 *);
 
-uint32 quasi_map_u32_u32_find(QUASI_MAP_U32_U32 *, uint32 hashcode, OBJ *slots, OBJ value);
+void map_surr_u32_clear(MAP_SURR_U32 *);
+void map_surr_u32_delete(MAP_SURR_U32 *, uint32 key);
+
+void map_surr_u32_set(MAP_SURR_U32 *, uint32 key, uint32 value);
+
+uint32 map_surr_u32_lookup(MAP_SURR_U32 *, uint32 key, uint32 default_);
+
+
+void map_i64_surr_init(MAP_I64_SURR *);
+
+void map_i64_surr_clear(MAP_I64_SURR *);
+void map_i64_surr_delete(MAP_I64_SURR *, int64);
+void map_i64_surr_insert_new(MAP_I64_SURR *, int64, uint32);
+
+uint32 map_i64_surr_lookup(MAP_I64_SURR *, int64);
+
+
+void quasi_map_hcode_surr_init(QUASI_MAP_HCODE_SURR *, STATE_MEM_POOL *);
+void quasi_map_hcode_surr_resize(QUASI_MAP_HCODE_SURR *, uint32 new_capacity, STATE_MEM_POOL *);
+void quasi_map_hcode_surr_insert(QUASI_MAP_HCODE_SURR *, uint32 hashcode, uint32 index, STATE_MEM_POOL *);
+void quasi_map_hcode_surr_delete(QUASI_MAP_HCODE_SURR *, uint32 hashcode, uint32 index);
+void quasi_map_hcode_surr_clear(QUASI_MAP_HCODE_SURR *);
+
+uint32 quasi_map_hcode_surr_find(QUASI_MAP_HCODE_SURR *, uint32 hashcode, OBJ *slots, OBJ value);
 
 
 void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *);
@@ -2262,6 +2332,11 @@ uint32 trns_map_surr_surr_surr_extract(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, 
 
 uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
 bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *);
+
+
+void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *, STATE_MEM_POOL *);
+void trns_map_surr_u32_set(TRNS_MAP_SURR_U32 *, uint32 key, uint32 value);
+uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *, uint32 key, uint32 default_);
 
 ////////////////////////////////// queues.cpp //////////////////////////////////
 

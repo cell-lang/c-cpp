@@ -63,6 +63,21 @@ void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *table_aux) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 slave_tern_table_aux_size(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool slave_tern_table_aux_is_empty(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool slave_tern_table_aux_contains_surr(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 surr) {
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  // if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->slave_table_aux.insertions.count;
   if (num_ins > 0) {

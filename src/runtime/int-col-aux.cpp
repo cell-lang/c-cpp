@@ -6,11 +6,14 @@ bool is_set_at(INT_COL *, uint32 idx, int64 value);
 ////////////////////////////////////////////////////////////////////////////////
 
 void int_col_aux_init(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
+  col_aux->mem_pool = mem_pool;
   col_update_status_map_init(&col_aux->status_map);
   queue_u32_init(&col_aux->deletions);
   queue_u32_i64_init(&col_aux->insertions);
   queue_u32_i64_init(&col_aux->updates);
+  col_aux->undeleted_inserts = 0;
   col_aux->clear = false;
+  col_aux->has_conflicts = false;
 }
 
 void int_col_aux_reset(INT_COL_AUX *col_aux) {
@@ -18,7 +21,9 @@ void int_col_aux_reset(INT_COL_AUX *col_aux) {
   queue_u32_reset(&col_aux->deletions);
   queue_u32_i64_reset(&col_aux->insertions);
   queue_u32_i64_reset(&col_aux->updates);
+  col_aux->undeleted_inserts = 0;
   col_aux->clear = false;
+  col_aux->has_conflicts = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,41 +34,53 @@ void int_col_aux_clear(INT_COL_AUX *col_aux) {
 
 void int_col_aux_delete_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 index) {
   if (int_col_contains_1(col, index))
-    queue_u32_insert(&col_aux->deletions, index);
+    if (!col_update_status_map_check_and_mark_deletion(&col_aux->status_map, index, col_aux->mem_pool)) {
+      queue_u32_insert(&col_aux->deletions, index);
+      if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, index)) {
+        assert(col_aux->undeleted_inserts > 0);
+        col_aux->undeleted_inserts--;
+      }
+    }
 }
 
-void int_col_aux_insert(INT_COL_AUX *col_aux, uint32 index, int64 value) {
+void int_col_aux_insert(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
+  if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
+    //## TODO: RECORD THE ERROR
+    col_aux->has_conflicts = true;
+    return;
+  }
+
+  if (int_col_contains_1(col, index))
+    if (!col_update_status_map_deleted_flag_is_set(&col_aux->status_map, index))
+      col_aux->undeleted_inserts++;
+
   queue_u32_i64_insert(&col_aux->insertions, index, value);
 }
 
-void int_col_aux_update(INT_COL_AUX *col_aux, uint32 index, int64 value) {
-  queue_u32_i64_insert(&col_aux->updates, index, value);
+void int_col_aux_update(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
+  if (int_col_contains_1(col, index)) {
+    if (col_update_status_map_check_and_mark_update_return_previous_inserted_flag(&col_aux->status_map, index, col_aux->mem_pool)) {
+      //## TODO: RECORD THE ERROR
+      col_aux->has_conflicts = true;
+      return;
+    }
+
+    queue_u32_i64_insert(&col_aux->updates, index, value);
+  }
+  else {
+    if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
+      //## TODO: RECORD THE ERROR
+      col_aux->has_conflicts = true;
+      return;
+    }
+
+    queue_u32_i64_insert(&col_aux->insertions, index, value);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void int_col_aux_build_insert_map(INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(!col_update_status_map_is_dirty(&col_aux->status_map));
-
-  uint32 count = col_aux->insertions.count;
-  if (count != 0) {
-    uint32 *idxs = col_aux->insertions.u32_array;
-    for (uint32 i=0 ; i < count ; i++)
-      col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool);
-  }
-
-  count = col_aux->updates.count;
-  if (count != 0) {
-    uint32 *idxs = col_aux->updates.u32_array;
-    for (uint32 i=0 ; i < count ; i++)
-      col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool);
-  }
-}
-
 void int_col_aux_apply_deletions(INT_COL *col, INT_COL_AUX *col_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
-  bool has_insertions_or_updates = col_aux->insertions.count > 0 || col_aux->updates.count > 0;
-  bool status_map_built = !has_insertions_or_updates || col_update_status_map_is_dirty(&col_aux->status_map);
-
   if (col_aux->clear) {
     if (remove != NULL) {
       int64 *array = col->array;
@@ -72,11 +89,7 @@ void int_col_aux_apply_deletions(INT_COL *col, INT_COL_AUX *col_aux, void (*remo
       for (uint32 idx=0 ; read < count ; idx++)
         if (is_set_at(col, idx, array[idx])) {
           read++;
-          if (!status_map_built) {
-            int_col_aux_build_insert_map(col_aux, mem_pool);
-            status_map_built = true;
-          }
-          if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
+          if (!col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
             remove(store, idx, mem_pool);
         }
     }
@@ -88,16 +101,9 @@ void int_col_aux_apply_deletions(INT_COL *col, INT_COL_AUX *col_aux, void (*remo
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        if (int_col_delete(col, idx, mem_pool)) {
-          if (remove != NULL) {
-            if (!status_map_built) {
-              int_col_aux_build_insert_map(col_aux, mem_pool);
-              status_map_built = true;
-            }
-            if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
+        if (int_col_delete(col, idx, mem_pool))
+          if (remove != NULL && col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
               remove(store, idx, mem_pool);
-          }
-        }
       }
     }
   }
@@ -123,146 +129,50 @@ void int_col_aux_apply_updates_and_insertions(INT_COL *col, INT_COL_AUX *col_aux
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void int_col_aux_record_col_1_key_violation(INT_COL_AUX *col_aux, uint32 idx, int64 value, int64 other_value, bool between_new) {
-//   //## BUG: Stores may contain only part of the value (id(5) -> 5)
-//   Obj key = store.surrToValue(idx);
-//   Obj[] tuple1 = new Obj[] {key, value};
-//   Obj[] tuple2 = new Obj[] {key, otherValue};
-//   return new KeyViolationException(relvarName, KeyViolationException.key_1, tuple1, tuple2, betweenNew);
+// static void int_col_aux_record_col_1_key_violation(INT_COL_AUX *col_aux, uint32 idx, int64 value, int64 other_value, bool between_new) {
+// //   //## BUG: Stores may contain only part of the value (id(5) -> 5)
+// //   Obj key = store.surrToValue(idx);
+// //   Obj[] tuple1 = new Obj[] {key, value};
+// //   Obj[] tuple2 = new Obj[] {key, otherValue};
+// //   return new KeyViolationException(relvarName, KeyViolationException.key_1, tuple1, tuple2, betweenNew);
 
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
+//   //## IMPLEMENT IMPLEMENT IMPLEMENT
+// }
 
-static void int_col_aux_record_col_1_key_violation(INT_COL *col, INT_COL_AUX *col_aux, uint32 idx, int64 value, bool between_new) {
-  if (between_new) {
-    uint32 count = col_aux->updates.count;
-    uint32 *idxs = col_aux->updates.u32_array;
-    for (uint32 i=0 ; i < count ; i++)
-      if (idxs[i] == idx) {
-        int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->updates.i64_array[i], between_new);
-        return;
-      }
+// static void int_col_aux_record_col_1_key_violation(INT_COL *col, INT_COL_AUX *col_aux, uint32 idx, int64 value, bool between_new) {
+//   if (between_new) {
+//     uint32 count = col_aux->updates.count;
+//     uint32 *idxs = col_aux->updates.u32_array;
+//     for (uint32 i=0 ; i < count ; i++)
+//       if (idxs[i] == idx) {
+//         int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->updates.i64_array[i], between_new);
+//         return;
+//       }
 
-    count = col_aux->insertions.count;
-    idxs = col_aux->insertions.u32_array;
-    for (uint32 i=0 ; i < count ; i++)
-      if (idxs[i] == idx) {
-        int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->insertions.i64_array[i], between_new);
-        return;
-      }
+//     count = col_aux->insertions.count;
+//     idxs = col_aux->insertions.u32_array;
+//     for (uint32 i=0 ; i < count ; i++)
+//       if (idxs[i] == idx) {
+//         int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->insertions.i64_array[i], between_new);
+//         return;
+//       }
 
-    internal_fail();
-  }
-  else
-    int_col_aux_record_col_1_key_violation(col_aux, idx, value, int_col_lookup(col, idx), between_new);
-}
+//     internal_fail();
+//   }
+//   else
+//     int_col_aux_record_col_1_key_violation(col_aux, idx, value, int_col_lookup(col, idx), between_new);
+// }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static bool int_col_aux_value_set_at_is(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
-  uint32 count = col_aux->insertions.count;
-  uint32 *idxs = col_aux->insertions.u32_array;
-
-  for (uint32 i=0 ; i < count ; i++)
-    if (idxs[i] == index)
-      return col_aux->insertions.i64_array[i] == value;
-
-  count = col_aux->updates.count;
-  idxs = col_aux->updates.u32_array;
-  for (uint32 i=0 ; i < count ; i++)
-    if (idxs[i] == index)
-      return col_aux->updates.i64_array[i] == value;
-
-  if (int_col_contains_1(col, index))
-    return int_col_lookup(col, index) == value;
-
-  internal_fail();
-}
-
 //## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND FLOAT VERSIONS
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(col_aux->status_map.bit_map.num_dirty == 0);
+  if (col_aux->has_conflicts)
+    return false;
 
-  uint32 num_insertions = col_aux->insertions.count;
-  uint32 num_updates = col_aux->updates.count;
-
-  if (num_insertions != 0 | num_updates != 0) {
-    if (col_aux->clear) {
-      if (num_insertions != 0) {
-        uint32 *idxs = col_aux->insertions.u32_array;
-        for (uint32 i=0 ; i < num_insertions ; i++)
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-      }
-
-      if (num_updates != 0) {
-        uint32 *idxs = col_aux->updates.u32_array;
-        for (uint32 i=0 ; i < num_updates ; i++) {
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-        }
-      }
-    }
-    else {
-      uint32 num_deletes = col_aux->deletions.count;
-      if (num_deletes != 0) {
-        uint32 *idxs = col_aux->deletions.array;
-        for (uint32 i=0 ; i < num_deletes ; i++) {
-          uint32 idx = idxs[i];
-          if (int_col_contains_1(col, idx))
-            col_update_status_map_mark_deletion(&col_aux->status_map, idx, mem_pool);
-        }
-      }
-
-      if (num_updates != 0) {
-        uint32 *idxs = col_aux->updates.u32_array;
-        for (uint32 i=0 ; i < num_updates ; i++) {
-          uint32 idx = idxs[i];
-          if (int_col_contains_1(col, idx))
-            col_update_status_map_mark_deletion(&col_aux->status_map, idx, mem_pool);
-        }
-      }
-
-      if (num_insertions != 0) {
-        uint32 *idxs = col_aux->insertions.u32_array;
-        for (uint32 i=0 ; i < num_insertions ; i++) {
-          uint32 idx = idxs[i];
-          //## COULD BE MADE MORE EFFICIENT IF WE MERGED THE .._deleted_flag_is_set(..) WITH .._check_and_mark_insertion(..)
-          if (int_col_contains_1(col, idx) && !col_update_status_map_deleted_flag_is_set(&col_aux->status_map, idx))
-            if (int_col_lookup(col, idx) != col_aux->insertions.i64_array[i]) {
-              //## CLEAR?
-              //## RECORD THE ERROR
-              return false;
-            }
-
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool))
-            if (!int_col_aux_value_set_at_is(col, col_aux, idx, col_aux->insertions.i64_array[i])) {
-              //## CLEAR?
-              //## RECORD THE ERROR
-              return false;
-            }
-        }
-      }
-
-      if (num_updates != 0) {
-        uint32 *idxs = col_aux->updates.u32_array;
-        for (uint32 i=0 ; i < num_updates ; i++) {
-          uint32 idx = idxs[i];
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idx, mem_pool))
-            if (!int_col_aux_value_set_at_is(col, col_aux, idx, col_aux->updates.i64_array[i])) {
-              //## CLEAR?
-              //## RECORD THE ERROR
-              return false;
-            }
-        }
-      }
-    }
+  if (col_aux->undeleted_inserts > 0 && !col_aux->clear) {
+    //## TODO: RECORD THE ERROR
+    return false;
   }
 
   return true;
@@ -271,39 +181,29 @@ bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL 
 ////////////////////////////////////////////////////////////////////////////////
 
 void int_col_aux_prepare(INT_COL_AUX *col_aux) {
-  queue_u32_sort_unique(&col_aux->deletions); // May need to support unique_count(..)
-  queue_u32_i64_prepare(&col_aux->insertions);
-  queue_u32_i64_prepare(&col_aux->updates);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 int_col_aux_size(INT_COL *col, INT_COL_AUX *col_aux) {
+  assert(!col_aux->has_conflicts && col_aux->undeleted_inserts == 0);
+
+  return int_col_size(col) - col_aux->deletions.count + col_aux->insertions.count;
 }
 
 bool int_col_aux_contains_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 index) {
-  if (queue_u32_i64_contains_1(&col_aux->insertions, index))
+  if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, index))
     return true;
 
-  if (queue_u32_i64_contains_1(&col_aux->updates, index))
-    return true;
-
-  if (col_aux->clear)
+  if (col_update_status_map_deleted_flag_is_set(&col_aux->status_map, index))
     return false;
 
-  if (!int_col_contains_1(col, index))
-    return false;
-
-  return !queue_u32_sorted_contains(&col_aux->deletions, index);
+  return int_col_contains_1(col, index);
 }
 
 bool int_col_aux_is_empty(INT_COL *col, INT_COL_AUX *col_aux) {
-  if (col_aux->insertions.count > 0 || col_aux->updates.count > 0)
-    return false;
-
-  if (col_aux->clear)
-    return true;
-
-  uint32 size = int_col_size(col);
-  if (size == 0)
-    return true;
-
-  return queue_u32_unique_count(&col_aux->deletions) == size;
+  return int_col_aux_size(col, col_aux) == 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -314,17 +214,6 @@ bool int_col_aux_check_foreign_key_unary_table_1_forward(INT_COL *col, INT_COL_A
   if (num_ins > 0) {
     uint32 *arg1s = col_aux->insertions.u32_array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
-        //## RECORD THE ERROR
-        return false;
-      }
-    }
-  }
-
-  uint32 num_updates = col_aux->updates.count;
-  if (num_updates > 0) {
-    uint32 *arg1s = col_aux->updates.u32_array;
-    for (uint32 i=0 ; i < num_updates ; i++) {
       if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
         //## RECORD THE ERROR
         return false;
@@ -348,29 +237,43 @@ bool int_col_aux_check_foreign_key_master_bin_table_forward(INT_COL *col, INT_CO
     }
   }
 
-  uint32 num_updates = col_aux->updates.count;
-  if (num_updates > 0) {
-    uint32 *surrs = col_aux->updates.u32_array;
-    for (uint32 i=0 ; i < num_updates ; i++) {
-      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
-        //## RECORD THE ERROR
-        return false;
-      }
-    }
-  }
-
   return true;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 //## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND FLOAT VERSIONS
+//## IS THIS EVER USED (I THINK IT IS)? BUT IF SO, WHY ISN'T THERE AN EQUIVALENT VERSION FOR UNARY TABLES?
 bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_COL_AUX *col_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
   if (col_aux->clear) {
-    if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
-      //## BUG BUG BUG: WHAT IF THE TABLE IS CLEARED, BUT THEN IT'S INSERTED INTO?
-      //## RECORD THE ERROR
-      return false;
+    uint32 ins_count = col_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
+      if (src_size > ins_count) {
+        //## TODO: RECORD THE ERROR
+        return false;
+      }
+
+      uint32 *surrs = col_aux->insertions.u32_array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surrs[i]))
+          found++;
+      }
+
+      if (src_size > ins_count) {
+        //## TODO: RECORD THE ERROR
+        return false;
+      }
+
+      return true;
+    }
+    else {
+      bool src_is_empty = master_bin_table_aux_is_empty(src_table, src_table_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
     }
   }
 
@@ -379,12 +282,11 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_C
     uint32 *surrs = col_aux->deletions.array;
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 surr = surrs[i];
-      if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-        if (!int_col_aux_contains_1(col, col_aux, surr)) { //## NOT THE MOST EFFICIENT WAY TO DO IT.
+      if (!col_update_status_map_inserted_flag_is_set(&col_aux->status_map, surr))
+        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
           //## RECORD THE ERROR
           return false;
         }
-      }
     }
   }
 

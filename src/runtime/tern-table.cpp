@@ -111,11 +111,11 @@ bool tern_table_cols_12_are_key(TERN_TABLE *table) {
 }
 
 bool tern_table_cols_13_are_key(TERN_TABLE *table) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool tern_table_cols_23_are_key(TERN_TABLE *table) {
-  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
 bool tern_table_col_3_is_key(TERN_TABLE *table) {
