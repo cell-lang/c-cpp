@@ -376,6 +376,8 @@ struct DOUBLE_KEY_BIN_TABLE {
 struct BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
+  COL_UPDATE_BIT_MAP insertion_map_1;
+  COL_UPDATE_BIT_MAP insertion_map_2;
   QUEUE_U64 deletions;
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
@@ -1478,10 +1480,10 @@ bool bin_table_aux_has_deletions(BIN_TABLE_AUX *);
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 void bin_table_aux_prepare(BIN_TABLE_AUX *);
-bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32);
+// bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
-bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
+// bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
 
 bool bin_table_aux_check_foreign_key_unary_table_1_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
