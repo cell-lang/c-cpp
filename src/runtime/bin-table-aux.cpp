@@ -612,9 +612,26 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *table, BIN
 ////////////////////////////////////////////////////////////////////////////////
 
 bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint64 *args_array = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg1 = unpack_arg1(args_array[i]);
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table->mem_pool))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+      assert(found <= unary_table_aux_size(src_table, src_table_aux));
+      bool ok = found == unary_table_aux_size(src_table, src_table_aux);
+      if (!ok) {
+        //## TODO: RECORD THE ERROR
+      }
+      return ok;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
@@ -679,9 +696,26 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
 }
 
 bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint64 *args_array = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg1 = unpack_arg1(args_array[i]);
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table->mem_pool))
+          if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+      assert(found <= master_bin_table_aux_size(src_table, src_table_aux));
+      bool ok = found == master_bin_table_aux_size(src_table, src_table_aux);
+      if (!ok) {
+        //## TODO: RECORD THE ERROR
+      }
+      return ok;
     }
     else {
       bool src_is_empty = master_bin_table_aux_is_empty(src_table, src_table_aux);
@@ -746,9 +780,26 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
 }
 
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
   if (table_aux->clear) {
-    if (table_aux->insertions.count > 0) {
-      throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      uint64 *args_array = table_aux->insertions.array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        uint32 arg2 = unpack_arg2(args_array[i]);
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, table->mem_pool))
+          if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+            found++;
+      }
+      col_update_bit_map_clear(&table_aux->bit_map);
+      assert(found <= unary_table_aux_size(src_table, src_table_aux));
+      bool ok = found == unary_table_aux_size(src_table, src_table_aux);
+      if (!ok) {
+        //## TODO: RECORD THE ERROR
+      }
+      return ok;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
