@@ -4,6 +4,8 @@
 void bin_table_aux_init(BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   col_update_bit_map_init(&table_aux->bit_map);
   col_update_bit_map_init(&table_aux->another_bit_map);
+  col_update_bit_map_init(&table_aux->full_deletion_map_1);
+  col_update_bit_map_init(&table_aux->full_deletion_map_2);
   col_update_bit_map_init(&table_aux->insertion_map_1);
   col_update_bit_map_init(&table_aux->insertion_map_2);
   queue_u64_init(&table_aux->deletions);
@@ -15,6 +17,8 @@ void bin_table_aux_init(BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
 
 void bin_table_aux_reset(BIN_TABLE_AUX *table_aux) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+  col_update_bit_map_clear(&table_aux->full_deletion_map_1);
+  col_update_bit_map_clear(&table_aux->full_deletion_map_2);
   col_update_bit_map_clear(&table_aux->insertion_map_1);
   col_update_bit_map_clear(&table_aux->insertion_map_2);
   queue_u64_reset(&table_aux->deletions);
@@ -507,12 +511,214 @@ bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static void bin_table_aux_build_full_deletion_map_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
+  STATE_MEM_POOL *mem_pool = table->mem_pool;
+
+  uint32 dels_count = table_aux->deletions.count;
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  uint32 dels_count_2 = table_aux->deletions_2.count;
+
+  if (dels_count_1 > 0) {
+    uint32 *arg1s = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < dels_count_1 ; i++)
+      col_update_bit_map_set(&table_aux->full_deletion_map_1, arg1s[i], mem_pool);
+  }
+
+  if (dels_count > 0 || dels_count_2 > 0) {
+    TRNS_MAP_SURR_U32 remaining;
+    trns_map_surr_u32_init(&remaining, table->mem_pool);
+
+    if (dels_count > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < dels_count ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg1 = unpack_arg1(args);
+        uint32 arg2 = unpack_arg2(args);
+        uint32 unstable_surr = bin_table_lookup_unstable_surr(table, arg1, arg2);
+        if (unstable_surr != 0xFFFFFFFF) {
+          if (!col_update_bit_map_check_and_set(&table_aux->bit_map, unstable_surr, mem_pool)) {
+            uint32 remn_count = trns_map_surr_u32_lookup(&remaining, arg1, 0);
+            if (remn_count == 0)
+              remn_count = bin_table_count_1(table, arg1);
+            assert(remn_count > 0 && remn_count != 0xFFFFFFFF);
+            if (remn_count == 1) {
+              // No more references left
+              assert(!col_update_bit_map_is_set(&table_aux->full_deletion_map_1, arg1));
+              col_update_bit_map_set(&table_aux->full_deletion_map_1, arg1, mem_pool);
+#ifndef NDEBUG
+              trns_map_surr_u32_set(&remaining, arg1, 0xFFFFFFFF);
+#endif
+            }
+            else
+              trns_map_surr_u32_set(&remaining, arg1, remn_count - 1);
+          }
+        }
+      }
+    }
+
+    if (dels_count_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < dels_count_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        uint32 count2 = bin_table_count_2(table, arg2);
+        uint32 read = 0;
+        while (read < count2) {
+          uint32 buffer[64];
+          UINT32_ARRAY array = bin_table_range_restrict_2(table, arg2, read, buffer, 64);
+          read += array.size;
+          for (uint32 j=0 ; j < array.size ; j++) {
+            uint32 arg1 = array.array[j];
+            uint32 unstable_surr = bin_table_lookup_unstable_surr(table, arg1, arg2);
+            assert(unstable_surr != 0xFFFFFFFF);
+            if (!col_update_bit_map_check_and_set(&table_aux->bit_map, unstable_surr, mem_pool)) {
+              uint32 remn_count = trns_map_surr_u32_lookup(&remaining, arg1, 0);
+              if (remn_count == 0)
+                remn_count = bin_table_count_1(table, arg1);
+              assert(remn_count > 0 && remn_count != 0xFFFFFFFF);
+              if (remn_count == 1) {
+                // No more references left
+                assert(!col_update_bit_map_is_set(&table_aux->full_deletion_map_1, arg1));
+                col_update_bit_map_set(&table_aux->full_deletion_map_1, arg1, mem_pool);
+#ifndef NDEBUG
+                trns_map_surr_u32_set(&remaining, arg1, 0xFFFFFFFF);
+#endif
+              }
+              else
+                trns_map_surr_u32_set(&remaining, arg1, remn_count - 1);
+            }
+          }
+        }
+      }
+    }
+
+    col_update_bit_map_clear(&table_aux->bit_map);
+  }
+}
+
+static void bin_table_aux_build_full_deletion_map_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
+  STATE_MEM_POOL *mem_pool = table->mem_pool;
+
+  uint32 dels_count = table_aux->deletions.count;
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  uint32 dels_count_2 = table_aux->deletions_2.count;
+
+  if (dels_count_2 > 0) {
+    uint32 *arg2s = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < dels_count_2 ; i++)
+      col_update_bit_map_set(&table_aux->full_deletion_map_2, arg2s[i], mem_pool);
+  }
+
+  if (dels_count > 0 || dels_count_1 > 0) {
+    TRNS_MAP_SURR_U32 remaining;
+    trns_map_surr_u32_init(&remaining, table->mem_pool);
+
+    if (dels_count > 0) {
+      uint64 *args_array = table_aux->deletions.array;
+      for (uint32 i=0 ; i < dels_count ; i++) {
+        uint64 args = args_array[i];
+        uint32 arg1 = unpack_arg1(args);
+        uint32 arg2 = unpack_arg2(args);
+        uint32 unstable_surr = bin_table_lookup_unstable_surr(table, arg1, arg2);
+        if (unstable_surr != 0xFFFFFFFF) {
+          if (!col_update_bit_map_check_and_set(&table_aux->bit_map, unstable_surr, mem_pool)) {
+            uint32 remn_count = trns_map_surr_u32_lookup(&remaining, arg2, 0);
+            if (remn_count == 0)
+              remn_count = bin_table_count_2(table, arg2);
+            assert(remn_count > 0 && remn_count != 0xFFFFFFFF);
+            if (remn_count == 1) {
+              // No more references left
+              assert(!col_update_bit_map_is_set(&table_aux->full_deletion_map_2, arg2));
+              col_update_bit_map_set(&table_aux->full_deletion_map_2, arg2, mem_pool);
+#ifndef NDEBUG
+              trns_map_surr_u32_set(&remaining, arg2, 0xFFFFFFFF);
+#endif
+            }
+            else
+              trns_map_surr_u32_set(&remaining, arg2, remn_count - 1);
+          }
+        }
+      }
+    }
+
+    if (dels_count_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < dels_count_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        uint32 count2 = bin_table_count_2(table, arg2);
+        uint32 read = 0;
+        while (read < count2) {
+          uint32 buffer[64];
+          UINT32_ARRAY array = bin_table_range_restrict_2(table, arg2, read, buffer, 64);
+          read += array.size;
+          for (uint32 j=0 ; j < array.size ; j++) {
+            uint32 arg1 = array.array[j];
+            uint32 unstable_surr = bin_table_lookup_unstable_surr(table, arg1, arg2);
+            assert(unstable_surr != 0xFFFFFFFF);
+            if (!col_update_bit_map_check_and_set(&table_aux->bit_map, unstable_surr, mem_pool)) {
+              uint32 remn_count = trns_map_surr_u32_lookup(&remaining, arg1, 0);
+              if (remn_count == 0)
+                remn_count = bin_table_count_1(table, arg1);
+              assert(remn_count > 0 && remn_count != 0xFFFFFFFF);
+              if (remn_count == 1) {
+                // No more references left
+                assert(!col_update_bit_map_is_set(&table_aux->full_deletion_map_2, arg1));
+                col_update_bit_map_set(&table_aux->full_deletion_map_2, arg1, mem_pool);
+#ifndef NDEBUG
+                trns_map_surr_u32_set(&remaining, arg1, 0xFFFFFFFF);
+#endif
+              }
+              else
+                trns_map_surr_u32_set(&remaining, arg1, remn_count - 1);
+            }
+          }
+        }
+      }
+    }
+
+    col_update_bit_map_clear(&table_aux->bit_map);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static bool bin_table_aux_was_fully_deleted_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  assert(bin_table_contains_1(table, arg1));
+
+  uint32 dels_count = table_aux->deletions.count;
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  uint32 dels_count_2 = table_aux->deletions_2.count;
+
+  //## WOULD IT BE BETTER TO PERFORM THIS CHECK BEFORE CALLING THIS METHOD
+  //## AND REPLACE THE CHECK HERE WITH AN ASSERTION?
+  if (dels_count == 0 && dels_count_1 == 0 && dels_count_2 == 0)
+    return false;
+
+  if (!col_update_bit_map_is_dirty(&table_aux->full_deletion_map_1))
+    bin_table_aux_build_full_deletion_map_1(table, table_aux);
+
+  return col_update_bit_map_is_set(&table_aux->full_deletion_map_1, arg1);
 }
 
 static bool bin_table_aux_was_fully_deleted_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  assert(bin_table_contains_2(table, arg2));
+
+  uint32 dels_count = table_aux->deletions.count;
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  uint32 dels_count_2 = table_aux->deletions_2.count;
+
+  //## WOULD IT BE BETTER TO PERFORM THIS CHECK BEFORE CALLING THIS METHOD
+  //## AND REPLACE THE CHECK HERE WITH AN ASSERTION?
+  if (dels_count == 0 && dels_count_1 == 0 && dels_count_2 == 0)
+    return false;
+
+  if (!col_update_bit_map_is_dirty(&table_aux->full_deletion_map_2))
+    bin_table_aux_build_full_deletion_map_2(table, table_aux);
+
+  return col_update_bit_map_is_set(&table_aux->full_deletion_map_2, arg2);
 }
 
 static bool bin_table_aux_was_inserted_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {

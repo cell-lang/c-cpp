@@ -376,6 +376,8 @@ struct DOUBLE_KEY_BIN_TABLE {
 struct BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
+  COL_UPDATE_BIT_MAP full_deletion_map_1;
+  COL_UPDATE_BIT_MAP full_deletion_map_2;
   COL_UPDATE_BIT_MAP insertion_map_1;
   COL_UPDATE_BIT_MAP insertion_map_2;
   QUEUE_U64 deletions;
@@ -1439,6 +1441,8 @@ bool bin_table_contains_2(BIN_TABLE *, uint32 arg2);
 
 uint32 bin_table_lookup_1(BIN_TABLE *, uint32 arg1);
 uint32 bin_table_lookup_2(BIN_TABLE *, uint32 arg2);
+
+uint32 bin_table_lookup_unstable_surr(BIN_TABLE *, uint32 arg1, uint32 arg2);
 
 uint32 bin_table_restrict_1(BIN_TABLE *, uint32 arg1, uint32 *arg2s);
 uint32 bin_table_restrict_2(BIN_TABLE *, uint32 arg2, uint32 *arg1s);

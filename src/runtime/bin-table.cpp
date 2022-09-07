@@ -83,6 +83,10 @@ uint32 bin_table_lookup_2(BIN_TABLE *table, uint32 arg2) {
   return one_way_bin_table_lookup(&table->backward, arg2);
 }
 
+uint32 bin_table_lookup_unstable_surr(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  return one_way_bin_table_unstable_surr(&table->forward, arg1, arg2);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {

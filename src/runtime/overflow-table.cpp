@@ -667,10 +667,61 @@ static bool hashed_block_contains(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
   if (tag == 0)
     return value == low | value == high;
 
-  if (tag == HASHED_BLOCK)
-    return hashed_block_contains(array_pool, get_payload(low), clipped(value));
+  uint32 sub_block_idx = get_payload(low);
+  uint32 clipped_value = clipped(value);
 
-  return overflow_table_contains(array_pool, slot, clipped(value)); //## I'D LIKE TO REMOVE THIS DEPENDENCY FROM A PUBLIC FUNCTION
+  if (tag != HASHED_BLOCK)
+    return linear_block_contains(array_pool, sub_block_idx, get_count(slot), clipped_value);
+  else
+    return hashed_block_contains(array_pool, sub_block_idx, clipped_value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 overflow_table_value_offset(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value);
+
+static uint32 linear_block_value_offset(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
+  uint64 *slots = array_pool->slots;
+  uint32 end = (count + 1) / 2;
+  for (uint32 i=0 ; i < end ; i++) {
+    uint32 slot_idx = block_idx + i;
+    uint64 slot = slots[slot_idx];
+    if (value == get_low_32(slot))
+      return 2 * slot_idx;
+    if (value == get_high_32(slot))
+      return 2 * slot_idx + 1;
+  }
+  return 0xFFFFFFFF;
+}
+
+static uint32 hashed_block_value_offset(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 value) {
+  uint64 *slots = array_pool->slots;
+
+  uint32 slot_idx = block_idx + get_index(value);
+  uint64 slot = slots[slot_idx];
+
+  if (slot == EMPTY_SLOT)
+    return 0xFFFFFFFF;
+
+  uint32 low = get_low_32(slot);
+  uint32 high = get_high_32(slot);
+  uint32 tag = get_tag(low);
+
+  if (tag == 0) {
+    if (value == low)
+      return 2 * slot_idx;
+    if (value == high)
+      return 2 * slot_idx + 1;
+    return 0xFFFFFFFF;
+  }
+
+  uint32 sub_block_idx = get_payload(low);
+  uint32 clipped_value = clipped(value);
+
+  if (tag != HASHED_BLOCK)
+    return linear_block_value_offset(array_pool, sub_block_idx, get_count(slot), clipped_value);
+  else
+    return hashed_block_value_offset(array_pool, sub_block_idx, clipped_value);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -944,6 +995,19 @@ bool overflow_table_contains(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 v
     return linear_block_contains(array_pool, block_idx, get_count(handle), value);
   else
     return hashed_block_contains(array_pool, block_idx, value);
+}
+
+uint32 overflow_table_value_offset(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value) {
+  uint32 tag = get_tag(get_low_32(handle));
+  uint32 block_idx = get_payload(get_low_32(handle));
+
+  assert(tag != INLINE_SLOT);
+  assert(pack_tag_payload(tag, block_idx) == get_low_32(handle));
+
+  if (tag != HASHED_BLOCK)
+    return linear_block_value_offset(array_pool, block_idx, get_count(handle), value);
+  else
+    return hashed_block_value_offset(array_pool, block_idx, value);
 }
 
 void overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 *dest, uint32 offset) {

@@ -89,6 +89,29 @@ bool one_way_bin_table_contains(ONE_WAY_BIN_TABLE *table, uint32 surr1, uint32 s
   return get_high_32(slot) == surr2;
 }
 
+uint32 one_way_bin_table_lookup_unstable_surr(ONE_WAY_BIN_TABLE *table, uint32 key, uint32 value) {
+  uint32 capacity = table->capacity;
+
+  if (key >= table->capacity)
+    return 0xFFFFFFFF;
+
+  uint64 slot = table->column[key];
+
+  if (is_empty(slot))
+    return 0xFFFFFFFF;
+
+  if (is_index(slot))
+    return 2 * capacity + overflow_table_value_offset(&table->array_pool, slot, value);
+
+  if (get_low_32(slot) == value)
+    return 2 * key;
+
+  if (get_high_32(slot) == value)
+    return 2 * key + 1;
+
+  return 0xFFFFFFFF;
+}
+
 bool one_way_bin_table_contains_key(ONE_WAY_BIN_TABLE *table, uint32 surr1) {
   return surr1 < table->capacity && !is_empty(table->column[surr1]);
 }
