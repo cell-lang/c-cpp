@@ -1484,10 +1484,10 @@ bool bin_table_aux_has_deletions(BIN_TABLE_AUX *);
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
 void bin_table_aux_prepare(BIN_TABLE_AUX *);
-// bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32);
+uint32 bin_table_aux_size(BIN_TABLE *, BIN_TABLE_AUX *);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
-// bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
+bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
 
 bool bin_table_aux_check_foreign_key_unary_table_1_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
@@ -2374,18 +2374,10 @@ void queue_u32_i64_prepare(QUEUE_U32_I64 *);
 bool queue_u32_i64_contains_1(QUEUE_U32_I64 *, uint32);
 
 void queue_u64_init(QUEUE_U64 *);
-void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_prepare(QUEUE_U64 *);
-void queue_u64_sort_unique(QUEUE_U64 *);
-bool queue_u64_contains(QUEUE_U64 *, uint64);
-void queue_u64_flip_words(QUEUE_U64 *);
 void queue_u64_reset(QUEUE_U64 *);
-void queue_u64_prepare_1(QUEUE_U64 *);
-bool queue_u64_contains_1(QUEUE_U64 *, uint32);
-void queue_u64_prepare_2(QUEUE_U64 *);
-bool queue_u64_contains_2(QUEUE_U64 *, uint32);
-bool queue_u64_count_2(QUEUE_U64 *, uint32);
-bool queue_u64_unique_count(QUEUE_U64 *);
+void queue_u64_insert(QUEUE_U64 *, uint64);
+void queue_u64_remove_duplicates(QUEUE_U64 *);
+bool queue_u64_contains(QUEUE_U64 *, uint64);
 
 void queue_3u32_init(QUEUE_3U32 *queue);
 void queue_3u32_reset(QUEUE_3U32 *queue);

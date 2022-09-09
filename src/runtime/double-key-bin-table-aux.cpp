@@ -206,9 +206,7 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
 ////////////////////////////////////////////////////////////////////////////////
 
 void double_key_bin_table_aux_prepare(DOUBLE_KEY_BIN_TABLE_AUX *table_aux) {
-  //## CHECK THAT THERE ARE NO REPEATED DELETIONS
-  // queue_u64_sort_unique(&table_aux->deletions); // Needs to support unique_count(..)
-  queue_u64_prepare(&table_aux->insertions);
+
 }
 
 bool double_key_bin_table_aux_contains(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {

@@ -64,16 +64,15 @@ void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *table_aux) {
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 slave_tern_table_aux_size(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return bin_table_aux_size(table, &table_aux->slave_table_aux);
 }
 
-bool slave_tern_table_aux_is_empty(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool slave_tern_table_aux_is_empty(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux) {
+  return bin_table_aux_is_empty(table, &table_aux->slave_table_aux);
 }
 
-bool slave_tern_table_aux_contains_surr(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, uint32 surr) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
-  // if (bin_table_aux_contains_1(src_table, &src_table_aux->slave_table_aux, surr)) {
+bool slave_tern_table_aux_contains_surr(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr) {
+  return bin_table_aux_contains_1(table, &table_aux->slave_table_aux, surr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

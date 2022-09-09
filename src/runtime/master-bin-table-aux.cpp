@@ -599,7 +599,6 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *table_aux) {
-  queue_u64_sort_unique(&table_aux->deletions); // Needs to support unique_count(..)
   queue_u32_prepare(&table_aux->deletions_1);
   queue_u32_prepare(&table_aux->deletions_2);
   queue_3u32_prepare(&table_aux->insertions);
@@ -722,7 +721,8 @@ bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
   if (size == 0)
     return true;
 
-  uint32 num_dels = queue_u64_unique_count(&table_aux->deletions);
+  queue_u64_remove_duplicates(&table_aux->deletions);
+  uint32 num_dels = table_aux->deletions.count;
   uint32 num_dels_1 = table_aux->deletions_1.count;
   uint32 num_dels_2 = table_aux->deletions_2.count;
 

@@ -260,7 +260,7 @@ bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KE
 ////////////////////////////////////////////////////////////////////////////////
 
 void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-  queue_u64_prepare(&table_aux->insertions);
+
 }
 
 bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
@@ -310,14 +310,21 @@ bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY
   if (!single_key_bin_table_contains_2(table, arg2))
     return false;
 
-  if (col_update_bit_map_is_set(&table_aux->deletions_2, arg2))
+  if (col_update_bit_map_is_set(&table_aux->arg2_deletion_map, arg2))
     return false;
-
-  assert(queue_u64_count_2(&table_aux->deletions, arg2) <= single_key_bin_table_count_2(table, arg2));
 
   //## BAD BAD BAD: INEFFICIENT
-  if (queue_u64_count_2(&table_aux->deletions, arg2) == single_key_bin_table_count_2(table, arg2))
-    return false;
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  if (dels_count_1 > 0) {
+    // This works because the deletions_1 list doesn't contain duplicates or null deletions
+    uint32 *arg1s = table_aux->deletions_1.array;
+    uint32 remaining = single_key_bin_table_count_2(table, arg2);
+    for (uint32 i=0 ; i < dels_count_1 ; i++) {
+      if (single_key_bin_table_contains(table, arg1s[i], arg2))
+        if (--remaining == 0)
+          return false;
+    }
+  }
 
   return true;
 }
