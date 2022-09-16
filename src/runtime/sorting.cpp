@@ -5,84 +5,38 @@ void sort_u32(uint32 *array, uint32 len) {
   std::sort(array, array + len);
 }
 
-void sort_unique_u32(uint32 *array, uint32 *len_var) {
-  uint32 len = *len_var;
-  if (len > 1) {
-    std::sort(array, array + len);
-    uint32 prev_value = array[0];
-    uint32 write_idx = 1;
-    for (uint32 i=1 ; i < len ; i++) {
-      uint32 value = array[i];
-      if (value != prev_value) {
-        if (write_idx != i)
-          array[write_idx] = value;
-        write_idx++;
-        prev_value = value;
-      }
-    }
-  }
-}
-
 void sort_u64(uint64 *array, uint32 len) {
   std::sort(array, array + len);
 }
 
-struct U32P3 {
-  uint32 array[3];
-};
-
-bool operator == (U32P3 const &x, U32P3 const &y) {
-  return x.array[0] == y.array[0] && x.array[1] == y.array[1] && x.array[2] == y.array[2];
+void sort_3u32(TUPLE_3U32 *array, uint32 len) {
+  std::sort(array, array + len, [](const TUPLE_3U32 &t1, const TUPLE_3U32 &t2) -> bool {
+    uint32 x1 = t1.x;
+    uint32 x2 = t2.x;
+    if (x1 != x2)
+      return x1 < x2;
+    uint32 y1 = t1.y;
+    uint32 y2 = t2.y;
+    if (y1 != y2)
+      return y1 < y2;
+    return t1.z < t2.z;
+  });
 }
 
-bool operator < (U32P3 const &x, U32P3 const &y) {
-  if (x.array[0] != y.array[0])
-    return x.array[0] < y.array[0];
-  if (x.array[1] != y.array[1])
-    return x.array[1] < y.array[1];
-  return x.array[2] < y.array[2];
+void sort_3u32_by_13(TUPLE_3U32 *array, uint32 len) {
+  std::sort(array, array + len, [](const TUPLE_3U32 &t1, const TUPLE_3U32 &t2) -> bool {
+    uint32 x1 = t1.x;
+    uint32 x2 = t2.x;
+    return x1 < x2 || (x1 == x2 && t1.z < t2.z);
+  });
 }
 
-void sort_3u32(uint32 *array, uint32 len) {
-  U32P3 *begin = (U32P3 *) array;
-  assert(sizeof(U32P3) == 12);
-  assert(begin[0].array == array);
-  assert(begin[1].array == array + 3);
-  assert(begin[2].array == array + 6);
-  for (uint32 i=0 ; i < len ; i++)
-    assert(begin[i].array == array + 3 * i);
-  std::sort(begin, begin + len);
-}
-
-void sort_unique_3u32(uint32 (*array)[3], uint32 *len_var) {
-  uint32 len = *len_var;
-  if (len > 1) {
-    sort_3u32((uint32 *) array, 3 * len); //## CAN ARRAYS OF ARRAYS BE PADDED?
-    uint32 unique_len = 1;
-    uint32 prev_arg_1 = array[0][0];
-    uint32 prev_arg_2 = array[0][1];
-    uint32 prev_arg_3 = array[0][2];
-    uint32 (*ptr)[3] = array;
-    for (uint32 i=1 ; i < len ; i++) {
-      ptr++;
-      uint32 arg1 = (*ptr)[0];
-      uint32 arg2 = (*ptr)[1];
-      uint32 arg3 = (*ptr)[2];
-      if (arg1 != prev_arg_1 | arg2 != prev_arg_2 | arg3 != prev_arg_3) {
-        if (unique_len < i) {
-          uint32 *dest_ptr = *(array + unique_len);
-          dest_ptr[0] = arg1;
-          dest_ptr[1] = arg2;
-          dest_ptr[2] = arg3;
-        }
-        prev_arg_1 = arg1;
-        prev_arg_2 = arg2;
-        prev_arg_3 = arg3;
-        unique_len++;
-      }
-    }
-    *len_var = unique_len;
-  }
+void sort_3u32_by_23(TUPLE_3U32 *array, uint32 len) {
+  std::sort(array, array + len, [](const TUPLE_3U32 &t1, const TUPLE_3U32 &t2) -> bool {
+    uint32 y1 = t1.y;
+    uint32 y2 = t2.y;
+    return y1 < y2 || (y1 == y2 && t1.z < t2.z);
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////

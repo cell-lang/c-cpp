@@ -822,7 +822,7 @@ uint32 bin_table_aux_size(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
 
   uint32 ins_count = table_aux->insertions.count;
   if (ins_count > 0) {
-    queue_u64_remove_duplicates(&table_aux->insertions);
+    queue_u64_deduplicate(&table_aux->insertions);
     ins_count = table_aux->insertions.count;
     uint64 *args_array = table_aux->insertions.array;
     for (uint32 i=0 ; i < ins_count ; i++) {

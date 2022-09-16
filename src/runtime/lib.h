@@ -204,20 +204,26 @@ struct QUEUE_U32 {
   uint32 count;
   uint32 *array;
   uint32 inline_array[QUEUE_INLINE_SIZE];
+  bool deduplicated;
 };
 
 struct QUEUE_U64 {
+  uint64 inline_array[QUEUE_INLINE_SIZE];
+  uint64 *array;
   uint32 capacity;
   uint32 count;
-  uint64 *array;
-  uint64 inline_array[QUEUE_INLINE_SIZE];
+  bool sorted;
+};
+
+struct TUPLE_3U32 {
+  uint32 x, y, z;
 };
 
 struct QUEUE_3U32 {
   uint32 capacity;
   uint32 count;
-  uint32 (*array)[3];
-  uint32 inline_array[QUEUE_INLINE_SIZE][3];
+  TUPLE_3U32 *array;
+  TUPLE_3U32 inline_array[QUEUE_INLINE_SIZE];
 };
 
 struct QUEUE_U32_I64 {
@@ -427,6 +433,11 @@ struct MASTER_BIN_TABLE {
 
 struct MASTER_BIN_TABLE_AUX {
   STATE_MEM_POOL *mem_pool;
+  COL_UPDATE_BIT_MAP batch_deletion_map_1;
+  COL_UPDATE_BIT_MAP batch_deletion_map_2;
+  COL_UPDATE_BIT_MAP insertion_map_1;
+  COL_UPDATE_BIT_MAP insertion_map_2;
+  COL_UPDATE_BIT_MAP surr_insert_map;
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
   QUEUE_U64 deletions;    // Only existing tuples, but with possible duplicates
@@ -434,7 +445,7 @@ struct MASTER_BIN_TABLE_AUX {
   QUEUE_U32 deletions_2;
   QUEUE_3U32 insertions;  // Only new tuples and no duplicates
   QUEUE_U32 locked_surrs;
-  TRNS_MAP_SURR_SURR_SURR reserved_surrs;
+  TRNS_MAP_SURR_SURR_SURR args_enc_surr_map;
   uint32 last_surr;
   bool clear;
 };
@@ -447,7 +458,7 @@ struct SYM_MASTER_BIN_TABLE_AUX {
   QUEUE_U32 deletions_1;
   QUEUE_3U32 insertions;  // Only new tuples and no duplicates
   QUEUE_U32 locked_surrs;
-  TRNS_MAP_SURR_SURR_SURR reserved_surrs;
+  TRNS_MAP_SURR_SURR_SURR args_enc_surr_map;
   uint32 last_surr;
   bool clear;
 };
@@ -1065,10 +1076,10 @@ void internal_fail();
 
 void sort_u32(uint32 *array, uint32 len);
 void sort_u64(uint64 *array, uint32 len);
-void sort_3u32(uint32 *array, uint32 len);
 
-void sort_unique_u32(uint32 *, uint32 *);
-void sort_unique_3u32(uint32 (*)[3], uint32 *);
+void sort_3u32(TUPLE_3U32 *, uint32 len);
+void sort_3u32_by_13(TUPLE_3U32 *, uint32 len);
+void sort_3u32_by_23(TUPLE_3U32 *, uint32 len);
 
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *values);
 void stable_index_sort(uint32 *indexes, uint32 count, OBJ *major_sort, OBJ *minor_sort);
@@ -1132,7 +1143,7 @@ uint16 lookup_symb_id(const char *, uint32);
 
 /////////////////////////////// inter-utils.cpp ////////////////////////////////
 
-OBJ /*owned_*/str_to_obj(const char* c_str);
+OBJ str_to_obj(const char* c_str);
 
 char* obj_to_str(OBJ str_obj);
 void obj_to_str(OBJ str_obj, char *buffer, uint32 size);
@@ -1736,6 +1747,11 @@ void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *);
 
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 
+bool master_bin_table_aux_was_batch_deleted_1(MASTER_BIN_TABLE_AUX *, uint32 arg1);
+bool master_bin_table_aux_was_batch_deleted_2(MASTER_BIN_TABLE_AUX *, uint32 arg2);
+bool master_bin_table_aux_was_inserted_1(MASTER_BIN_TABLE_AUX *, uint32 arg1);
+bool master_bin_table_aux_was_inserted_2(MASTER_BIN_TABLE_AUX *, uint32 arg2);
+
 uint32 master_bin_table_aux_size(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32);
@@ -2334,7 +2350,7 @@ void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *);
 void trns_map_surr_surr_surr_clear(TRNS_MAP_SURR_SURR_SURR *);
 
 void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3);
-uint32 trns_map_surr_surr_surr_extract(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
+void trns_map_surr_surr_surr_update(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3);
 
 uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
 bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *);
@@ -2348,52 +2364,30 @@ uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *, uint32 key, uint32 default_
 
 void queue_u32_init(QUEUE_U32 *);
 void queue_u32_insert(QUEUE_U32 *, uint32);
-void queue_u32_sort_unique(QUEUE_U32 *);
-bool queue_u32_sorted_contains(QUEUE_U32 *, uint32);
-void queue_u32_prepare(QUEUE_U32 *);
 void queue_u32_reset(QUEUE_U32 *);
-bool queue_u32_contains(QUEUE_U32 *, uint32);
-bool queue_u32_unique_count(QUEUE_U32 *);
+void queue_u32_deduplicate(QUEUE_U32 *, COL_UPDATE_BIT_MAP *, STATE_MEM_POOL *);
 
 void queue_u32_obj_init(QUEUE_U32_OBJ *);
 void queue_u32_obj_insert(QUEUE_U32_OBJ *, uint32, OBJ);
 void queue_u32_obj_reset(QUEUE_U32_OBJ *);
-void queue_u32_obj_prepare(QUEUE_U32_OBJ *);
-bool queue_u32_obj_contains_1(QUEUE_U32_OBJ *, uint32);
 
 void queue_u32_double_init(QUEUE_U32_FLOAT *);
 void queue_u32_double_insert(QUEUE_U32_FLOAT *, uint32, double);
 void queue_u32_double_reset(QUEUE_U32_FLOAT *);
-void queue_u32_double_prepare(QUEUE_U32_FLOAT *);
-bool queue_u32_double_contains_1(QUEUE_U32_FLOAT *, uint32);
 
 void queue_u32_i64_init(QUEUE_U32_I64 *);
 void queue_u32_i64_insert(QUEUE_U32_I64 *, uint32, int64);
 void queue_u32_i64_reset(QUEUE_U32_I64 *);
-void queue_u32_i64_prepare(QUEUE_U32_I64 *);
-bool queue_u32_i64_contains_1(QUEUE_U32_I64 *, uint32);
 
 void queue_u64_init(QUEUE_U64 *);
 void queue_u64_reset(QUEUE_U64 *);
 void queue_u64_insert(QUEUE_U64 *, uint64);
-void queue_u64_remove_duplicates(QUEUE_U64 *);
+void queue_u64_deduplicate(QUEUE_U64 *);
 bool queue_u64_contains(QUEUE_U64 *, uint64);
 
 void queue_3u32_init(QUEUE_3U32 *queue);
 void queue_3u32_reset(QUEUE_3U32 *queue);
 void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
-void queue_3u32_prepare(QUEUE_3U32 *queue);
-
-bool queue_3u32_contains(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
-bool queue_3u32_contains_12(QUEUE_3U32 *queue, uint32 value1, uint32 value2);
-bool queue_3u32_contains_1(QUEUE_3U32 *queue, uint32 value1);
-bool queue_3u32_contains_2(QUEUE_3U32 *queue, uint32 value2);
-bool queue_3u32_contains_3(QUEUE_3U32 *queue, uint32 value3);
-
-void queue_3u32_sort_unique(QUEUE_3U32 *);
-void queue_3u32_permute_132(QUEUE_3U32 *);
-void queue_3u32_permute_231(QUEUE_3U32 *);
-void queue_3u32_permute_312(QUEUE_3U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 

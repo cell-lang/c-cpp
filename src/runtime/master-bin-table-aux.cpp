@@ -15,6 +15,11 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 a
 
 void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   table_aux->mem_pool = mem_pool;
+  col_update_bit_map_init(&table_aux->batch_deletion_map_1);
+  col_update_bit_map_init(&table_aux->batch_deletion_map_2);
+  col_update_bit_map_init(&table_aux->insertion_map_1);
+  col_update_bit_map_init(&table_aux->insertion_map_2);
+  col_update_bit_map_init(&table_aux->surr_insert_map);
   col_update_bit_map_init(&table_aux->bit_map);
   col_update_bit_map_init(&table_aux->another_bit_map);
   queue_u64_init(&table_aux->deletions);
@@ -22,7 +27,7 @@ void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *
   queue_u32_init(&table_aux->deletions_2);
   queue_3u32_init(&table_aux->insertions);
   queue_u32_init(&table_aux->locked_surrs);
-  trns_map_surr_surr_surr_init(&table_aux->reserved_surrs);
+  trns_map_surr_surr_surr_init(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -30,12 +35,17 @@ void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
 
+  col_update_bit_map_clear(&table_aux->batch_deletion_map_1);
+  col_update_bit_map_clear(&table_aux->batch_deletion_map_2);
+  col_update_bit_map_clear(&table_aux->insertion_map_1);
+  col_update_bit_map_clear(&table_aux->insertion_map_2);
+  col_update_bit_map_clear(&table_aux->surr_insert_map);
   queue_u64_reset(&table_aux->deletions);
   queue_u32_reset(&table_aux->deletions_1);
   queue_u32_reset(&table_aux->deletions_2);
   queue_3u32_reset(&table_aux->insertions);
   queue_u32_reset(&table_aux->locked_surrs);
-  trns_map_surr_surr_surr_clear(&table_aux->reserved_surrs);
+  trns_map_surr_surr_surr_clear(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
 }
@@ -50,7 +60,7 @@ void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   assert(!table_aux->clear);
 
   queue_u32_reset(&table_aux->locked_surrs); //## MAYBE IT'S NOT NECESSARY? IT'S HERE JUST IN CASE.
-  trns_map_surr_surr_surr_clear(&table_aux->reserved_surrs);
+  trns_map_surr_surr_surr_clear(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
 }
 
@@ -80,28 +90,22 @@ uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
     return surr;
   }
 
-  uint32 count = table_aux->insertions.count;
-  if (count > 0) {
-    //## BAD BAD BAD: IMPLEMENT FOR REAL
-    uint32 (*ptr)[3] = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 curr_arg1 = (*ptr)[0];
-      uint32 curr_arg2 = (*ptr)[1];
-      if (curr_arg1 == arg1 & curr_arg2 == arg2) {
-        surr = (*ptr)[2];
-        return surr;
-      }
-      ptr++;
+  uint32 enc_surr_info = trns_map_surr_surr_surr_lookup(&table_aux->args_enc_surr_map, arg1, arg2);
+  if (enc_surr_info != 0xFFFFFFFF) {
+    surr = enc_surr_info >> 1;
+    if ((enc_surr_info & 1) != 0) {
+      queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
+      trns_map_surr_surr_surr_update(&table_aux->args_enc_surr_map, arg1, arg2, enc_surr_info & ~1);
+      assert(trns_map_surr_surr_surr_lookup(&table_aux->args_enc_surr_map, arg1, arg2) == (surr << 1));
     }
+    return surr;
   }
 
-  surr = trns_map_surr_surr_surr_extract(&table_aux->reserved_surrs, arg1, arg2);
-  if (surr == 0xFFFFFFFF) {
-    surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
-    table_aux->last_surr = surr;
-  }
+  surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
+  table_aux->last_surr = surr;
 
   queue_3u32_insert(&table_aux->insertions, arg1, arg2, surr);
+  trns_map_surr_surr_surr_insert_new(&table_aux->args_enc_surr_map, arg1, arg2, surr << 1);
   return surr;
 }
 
@@ -112,24 +116,13 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
   if (surr != 0xFFFFFFFF)
     return surr;
 
-  //## BAD BAD BAD: IMPLEMENT FOR REAL
-  uint32 count = table_aux->insertions.count;
-  uint32 (*ptr)[3] = table_aux->insertions.array;
-  for (uint32 i=0 ; i < count ; i++) {
-    uint32 curr_arg1 = (*ptr)[0];
-    uint32 curr_arg2 = (*ptr)[1];
-    if (curr_arg1 == arg1 & curr_arg2 == arg2)
-      return (*ptr)[2];
-    ptr++;
-  }
-
-  surr = trns_map_surr_surr_surr_lookup(&table_aux->reserved_surrs, arg1, arg2);
-  if (surr != 0xFFFFFFFF)
-    return surr;
+  uint32 enc_surr_info = trns_map_surr_surr_surr_lookup(&table_aux->args_enc_surr_map, arg1, arg2);
+  if (enc_surr_info != 0xFFFFFFFF)
+    return enc_surr_info >> 1;
 
   surr = master_bin_table_get_next_free_surr(table, table_aux->last_surr);
   table_aux->last_surr = surr;
-  trns_map_surr_surr_surr_insert_new(&table_aux->reserved_surrs, arg1, arg2, surr);
+  trns_map_surr_surr_surr_insert_new(&table_aux->args_enc_surr_map, arg1, arg2, (surr << 1) | 1);
   return surr;
 }
 
@@ -164,12 +157,9 @@ static void master_bin_table_aux_build_col_1_insertion_bitmap(MASTER_BIN_TABLE_A
 
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
-    uint32 (*ptr)[3] = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 arg1 = (*ptr)[0];
-      col_update_bit_map_set(bit_map, arg1, mem_pool);
-      ptr++;
-    }
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, insertions[i].x, mem_pool);
   }
 }
 
@@ -178,12 +168,9 @@ static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_A
 
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
-    uint32 (*ptr)[3] = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 arg2 = (*ptr)[1];
-      col_update_bit_map_set(bit_map, arg2, mem_pool);
-      ptr++;
-    }
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, insertions[i].y, mem_pool);
   }
 }
 
@@ -192,12 +179,9 @@ static void master_bin_table_aux_build_surr_insertion_bitmap(MASTER_BIN_TABLE_AU
 
   uint32 count = table_aux->insertions.count;
   if (count > 0) {
-    uint32 (*ptr)[3] = table_aux->insertions.array;
-    for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr = (*ptr)[2];
-      col_update_bit_map_set(bit_map, surr, mem_pool);
-      ptr++;
-    }
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, insertions[i].z, mem_pool);
   }
 }
 
@@ -206,7 +190,8 @@ void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTE
 
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
-  assert(trns_map_surr_surr_surr_is_empty(&table_aux->reserved_surrs));
+  //## UPDATE AND REENABLE THIS CHECK
+  // assert(trns_map_surr_surr_surr_is_empty(&table_aux->args_enc_surr_map));
 
   // Removing from the surrogates already reserved for newly inserted tuples
   // from the list of free ones, so we can append to that list while deleting
@@ -214,14 +199,13 @@ void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTE
   if (ins_count != 0) {
 #ifndef NDEBUG
     if (table_aux->last_surr == 0xFFFFFFFF) {
-      uint32 (*ptr)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 arg1 = (*ptr)[0];
-        uint32 arg2 = (*ptr)[1];
-        uint32 surr = (*ptr)[2];
+        uint32 arg1 = insertions[i].x;
+        uint32 arg2 = insertions[i].y;
+        uint32 surr = insertions[i].z;
         assert(master_bin_table_contains(table, arg1, arg2));
         assert(master_bin_table_lookup_surr(table, arg1, arg2) == surr);
-        ptr++;
       }
     }
 #endif
@@ -237,7 +221,8 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
 
   //## I'M ASSUMING THAT FOREIGN KEY CHECKS WILL BE ENOUGH TO AVOID THE
   //## UNUSED SURROGATE ALLOCATIONS, BUT I'M NOT SURE
-  assert(trns_map_surr_surr_surr_is_empty(&table_aux->reserved_surrs));
+  //## UPDATE AND REENABLE THIS CHECK
+  // assert(trns_map_surr_surr_surr_is_empty(&table_aux->args_enc_surr_map));
 
   bool locks_applied = table_aux->locked_surrs.count == 0;
 
@@ -438,13 +423,10 @@ void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, MASTER_BIN_T
 
   uint32 ins_count = table_aux->insertions.count;
   if (ins_count > 0) {
-    uint32 (*ptr)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < ins_count ; i++) {
-      uint32 arg1 = (*ptr)[0];
-      uint32 arg2 = (*ptr)[1];
-      uint32 surr = (*ptr)[2];
-      master_bin_table_insert_with_surr(table, arg1, arg2, surr, mem_pool);
-      ptr++;
+      TUPLE_3U32 tuple = insertions[i];
+      master_bin_table_insert_with_surr(table, tuple.x, tuple.y, tuple.z, mem_pool);
     }
   }
 
@@ -455,7 +437,6 @@ void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, MASTER_BIN_T
 
 //## BAD BAD BAD: THIS IS VERY INEFFICIENT WHEN THIS METHOD IS CALLED REPEATEDLY
 static uint32 master_bin_table_aux_number_of_deletions_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  assert(!queue_u32_contains(&table_aux->deletions_1, arg1));
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
   uint32 num_unique_deletions = 0;
@@ -495,7 +476,6 @@ static uint32 master_bin_table_aux_number_of_deletions_1(MASTER_BIN_TABLE *table
 
 //## BAD BAD BAD: THIS IS VERY INEFFICIENT WHEN THIS METHOD IS CALLED REPEATEDLY
 static uint32 master_bin_table_aux_number_of_deletions_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  assert(!queue_u32_contains(&table_aux->deletions_2, arg2));
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
   uint32 num_unique_deletions = 0;
@@ -599,38 +579,103 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
 ////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *table_aux) {
-  queue_u32_prepare(&table_aux->deletions_1);
-  queue_u32_prepare(&table_aux->deletions_2);
-  queue_3u32_prepare(&table_aux->insertions);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool master_bin_table_aux_was_batch_deleted_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  uint32 count = table_aux->deletions_1.count;
+  if (count == 0)
+    return false;
+  if (!col_update_bit_map_is_dirty(&table_aux->batch_deletion_map_1)) {
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 *array = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(&table_aux->batch_deletion_map_1, array[i], mem_pool);
+  }
+  return col_update_bit_map_is_set(&table_aux->batch_deletion_map_1, arg1);
+}
+
+bool master_bin_table_aux_was_batch_deleted_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  uint32 count = table_aux->deletions_2.count;
+  if (count == 0)
+    return false;
+  if (!col_update_bit_map_is_dirty(&table_aux->batch_deletion_map_2)) {
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 *array = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(&table_aux->batch_deletion_map_2, array[i], mem_pool);
+  }
+  return col_update_bit_map_is_set(&table_aux->batch_deletion_map_2, arg2);
+}
+
+bool master_bin_table_aux_was_inserted_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins == 0)
+    return false;
+
+  if (!col_update_bit_map_is_dirty(&table_aux->insertion_map_1)) {
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++)
+      col_update_bit_map_set(&table_aux->insertion_map_1, insertions[i].x, mem_pool);
+  }
+
+  return col_update_bit_map_is_set(&table_aux->insertion_map_1, arg1);
+}
+
+bool master_bin_table_aux_was_inserted_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2) {
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins == 0)
+    return false;
+
+  if (!col_update_bit_map_is_dirty(&table_aux->insertion_map_2)) {
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++)
+      col_update_bit_map_set(&table_aux->insertion_map_2, insertions[i].y, mem_pool);
+  }
+
+  return col_update_bit_map_is_set(&table_aux->insertion_map_2, arg2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_aux_size(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
+  uint32 reins_count = table_aux->locked_surrs.count;
+  if (reins_count > 1) {
+    assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+    queue_u32_deduplicate(&table_aux->locked_surrs, &table_aux->bit_map, table_aux->mem_pool);
+    reins_count = table_aux->locked_surrs.count;
+  }
+
+  uint32 ins_count = table_aux->insertions.count + reins_count;
+
   if (table_aux->clear)
-    return table_aux->insertions.count;
+    return ins_count;
 
   uint32 dels_count = master_bin_table_aux_number_of_deletions(table, table_aux);
-  return master_bin_table_size(table) - dels_count + table_aux->insertions.count;
+  return master_bin_table_size(table) - dels_count + ins_count;
 }
 
 bool master_bin_table_aux_contains(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  if (queue_3u32_contains_12(&table_aux->insertions, arg1, arg2))
+  uint32 enc_surr_info = trns_map_surr_surr_surr_lookup(&table_aux->args_enc_surr_map, arg1, arg2);
+  if (enc_surr_info != 0xFFFFFFFF)
     return true;
 
   uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
   assert(master_bin_table_contains(table, arg1, arg2) == (surr != 0xFFFFFFFF));
-
   if (surr == 0xFFFFFFFF)
     return false;
 
   if (table_aux->clear)
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+  if (master_bin_table_aux_was_batch_deleted_1(table_aux, arg1))
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+  if (master_bin_table_aux_was_batch_deleted_2(table_aux, arg2))
     return false;
 
   uint64 args = pack_args(arg1, arg2);
@@ -641,7 +686,7 @@ bool master_bin_table_aux_contains(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
 }
 
 bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
-  if (queue_3u32_contains_1(&table_aux->insertions, arg1))
+  if (master_bin_table_aux_was_inserted_1(table_aux, arg1))
     return true;
 
   if (!master_bin_table_contains_1(table, arg1))
@@ -650,7 +695,7 @@ bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
   if (table_aux->clear)
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+  if (master_bin_table_aux_was_batch_deleted_1(table_aux, arg1))
     return false;
 
   uint32 num_dels = table_aux->deletions.count;
@@ -663,7 +708,7 @@ bool master_bin_table_aux_contains_1(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
 }
 
 bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2) {
-  if (queue_3u32_contains_2(&table_aux->insertions, arg2))
+  if (master_bin_table_aux_was_inserted_2(table_aux, arg2))
     return true;
 
   if (!master_bin_table_contains_2(table, arg2))
@@ -672,7 +717,7 @@ bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
   if (table_aux->clear)
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+  if (master_bin_table_aux_was_batch_deleted_2(table_aux, arg2))
     return false;
 
   uint32 num_dels = table_aux->deletions.count;
@@ -685,8 +730,17 @@ bool master_bin_table_aux_contains_2(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_A
 }
 
 bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 surr) {
-  if (queue_3u32_contains_3(&table_aux->insertions, surr))
-    return true;
+  uint32 num_ins = table_aux->insertions.count;
+  if (num_ins > 0) {
+    if (!col_update_bit_map_is_dirty(&table_aux->surr_insert_map)) {
+      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
+      for (uint32 i=0 ; i < num_ins ; i++)
+        col_update_bit_map_set(&table_aux->surr_insert_map, insertions[i].z, mem_pool);
+    }
+    if (col_update_bit_map_is_set(&table_aux->surr_insert_map, surr))
+      return true;
+  }
 
   if (table_aux->clear)
     return false;
@@ -697,10 +751,10 @@ bool master_bin_table_aux_contains_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
   uint32 arg1 = master_bin_table_get_arg_1(table, surr);
   uint32 arg2 = master_bin_table_get_arg_2(table, surr);
 
-  if (queue_u32_contains(&table_aux->deletions_1, arg1))
+  if (master_bin_table_aux_was_batch_deleted_1(table_aux, arg1))
     return false;
 
-  if (queue_u32_contains(&table_aux->deletions_2, arg2))
+  if (master_bin_table_aux_was_batch_deleted_2(table_aux, arg2))
     return false;
 
   uint64 args = pack_args(arg1, arg2);
@@ -721,7 +775,7 @@ bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
   if (size == 0)
     return true;
 
-  queue_u64_remove_duplicates(&table_aux->deletions);
+  queue_u64_deduplicate(&table_aux->deletions);
   uint32 num_dels = table_aux->deletions.count;
   uint32 num_dels_1 = table_aux->deletions_1.count;
   uint32 num_dels_2 = table_aux->deletions_2.count;
@@ -785,9 +839,9 @@ bool master_bin_table_aux_is_empty(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX
 bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 arg1 = insertions[i][0];
+      uint32 arg1 = insertions[i].x;
       if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
         //## RECORD THE ERROR
         return false;
@@ -800,9 +854,9 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TAB
 bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 arg2 = insertions[i][1];
+      uint32 arg2 = insertions[i].y;
       if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
         //## RECORD THE ERROR
         return false;
@@ -817,9 +871,9 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TAB
 bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SLAVE_TERN_TABLE_AUX *target_table_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[i][2];
+      uint32 surr = insertions[i].z;
       if (!bin_table_aux_contains_1(target_table, &target_table_aux->slave_table_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -832,9 +886,9 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_
 bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, OBJ_COL *target_col, OBJ_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[i][2];
+      uint32 surr = insertions[i].z;
       if (!obj_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -847,9 +901,9 @@ bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *ta
 bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, INT_COL *target_col, INT_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[i][2];
+      uint32 surr = insertions[i].z;
       if (!int_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -862,9 +916,9 @@ bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *ta
 bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, FLOAT_COL *target_col, FLOAT_COL_AUX *target_col_aux) {
   uint32 num_ins = table_aux->insertions.count;
   if (num_ins > 0) {
-    uint32 (*insertions)[3] = table_aux->insertions.array;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 surr = insertions[i][2];
+      uint32 surr = insertions[i].z;
       if (!float_col_aux_contains_1(target_col, target_col_aux, surr)) {
         //## RECORD THE ERROR
         return false;
@@ -891,10 +945,10 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 arg1 = insertions[i][0];
+        uint32 arg1 = insertions[i].x;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool))
           if (unary_table_aux_contains(src_table, src_table_aux, arg1))
             found++;
@@ -923,7 +977,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!queue_3u32_contains_1(&table_aux->insertions, arg1)) {
+        if (!master_bin_table_aux_was_inserted_1(table_aux, arg1)) {
           //## RECORD THE ERROR
           return false;
         }
@@ -1031,10 +1085,10 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 arg2 = insertions[i][1];
+        uint32 arg2 = insertions[i].y;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool))
           if (unary_table_aux_contains(src_table, src_table_aux, arg2))
             found++;
@@ -1063,7 +1117,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!queue_3u32_contains_2(&table_aux->insertions, arg2)) {
+        if (!master_bin_table_aux_was_inserted_2(table_aux, arg2)) {
           //## RECORD THE ERROR
           return false;
         }
@@ -1169,10 +1223,10 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i][2];
+        uint32 surr = insertions[i].z;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
           if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
             found++;
@@ -1293,10 +1347,10 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i][2];
+        uint32 surr = insertions[i].z;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
           if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
             found++;
@@ -1416,10 +1470,10 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i][2];
+        uint32 surr = insertions[i].z;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
           if (int_col_aux_contains_1(src_col, src_col_aux, surr))
             found++;
@@ -1539,10 +1593,10 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-      uint32 (*insertions)[3] = table_aux->insertions.array;
+      TUPLE_3U32 *insertions = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i][2];
+        uint32 surr = insertions[i].z;
         if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
           if (float_col_aux_contains_1(src_col, src_col_aux, surr))
             found++;

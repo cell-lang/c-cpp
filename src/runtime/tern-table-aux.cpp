@@ -193,6 +193,16 @@ static void tern_table_aux_record_cols_23_key_violation(TERN_TABLE_AUX *table_au
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static void tern_table_aux_sort_insertions_by_13(TERN_TABLE_AUX *table_aux) {
+  sort_3u32_by_13(table_aux->insertions.array, table_aux->insertions.count);
+}
+
+static void tern_table_aux_sort_insertions_by_23(TERN_TABLE_AUX *table_aux) {
+  sort_3u32_by_23(table_aux->insertions.array, table_aux->insertions.count);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool tern_table_aux_check_key_3(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   // THE VIOLATION OF THE KEY IS DETECTED CORRECTLY, BUT THE ERROR MESSAGE MAY BE WRONG/UNHELPFUL
   return bin_table_aux_check_key_2(&table->slave, &table_aux->slave, mem_pool);
@@ -208,25 +218,22 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   if (count == 0)
     return true;
 
-  uint32 (*array)[3] = table_aux->insertions.array;
-
-  queue_3u32_permute_132(&table_aux->insertions);
+  TUPLE_3U32 *array = table_aux->insertions.array;
 
   // First we need to check that there are no conflicts among insertions.
   // That can be done with a sort based on first and third argument
   if (count > 1) {
-    queue_3u32_sort_unique(&table_aux->insertions);
+    tern_table_aux_sort_insertions_by_13(table_aux);
 
-    uint32 (*ptr)[3] = array;
-    uint32 prev_arg1 = ptr[0][0];
-    uint32 prev_arg3 = ptr[0][1];
+    uint32 prev_arg1 = array[0].x;
+    uint32 prev_arg3 = array[0].z;
 
     for (uint32 i=1 ; i < count ; i++) {
-      uint32 arg1 = ptr[i][0];
-      uint32 arg3 = ptr[i][1];
+      uint32 arg1 = array[i].x;
+      uint32 arg3 = array[i].z;
       if (arg1 == prev_arg1 & arg3 == prev_arg3) {
-        uint32 arg2 = ptr[i][2];
-        uint32 prev_arg2 = ptr[i-1][2];
+        uint32 arg2 = array[i].y;
+        uint32 prev_arg2 = array[i-1].y;
         tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, prev_arg2, true);
         return false;
       }
@@ -236,14 +243,13 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   }
 
   // Now we need to check if the new tuples conflict with the existing ones
-  uint32 (*ptr)[3] = array;
   for (uint32 i=0 ; i < count ; i++) {
-    uint32 arg1 = ptr[i][0];
-    uint32 arg3 = ptr[i][1];
+    uint32 arg1 = array[i].x;
+    uint32 arg3 = array[i].z;
     if (tern_table_contains_13(table, arg1, arg3)) {
       assert(tern_table_count_13(table, arg1, arg3) == 1);
 
-      uint32 arg2 = ptr[i][2];
+      uint32 arg2 = array[i].y;
       //## tern_table_lookup_13 DOES SOME EXTRA WORK TO MAKE SURE THAT THE
       //## SECOND ARGUMENT IS UNIQUE, BUT THAT'S UNNECESSARY HERE. FIX THAT
       uint32 existing_arg2 = tern_table_lookup_13(table, arg1, arg3);
@@ -259,8 +265,6 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
     }
   }
 
-  queue_3u32_permute_132(&table_aux->insertions);
-
   return true;
 }
 
@@ -269,26 +273,23 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   if (count == 0)
     return true;
 
-  uint32 (*array)[3] = table_aux->insertions.array;
+  TUPLE_3U32 *array = table_aux->insertions.array;
 
   // First we need to check that there are no conflicts among insertions.
   // That can be done with a sort based on second and third argument
-  queue_3u32_permute_231(&table_aux->insertions);
   if (count > 1) {
-    queue_3u32_sort_unique(&table_aux->insertions);
+    tern_table_aux_sort_insertions_by_23(table_aux);
 
-    uint32 (*ptr)[3] = array;
-    uint32 prev_arg2 = ptr[0][0];
-    uint32 prev_arg3 = ptr[0][1];
+    uint32 prev_arg2 = array[0].y;
+    uint32 prev_arg3 = array[0].z;
 
     for (uint32 i=1 ; i < count ; i++) {
-      uint32 arg2 = ptr[i][0];
-      uint32 arg3 = ptr[i][1];
+      uint32 arg2 = array[i].y;
+      uint32 arg3 = array[i].z;
       if (arg2 == prev_arg2 & arg3 == prev_arg3) {
-        uint32 arg1 = ptr[i][2];
-        uint32 prev_arg1 = ptr[i-1][2];
+        uint32 arg1 = array[i].x;
+        uint32 prev_arg1 = array[i-1].x;
         tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, prev_arg1, true);
-        // No need to permute back to the normal order, since the 2-3 key is checked after the 1-3 one, if this is present
         return false;
       }
       prev_arg2 = arg2;
@@ -297,14 +298,13 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
   }
 
   // Now we need to check if the new tuples conflict with the existing ones
-  uint32 (*ptr)[3] = array;
   for (uint32 i=0 ; i < count ; i++) {
-    uint32 arg2 = ptr[i][0];
-    uint32 arg3 = ptr[i][1];
+    uint32 arg2 = array[i].y;
+    uint32 arg3 = array[i].z;
     if (tern_table_contains_23(table, arg2, arg3)) {
       assert(tern_table_count_23(table, arg2, arg3) == 1);
 
-      uint32 arg1 = ptr[i][2];
+      uint32 arg1 = array[i].x;
       //## tern_table_lookup_13 DOES SOME EXTRA WORK TO MAKE SURE THAT THE
       //## SECOND ARGUMENT IS UNIQUE, BUT THAT'S UNNECESSARY HERE. FIX THAT
       uint32 existing_arg1 = tern_table_lookup_23(table, arg2, arg3);
@@ -320,8 +320,6 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
     }
   }
 
-  queue_3u32_permute_312(&table_aux->insertions);
-
   return true;
 }
 
@@ -329,11 +327,11 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 //   //## CAN THIS BE MADE MORE EFFICIENT?
 //   if (!tern_table_aux_check_key_13(table, table_aux))
 //     return false;
-//   queue_3u32_permute_132(&table_aux->insertions);
-//   return tern_table_aux_check_key_23(table, table_aux);
+//  return tern_table_aux_check_key_23(table, table_aux);
 // }
 
 ////////////////////////////////////////////////////////////////////////////////
+  //   tern_table_aux_swap_insertions_23(table_aux);
 
 bool tern_table_aux_prepare(TERN_TABLE_AUX *table_aux) {
   master_bin_table_aux_prepare(&table_aux->master);
@@ -343,7 +341,7 @@ bool tern_table_aux_prepare(TERN_TABLE_AUX *table_aux) {
 bool tern_table_aux_contains_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1) {
   assert(table_aux->master.clear == table_aux->slave.clear);
 
-  if (queue_3u32_contains_1(&table_aux->master.insertions, arg1))
+  if (master_bin_table_aux_was_inserted_1(&table_aux->master, arg1))
     return true;
 
   if (!master_bin_table_contains_1(&table->master, arg1))
@@ -352,7 +350,7 @@ bool tern_table_aux_contains_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uin
   if (table_aux->slave.clear)
     return false;
 
-  if (queue_u32_contains(&table_aux->master.deletions_1, arg1))
+  if (master_bin_table_aux_was_batch_deleted_1(&table_aux->master, arg1))
     return false;
 
   if (!bin_table_aux_has_deletions(&table_aux->slave))
@@ -384,7 +382,7 @@ bool tern_table_aux_contains_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uin
 bool tern_table_aux_contains_2(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg2) {
   assert(table_aux->master.clear == table_aux->slave.clear);
 
-  if (queue_3u32_contains_2(&table_aux->master.insertions, arg2))
+  if (master_bin_table_aux_was_inserted_2(&table_aux->master, arg2))
     return true;
 
   if (!master_bin_table_contains_2(&table->master, arg2))
@@ -393,7 +391,7 @@ bool tern_table_aux_contains_2(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uin
   if (table_aux->slave.clear)
     return false;
 
-  if (queue_u32_contains(&table_aux->master.deletions_2, arg2))
+  if (master_bin_table_aux_was_batch_deleted_2(&table_aux->master, arg2))
     return false;
 
   if (!bin_table_aux_has_deletions(&table_aux->slave))

@@ -188,7 +188,7 @@ void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *map, uint32 sur
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
-uint32 trns_map_surr_surr_surr_extract(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2) {
+void trns_map_surr_surr_surr_update(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3) {
   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }
 
