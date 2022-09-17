@@ -1372,12 +1372,13 @@ void switch_to_twin_stacks_allocator();
 
 //////////////////////////// key-checking-utils.cpp ////////////////////////////
 
-void col_update_bit_map_init(COL_UPDATE_BIT_MAP *bit_map);
-void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map);
-bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
-void col_update_bit_map_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index, STATE_MEM_POOL *);
-bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *bit_map, uint32 index);
-bool col_update_bit_map_is_dirty(COL_UPDATE_BIT_MAP *bit_map);
+void col_update_bit_map_init(COL_UPDATE_BIT_MAP *);
+void col_update_bit_map_release(COL_UPDATE_BIT_MAP *, STATE_MEM_POOL *);
+void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *);
+bool col_update_bit_map_check_and_set(COL_UPDATE_BIT_MAP *, uint32 index, STATE_MEM_POOL *);
+void col_update_bit_map_set(COL_UPDATE_BIT_MAP *, uint32 index, STATE_MEM_POOL *);
+bool col_update_bit_map_is_set(COL_UPDATE_BIT_MAP *, uint32 index);
+bool col_update_bit_map_is_dirty(COL_UPDATE_BIT_MAP *);
 
 void col_update_status_map_init(COL_UPDATE_STATUS_MAP *);
 void col_update_status_map_clear(COL_UPDATE_STATUS_MAP *);
@@ -2023,7 +2024,6 @@ uint32 semisym_tern_table_lookup_12(TERN_TABLE *table, uint32 arg1, uint32 arg2)
 uint32 semisym_tern_table_lookup_13(TERN_TABLE *table, uint32 arg1, uint32 arg3);
 
 bool semisym_tern_table_cols_12_are_key(TERN_TABLE *table);
-bool semisym_tern_table_cols_13_are_key(TERN_TABLE *table);
 bool semisym_tern_table_col_3_is_key(TERN_TABLE *table);
 
 void semisym_tern_table_copy_to(TERN_TABLE *table, OBJ (*surr_to_obj_1_2)(void *, uint32), void *store_1_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);

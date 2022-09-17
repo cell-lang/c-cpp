@@ -8,6 +8,14 @@ void col_update_bit_map_init(COL_UPDATE_BIT_MAP *bit_map) {
   bit_map->num_dirty = 0;
 }
 
+void col_update_bit_map_release(COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+  if (bit_map->bits != NULL) {
+    release_state_mem_uint64_array(mem_pool, bit_map->bits, bit_map->num_bits_words);
+    bit_map->bits = NULL;
+    bit_map->num_bits_words = 0;
+  }
+}
+
 void col_update_bit_map_clear(COL_UPDATE_BIT_MAP *bit_map) {
   const uint32 inline_capacity = lengthof(bit_map->inline_dirty);
 

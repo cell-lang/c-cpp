@@ -106,16 +106,53 @@ uint32 tern_table_lookup_23(TERN_TABLE *table, uint32 arg2, uint32 arg3) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool tern_table_cols_13_or_23_are_key(TERN_TABLE *table, bool key_13) {
+  STATE_MEM_POOL *mem_pool = table->slave.mem_pool;
+  COL_UPDATE_BIT_MAP bit_map;
+  col_update_bit_map_init(&bit_map);
+
+  uint32 size = bin_table_size(&table->slave);
+  uint64 *slots = master_bin_table_slots(&table->master);
+
+  uint32 read = 0;
+  for (uint32 arg3=0 ; read < size ; arg3++) {
+    uint32 count3 = bin_table_count_2(&table->slave, arg3);
+    if (count3 > 0) {
+      read += count3;
+      uint32 buffer[64];
+      uint32 read3 = 0;
+      while (read3 < count3) {
+        UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read3, buffer, 64);
+        read3 += array.size;
+        for (uint32 i=0 ; i < array.size ; i++) {
+          uint32 assoc_surr = array.array[i];
+          uint64 slot = slots[assoc_surr];
+          assert(unpack_arg1(slot) == master_bin_table_get_arg_1(&table->master, assoc_surr));
+          assert(unpack_arg2(slot) == master_bin_table_get_arg_2(&table->master, assoc_surr));
+          uint32 other_arg = key_13 ? unpack_arg1(slot) : unpack_arg2(slot);
+          if (col_update_bit_map_check_and_set(&bit_map, other_arg, mem_pool))
+            return false;
+        }
+      }
+      col_update_bit_map_clear(&bit_map);
+    }
+  }
+  col_update_bit_map_release(&bit_map, mem_pool);
+  return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 bool tern_table_cols_12_are_key(TERN_TABLE *table) {
   return bin_table_col_1_is_key(&table->slave);
 }
 
 bool tern_table_cols_13_are_key(TERN_TABLE *table) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return tern_table_cols_13_or_23_are_key(table, true);
 }
 
 bool tern_table_cols_23_are_key(TERN_TABLE *table) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return tern_table_cols_13_or_23_are_key(table, false);
 }
 
 bool tern_table_col_3_is_key(TERN_TABLE *table) {
