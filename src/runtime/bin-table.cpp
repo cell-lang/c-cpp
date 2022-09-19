@@ -84,7 +84,7 @@ uint32 bin_table_lookup_2(BIN_TABLE *table, uint32 arg2) {
 }
 
 uint32 bin_table_lookup_unstable_surr(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  return one_way_bin_table_unstable_surr(&table->forward, arg1, arg2);
+  return one_way_bin_table_lookup_unstable_surr(&table->forward, arg1, arg2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

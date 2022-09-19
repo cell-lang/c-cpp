@@ -2252,7 +2252,7 @@ void obj_col_aux_reset(OBJ_COL_AUX *);
 void obj_col_aux_clear(OBJ_COL_AUX *);
 void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *, uint32 index);
 void obj_col_aux_insert(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
-void obj_col_aux_update(OBJ_COL_AUX *, uint32 index, OBJ value);
+void obj_col_aux_update(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
 
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 

@@ -310,7 +310,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_column_insert_deferred_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = native_column_method_prefix(col_repr) & if forced then "_aux_update" else "_aux_insert";
+    method_name = native_column_method_prefix(col_repr, mandatory) & if forced then "_aux_update" else "_aux_insert";
     needs_col_arg = not mandatory and col_repr == :object;
     return (native_call(method_name, (table_var if needs_col_arg, updater, key_surr, value)));
   }
