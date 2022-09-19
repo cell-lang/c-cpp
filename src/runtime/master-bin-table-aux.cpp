@@ -997,7 +997,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
     COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
 
     TRNS_MAP_SURR_U32 remaining;
-    trns_map_surr_u32_init(&remaining, mem_pool);
+    trns_map_surr_u32_init(&remaining);
 
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;
@@ -1137,7 +1137,7 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
     COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
 
     TRNS_MAP_SURR_U32 remaining;
-    trns_map_surr_u32_init(&remaining, mem_pool);
+    trns_map_surr_u32_init(&remaining);
 
     if (num_dels > 0) {
       uint64 *args_array = table_aux->deletions.array;

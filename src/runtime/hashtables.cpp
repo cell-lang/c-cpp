@@ -1,45 +1,57 @@
 #include "lib.h"
 
 
-void map_surr_u32_init(MAP_SURR_U32 *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_surr_u32_init(MAP_SURR_U32 *map) {
+
 }
 
-void map_surr_u32_clear(MAP_SURR_U32 *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-void map_surr_u32_delete(MAP_SURR_U32 *, uint32 key) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_surr_u32_release(MAP_SURR_U32 *map) {
+
 }
 
-void map_surr_u32_set(MAP_SURR_U32 *, uint32 key, uint32 value) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_surr_u32_clear(MAP_SURR_U32 *map) {
+  map->hashtable.clear();
 }
 
-uint32 map_surr_u32_lookup(MAP_SURR_U32 *, uint32 key, uint32 default_) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_surr_u32_delete(MAP_SURR_U32 *map, uint32 key) {
+  map->hashtable.erase(key);
+}
+
+void map_surr_u32_set(MAP_SURR_U32 *map, uint32 key, uint32 value) {
+  map->hashtable[key] = value;
+}
+
+uint32 map_surr_u32_lookup(MAP_SURR_U32 *map, uint32 key, uint32 default_) {
+  auto it = map->hashtable.find(key);
+  return it != map->hashtable.end() ? it->second : default_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void map_i64_surr_init(MAP_I64_SURR *map) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+
+}
+
+void map_i64_surr_release(MAP_I64_SURR *map) {
+
 }
 
 void map_i64_surr_clear(MAP_I64_SURR *map) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  map->hashtable.clear();
 }
 
-void map_i64_surr_delete(MAP_I64_SURR *map, int64) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_i64_surr_delete(MAP_I64_SURR *map, int64 key) {
+  map->hashtable.erase(key);
 }
 
-void map_i64_surr_insert_new(MAP_I64_SURR *map, int64, uint32) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void map_i64_surr_insert_new(MAP_I64_SURR *map, int64 key, uint32 value) {
+  assert(map->hashtable.count(key) == 0);
+  map->hashtable[key] = value;
 }
 
-uint32 map_i64_surr_lookup(MAP_I64_SURR *map, int64) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+uint32 map_i64_surr_lookup(MAP_I64_SURR *map, int64 key) {
+  auto it = map->hashtable.find(key);
+  return it != map->hashtable.end() ? it->second : 0xFFFFFFFF;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,39 +189,43 @@ uint32 quasi_map_hcode_surr_find(QUASI_MAP_HCODE_SURR *table, uint32 hashcode, O
 ////////////////////////////////////////////////////////////////////////////////
 
 void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *map) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+
 }
 
 void trns_map_surr_surr_surr_clear(TRNS_MAP_SURR_SURR_SURR *map) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  map->hashtable.clear();
 }
 
 void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2, uint32 surr3) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  assert(map->hashtable.count(pack(surr1, surr2)) == 0);
+  map->hashtable[pack(surr1, surr2)] = surr3;
 }
 
-void trns_map_surr_surr_surr_update(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void trns_map_surr_surr_surr_update(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2, uint32 surr3) {
+  assert(map->hashtable.count(pack(surr1, surr2)) == 1);
+  map->hashtable[pack(surr1, surr2)] = surr3;
 }
 
 uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *map, uint32 surr1, uint32 surr2) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  auto it = map->hashtable.find(pack(surr1, surr2));
+  return it != map->hashtable.end() ? it->second : 0xFFFFFFFF;
 }
 
 bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *map) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+  return map->hashtable.size() == 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *, STATE_MEM_POOL *) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *map) {
+
 }
 
-void trns_map_surr_u32_set(TRNS_MAP_SURR_U32 *, uint32 key, uint32 value) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+void trns_map_surr_u32_set(TRNS_MAP_SURR_U32 *map, uint32 key, uint32 value) {
+  map->hashtable[key] = value;
 }
 
-uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *, uint32 key, uint32 default_) {
-  throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *map, uint32 key, uint32 default_) {
+  auto it = map->hashtable.find(key);
+  return it != map->hashtable.end() ? it->second : default_;
 }

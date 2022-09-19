@@ -528,7 +528,7 @@ static void bin_table_aux_build_full_deletion_map_1(BIN_TABLE *table, BIN_TABLE_
 
   if (dels_count > 0 || dels_count_2 > 0) {
     TRNS_MAP_SURR_U32 remaining;
-    trns_map_surr_u32_init(&remaining, table->mem_pool);
+    trns_map_surr_u32_init(&remaining);
 
     if (dels_count > 0) {
       uint64 *args_array = table_aux->deletions.array;
@@ -614,7 +614,7 @@ static void bin_table_aux_build_full_deletion_map_2(BIN_TABLE *table, BIN_TABLE_
 
   if (dels_count > 0 || dels_count_1 > 0) {
     TRNS_MAP_SURR_U32 remaining;
-    trns_map_surr_u32_init(&remaining, table->mem_pool);
+    trns_map_surr_u32_init(&remaining);
 
     if (dels_count > 0) {
       uint64 *args_array = table_aux->deletions.array;

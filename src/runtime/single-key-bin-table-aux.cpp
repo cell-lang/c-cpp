@@ -573,7 +573,7 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KE
     uint32 num_dels = table_aux->deletions_1.count;
     if (num_dels > 0) {
       TRNS_MAP_SURR_U32 remaining;
-      trns_map_surr_u32_init(&remaining, table->mem_pool);
+      trns_map_surr_u32_init(&remaining);
 
       uint32 *arg1s = table_aux->deletions_1.array;
       for (uint32 i=0 ; i < num_dels ; i++) {

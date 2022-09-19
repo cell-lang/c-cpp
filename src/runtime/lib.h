@@ -2319,44 +2319,35 @@ uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, S
 //////////////////////////////// hashtables.cpp ////////////////////////////////
 
 void map_surr_u32_init(MAP_SURR_U32 *);
-
+void map_surr_u32_release(MAP_SURR_U32 *);
 void map_surr_u32_clear(MAP_SURR_U32 *);
 void map_surr_u32_delete(MAP_SURR_U32 *, uint32 key);
-
 void map_surr_u32_set(MAP_SURR_U32 *, uint32 key, uint32 value);
-
 uint32 map_surr_u32_lookup(MAP_SURR_U32 *, uint32 key, uint32 default_);
 
-
 void map_i64_surr_init(MAP_I64_SURR *);
-
+void map_i64_surr_release(MAP_I64_SURR *);
 void map_i64_surr_clear(MAP_I64_SURR *);
 void map_i64_surr_delete(MAP_I64_SURR *, int64);
 void map_i64_surr_insert_new(MAP_I64_SURR *, int64, uint32);
-
 uint32 map_i64_surr_lookup(MAP_I64_SURR *, int64);
 
-
 void quasi_map_hcode_surr_init(QUASI_MAP_HCODE_SURR *, STATE_MEM_POOL *);
+void quasi_map_hcode_surr_release(QUASI_MAP_HCODE_SURR *, STATE_MEM_POOL *);
 void quasi_map_hcode_surr_resize(QUASI_MAP_HCODE_SURR *, uint32 new_capacity, STATE_MEM_POOL *);
 void quasi_map_hcode_surr_insert(QUASI_MAP_HCODE_SURR *, uint32 hashcode, uint32 index, STATE_MEM_POOL *);
 void quasi_map_hcode_surr_delete(QUASI_MAP_HCODE_SURR *, uint32 hashcode, uint32 index);
 void quasi_map_hcode_surr_clear(QUASI_MAP_HCODE_SURR *);
-
 uint32 quasi_map_hcode_surr_find(QUASI_MAP_HCODE_SURR *, uint32 hashcode, OBJ *slots, OBJ value);
-
 
 void trns_map_surr_surr_surr_init(TRNS_MAP_SURR_SURR_SURR *);
 void trns_map_surr_surr_surr_clear(TRNS_MAP_SURR_SURR_SURR *);
-
 void trns_map_surr_surr_surr_insert_new(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3);
 void trns_map_surr_surr_surr_update(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2, uint32 surr3);
-
 uint32 trns_map_surr_surr_surr_lookup(TRNS_MAP_SURR_SURR_SURR *, uint32 surr1, uint32 surr2);
 bool trns_map_surr_surr_surr_is_empty(TRNS_MAP_SURR_SURR_SURR *);
 
-
-void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *, STATE_MEM_POOL *);
+void trns_map_surr_u32_init(TRNS_MAP_SURR_U32 *);
 void trns_map_surr_u32_set(TRNS_MAP_SURR_U32 *, uint32 key, uint32 value);
 uint32 trns_map_surr_u32_lookup(TRNS_MAP_SURR_U32 *, uint32 key, uint32 default_);
 
