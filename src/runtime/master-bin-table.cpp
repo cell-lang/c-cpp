@@ -372,24 +372,23 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
       table->slots = new_slots;
 
       uint32 last_free = new_capacity;
-      for (uint32 i=capacity-1 ; i >= 0 ; i--) {
+      for (uint32 i=capacity-1 ; i != 0xFFFFFFFF ; i--) {
         uint64 slot = slots[i];
-        if (is_locked(slot)) {
-          new_slots[i] = slot;
-        }
-        else {
+        if (master_bin_table_slot_is_empty(slot) || !is_locked(slot)) {
           new_slots[i] = empty_slot(last_free);
           last_free = i;
         }
+        else
+          new_slots[i] = slot;
       }
       table->first_free = last_free;
     }
     else {
       uint32 last_free = INIT_SIZE;
-      for (uint32 i=INIT_SIZE-1 ; i >= 0 ; i--) {
+      for (uint32 i=INIT_SIZE-1 ; i != 0xFFFFFFFF ; i--) {
         uint64 *slot_ptr = slots + i;
         uint64 slot = *slot_ptr;
-        if (!is_locked(slot)) {
+        if (master_bin_table_slot_is_empty(slot) || !is_locked(slot)) {
           *slot_ptr = empty_slot(last_free);
           last_free = i;
         }

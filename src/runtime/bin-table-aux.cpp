@@ -514,7 +514,7 @@ bool bin_table_aux_was_deleted(BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg
 static void bin_table_aux_build_full_deletion_map_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
-  STATE_MEM_POOL *mem_pool = table->mem_pool;
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
 
   uint32 dels_count = table_aux->deletions.count;
   uint32 dels_count_1 = table_aux->deletions_1.count;
@@ -600,7 +600,7 @@ static void bin_table_aux_build_full_deletion_map_1(BIN_TABLE *table, BIN_TABLE_
 static void bin_table_aux_build_full_deletion_map_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
-  STATE_MEM_POOL *mem_pool = table->mem_pool;
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
 
   uint32 dels_count = table_aux->deletions.count;
   uint32 dels_count_1 = table_aux->deletions_1.count;
@@ -727,7 +727,7 @@ static bool bin_table_aux_was_inserted_1(BIN_TABLE *table, BIN_TABLE_AUX *table_
     return false;
 
   if (!col_update_bit_map_is_dirty(&table_aux->insertion_map_1)) {
-    STATE_MEM_POOL *mem_pool = table->mem_pool;
+    STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
     uint64 *args_array = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++)
       col_update_bit_map_set(&table_aux->insertion_map_1, unpack_arg1(args_array[i]), mem_pool);
@@ -742,7 +742,7 @@ static bool bin_table_aux_was_inserted_2(BIN_TABLE *table, BIN_TABLE_AUX *table_
     return false;
 
   if (!col_update_bit_map_is_dirty(&table_aux->insertion_map_2)) {
-    STATE_MEM_POOL *mem_pool = table->mem_pool;
+    STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
     uint64 *args_array = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++)
       col_update_bit_map_set(&table_aux->insertion_map_2, unpack_arg2(args_array[i]), mem_pool);
@@ -760,7 +760,7 @@ void bin_table_aux_prepare(BIN_TABLE_AUX *table_aux) {
 uint32 bin_table_aux_size(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   uint32 size = table_aux->clear ? 0 : bin_table_size(table);
 
-  STATE_MEM_POOL *mem_pool = table->mem_pool;
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
   COL_UPDATE_BIT_MAP *bit_map = &table_aux->bit_map;
 
   uint32 dels_count = table_aux->deletions.count;
@@ -926,11 +926,12 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
+      STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
       uint64 *args_array = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
         uint32 arg1 = unpack_arg1(args_array[i]);
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool))
           if (unary_table_aux_contains(src_table, src_table_aux, arg1))
             found++;
       }
@@ -1010,11 +1011,12 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
+      STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
       uint64 *args_array = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
         uint32 arg1 = unpack_arg1(args_array[i]);
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool))
           if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
             found++;
       }
@@ -1094,11 +1096,12 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
+      STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
       uint64 *args_array = table_aux->insertions.array;
       uint32 found = 0;
       for (uint32 i=0 ; i < ins_count ; i++) {
         uint32 arg2 = unpack_arg2(args_array[i]);
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, table->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool))
           if (unary_table_aux_contains(src_table, src_table_aux, arg2))
             found++;
       }

@@ -7,8 +7,9 @@ inline bool bin_table_reverse_one_way_table_has_been_built(BIN_TABLE *table) {
 }
 
 inline void bin_table_build_reverse_one_way_table(BIN_TABLE *table) {
-  one_way_bin_table_build_reverse(&table->forward, &table->backward, table->mem_pool);
-  counter_clear(&table->col_2_counter, table->mem_pool);
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
+  one_way_bin_table_build_reverse(&table->forward, &table->backward, mem_pool);
+  counter_clear(&table->col_2_counter, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,8 +17,10 @@ inline void bin_table_build_reverse_one_way_table(BIN_TABLE *table) {
 void bin_table_init(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   one_way_bin_table_init(&table->forward, mem_pool);
   one_way_bin_table_init(&table->backward, mem_pool);
-  table->mem_pool = mem_pool;
   counter_init(&table->col_2_counter, mem_pool);
+  table->mem_pool_offset = ((uint8 *) table) - ((uint8 *) mem_pool);
+
+  assert(bin_table_mem_pool(table) == mem_pool);
 }
 
 uint32 bin_table_size(BIN_TABLE *table) {
@@ -115,8 +118,10 @@ bool bin_table_delete(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
       one_way_bin_table_delete(&table->backward, arg2, arg1);
       assert(!one_way_bin_table_contains(&table->backward, arg2, arg1));
     }
-    else
-      counter_decr(&table->col_2_counter, arg2, table->mem_pool);
+    else {
+      STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
+      counter_decr(&table->col_2_counter, arg2, mem_pool);
+    }
   }
   return found;
 }
@@ -135,8 +140,9 @@ void bin_table_delete_1(BIN_TABLE *table, uint32 arg1) {
       }
     }
     else {
+      STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
       for (uint32 i=0 ; i < count ; i++)
-        counter_decr(&table->col_2_counter, arg2s[i], table->mem_pool);
+        counter_decr(&table->col_2_counter, arg2s[i], mem_pool);
     }
   }
 }
@@ -243,4 +249,10 @@ void bin_table_write(WRITE_FILE_STATE *write_state, BIN_TABLE *table, OBJ (*surr
       } while (read_1 < count_1);
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+STATE_MEM_POOL *bin_table_mem_pool(BIN_TABLE *table) {
+  return (STATE_MEM_POOL *) (((uint8 *) table) - table->mem_pool_offset);
 }

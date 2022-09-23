@@ -7,10 +7,12 @@ void double_key_bin_table_init(DOUBLE_KEY_BIN_TABLE *table, STATE_MEM_POOL *mem_
 
   table->forward_array = alloc_state_mem_oned_uint32_array(mem_pool, INIT_SIZE);
   table->backward_array = alloc_state_mem_oned_uint32_array(mem_pool, INIT_SIZE);
-  table->mem_pool = mem_pool;
   table->forward_capacity = INIT_SIZE;
   table->backward_capacity = INIT_SIZE;
   table->count = 0;
+  table->mem_pool_offset = ((uint8 *) table) - ((uint8 *) mem_pool);
+
+  assert(double_key_bin_table_mem_pool(table) == mem_pool);
 }
 
 uint32 double_key_bin_table_size(DOUBLE_KEY_BIN_TABLE *table) {
@@ -221,4 +223,10 @@ void double_key_bin_table_write(WRITE_FILE_STATE *write_state, DOUBLE_KEY_BIN_TA
         write_str(write_state, as_map ? "," : ";");
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+STATE_MEM_POOL *double_key_bin_table_mem_pool(DOUBLE_KEY_BIN_TABLE *table) {
+  return (STATE_MEM_POOL *) (((uint8 *) table) - table->mem_pool_offset);
 }

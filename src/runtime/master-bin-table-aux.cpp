@@ -26,7 +26,7 @@ void master_bin_table_aux_init(MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *
   queue_u32_init(&table_aux->deletions_1);
   queue_u32_init(&table_aux->deletions_2);
   queue_3u32_init(&table_aux->insertions);
-  queue_u32_init(&table_aux->locked_surrs);
+  queue_3u32_init(&table_aux->reinsertions);
   trns_map_surr_surr_surr_init(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
@@ -44,7 +44,7 @@ void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u32_reset(&table_aux->deletions_1);
   queue_u32_reset(&table_aux->deletions_2);
   queue_3u32_reset(&table_aux->insertions);
-  queue_u32_reset(&table_aux->locked_surrs);
+  queue_3u32_reset(&table_aux->reinsertions);
   trns_map_surr_surr_surr_clear(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
@@ -56,10 +56,9 @@ void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *table_aux) {
   assert(table_aux->deletions_1.count == 0);
   assert(table_aux->deletions_2.count == 0);
   assert(table_aux->insertions.count == 0);
-  assert(table_aux->locked_surrs.count == 0); //## NOT AT ALL SURE ABOUT THIS ONE, RESETTING IT ANYWAY DOWN BELOW
+  assert(table_aux->reinsertions.count == 0);
   assert(!table_aux->clear);
 
-  queue_u32_reset(&table_aux->locked_surrs); //## MAYBE IT'S NOT NECESSARY? IT'S HERE JUST IN CASE.
   trns_map_surr_surr_surr_clear(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
 }
@@ -86,7 +85,7 @@ void master_bin_table_aux_delete_2(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg2)
 uint32 master_bin_table_aux_insert(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF) {
-    queue_u32_insert(&table_aux->locked_surrs, surr);
+    queue_3u32_insert(&table_aux->reinsertions, arg1, arg2, surr);
     return surr;
   }
 
@@ -128,14 +127,14 @@ uint32 master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, MASTER_BIN_TABL
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *table, QUEUE_U32 *locked_surrs) {
-  assert(locked_surrs->count != 0);
+uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *table, QUEUE_3U32 *reinsertions) {
+  assert(reinsertions->count != 0);
 
-  uint32 count = locked_surrs->count;
+  uint32 count = reinsertions->count;
   uint32 highest_surr = 0; // There's at least one surrogate, so zero as a default works
-  uint32 *array = locked_surrs->array;
+  TUPLE_3U32 *array = reinsertions->array;
   for (uint32 i=0 ; i < count ; i++) {
-    uint32 surr = array[i];
+    uint32 surr = array[i].z;
     master_bin_table_lock_surr(table, surr);
     if (surr > highest_surr)
       highest_surr = surr;
@@ -143,13 +142,13 @@ uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *table, QUEUE_U32 *locke
   return highest_surr;
 }
 
-void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *table, QUEUE_U32 *locked_surrs) {
-  assert(locked_surrs->count != 0);
+void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *table, QUEUE_3U32 *reinsertions) {
+  assert(reinsertions->count != 0);
 
-  uint32 count = locked_surrs->count;
-  uint32 *array = locked_surrs->array;
+  uint32 count = reinsertions->count;
+  TUPLE_3U32 *array = reinsertions->array;
   for (uint32 i=0 ; i < count ; i++)
-    master_bin_table_unlock_surr(table, array[i]);
+    master_bin_table_unlock_surr(table, array[i].z);
 }
 
 static void master_bin_table_aux_build_col_1_insertion_bitmap(MASTER_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
@@ -161,6 +160,13 @@ static void master_bin_table_aux_build_col_1_insertion_bitmap(MASTER_BIN_TABLE_A
     for (uint32 i=0 ; i < count ; i++)
       col_update_bit_map_set(bit_map, insertions[i].x, mem_pool);
   }
+
+  count = table_aux->reinsertions.count;
+  if (count > 0) {
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, reinsertions[i].x, mem_pool);
+  }
 }
 
 static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
@@ -171,6 +177,13 @@ static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_A
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < count ; i++)
       col_update_bit_map_set(bit_map, insertions[i].y, mem_pool);
+  }
+
+  count = table_aux->reinsertions.count;
+  if (count > 0) {
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, reinsertions[i].y, mem_pool);
   }
 }
 
@@ -224,7 +237,7 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
   //## UPDATE AND REENABLE THIS CHECK
   // assert(trns_map_surr_surr_surr_is_empty(&table_aux->args_enc_surr_map));
 
-  bool locks_applied = table_aux->locked_surrs.count == 0;
+  bool locks_applied = table_aux->reinsertions.count == 0;
 
   //## FROM HERE ON THIS IS BASICALLY IDENTICAL TO bin_table_aux_apply_deletions(..). The most important difference is the locking
 
@@ -269,7 +282,7 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
 
       uint32 highest_locked_surr = 0xFFFFFFFF;
       if (!locks_applied) {
-        highest_locked_surr = master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        highest_locked_surr = master_bin_table_aux_lock_surrs(table, &table_aux->reinsertions);
         locks_applied = true;
       }
 
@@ -277,8 +290,8 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
     }
   }
   else {
-    bool has_insertions = table_aux->insertions.count > 0;
-    bool col_1_bit_map_built = !has_insertions;
+    bool has_insertions = table_aux->insertions.count > 0 || table_aux->reinsertions.count > 0;
+    bool col_1_bit_map_built = !has_insertions ;
     bool col_2_bit_map_built = !has_insertions;
 
     COL_UPDATE_BIT_MAP *col_1_bit_map = &table_aux->bit_map;
@@ -288,12 +301,11 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
     uint32 del_1_count = table_aux->deletions_1.count;
     uint32 del_2_count = table_aux->deletions_2.count;
 
-    if (del_count > 0 | del_1_count > 0 | del_2_count > 0) {
+    if (del_count > 0 | del_1_count > 0 | del_2_count > 0)
       if (!locks_applied) {
-        master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        master_bin_table_aux_lock_surrs(table, &table_aux->reinsertions);
         locks_applied = true;
       }
-    }
 
     if (del_count > 0) {
       uint64 *array = table_aux->deletions.array;
@@ -412,8 +424,8 @@ void master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, MASTER_BIN_TA
       col_update_bit_map_clear(col_2_bit_map);
   }
 
-  if (locks_applied && table_aux->locked_surrs.count > 0)
-    master_bin_table_aux_unlock_surrs(table, &table_aux->locked_surrs);
+  if (locks_applied && table_aux->reinsertions.count > 0)
+    master_bin_table_aux_unlock_surrs(table, &table_aux->reinsertions);
 
   assert(table->table.forward.count == table->table.backward.count);
 }
@@ -426,6 +438,15 @@ void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, MASTER_BIN_T
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < ins_count ; i++) {
       TUPLE_3U32 tuple = insertions[i];
+      master_bin_table_insert_with_surr(table, tuple.x, tuple.y, tuple.z, mem_pool);
+    }
+  }
+
+  uint32 reins_count = table_aux->reinsertions.count;
+  if (reins_count > 0) {
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < reins_count ; i++) {
+      TUPLE_3U32 tuple = reinsertions[i];
       master_bin_table_insert_with_surr(table, tuple.x, tuple.y, tuple.z, mem_pool);
     }
   }
@@ -643,11 +664,11 @@ bool master_bin_table_aux_was_inserted_2(MASTER_BIN_TABLE_AUX *table_aux, uint32
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 master_bin_table_aux_size(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
-  uint32 reins_count = table_aux->locked_surrs.count;
+  uint32 reins_count = table_aux->reinsertions.count;
   if (reins_count > 1) {
     assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
-    queue_u32_deduplicate(&table_aux->locked_surrs, &table_aux->bit_map, table_aux->mem_pool);
-    reins_count = table_aux->locked_surrs.count;
+    queue_3u32_deduplicate_by_3(&table_aux->reinsertions, &table_aux->bit_map, table_aux->mem_pool);
+    reins_count = table_aux->reinsertions.count;
   }
 
   uint32 ins_count = table_aux->insertions.count + reins_count;

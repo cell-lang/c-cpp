@@ -238,10 +238,12 @@ void queue_3u32_init(QUEUE_3U32 *queue) {
   queue->capacity = QUEUE_INLINE_SIZE;
   queue->count = 0;
   queue->array = queue->inline_array;
+  queue->deduplicated = false;
 }
 
 void queue_3u32_reset(QUEUE_3U32 *queue) {
   queue->count = 0;
+  queue->deduplicated = false;
   if (queue->capacity != QUEUE_INLINE_SIZE) {
     queue->capacity = QUEUE_INLINE_SIZE;
     queue->array = queue->inline_array;
@@ -264,4 +266,29 @@ void queue_3u32_insert(QUEUE_3U32 *queue, uint32 x, uint32 y, uint32 z) {
   ptr->y = y;
   ptr->z = z;
   queue->count = count + 1;
+}
+
+void queue_3u32_deduplicate_by_3(QUEUE_3U32 *queue, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 count = queue->count;
+  if (count > 1 && !queue->deduplicated) {
+    TUPLE_3U32 *array = queue->array;
+    uint32 target_idx = 0;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 z = array[i].z;
+      if (col_update_bit_map_check_and_set(bit_map, z, mem_pool)) {
+        while (i < --count) {
+          TUPLE_3U32 last_tuple = array[count];
+          if (!col_update_bit_map_check_and_set(bit_map, last_tuple.z, mem_pool)) {
+            array[i] = last_tuple;
+            break;
+          }
+        }
+      }
+    }
+    queue->count = count;
+    queue->deduplicated = true;
+    col_update_bit_map_clear(bit_map);
+  }
 }

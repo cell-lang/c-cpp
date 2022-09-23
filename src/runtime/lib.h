@@ -224,6 +224,7 @@ struct QUEUE_3U32 {
   uint32 count;
   TUPLE_3U32 *array;
   TUPLE_3U32 inline_array[QUEUE_INLINE_SIZE];
+  bool deduplicated;
 };
 
 struct QUEUE_U32_I64 {
@@ -358,25 +359,25 @@ struct BIN_TABLE {
   ONE_WAY_BIN_TABLE forward;
   ONE_WAY_BIN_TABLE backward;
   COUNTER col_2_counter;
-  STATE_MEM_POOL *mem_pool;
+  uint32 mem_pool_offset;
 };
 
 struct SINGLE_KEY_BIN_TABLE {
   uint32 *forward_array;
   ONE_WAY_BIN_TABLE backward;
   COUNTER col_2_counter;
-  STATE_MEM_POOL *mem_pool;
   uint32 capacity;
   uint32 count;
+  uint32 mem_pool_offset;
 };
 
 struct DOUBLE_KEY_BIN_TABLE {
   uint32 *forward_array;
   uint32 *backward_array;
-  STATE_MEM_POOL *mem_pool;
   uint32 forward_capacity;
   uint32 backward_capacity;
   uint32 count;
+  uint32 mem_pool_offset;
 };
 
 struct BIN_TABLE_AUX {
@@ -440,11 +441,11 @@ struct MASTER_BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP surr_insert_map;
   COL_UPDATE_BIT_MAP bit_map;
   COL_UPDATE_BIT_MAP another_bit_map;
-  QUEUE_U64 deletions;    // Only existing tuples, but with possible duplicates
+  QUEUE_U64 deletions;      // Only existing tuples, but with possible duplicates
   QUEUE_U32 deletions_1;
   QUEUE_U32 deletions_2;
-  QUEUE_3U32 insertions;  // Only new tuples and no duplicates
-  QUEUE_U32 locked_surrs;
+  QUEUE_3U32 insertions;    // Only new tuples and no duplicates
+  QUEUE_3U32 reinsertions;  // May contain duplicates
   TRNS_MAP_SURR_SURR_SURR args_enc_surr_map;
   uint32 last_surr;
   bool clear;
@@ -454,10 +455,10 @@ struct MASTER_BIN_TABLE_AUX {
 
 struct SYM_MASTER_BIN_TABLE_AUX {
   COL_UPDATE_BIT_MAP bit_map;
-  QUEUE_U64 deletions;    // Only existing tuples, but with possible duplicates
+  QUEUE_U64 deletions;      // Only existing tuples, but with possible duplicates
   QUEUE_U32 deletions_1;
-  QUEUE_3U32 insertions;  // Only new tuples and no duplicates
-  QUEUE_U32 locked_surrs;
+  QUEUE_3U32 insertions;    // Only new tuples and no duplicates
+  QUEUE_3U32 reinsertions;  // May contain duplicates
   TRNS_MAP_SURR_SURR_SURR args_enc_surr_map;
   uint32 last_surr;
   bool clear;
@@ -1474,6 +1475,8 @@ bool bin_table_col_2_is_key(BIN_TABLE *);
 void bin_table_copy_to(BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void bin_table_write(WRITE_FILE_STATE *, BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
 
+STATE_MEM_POOL *bin_table_mem_pool(BIN_TABLE *);
+
 /////////////////////////////// bin-table-aux.cpp //////////////////////////////
 
 void bin_table_aux_init(BIN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1544,6 +1547,8 @@ bool single_key_bin_table_col_2_is_key(SINGLE_KEY_BIN_TABLE *);
 void single_key_bin_table_copy_to(SINGLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *, STREAM *);
 void single_key_bin_table_write(WRITE_FILE_STATE *write_state, SINGLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
 
+STATE_MEM_POOL *single_key_bin_table_mem_pool(SINGLE_KEY_BIN_TABLE *);
+
 ///////////////////////// single-key-bin-table-aux.cpp /////////////////////////
 
 void single_key_bin_table_aux_init(SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
@@ -1605,6 +1610,8 @@ bool double_key_bin_table_col_2_is_key(DOUBLE_KEY_BIN_TABLE *);
 
 void double_key_bin_table_copy_to(DOUBLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, STREAM *strm_1, STREAM *strm_2);
 void double_key_bin_table_write(WRITE_FILE_STATE *, DOUBLE_KEY_BIN_TABLE *, OBJ (*)(void *, uint32), void *, OBJ (*)(void *, uint32), void *, bool as_map, bool flipped);
+
+STATE_MEM_POOL *double_key_bin_table_mem_pool(DOUBLE_KEY_BIN_TABLE *);
 
 ///////////////////////// double-key-bin-table-aux.cpp /////////////////////////
 
@@ -2073,6 +2080,8 @@ void raw_int_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_INT_COL *, OBJ (*s
 ////////////////////////////// raw-int-col-aux.cpp /////////////////////////////
 
 void raw_int_col_aux_delete_1(UNARY_TABLE *, INT_COL_AUX *, uint32);
+void raw_int_col_aux_insert(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
+void raw_int_col_aux_update(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
 
 void raw_int_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2095,7 +2104,11 @@ void raw_float_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_FLOAT_COL *, OBJ
 ///////////////////////////// raw-float-col-aux.cpp ////////////////////////////
 
 void raw_float_col_aux_delete_1(UNARY_TABLE *, FLOAT_COL_AUX *, uint32);
+void raw_float_col_aux_insert(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
+void raw_float_col_aux_update(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
+
 void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
+
 bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
@@ -2120,8 +2133,8 @@ void raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)
 
 // void raw_obj_col_aux_clear(OBJ_COL_AUX *);
 void raw_obj_col_aux_delete_1(UNARY_TABLE *, OBJ_COL_AUX *, uint32);
-// void raw_obj_col_aux_insert(OBJ_COL_AUX *, uint32, OBJ);
-// void raw_obj_col_aux_update(OBJ_COL_AUX *, uint32, OBJ);
+void raw_obj_col_aux_insert(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
+void raw_obj_col_aux_update(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
 
 bool raw_obj_col_aux_check_key_1(UNARY_TABLE *, RAW_OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2379,6 +2392,7 @@ bool queue_u64_contains(QUEUE_U64 *, uint64);
 void queue_3u32_init(QUEUE_3U32 *queue);
 void queue_3u32_reset(QUEUE_3U32 *queue);
 void queue_3u32_insert(QUEUE_3U32 *queue, uint32 value1, uint32 value2, uint32 value3);
+void queue_3u32_deduplicate_by_3(QUEUE_3U32 *, COL_UPDATE_BIT_MAP *, STATE_MEM_POOL *);
 
 ////////////////////////////////////////////////////////////////////////////////
 

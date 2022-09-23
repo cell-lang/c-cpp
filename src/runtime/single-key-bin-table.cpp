@@ -8,17 +8,18 @@ inline bool single_key_bin_table_reverse_one_way_table_has_been_built(SINGLE_KEY
 }
 
 inline void single_key_bin_table_build_reverse_one_way_table(SINGLE_KEY_BIN_TABLE *table) {
+  STATE_MEM_POOL *mem_pool = single_key_bin_table_mem_pool(table);
   uint32 left = table->count;
   uint32 *forward_array = table->forward_array;
   for (uint32 arg1=0 ; left > 0 ; arg1++) {
     assert(arg1 < table->capacity);
     uint32 arg2 = forward_array[arg1];
     if (arg2 != 0xFFFFFFFF) {
-      one_way_bin_table_insert_unique(&table->backward, arg2, arg1, table->mem_pool);
+      one_way_bin_table_insert_unique(&table->backward, arg2, arg1, mem_pool);
       left--;
     }
   }
-  counter_clear(&table->col_2_counter, table->mem_pool);
+  counter_clear(&table->col_2_counter, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,10 +29,12 @@ void single_key_bin_table_init(SINGLE_KEY_BIN_TABLE *table, STATE_MEM_POOL *mem_
 
   table->forward_array = alloc_state_mem_oned_uint32_array(mem_pool, INIT_SIZE);
   one_way_bin_table_init(&table->backward, mem_pool);
-  table->mem_pool = mem_pool;
   counter_init(&table->col_2_counter, mem_pool);
   table->capacity = INIT_SIZE;
   table->count = 0;
+  table->mem_pool_offset = ((uint8 *) table) - ((uint8 *) mem_pool);
+
+  assert(single_key_bin_table_mem_pool(table) == mem_pool);
 
 #ifndef NDEBUG
   for (uint32 i=0 ; i < INIT_SIZE ; i++)
@@ -157,8 +160,10 @@ bool single_key_bin_table_delete(SINGLE_KEY_BIN_TABLE *table, uint32 arg1, uint3
         one_way_bin_table_delete(&table->backward, arg2, arg1);
         assert(!one_way_bin_table_contains(&table->backward, arg2, arg1));
       }
-      else
-        counter_decr(&table->col_2_counter, arg2, table->mem_pool);
+      else {
+        STATE_MEM_POOL *mem_pool = single_key_bin_table_mem_pool(table);
+        counter_decr(&table->col_2_counter, arg2, mem_pool);
+      }
 
       return true;
     }
@@ -179,8 +184,10 @@ void single_key_bin_table_delete_1(SINGLE_KEY_BIN_TABLE *table, uint32 arg1) {
         one_way_bin_table_delete(&table->backward, arg2, arg1);
         assert(!one_way_bin_table_contains(&table->backward, arg2, arg1));
       }
-      else
-        counter_decr(&table->col_2_counter, arg2, table->mem_pool);
+      else {
+        STATE_MEM_POOL *mem_pool = single_key_bin_table_mem_pool(table);
+        counter_decr(&table->col_2_counter, arg2, mem_pool);
+      }
     }
   }
 }
@@ -272,4 +279,10 @@ void single_key_bin_table_write(WRITE_FILE_STATE *write_state, SINGLE_KEY_BIN_TA
         write_str(write_state, as_map ? "," : ";");
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+STATE_MEM_POOL *single_key_bin_table_mem_pool(SINGLE_KEY_BIN_TABLE *table) {
+  return (STATE_MEM_POOL *) (((uint8 *) table) - table->mem_pool_offset);
 }

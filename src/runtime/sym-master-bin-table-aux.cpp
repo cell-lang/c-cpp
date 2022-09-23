@@ -6,13 +6,10 @@ bool is_locked(uint64 slot);
 uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *table, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_free);
 
-bool master_bin_table_lock_surr(MASTER_BIN_TABLE *, uint32 surr);
-bool master_bin_table_unlock_surr(MASTER_BIN_TABLE *, uint32 surr);
-
 bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool);
 
-uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *, QUEUE_U32 *);
-void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *, QUEUE_U32 *);
+uint32 master_bin_table_aux_lock_surrs(MASTER_BIN_TABLE *, QUEUE_3U32 *);
+void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *, QUEUE_3U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -31,7 +28,7 @@ void sym_master_bin_table_aux_init(SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_ME
   queue_u64_init(&table_aux->deletions);
   queue_u32_init(&table_aux->deletions_1);
   queue_3u32_init(&table_aux->insertions);
-  queue_u32_init(&table_aux->locked_surrs);
+  queue_3u32_init(&table_aux->reinsertions);
   trns_map_surr_surr_surr_init(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
@@ -43,7 +40,7 @@ void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
   queue_u64_reset(&table_aux->deletions);
   queue_u32_reset(&table_aux->deletions_1);
   queue_3u32_reset(&table_aux->insertions);
-  queue_u32_reset(&table_aux->locked_surrs);
+  queue_3u32_reset(&table_aux->reinsertions);
   trns_map_surr_surr_surr_clear(&table_aux->args_enc_surr_map);
   table_aux->last_surr = 0xFFFFFFFF;
   table_aux->clear = false;
@@ -76,7 +73,7 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
 
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF) {
-    queue_u32_insert(&table_aux->locked_surrs, surr);
+    queue_3u32_insert(&table_aux->reinsertions, arg1, arg2, surr);
     return surr;
   }
 
@@ -170,7 +167,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
   //## UPDATE AND REENABLE THIS CHECK
   // assert(trns_map_surr_surr_surr_is_empty(&table_aux->args_enc_surr_map));
 
-  bool locks_applied = table_aux->locked_surrs.count == 0;
+  bool locks_applied = table_aux->reinsertions.count == 0;
 
   //## FROM HERE ON THIS IS BASICALLY IDENTICAL TO sym_bin_table_aux_apply_deletions(..). The most important difference is the locking of the surrogates
 
@@ -198,7 +195,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
 
       uint32 highest_locked_surr = 0xFFFFFFFF;
       if (!locks_applied) {
-        highest_locked_surr = master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        highest_locked_surr = master_bin_table_aux_lock_surrs(table, &table_aux->reinsertions);
         locks_applied = true;
       }
 
@@ -214,7 +211,7 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
 
     if (del_count > 0 | del_1_count > 0) {
       if (!locks_applied) {
-        master_bin_table_aux_lock_surrs(table, &table_aux->locked_surrs);
+        master_bin_table_aux_lock_surrs(table, &table_aux->reinsertions);
         locks_applied = true;
       }
     }
@@ -293,8 +290,8 @@ void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *table, SYM_MASTE
       col_update_bit_map_clear(&table_aux->bit_map);
   }
 
-  if (locks_applied && table_aux->locked_surrs.count > 0)
-    master_bin_table_aux_unlock_surrs(table, &table_aux->locked_surrs);
+  if (locks_applied && table_aux->reinsertions.count > 0)
+    master_bin_table_aux_unlock_surrs(table, &table_aux->reinsertions);
 }
 
 void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {

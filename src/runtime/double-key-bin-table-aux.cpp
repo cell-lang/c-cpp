@@ -30,8 +30,9 @@ static void double_key_bin_table_aux_delete_existing(DOUBLE_KEY_BIN_TABLE *table
   assert(double_key_bin_table_contains(table, arg1, arg2));
   assert(col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1) == col_update_status_map_deleted_flag_is_set(&table_aux->col_2_status_map, arg2));
 
-  if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, table->mem_pool)) {
-    col_update_status_map_check_and_mark_deletion(&table_aux->col_2_status_map, arg2, table->mem_pool);
+  STATE_MEM_POOL *mem_pool = double_key_bin_table_mem_pool(table);
+  if (!col_update_status_map_check_and_mark_deletion(&table_aux->col_1_status_map, arg1, mem_pool)) {
+    col_update_status_map_check_and_mark_deletion(&table_aux->col_2_status_map, arg2, mem_pool);
     queue_u64_insert(&table_aux->deletions, pack_args(arg1, arg2));
   }
 }

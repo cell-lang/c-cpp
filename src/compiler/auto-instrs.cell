@@ -269,7 +269,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
     queue_insert_master_tuple() = (native_queue_insert_master_tuple_code(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple)),
 
-    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value, instr.forced),
+    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
     // ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
@@ -308,11 +308,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_column_insert_deferred_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
+  String* native_column_insert_deferred_code(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
     updater = pending_updates_var_ref_name(table_var);
-    method_name = native_column_method_prefix(col_repr, mandatory) & if forced then "_aux_update" else "_aux_insert";
-    needs_col_arg = not mandatory and col_repr == :object;
-    return (native_call(method_name, (table_var if needs_col_arg, updater, key_surr, value)));
+    method_name = native_table_method_prefix(column) & if forced then "_aux_update" else "_aux_insert";
+    args = match (column)
+      mandatory_column()  = (column.master),
+      column()            |
+      slave_column()      = (table_var);
+    return (native_call(method_name, (args | updater, key_surr, value)));
   }
 
 

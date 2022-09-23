@@ -547,7 +547,7 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
   }
 
   // The last slot didn't contain the searched value, looking in the rest of the array
-  for (uint32 i = last_slot_idx - 1 ; i >= 0 ; i--) {
+  for (uint32 i = last_slot_idx - 1 ; i != 0xFFFFFFFF ; i--) {
     uint64 slot = slots[block_idx + i];
     uint32 low = get_low_32(slot);
     uint32 high = get_high_32(slot);

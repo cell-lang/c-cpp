@@ -2,8 +2,50 @@
 
 
 void raw_float_col_aux_delete_1(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint32 index) {
+  if (unary_table_contains(master, index)) {
+    if (!col_update_status_map_check_and_mark_deletion(&col_aux->status_map, index, col_aux->mem_pool)) {
+      queue_u32_insert(&col_aux->deletions, index);
+      if (col_update_status_map_inserted_flag_is_set(&col_aux->status_map, index)) {
+        assert(col_aux->undeleted_inserts > 0);
+        col_aux->undeleted_inserts--;
+      }
+    }
+  }
+}
+
+void raw_float_col_aux_insert(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
+  if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
+    //## TODO: RECORD THE ERROR
+    col_aux->has_conflicts = true;
+    return;
+  }
+
   if (unary_table_contains(master, index))
-    queue_u32_insert(&col_aux->deletions, index);
+    if (!col_update_status_map_deleted_flag_is_set(&col_aux->status_map, index))
+      col_aux->undeleted_inserts++;
+
+  queue_u32_double_insert(&col_aux->insertions, index, value);
+}
+
+void raw_float_col_aux_update(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
+  if (unary_table_contains(master, index)) {
+    if (col_update_status_map_check_and_mark_update_return_previous_inserted_flag(&col_aux->status_map, index, col_aux->mem_pool)) {
+      //## TODO: RECORD THE ERROR
+      col_aux->has_conflicts = true;
+      return;
+    }
+
+    queue_u32_double_insert(&col_aux->updates, index, value);
+  }
+  else {
+    if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
+      //## TODO: RECORD THE ERROR
+      col_aux->has_conflicts = true;
+      return;
+    }
+
+    queue_u32_double_insert(&col_aux->insertions, index, value);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,72 +78,12 @@ static void raw_float_col_aux_record_col_1_key_violation(RAW_FLOAT_COL *col, FLO
 
 //## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
 bool raw_float_col_aux_check_key_1(UNARY_TABLE *master, RAW_FLOAT_COL *, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
-  assert(col_aux->status_map.bit_map.num_dirty == 0);
+  if (col_aux->has_conflicts)
+    return false;
 
-  uint32 num_insertions = col_aux->insertions.count;
-  uint32 num_updates = col_aux->updates.count;
-
-  if (num_insertions != 0 | num_updates != 0) {
-    if (col_aux->clear) {
-      if (num_insertions != 0) {
-        uint32 *idxs = col_aux->insertions.u32_array;
-        for (uint32 i=0 ; i < num_insertions ; i++)
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-      }
-
-      if (num_updates != 0) {
-        uint32 *idxs = col_aux->updates.u32_array;
-        for (uint32 i=0 ; i < num_updates ; i++) {
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-        }
-      }
-    }
-    else {
-      uint32 num_deletes = col_aux->deletions.count;
-      if (num_deletes != 0) {
-        uint32 *idxs = col_aux->deletions.array;
-        for (uint32 i=0 ; i < num_deletes ; i++)
-          col_update_status_map_mark_deletion(&col_aux->status_map, idxs[i], mem_pool);
-      }
-
-      if (num_insertions != 0) {
-        uint32 *idxs = col_aux->insertions.u32_array;
-        for (uint32 i=0 ; i < num_insertions ; i++) {
-          uint32 idx = idxs[i];
-          //## COULD BE MADE MORE EFFICIENT IF WE MERGED THE .._deleted_flag_is_set(..) WITH .._check_and_mark_insertion(..)
-          if (unary_table_contains(master, idx) && !col_update_status_map_deleted_flag_is_set(&col_aux->status_map, idx)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-        }
-      }
-
-      if (num_updates != 0) {
-        uint32 *idxs = col_aux->updates.u32_array;
-        for (uint32 i=0 ; i < num_updates ; i++) {
-          if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, idxs[i], mem_pool)) {
-            //## CLEAR?
-            //## RECORD THE ERROR
-            return false;
-          }
-        }
-      }
-    }
+  if (col_aux->undeleted_inserts > 0 && !col_aux->clear) {
+    //## TODO: RECORD THE ERROR
+    return false;
   }
 
   return true;

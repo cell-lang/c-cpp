@@ -107,7 +107,7 @@ uint32 tern_table_lookup_23(TERN_TABLE *table, uint32 arg2, uint32 arg3) {
 ////////////////////////////////////////////////////////////////////////////////
 
 static bool tern_table_cols_13_or_23_are_key(TERN_TABLE *table, bool key_13) {
-  STATE_MEM_POOL *mem_pool = table->slave.mem_pool;
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(&table->slave);
   COL_UPDATE_BIT_MAP bit_map;
   col_update_bit_map_init(&bit_map);
 

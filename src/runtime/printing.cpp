@@ -484,7 +484,7 @@ uint32 printable_frags_count(PRINT_BUFFER *pb) {
 
   uint32 curr_length = lf->length;
 
-  for (uint32 i=fc-2 ; i >= 0 ; i--) {
+  for (uint32 i=fc-2 ; i != 0xFFFFFFFF ; i--) {
     TEXT_FRAG *f = fs + i;
     curr_length += f->length;
     if (curr_length > 100)
