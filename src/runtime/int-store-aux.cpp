@@ -207,24 +207,8 @@ uint32 int_store_aux_insert(INT_STORE *store, INT_STORE_AUX *store_aux, int64 va
   entry_ptr->surr = surr;
   store_aux->count = count + 1;
 
-  if (count > INLINE_AUX_SIZE) {
+  if (count > INLINE_AUX_SIZE)
     int_store_aux_insert_into_hashtable(store_aux, count, hashcode);
-  }
-  // if (count >= 16) {
-  //   if (count >= hashRange) {
-  //     if (hashRange != 0) {
-  //       Array.fill(hashtable, hashRange, -1);
-  //       hashRange *= 2;
-  //     }
-  //     else
-  //       hashRange = 16;
-
-  //     for (int i=0 ; i < count ; i++)
-  //       insertIntoHashtable(i, hashcodes[i]);
-  //   }
-  //   insertIntoHashtable(count, hashcode);
-  // }
-  // count++;
 
   return surr;
 }
