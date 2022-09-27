@@ -18,20 +18,20 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       "  uint64 " & word_var & " = " & bitmap_var & "[" & word_idx_var & "];",
       "  uint32 " & bit_idx_var & " = 0;",
       "  " & label & ":",
-      "  if (" & word_var & " & 1 != 0) {",
-      "    " & left_var & "--;",
-      "    uint32 " & native_var_ref_name(iter.var) & " = 64 * " & word_idx_var & " + " & bit_idx_var & ";" if iter.var?
+      "    if (" & word_var & " & 1 != 0) {",
+      "      " & left_var & "--;",
+      "      uint32 " & native_var_ref_name(iter.var) & " = 64 * " & word_idx_var & " + " & bit_idx_var & ";" if iter.var?
     );
 
-    code = code & indent_lines(native_code(body, block_id), 2);
+    code = code & indent_lines(native_code(body, block_id), 3);
 
     code = (code |
-      "  }",
-      "  " & word_var & " >>= 1;",
-      "  if (" & word_var & " != 0) {",
-      "    " & bit_idx_var & "++;",
-      "    goto " & label & ";",
-      "  }",
+      "    }",
+      "    " & word_var & " >>= 1;",
+      "    if (" & word_var & " != 0) {",
+      "      " & bit_idx_var & "++;",
+      "      goto " & label & ";",
+      "    }",
       "}"
     );
 
@@ -156,16 +156,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     );
 
     code = match (arg2)
-      read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
       ignored   = code,
       bound()   = undefined;
 
-    code = code & indent_lines(body_text);
+    code = code & indent_lines(body_text, 2);
 
     code = (code |
-      "  " & idx_var & "++;",
-      "  if (" & idx_var & " < " & array_var & ".size)",
-      "    goto " & label & ";",
+      "    " & idx_var & "++;",
+      "    if (" & idx_var & " < " & array_var & ".size)",
+      "      goto " & label & ";",
       "}"
     );
 
@@ -195,16 +195,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     );
 
     code = match (arg1)
-      read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+      read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
       ignored   = code,
       bound()   = undefined;
 
-    code = code & indent_lines(body_text);
+    code = code & indent_lines(body_text, 2);
 
     code = (code |
-      "  " & idx_var & "++;",
-      "  if (" & idx_var & " < " & array_var & ".size)",
-      "    goto " & label & ";",
+      "    " & idx_var & "++;",
+      "    if (" & idx_var & " < " & array_var & ".size)",
+      "      goto " & label & ";",
       "}"
     );
 
@@ -330,19 +330,19 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
       if maybe_surr_var != nothing
-        code = (code | "  " & native_var_ref_name(value(maybe_surr_var)) & " = " & surrs_var & "[" & idx_var & "];");
+        code = (code | "    " & native_var_ref_name(value(maybe_surr_var)) & " = " & surrs_var & "[" & idx_var & "];");
 
-      code = code & indent_lines(native_code(body, block_id));
+      code = code & indent_lines(native_code(body, block_id), 2);
 
       code = (code |
-        "  " & idx_var & "++;",
-        "  if (" & idx_var & " < " & array_var & ".size)",
-        "    goto " & inner_loop_label & ";",
+        "    " & idx_var & "++;",
+        "    if (" & idx_var & " < " & array_var & ".size)",
+        "      goto " & inner_loop_label & ";",
         "}"
       );
 
@@ -389,19 +389,19 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg1)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
       if maybe_surr_var != nothing
-        code = (code | "  " & native_var_ref_name(value(maybe_surr_var)) & " = " & surrs_var & "[" & idx_var & "];");
+        code = (code | "    " & native_var_ref_name(value(maybe_surr_var)) & " = " & surrs_var & "[" & idx_var & "];");
 
-      code = code & indent_lines(native_code(body, block_id));
+      code = code & indent_lines(native_code(body, block_id), 2);
 
       code = (code |
-        "  " & idx_var & "++;",
-        "  if (" & idx_var & " < " & array_var & ".size)",
-        "    goto " & inner_loop_label & ";",
+        "    " & idx_var & "++;",
+        "    if (" & idx_var & " < " & array_var & ".size)",
+        "      goto " & inner_loop_label & ";",
         "}"
       );
 
@@ -501,16 +501,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg3)
-        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "      " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text, 2);
+      code = code & indent_lines(body_text, 3);
 
       code = (code |
-        "    " & idx_var & "++;",
-        "    if (" & idx_var & " < " & array_var & ".size)",
-        "      goto " & label & ";",
+        "      " & idx_var & "++;",
+        "      if (" & idx_var & " < " & array_var & ".size)",
+        "        goto " & label & ";",
         "  }",
         "}"
       );
@@ -543,15 +543,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & arg2s_var & "[" & idx_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & arg2s_var & "[" & idx_var & "];"),
         ignored   = code;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 2);
 
       code = (
         code |
-        "  if (++" & idx_var & " < " & batch_size_var & ")",
-        "    goto " & label & ";",
+        "    if (++" & idx_var & " < " & batch_size_var & ")",
+        "      goto " & label & ";",
         "}"
       );
 
@@ -583,15 +583,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg1)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & arg1s_var & "[" & idx_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & arg1s_var & "[" & idx_var & "];"),
         ignored   = code;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 2);
 
       code = (
         code |
-        "  if (++" & idx_var & " < " & batch_size_var & ")",
-        "    goto " & label & ";",
+        "    if (++" & idx_var & " < " & batch_size_var & ")",
+        "      goto " & label & ";",
         "}"
       );
 
@@ -636,40 +636,40 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  uint32 *" & surrs_1_var & " = " & array_1_var & ".array + " & array_1_var & ".offset;",
         "  uint32 " & idx_1_var & " = 0;",
         "  " & label_1 & ":",
-        "  uint32 " & assoc_surr_var & " = " & surrs_1_var & "[" & idx_1_var & "];"
+        "    uint32 " & assoc_surr_var & " = " & surrs_1_var & "[" & idx_1_var & "];"
       );
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_1_var & ".array[" & idx_1_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_1_var & ".array[" & idx_1_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
       code = (
         code |
-        "  uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
-        "  uint32 " & read_3_var & " = 0;",
-        "  " & outer_label & ":",
-        "  uint32 " & buffer_3_var & "[64];",
-        "  UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
-        "  " & read_3_var & " += " & array_3_var & ".size;",
-        "  uint32 " & idx_3_var & " = 0;",
-        "  " & inner_label & ":"
+        "    uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
+        "    uint32 " & read_3_var & " = 0;",
+        "    " & outer_label & ":",
+        "      uint32 " & buffer_3_var & "[64];",
+        "      UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
+        "      " & read_3_var & " += " & array_3_var & ".size;",
+        "      uint32 " & idx_3_var & " = 0;",
+        "      " & inner_label & ":"
       );
 
       code = match (arg3)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
+        read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 4);
 
       code = (code |
-        "  if (++" & idx_3_var & " < " & array_3_var & ".size)",
-        "    goto " & inner_label & ";",
-        "  if (" & read_3_var & " < " & count_3_var & ")",
-        "    goto " & outer_label & ";",
-        "  if (++" & idx_1_var & " < " & array_1_var & ".size)",
-        "    goto " & label_1 & ";",
+        "        if (++" & idx_3_var & " < " & array_3_var & ".size)",
+        "          goto " & inner_label & ";",
+        "      if (" & read_3_var & " < " & count_3_var & ")",
+        "        goto " & outer_label & ";",
+        "    if (++" & idx_1_var & " < " & array_1_var & ".size)",
+        "      goto " & label_1 & ";",
         "}"
       );
 
@@ -717,32 +717,32 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  " & read_2_var & " += " & array_2_var & ".size;",
         "  uint32 " & idx_2_var & " = 0;",
         "  " & label_2 & ":",
-        "  " & arg1_var_type_if_needed & arg1_var & " = " & array_2_var & ".array[" & idx_2_var & "];",
-        "  uint32 " & native_call(assoc_surr_var, "master_bin_table_lookup_surr", (master_table_var_str, arg1_var, var2)),
-        "  uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
-        "  uint32 " & read_3_var & " = 0;",
-        "  " & outer_label & ":",
-        "  uint32 " & buffer_3_var & "[64];",
-        "  UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
-        "  " & read_3_var & " += " & array_3_var & ".size;",
-        "  uint32 " & idx_3_var & " = 0;",
-        "  " & inner_label & ":"
+        "    " & arg1_var_type_if_needed & arg1_var & " = " & array_2_var & ".array[" & idx_2_var & "];",
+        "    uint32 " & native_call(assoc_surr_var, "master_bin_table_lookup_surr", (master_table_var_str, arg1_var, var2)),
+        "    uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
+        "    uint32 " & read_3_var & " = 0;",
+        "    " & outer_label & ":",
+        "      uint32 " & buffer_3_var & "[64];",
+        "      UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
+        "      " & read_3_var & " += " & array_3_var & ".size;",
+        "      uint32 " & idx_3_var & " = 0;",
+        "      " & inner_label & ":"
       );
 
       code = match (arg3)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
+        read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 4);
 
       code = (code |
-        "  if (++" & idx_3_var & " < " & array_3_var & ".size)",
-        "    goto " & inner_label & ";",
-        "  if (" & read_3_var & " < " & count_3_var & ")",
-        "    goto " & outer_label & ";",
-        "  if (++" & idx_2_var & " < " & array_2_var & ".size)",
-        "    goto " & label_2 & ";",
+        "        if (++" & idx_3_var & " < " & array_3_var & ".size)",
+        "          goto " & inner_label & ";",
+        "      if (" & read_3_var & " < " & count_3_var & ")",
+        "        goto " & outer_label & ";",
+        "    if (++" & idx_2_var & " < " & array_2_var & ".size)",
+        "      goto " & label_2 & ";",
         "}"
       );
 
@@ -775,25 +775,25 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  " & read_var & " += " & array_var & ".size;",
         "  uint32 " & idx_var & " = 0;",
         "  " & label & ":",
-        "  uint32 " & assoc_surr_var & " = " & array_var & ".array[" & idx_var & "];"
+        "    uint32 " & assoc_surr_var & " = " & array_var & ".array[" & idx_var & "];"
       );
 
       code = match (arg1)
-        read(v?)  = (code | "  " & native_call(v, "master_bin_table_get_arg_1", (master_table_var_str, assoc_surr_var))),
+        read(v?)  = (code | "    " & native_call(v, "master_bin_table_get_arg_1", (master_table_var_str, assoc_surr_var))),
         ignored   = code,
         bound()   = undefined;
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_call(v, "master_bin_table_get_arg_2", (master_table_var_str, assoc_surr_var))),
+        read(v?)  = (code | "    " & native_call(v, "master_bin_table_get_arg_2", (master_table_var_str, assoc_surr_var))),
         ignored   = code,
         bound()   = undefined;
 
       code = code & indent_lines(body_text);
 
       code = (code |
-        "  " & idx_var & "++;",
-        "  if (" & idx_var & " < " & array_var & ".size)",
-        "    goto " & label & ";",
+        "    " & idx_var & "++;",
+        "    if (" & idx_var & " < " & array_var & ".size)",
+        "      goto " & label & ";",
         "}"
       );
 
@@ -844,25 +844,25 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "    uint32 " & buffer_var & "[64];",
         "    uint32 " & read_1_var & " = 0;",
         "    " & label_1 & ":",
-        "    UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & slave_table_var_str & ", " & assoc_surr_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
-        "    " & read_1_var & " += " & array_var & ".size;",
-        "    uint32 " & idx_var & " = 0;",
-        "    " & label_2 & ":"
+        "      UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & slave_table_var_str & ", " & assoc_surr_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
+        "      " & read_1_var & " += " & array_var & ".size;",
+        "      uint32 " & idx_var & " = 0;",
+        "      " & label_2 & ":"
       );
 
       code = match (arg3)
-        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text, 2);
+      code = code & indent_lines(body_text, 4);
 
       code = (code |
-        "    " & idx_var & "++;",
-        "    if (" & idx_var & " < " & array_var & ".size)",
-        "      goto " & label_2 & ";",
-        "    if (" & read_1_var & " < " & count_1_var & ")",
-        "      goto " & label_1 & ";",
+        "        " & idx_var & "++;",
+        "        if (" & idx_var & " < " & array_var & ".size)",
+        "          goto " & label_2 & ";",
+        "      if (" & read_1_var & " < " & count_1_var & ")",
+        "        goto " & label_1 & ";",
         "  }",
         "}"
       );
@@ -915,16 +915,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg3)
-        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "      " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text, 2);
+      code = code & indent_lines(body_text, 3);
 
       code = (code |
-        "    " & idx_var & "++;",
-        "    if (" & idx_var & " < " & array_var & ".size)",
-        "      goto " & label & ";",
+        "      " & idx_var & "++;",
+        "      if (" & idx_var & " < " & array_var & ".size)",
+        "        goto " & label & ";",
         "  }",
         "}"
       );
@@ -957,15 +957,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       );
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & arg2s_var & "[" & idx_var & "];"),
+        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & arg2s_var & "[" & idx_var & "];"),
         ignored   = code;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 2);
 
       code = (
         code |
-        "  if (++" & idx_var & " < " & batch_size_var & ")",
-        "    goto " & label & ";",
+        "    if (++" & idx_var & " < " & batch_size_var & ")",
+        "      goto " & label & ";",
         "}"
       );
 
@@ -1013,36 +1013,36 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  " & read_1_var & " += " & array_1_var & ".size;",
         "  uint32 " & idx_1_var & " = 0;",
         "  " & label_1 & ":",
-        "  uint32 " & arg_2_var & " = " & array_1_var & ".array[" & idx_1_var & "];",
-        "  uint32 " & native_call(assoc_surr_var, "sym_master_bin_table_lookup_surr", (master_table_var_str, var1, arg_2_var))
+        "    uint32 " & arg_2_var & " = " & array_1_var & ".array[" & idx_1_var & "];",
+        "    uint32 " & native_call(assoc_surr_var, "sym_master_bin_table_lookup_surr", (master_table_var_str, var1, arg_2_var))
       );
 
       code = (
         code |
-        "  uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
-        "  uint32 " & read_3_var & " = 0;",
-        "  " & outer_label & ":",
-        "  uint32 " & buffer_3_var & "[64];",
-        "  UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
-        "  " & read_3_var & " += " & array_3_var & ".size;",
-        "  uint32 " & idx_3_var & " = 0;",
-        "  " & inner_label & ":"
+        "    uint32 " & native_call(count_3_var, "bin_table_count_1", (slave_table_var_str, assoc_surr_var)),
+        "    uint32 " & read_3_var & " = 0;",
+        "    " & outer_label & ":",
+        "      uint32 " & buffer_3_var & "[64];",
+        "      UINT32_ARRAY " & native_call(array_3_var, "bin_table_range_restrict_1", (slave_table_var_str, assoc_surr_var, read_3_var, buffer_3_var, 64)),
+        "      " & read_3_var & " += " & array_3_var & ".size;",
+        "      uint32 " & idx_3_var & " = 0;",
+        "      " & inner_label & ":"
       );
 
       code = match (arg3)
-        read(v?)  = (code | "  " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
+        read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_3_var & ".array[" & idx_3_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 4);
 
       code = (code |
-        "  if (++" & idx_3_var & " < " & array_3_var & ".size)",
-        "    goto " & inner_label & ";",
-        "  if (" & read_3_var & " < " & count_3_var & ")",
-        "    goto " & outer_label & ";",
-        "  if (++" & idx_1_var & " < " & array_1_var & ".size)", ## BUG BUG BUG: THIS BUG IS ALMOST SURELY REPEATED ELSEWHERE
-        "    goto " & label_1 & ";",
+        "        if (++" & idx_3_var & " < " & array_3_var & ".size)",
+        "          goto " & inner_label & ";",
+        "      if (" & read_3_var & " < " & count_3_var & ")",
+        "        goto " & outer_label & ";",
+        "    if (++" & idx_1_var & " < " & array_1_var & ".size)", ## BUG BUG BUG: THIS BUG IS ALMOST SURELY REPEATED ELSEWHERE
+        "      goto " & label_1 & ";",
         "}"
       );
 
@@ -1075,25 +1075,25 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "  " & read_var & " += " & array_var & ".size;",
         "  uint32 " & idx_var & " = 0;",
         "  " & label & ":",
-        "  uint32 " & assoc_surr_var & " = " & array_var & ".array[" & idx_var & "];"
+        "    uint32 " & assoc_surr_var & " = " & array_var & ".array[" & idx_var & "];"
       );
 
       code = match (arg1)
-        read(v?)  = (code | "  " & native_call(v, "master_bin_table_get_arg_1", (master_table_var_str, assoc_surr_var))),
+        read(v?)  = (code | "    " & native_call(v, "master_bin_table_get_arg_1", (master_table_var_str, assoc_surr_var))),
         ignored   = code,
         bound()   = undefined;
 
       code = match (arg2)
-        read(v?)  = (code | "  " & native_call(v, "master_bin_table_get_arg_2", (master_table_var_str, assoc_surr_var))),
+        read(v?)  = (code | "    " & native_call(v, "master_bin_table_get_arg_2", (master_table_var_str, assoc_surr_var))),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text);
+      code = code & indent_lines(body_text, 2);
 
       code = (code |
-        "  " & idx_var & "++;",
-        "  if (" & idx_var & " < " & array_var & ".size)",
-        "    goto " & label & ";",
+        "    " & idx_var & "++;",
+        "    if (" & idx_var & " < " & array_var & ".size)",
+        "      goto " & label & ";",
         "}"
       );
 
@@ -1144,25 +1144,25 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         "    uint32 " & buffer_var & "[64];",
         "    uint32 " & read_1_var & " = 0;",
         "    " & label_1 & ":",
-        "    UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & slave_table_var_str & ", " & assoc_surr_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
-        "    " & read_1_var & " += " & array_var & ".size;",
-        "    uint32 " & idx_var & " = 0;",
-        "    " & label_2 & ":"
+        "      UINT32_ARRAY " & array_var & " = bin_table_range_restrict_1(" & slave_table_var_str & ", " & assoc_surr_var & ", " & read_1_var & ", " & buffer_var & ", 64);",
+        "      " & read_1_var & " += " & array_var & ".size;",
+        "      uint32 " & idx_var & " = 0;",
+        "      " & label_2 & ":"
       );
 
       code = match (arg3)
-        read(v?)  = (code | "    " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
+        read(v?)  = (code | "        " & native_var_ref_name(v) & " = " & array_var & ".array[" & idx_var & "];"),
         ignored   = code,
         bound()   = undefined;
 
-      code = code & indent_lines(body_text, 2);
+      code = code & indent_lines(body_text, 4);
 
       code = (code |
-        "    " & idx_var & "++;",
-        "    if (" & idx_var & " < " & array_var & ".size)",
-        "      goto " & label_2 & ";",
-        "    if (" & read_1_var & " < " & count_1_var & ")",
-        "      goto " & label_1 & ";",
+        "        " & idx_var & "++;",
+        "        if (" & idx_var & " < " & array_var & ".size)",
+        "          goto " & label_2 & ";",
+        "      if (" & read_1_var & " < " & count_1_var & ")",
+        "        goto " & label_1 & ";",
         "  }",
         "}"
       );
