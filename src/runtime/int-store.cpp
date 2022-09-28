@@ -79,28 +79,24 @@ void int_store_resize(INT_STORE *store, uint32 min_capacity, STATE_MEM_POOL *mem
     new_capacity *= 2;
   store->capacity = new_capacity;
 
-  int64 *curr_surr_to_value_array = store->surr_to_value_array;
-  int64 *new_surr_to_value_array = alloc_state_mem_int64_array(mem_pool, new_capacity); //## REMEMBER TO RELEASE
+  int64 *new_surr_to_value_array = extend_state_mem_int64_array(mem_pool, store->surr_to_value_array, curr_capacity, new_capacity);
   store->surr_to_value_array = new_surr_to_value_array;
+  for (uint32 i=curr_capacity ; i < new_capacity ; i++)
+    new_surr_to_value_array[i] = i + 1;
 
-  uint32 *curr_partial_value_to_surr_array = store->partial_value_to_surr_array;
-  uint32 *new_partial_value_to_surr_array = alloc_state_mem_uint32_array(mem_pool, new_capacity); //## REMEMBER TO RELEASE
+  uint32 *new_partial_value_to_surr_array = extend_state_mem_uint32_array(mem_pool, store->partial_value_to_surr_array, curr_capacity, new_capacity);
   store->partial_value_to_surr_array = new_partial_value_to_surr_array;
-
   memset(new_partial_value_to_surr_array, 0xFF, sizeof(uint32) * new_capacity);
+
   map_i64_surr_clear(&store->value_to_surr_map);
 
   for (uint32 i=0 ; i < curr_capacity ; i++) {
-    int64 value = curr_surr_to_value_array[i];
-    new_surr_to_value_array[i] = value;
+    int64 value = new_surr_to_value_array[i];
     if (value >= 0 & value < new_capacity)
       new_partial_value_to_surr_array[value] = i;
     else
       map_i64_surr_insert_new(&store->value_to_surr_map, value, i);
   }
-
-  for (uint32 i=curr_capacity ; i < new_capacity ; i++)
-    new_surr_to_value_array[i] = i + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

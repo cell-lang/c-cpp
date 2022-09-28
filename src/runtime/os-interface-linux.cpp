@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "lib.h"
 #include "os-interface.h"
 
@@ -43,4 +45,10 @@ bool file_write(const char *fname, const char *buffer, int size, bool append) {
   size_t written = fwrite(buffer, 1, size, fp);
   fclose(fp);
   return written == size;
+}
+
+uint64 phys_mem_byte_size() {
+  uint64 num_pages = sysconf (_SC_PHYS_PAGES);
+  uint32 page_size = sysconf (_SC_PAGESIZE);
+  return num_pages * page_size;
 }

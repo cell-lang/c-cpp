@@ -240,7 +240,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     clear_timer()         = (native_call(clear_timer_method_name(instr.type), (auto_or_db_arg_name, instr.idx))),
 
     auto_pre_init()       = native_auto_pre_init_code(instr.var, instr.type),
-    auto_cleanup()        = (), //(native_call(cleanup_method_name(instr.type), (instr.var))),
+    auto_cleanup()        = (native_call(cleanup_method_name(instr.type), (instr.var))),
     clear_input()         = (native_call(input_set_method_name(instr.type, instr.input), (auto_or_db_arg_name, "make_null_obj()"))),
     auto_update_node()    = (native_call(node_update_method_name(instr.type, instr.node), (auto_or_db_arg_name, instr.time_var if instr.time_var?, "env"))),
 
@@ -250,7 +250,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     set_persistent_state()  = (native_call(set_state_proc_name(instr.type), (instr.auto_var, instr.state))),
 
     init_db()             = native_init_db_code(instr.db_var, instr.links, instr.type),
-    cleanup_db()          = (), //(native_call(cleanup_method_name(instr.type), (instr.db_var))),
+    cleanup_db()          = (native_call(cleanup_method_name(instr.type), (instr.db_var, updater_var_ref_name(instr.db_var)))),
 
     send_external_msg()   = native_send_external_msg_code(instr.db_var, instr.type, instr.msg, instr.res_var, instr.handler_id),
     send_internal_msg()   = native_send_internal_msg_code(instr.db_var, instr.type, instr.msg, instr.handler_id),
@@ -270,7 +270,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     queue_insert_master_tuple() = (native_queue_insert_master_tuple_code(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple)),
 
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
-    // ternary_slave_column_insert_deferred() = native_ternary_slave_column_insert_deferred_code(instr.table_var, instr.col_repr, instr.surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),

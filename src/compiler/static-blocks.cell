@@ -1,38 +1,14 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
   String* native_static_block_decl(StaticBlock block) {
+    block_name = native_name(block.name);
+
     links_decls = (native_name(l) & " *" & native_dependee_name(l, i) & ";" : l @ i <- block.links);
     state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
-    value_store_decls = [{
-      type = native_name(t);
-      return type & " " & native_var_decl_name(v) & ";";
-    } : v t <- block.value_stores];
+    value_store_decls = [native_name(t) & " " & native_var_decl_name(v) & ";" : v t <- block.value_stores];
     table_decls = [native_table_type(t) & " " & native_var_decl_name(v) & ";" : v t <- block.tables];
-
     memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
 
-    // ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.value_stores, block.tables, block.init_code);
-    // cleanup_code = native_cleanup_function_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
-
-    // // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
-    // // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
-
-    // copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
-    // write_state_code = native_write_state_code(block);
-    // set_state_code = native_set_state_code(block.name, block.set_state_code);
-    // load_state_code = native_load_state_code(block.name, block.memb_var_check_exprs, block.rel_vars_load_code);
-
-    // set_state_entry_point_code  = native_set_state_entry_point_code(block.name, block.links);
-    // load_state_entry_point_code = native_load_state_entry_point_code(block.name, block.links);
-    // save_state_entry_point_code = native_save_state_entry_point_code(block.name);
-
-    // full_check_code = full_check_method_code(block);
-
-    // methods_code = [native_user_def_method_code(block.name, id, m) : id m <- block.methods];
-    // updates_code = native_updates_code(block);
-
     methods_decls = (native_user_method_decl(block.name, id, block.methods(id)) : id <- isort(keys(block.methods)));
-
-    block_name = native_name(block.name);
 
     return join((
       ("", "", "struct " & block_name & " {"),
@@ -46,21 +22,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   String* native_static_block_impl(StaticBlock block) {
-    // links_decls = (native_name(l) & " *" & native_dependee_name(l, i) & ";" : l @ i <- block.links);
-    // state_vars_decls = ["OBJ " & native_var_decl_name(v) & ";" : v _ <- block.state_vars];
-    // value_store_decls = [{
-    //   type = native_name(t);
-    //   return type & " " & native_var_decl_name(v) & ";";
-    // } : v t <- block.value_stores];
-    // table_decls = [native_table_type(t) & " " & native_var_decl_name(v) & ";" : v t <- block.tables];
-
-    // memb_decls = links_decls & isort(state_vars_decls) & isort(value_store_decls) & isort(table_decls);
-
     ctor_code = native_ctor_code(block.name, block.links, block.state_vars, block.value_stores, block.tables, block.init_code);
-    cleanup_code = native_cleanup_function_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
-
-    // rec_ctors_code = native_rec_ctors_code(block.name, block.links);
-    // surr_obj_mappers = native_surr_obj_mappers(block.value_stores);
+    cleanup_code = native_cleanup_method_code(block.name, block.links, block.state_vars, block.tables, block.cleanup_code);
 
     copy_state_code = native_copy_state_code(block.name, block.copy_state_code);
     write_state_code = native_write_state_code(block);
@@ -81,16 +44,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     handler_resol_code = handler_resolution_code(block);
 
     return join((
-      // ("", "", "struct " & block_name & " {"),
-      // ("  STATE_MEM_POOL mem_pool;"),
-      // indent_lines(memb_decls),
-      // ("};"),
-      // (""), auxiliary_decl(block),
       (""), ctor_code,
       (""), cleanup_code,
       (""), full_check_code,
-      // (""), rec_ctors_code,
-      // (""), surr_obj_mappers,
       (""), copy_state_code,
       (""), write_state_code,
       (""), set_state_code,
@@ -102,25 +58,22 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       join((("") & c : c <- handlers_code)),
       (""), handler_methods_arrays,
       (""), handler_resol_code
-      // (""), update_entry_point_code,
-      // ("", ""), updater_creation_code(block),
-      // (""), auxiliary_reset_code(block),
     ));
   }
 
 
-  String* native_cleanup_function_code(DBSymbol auto_id, DBSymbol* links, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
+  String* native_cleanup_method_code(DBSymbol auto_id, DBSymbol* links, [MembVar -> NeType] state_vars, [TableVar -> AnyTable] tables, Instr* cleanup_code) {
     target_arg = target_arg_decl(auto_id);
     aux_arg = auxiliary_arg_decl(auto_id);
+
+    // ord_state_vars = isort(keys(state_vars));
+    // body = (native_call("remove_from_pool", (:mem_pool, v)) : v <- ord_state_vars);
 
     // vars_decl = gen_vars_decls(cleanup_code, []);
     // vars_decl = vars_decl & ("") if vars_decl != ();
     // body = vars_decl & native_code(cleanup_code, nothing, break_target = nothing);
 
-    ord_state_vars = isort(keys(state_vars));
-    body = (native_call("remove_from_pool", (:mem_pool, v)) : v <- ord_state_vars);
-
-    body = (body | native_call("release_mem_pool", (:mem_pool)));
+    body = (native_call("release_mem_pool", (:mem_pool)));
 
     signature = "void " & cleanup_method_name(auto_id) & "(" & target_arg & ", " & aux_arg & ") {";
     return (signature) & indent_lines(body) & ("}");

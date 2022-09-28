@@ -2,3 +2,5 @@
 
 uint8 *file_read(const char *fname, int &size);
 bool   file_write(const char *fname, const char *buffer, int size, bool append);
+
+uint64 phys_mem_byte_size();

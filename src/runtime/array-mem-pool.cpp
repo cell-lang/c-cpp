@@ -169,6 +169,7 @@ uint32 array_mem_pool_alloc_16_block(ARRAY_MEM_POOL *array_pool, STATE_MEM_POOL 
     }
     else
       slots = extend_state_mem_uint64_array(mem_pool, slots, size, new_size);
+
     for (uint32 i=size ; i < new_size ; i += 16)
       slots[i] = pack(pack_tag_payload(AVAILABLE, i - 16), pack_tag_payload(BLOCK_16, i + 16));
 

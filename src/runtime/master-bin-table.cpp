@@ -365,6 +365,8 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
   }
   else {
     if (capacity != INIT_SIZE) {
+      release_state_mem_uint64_array(mem_pool, slots, capacity);
+
       uint32 new_capacity = pow_2_ceiling(highest_locked_surr + 1, INIT_SIZE);
       uint64 *new_slots = alloc_state_mem_uint64_array(mem_pool, new_capacity);
 

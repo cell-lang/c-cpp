@@ -1,54 +1,74 @@
 #include "lib.h"
+#include "os-interface.h"
 
-//    0    1    2     3     4     5      6      7    8
-//   16   32   64   128   256   512   1024   2048 4096
 
-// unsigned int v;
-// unsigned r = 0;
+//  0           16
+//  1           32
+//  2           64
+//  3          128
+//  4          256
+//  5          512
+//  6         1024
+//  7         2048
+//  8         4096
+//  9         8192
+// 10        16384
+// 11        32768
+// 12        65536
+// 13       131072
+// 14       262144
+// 15       524288
+// 16      1048576
+// 17      2097152
+// 18      4194304
+// 19      8388608
+// 20     16777216
+// 21     33554432
+// 22     67108864
+// 23    134217728
+// 24    268435456
+// 25    536870912
+// 26   1073741824
+// 27   2147483648
+// 28   4294967296
+// 29   8589934592
+// 30  17179869184
+// 31  34359738368
 
-// while (v >>= 1) {
-//     r++;
-// }
-
-inline uint32 pages_4096(uint32 mem_size) {
-  return (mem_size + 4095) / 4096;
-}
 
 static uint32 subpool_index(uint32 size) {
-  assert(size <= 4096);
-
   if (size <= 128) {
     if (size <= 32)
       return size <= 16 ? 0 : 1;
     else
       return size <= 64 ? 2 : 3;
   }
-  else if (size <= 2048) {
+
+  if (size <= 2048) {
     if (size <= 512)
       return size <=  256 ? 4 : 5;
     else
       return size <= 1024 ? 6 : 7;
   }
-  else
-    return 8;
+
+  // unsigned int v;
+  // unsigned r = 0;
+  // while (v >>= 1) {
+  //     r++;
+  // }
+
+  for (uint32 i=8 ; i < 32 ; i++)
+    if (size <= (16 << i))
+      return i;
+
+  impl_fail(NULL);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void *alloc_new_pages(uint32 count) {
-  assert(count > 0);
-  void *ptr = malloc(4096 * count);
-  return ptr;
-}
-
-static void release_pages(void *ptr, uint32 count) {
-  assert(count > 0);
-  free(ptr);
-}
-
 static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
-  assert(lengthof(mem_pool->subpools) == 9);
-  assert(pool_idx < lengthof(mem_pool->subpools));
+  if (pool_idx >= lengthof(mem_pool->subpools))
+    impl_fail(NULL);
 
   void *ptr = mem_pool->subpools[pool_idx];
   if (ptr != NULL) {
@@ -56,48 +76,61 @@ static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
     mem_pool->subpools[pool_idx] = next_ptr;
     return ptr;
   }
-  else if (pool_idx < 8) {
-    void *ptr = acquire_block(mem_pool, pool_idx + 1);
-    uint32 size = 16 << pool_idx;
-    void *next_ptr = ((uint8 *) ptr) + size;
-    void **after_next_ptr = (void **) next_ptr;
-    *after_next_ptr = NULL;
-    mem_pool->subpools[pool_idx] = next_ptr;
-    return ptr;
-  }
-  else {
-    return alloc_new_pages(1);
-  }
+
+  ptr = acquire_block(mem_pool, pool_idx + 1);
+  uint32 size = 16 << pool_idx;
+  void *next_ptr = ((uint8 *) ptr) + size;
+  void **after_next_ptr = (void **) next_ptr;
+  *after_next_ptr = NULL;
+  mem_pool->subpools[pool_idx] = next_ptr;
+  return ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void init_mem_pool(STATE_MEM_POOL *mem_pool) {
   memset(mem_pool, 0, sizeof(STATE_MEM_POOL));
+
+  uint64 mem_size = phys_mem_byte_size();
+
+  uint64 reserve_size = 4096;
+  uint32 subpool_idx = subpool_index(reserve_size);
+  while (reserve_size < mem_size && subpool_idx < 31) {
+    reserve_size *= 2;
+    subpool_idx++;
+  }
+
+  void *block_ptr;
+  for ( ; ; ) {
+    block_ptr = aligned_alloc(4096, reserve_size);
+    assert(((uint64) block_ptr) % 4096 == 0);
+
+    if (block_ptr != NULL)
+      break;
+
+    reserve_size /= 2;
+    subpool_idx--;
+  }
+
+  *((void **) block_ptr) = NULL;
+
+  mem_pool->subpools[subpool_idx] = block_ptr;
+  mem_pool->block_ptr = block_ptr;
 }
 
 void release_mem_pool(STATE_MEM_POOL *mem_pool) {
-
+  free(mem_pool->block_ptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void *alloc_state_mem_block(STATE_MEM_POOL *mem_pool, uint32 byte_size) {
-  if (byte_size > 4096) {
-    return alloc_new_pages(pages_4096(byte_size));
-  }
-
   uint32 pool_idx = subpool_index(byte_size);
   void *ptr = acquire_block(mem_pool, pool_idx);
   return ptr;
 }
 
 void release_state_mem_block(STATE_MEM_POOL *mem_pool, void *ptr, uint32 byte_size) {
-  if (byte_size > 4096) {
-    release_pages(ptr, pages_4096(byte_size));
-    return;
-  }
-
   uint32 pool_idx = subpool_index(byte_size);
   void *next_ptr = mem_pool->subpools[pool_idx];
   *((void **) ptr) = next_ptr;
