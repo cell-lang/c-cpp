@@ -583,6 +583,8 @@ String* main_fn(Bool debug_mode) = (
   "",
   "",
   "int main(int argc, char **argv) {",
+  "  init_runtime();",
+  "",
   "  OBJ args = make_empty_seq();",
   "  if (argc > 1) {",
   "    OBJ *arg_buff = new_obj_array(argc - 1);",
