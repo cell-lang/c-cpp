@@ -308,6 +308,13 @@ struct TRNS_MAP_SURR_U32 {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct STACK_ALLOC {
+  void *ptr;
+  uint64 size;
+  uint64 committed;
+  uint64 allocated;
+};
+
 struct STATE_MEM_POOL {
   void *subpools[32];
   void *block_ptr;
@@ -679,7 +686,23 @@ const uint16 symb_id_just     = 7;
 const uint16 symb_id_success  = 8;
 const uint16 symb_id_failure  = 9;
 
-////////////////////////////// auto-mem-alloc.cpp //////////////////////////////
+/////////////////////////////////// init.cpp ////////////////////////////////////
+
+void init_runtime();
+
+////////////////////////////// stack-mem-alloc.cpp //////////////////////////////
+
+void stack_alloc_init(STACK_ALLOC *, uint64 size);
+void stack_alloc_cleanup(STACK_ALLOC *);
+
+void *stack_alloc_allocate(STACK_ALLOC *, uint64 size);
+void stack_alloc_rewind(STACK_ALLOC *, uint64 position);
+void stack_alloc_clear(STACK_ALLOC *);
+
+uint64 stack_alloc_bookmark(STACK_ALLOC *);
+bool stack_alloc_is_unallocated_memory(STACK_ALLOC *, void *);
+
+////////////////////////////// state-mem-alloc.cpp //////////////////////////////
 
 void init_mem_pool(STATE_MEM_POOL *);
 void release_mem_pool(STATE_MEM_POOL *);

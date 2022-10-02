@@ -1,3 +1,4 @@
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include "lib.h"
@@ -47,8 +48,35 @@ bool file_write(const char *fname, const char *buffer, int size, bool append) {
   return written == size;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 uint64 phys_mem_byte_size() {
   uint64 num_pages = sysconf (_SC_PHYS_PAGES);
   uint32 page_size = sysconf (_SC_PAGESIZE);
   return num_pages * page_size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void *os_interface_reserve(uint64 size) {
+  void *ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+  return ptr;
+}
+
+void os_interface_release(void *ptr, uint64 size) {
+  munmap(ptr, size);
+}
+
+void os_interface_alloc(void *ptr, uint64 offset, uint64 size) {
+  uint8 *subptr = (uint8 *) ptr + offset;
+  mprotect(subptr, size, PROT_READ | PROT_WRITE);
+}
+
+void os_interface_dealloc(void *ptr, uint64 offset, uint64 size) {
+  void *subptr = ((uint8 *) ptr) + offset;
+  int result = madvise(subptr, size, MADV_DONTNEED);
+  if (result != 0) {
+    fputs("Unrecoverable error in os_interface_dealloc(void *, unsigned long long, unsigned long long)\n", stderr);
+    exit(1);
+  }
 }

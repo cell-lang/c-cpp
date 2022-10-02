@@ -184,6 +184,15 @@ inline uint32 pow_2_ceiling(uint32 x, uint32 min) {
   return ceiling;
 }
 
+inline uint64 pow_2_ceiling_u64(uint64 x, uint64 min) {
+  //## IS THERE A MORE EFFICIENT IMPLEMENTATION?
+  // assert(is_pow_2(min));
+  uint64 ceiling = min;
+  while (ceiling < x)
+    ceiling *= 2;
+  return ceiling;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 inline uint32 get_high_32(uint64 word) {
