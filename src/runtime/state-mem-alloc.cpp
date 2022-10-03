@@ -2,41 +2,50 @@
 #include "os-interface.h"
 
 
-//  0           16
-//  1           32
-//  2           64
-//  3          128
-//  4          256
-//  5          512
-//  6         1024
-//  7         2048
-//  8         4096
-//  9         8192
-// 10        16384
-// 11        32768
-// 12        65536
-// 13       131072
-// 14       262144
-// 15       524288
-// 16      1048576
-// 17      2097152
-// 18      4194304
-// 19      8388608
-// 20     16777216
-// 21     33554432
-// 22     67108864
-// 23    134217728
-// 24    268435456
-// 25    536870912
-// 26   1073741824
-// 27   2147483648
-// 28   4294967296
-// 29   8589934592
-// 30  17179869184
-// 31  34359738368
+//  0              16
+//  1              32
+//  2              64
+//  3             128
+//  4             256
+//  5             512
+//  6           1'024
+//  7           2'048
+//  8           4'096
+//  9           8'192
+// 10          16'384
+// 11          32'768
+// 12          65'536
+// 13         131'072
+// 14         262'144
+// 15         524'288
+// 16       1'048'576
+// 17       2'097'152
+// 18       4'194'304
+// 19       8'388'608
+// 20      16'777'216
+// 21      33'554'432
+// 22      67'108'864
+// 23     134'217'728
+// 24     268'435'456
+// 25     536'870'912
+// 26   1'073'741'824
+// 27   2'147'483'648
+// 28   4'294'967'296
+// 29   8'589'934'592
+// 30  17'179'869'184
+// 31  34'359'738'368
 
 
-static uint32 subpool_index(uint32 size) {
+const uint32 FIRST_BLOCK_IDX = 16; // 1 MB
+
+
+static uint64 subpool_size(uint32 index) {
+  assert(index < 32);
+  return 16ULL << index;
+}
+
+
+static uint32 subpool_index(uint32 size) { //## THE TYPE OF size SHOULD BE uint64
   if (size <= 128) {
     if (size <= 32)
       return size <= 16 ? 0 : 1;
@@ -58,11 +67,12 @@ static uint32 subpool_index(uint32 size) {
   // }
 
   for (uint32 i=8 ; i < 32 ; i++)
-    if (size <= (16 << i))
+    if (size <= subpool_size(i))
       return i;
 
   impl_fail(NULL);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -70,6 +80,7 @@ static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
   if (pool_idx >= lengthof(mem_pool->subpools))
     impl_fail(NULL);
 
+  // If a block of the requested size is available, we just take it out of the pool
   void *ptr = mem_pool->subpools[pool_idx];
   if (ptr != NULL) {
     void *next_ptr = *((void **) ptr);
@@ -77,13 +88,36 @@ static void *acquire_block(STATE_MEM_POOL *mem_pool, uint32 pool_idx) {
     return ptr;
   }
 
-  ptr = acquire_block(mem_pool, pool_idx + 1);
-  uint32 size = 16 << pool_idx;
-  void *next_ptr = ((uint8 *) ptr) + size;
-  void **after_next_ptr = (void **) next_ptr;
-  *after_next_ptr = NULL;
-  mem_pool->subpools[pool_idx] = next_ptr;
-  return ptr;
+  uint32 next_block_idx = mem_pool->next_block_idx;
+
+  // If the size of the requested block is lower than the size of the next block to allocate
+  // we recursively try to acquire and split a larger block, until we find one available or
+  // we reach the size of the next allocation
+  if (pool_idx < next_block_idx) {
+    ptr = acquire_block(mem_pool, pool_idx + 1);
+    uint32 size = subpool_size(pool_idx);
+    void *next_ptr = ((uint8 *) ptr) + size;
+    void **after_next_ptr = (void **) next_ptr;
+    *after_next_ptr = NULL;
+    mem_pool->subpools[pool_idx] = next_ptr;
+    return ptr;
+  }
+
+  // If the size of the requested block is larger than the next block to allocate,
+  // we keep allocating larger and larger blocks until we get to the size we need
+  while (pool_idx > next_block_idx) {
+    void *block_ptr = stack_alloc_allocate(&mem_pool->alloc, subpool_size(next_block_idx));
+    *((void **) block_ptr) = NULL;
+    mem_pool->subpools[next_block_idx] = block_ptr;
+    next_block_idx++;
+  }
+
+  // If we get here the size of the requested block is the same as that of the next block to allocate,
+  // so we just allocate it and return it directly without touching the pool
+  assert(pool_idx == next_block_idx);
+  mem_pool->next_block_idx = next_block_idx + 1;
+  void *block_ptr = stack_alloc_allocate(&mem_pool->alloc, subpool_size(next_block_idx));
+  return block_ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,34 +126,19 @@ void init_mem_pool(STATE_MEM_POOL *mem_pool) {
   memset(mem_pool, 0, sizeof(STATE_MEM_POOL));
 
   uint64 mem_size = phys_mem_byte_size();
+  uint64 stack_size = pow_2_ceiling_u64(mem_size, 1024 * 1024);
 
-  uint64 reserve_size = 4096;
-  uint32 subpool_idx = subpool_index(reserve_size);
-  while (reserve_size < mem_size && subpool_idx < 31) {
-    reserve_size *= 2;
-    subpool_idx++;
-  }
+  stack_alloc_init(&mem_pool->alloc, stack_size);
 
-  void *block_ptr;
-  for ( ; ; ) {
-    block_ptr = aligned_alloc(4096, reserve_size);
-    assert(((uint64) block_ptr) % 4096 == 0);
-
-    if (block_ptr != NULL)
-      break;
-
-    reserve_size /= 2;
-    subpool_idx--;
-  }
-
+  void *block_ptr = stack_alloc_allocate(&mem_pool->alloc, subpool_size(FIRST_BLOCK_IDX));
   *((void **) block_ptr) = NULL;
 
-  mem_pool->subpools[subpool_idx] = block_ptr;
-  mem_pool->block_ptr = block_ptr;
+  mem_pool->subpools[FIRST_BLOCK_IDX] = block_ptr;
+  mem_pool->next_block_idx = FIRST_BLOCK_IDX;
 }
 
 void release_mem_pool(STATE_MEM_POOL *mem_pool) {
-  free(mem_pool->block_ptr);
+  stack_alloc_cleanup(&mem_pool->alloc);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

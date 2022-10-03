@@ -316,8 +316,9 @@ struct STACK_ALLOC {
 };
 
 struct STATE_MEM_POOL {
+  STACK_ALLOC alloc;
   void *subpools[32];
-  void *block_ptr;
+  uint32 next_block_idx; // Subpool index of the next block to allocate
 };
 
 ////////////////////////////////////////////////////////////////////////////////
