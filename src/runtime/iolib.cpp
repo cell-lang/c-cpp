@@ -43,7 +43,12 @@ OBJ GetChar_P() {
   int ch = getchar();
   if (ch == EOF)
     return make_symb(symb_id_nothing);
-  return make_tag_obj(symb_id_just, make_int(ch));
+  return make_tag_int(symb_id_just, ch);
+}
+
+OBJ Now_P() {
+  int64 time = get_epoc_time_nsec();
+  return make_tag_int(symb_id_time, time);
 }
 
 OBJ Ticks_P() {

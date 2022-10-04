@@ -5,14 +5,6 @@
 #include "os-interface.h"
 
 
-uint64 get_tick_count() {
-  struct timespec ts;
-  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
-    // error
-  }
-  return 1000 * ts.tv_sec + ts.tv_nsec / 1000000;
-}
-
 uint8 *file_read(const char *fname, int &size) {
   FILE *fp = fopen(fname, "r");
   if (fp == NULL) {
@@ -79,4 +71,20 @@ void os_interface_dealloc(void *ptr, uint64 offset, uint64 size) {
     fputs("Unrecoverable error in os_interface_dealloc(void *, unsigned long long, unsigned long long)\n", stderr);
     exit(1);
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+int64 get_epoc_time_nsec() {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
+    impl_fail(NULL);
+  return 1000000000LL * ts.tv_sec + ts.tv_nsec;
+}
+
+uint64 get_tick_count() {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+    impl_fail(NULL);
+  return 1000LL * ts.tv_sec + ts.tv_nsec / 1000000LL;
 }
