@@ -57,6 +57,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 
     return join((
       pre_init_method(block),
+      native_cleanup_method_code(block),
       insert_timer_method_code if has_time_rules,
       clear_timer_method_code if has_time_rules,
       join((("") & m : m <- input_setters_code)),
@@ -106,6 +107,15 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     );
   }
 
+  String* native_cleanup_method_code(ReactBlock block) {
+    type_name = native_name(block.name);
+    method_name = cleanup_method_name(block.name);
+    return (
+      "void " & method_name & "(" & type_name & " *" & auto_or_db_arg_name & ") {",
+      "  " &native_call("release_mem_pool", (:mem_pool)),
+      "}"
+    );
+  }
 
   String* apply_method(ReactBlock block) {
     type_name = native_name(block.name);
