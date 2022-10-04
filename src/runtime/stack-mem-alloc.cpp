@@ -2,7 +2,7 @@
 #include "os-interface.h"
 
 
-const uint64 STACK_ALLOC_BLOCK_SIZE = 1048576;
+const uint64 STACK_ALLOC_BLOCK_SIZE = 64 * 1048576;
 
 static uint64 stack_alloc_round_up_by_block_size(uint64 size) {
   return ((size + STACK_ALLOC_BLOCK_SIZE - 1) / STACK_ALLOC_BLOCK_SIZE) * STACK_ALLOC_BLOCK_SIZE;
