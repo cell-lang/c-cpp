@@ -1084,14 +1084,18 @@ void get_tern_rel_iter_by(TERN_REL_ITER &it, OBJ rel, int major_col_idx, OBJ maj
 
 /////////////////////////////////// debug.cpp //////////////////////////////////
 
-int get_call_stack_depth();
+uint32 get_call_stack_bookmark();
 
 void push_call_info(const char* fn_name, uint32 arity, OBJ* params);
 void pop_call_info();
-void pop_try_mode_call_info(int depth);
+void pop_call_infos(uint32 bookmark);
 void print_call_stack();
 void dump_var(const char* name, OBJ value);
 void print_assertion_failed_msg(const char* file, uint32 line, const char* text);
+void print_fail_reached_msg(const char *filename, uint32 line);
+
+void entering_transaction();
+void exiting_transaction();
 
 void soft_fail(const char *msg);
 void impl_fail(const char *msg);

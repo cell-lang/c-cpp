@@ -115,7 +115,7 @@ type PrgData =  prg_data(
     gen_content = (gen_content | ("", "")) & def;
   }
 
-  // Reactive blocks' implementations (in topological order)
+  // Reactive blocks' declarations (in topological order)
   for block <- ord_react_blocks {
     def = native_react_block_decl(block, prg_data = prg_data, context = :core, debug_mode = debug_mode);
     gen_content = (gen_content | ("", "")) & def;
@@ -127,6 +127,11 @@ type PrgData =  prg_data(
     decl = GenProcCode(d, true, prg_data, debug_mode);
     gen_content = gen_content & decl;
   }
+
+  // Wrappers for push_call_info(..)
+  wrappers = GenPushCallInfoWrappers(prg);
+  gen_content = (gen_content | ("", "")) if wrappers != ();
+  gen_content = gen_content & wrappers;
 
   // Runtime typechecking functions
   gen_content = (gen_content | ("", "")) if bool_procs != ();
@@ -191,6 +196,32 @@ type PrgData =  prg_data(
   //   "automata.cpp"  -> flatten(wrappers_content) if not has_main,
   //   "automata.txt" -> flatten(automata_docs) if not has_main
   // ];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+String* GenPushCallInfoWrappers(CompiledPrg prg) {
+  procs_arities = [in_arity(p) : p <- prg.procs];
+  static_block_methods_arities = [arity(m) : b <- prg.static_blocks, _ m <- b.methods];
+  react_block_methods_arities = [arity(m) : b <- prg.react_blocks, _ m <- b.methods];
+  arities = [0, 1] & procs_arities & static_block_methods_arities & react_block_methods_arities;
+  wrappers = (generate_push_call_info_wrapper(a) : a <- sort_set(arities, $a < $b));
+  return join(intermix(wrappers, ("")));
+}
+
+
+String* generate_push_call_info_wrapper(Nat arity) {
+  code = ("void push_call_info_wrapper(const char *fn_name" & append((", OBJ arg" & _print_(i + 1) : i < arity)) & ") {");
+  if arity > 0 {
+    code = (code | "  OBJ *args = new_obj_array(" & _print_(arity) & ");");
+    for i < arity
+      code = (code | "  args[" & _print_(i) & "] = arg" & _print_(i + 1) & ";");
+    code = (code | "  push_call_info(fn_name, " & _print_(arity) & ", args);");
+  }
+  else
+    code = (code | "  push_call_info(fn_name, 0, NULL);");
+  code = (code | "}");
+  return code;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

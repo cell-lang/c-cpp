@@ -26,14 +26,14 @@ void pop_call_info() {
 #endif
 }
 
-void pop_try_mode_call_info(int depth) {
+void pop_call_infos(uint32 depth) {
 #ifndef NDEBUG
   while (call_stack_depth > depth)
     pop_call_info();
 #endif
 }
 
-int get_call_stack_depth() {
+uint32 get_call_stack_bookmark() {
 #ifndef NDEBUG
   return call_stack_depth;
 #endif
@@ -125,11 +125,11 @@ void print_call_stack() {
       "\nThere are another %d stack frames below, but they weren't kept track of\n",
       call_stack_depth - MAX_TRACKED_STACK_DEPTH
     );
-  fputs("\nNow trying to write a full dump of the stack to the file debug/stack_trace.txt.\nPlease be patient. This may take a while...", stderr);
+  fputs("\nNow trying to write a full dump of the stack to the file debug/stack-trace.txt.\nPlease be patient. This may take a while...", stderr);
   fflush(stderr);
-  FILE *fp = fopen("debug/stack_trace.txt", "w");
+  FILE *fp = fopen("debug/stack-trace.txt", "w");
   if (fp == NULL) {
-    fputs("\nFailed to open file debug/stack_trace.txt\n", stderr);
+    fputs("\nFailed to open file debug/stack-trace.txt. Did you create the \"debug\" directory?\n", stderr);
     return;
   }
   for (uint32 i=0 ; i < size ; i++)
@@ -158,9 +158,28 @@ void print_assertion_failed_msg(const char *file, uint32 line, const char *text)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void print_fail_reached_msg(const char *file, uint32 line) {
+  fprintf(stderr, "\nFail statement reached. File: %s, line: %d\n\n", file, line);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static bool inside_transaction = false;
+
+void entering_transaction() {
+  assert(!inside_transaction);
+  inside_transaction = true;
+}
+
+void exiting_transaction() {
+  assert(inside_transaction);
+  inside_transaction = false;
+}
+
 void soft_fail(const char *msg) {
 #ifndef CELL_LANG_NO_TRANSACTIONS
-  throw 0LL;
+  if (inside_transaction)
+    throw 0LL;
 #endif
 
   if (msg != NULL)

@@ -1182,6 +1182,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     String* handler_entry_point_method(HandlerId handler_id, NeType msg_type) {
+      auto_type_name = native_name(block.name);
+
       target_name = auto_or_db_arg_name;
       aux_name = db_auxiliary_arg_name;
 
@@ -1195,8 +1197,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return (
         "",
         "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
+        "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
         "  try {",
+        "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", msg);" if debug_mode,
+        "    entering_transaction();",
         "    bool ok = " & run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+        "    exiting_transaction();",
+        "    pop_call_info();" if debug_mode,
         "    if (ok)",
         "      " & apply_method_name & "(" & target_name & ", " & aux_name & ");",
         "    " & reset_method_name & "(" & aux_name & ");",
@@ -1204,43 +1211,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         "  }",
         "  catch (...) {",
         "    " & reset_method_name & "(" & aux_name & ");",
+        "    pop_call_infos(bookmark);" if debug_mode,
         "    return false;",
         "  }",
         "}"
       );
-
-      // main_handler_args = (target_name, aux_name, "msg", "env");
-      // apply_method_args = (target_name, aux_name, "code");
-      // body = (
-      //   // "int depth = get_call_stack_depth();",
-      //   "  switch_mem_stacks();",
-      //   "",
-      //   "try {",
-      //   "  //## SET FLAG SIGNALLING WE'RE INSIDE A TRANSACTION",
-      //   "  int code = " & update_name(block_name, main_handler) & "(" & append(main_handler_args, ", ") & ");",
-      //   "  //## RESET TRANSACTION FLAG",
-      //   "  " & native_apply_and_reset_method_name(block_name, main_handler) & "(" & append(apply_method_args, ", ") & ");",
-      //   "  //## CLEAR THE ERROR MESSAGE",
-      //   "  unswitch_mem_stacks();",
-      //   "  clear_unused_mem();",
-      //   "  return true;",
-      //   "}",
-      //   "catch (...) {",
-      //   "  //## RESET TRANSACTION FLAG",
-      //   "  //## " & auxiliary_reset_proc_name(block_name) & "(" & aux_name & ");",
-      //   "  //## CLEAR THE ERROR MESSAGE",
-      //   "  unswitch_mem_stacks();",
-      //   "  clear_unused_mem();",
-      //   "  return false;",
-      //   "}"
-      // );
-      // formal_args = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " msg", env_arg_decl);
-      // sgn = "bool " & name & "(" & append(formal_args, ", ") & ") {";
-      // return (sgn) & indent_lines(body) & ("}");
-
-      // name = update_entry_point_name(block_name);
-
-
     }
   }
 
