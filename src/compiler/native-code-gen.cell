@@ -717,9 +717,29 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
       aux_db_vars_decls = (aux_db_vars_decls | aux_type_name & " " & aux_var_name & "_;", aux_type_name & " *" & aux_var_name & " = &" & aux_var_name & "_;");
     }
 
-    if body == (terminate(false)) {
-      only_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
-      comp_body = (only_instr & " // " & fn_name & "/" & _print_(arity(pd)));
+    if pd.type? and body == (terminate(false)) {
+      ret_type_name = ret_type_str(pd);
+      terminate_instr = only_unsafe(native_code(terminate(false), nothing, break_target = nothing));
+      comp_body = (
+        ret_type_name & " result;",
+        "memset(&result, 0, sizeof(" & ret_type_name & "));",
+        terminate_instr & " // " & fn_name & "/" & _print_(arity(pd)),
+        "return result;"
+      );
+    }
+    else if pd.type? and |body| == 2 and body(1) == terminate(false) and match (body(0)) push_call_info() = true, _ = false {
+      ret_type_name = ret_type_str(pd);
+      push_call_info_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
+      terminate_instr = only_unsafe(native_code(terminate(false), nothing, break_target = nothing));
+      pop_call_info_instr = only_unsafe(native_code(pop_call_info, nothing, break_target = nothing));
+      comp_body = (
+        ret_type_name & " result;",
+        "memset(&result, 0, sizeof(" & ret_type_name & "));",
+        push_call_info_instr,
+        terminate_instr & " // " & fn_name & "/" & _print_(arity(pd)),
+        pop_call_info_instr,
+        "return result;"
+      );
     }
     else {
       is_mem_boundary = is_mem_boundary(pd);

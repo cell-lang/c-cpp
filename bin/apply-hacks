@@ -1,4 +1,4 @@
 sed 's/OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV \&env) {/OBJ attach_F2_(OBJ obj_V, OBJ data_V, ENV \&env) {/' | \
 sed 's/OBJ fetch_F1(OBJ obj_V, ENV \&env) {/OBJ fetch_F1_(OBJ obj_V, ENV \&env) {/' | \
 sed 's/OBJ source_file_location_F1(OBJ mtc_V, ENV \&env) {/OBJ source_file_location_F1_(OBJ mtc_V, ENV \&env) {/' | \
-sed "s:soft_fail(NULL); // nanoseconds_since_epoc_at_compilation_time_F0/0:return `date +%s`000000000;:"
+sed "s:soft_fail(NULL); // nanoseconds_since_epoc_at_compilation_time_F0/0:result = `date +%s`000000000LL;:"
