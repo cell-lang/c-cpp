@@ -7,15 +7,17 @@ cellc.net:
 	dotnet build -c Release tmp/cellc.net/
 	@ln -s tmp/cellc.net/bin/Release/netcoreapp3.1/cellc cellc.net
 
-cellc: # cellc.net
+cellc:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
 	bin/cellc -t project/compiler-no-runtime.txt tmp/cellc/
-	#misc/cellc -t project/compiler-no-runtime.txt tmp/cellc/
-	# ./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
-# 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
-	# g++ -O3 -flto -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellc
+
+cellcd:
+	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
+	bin/cellc -d -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 
 cellc2:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
