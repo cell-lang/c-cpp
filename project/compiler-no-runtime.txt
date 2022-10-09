@@ -173,6 +173,19 @@ src/compiler/table-iters.cell
 src/compiler/static-blocks.cell
 src/compiler/react-blocks.cell
 
+src/compiler/wrappers/interface-types.cell
+src/compiler/wrappers/native-types.cell
+src/compiler/wrappers/naming.cell
+src/compiler/wrappers/reactive.cell
+src/compiler/wrappers/static.cell
+src/compiler/wrappers/types-decls.cell
+src/compiler/wrappers/methods.cell
+src/compiler/wrappers/handlers.cell
+src/compiler/wrappers/miscellanea.cell
+src/compiler/wrappers/importing.cell
+src/compiler/wrappers/exporting.cell
+src/compiler/wrappers/decl-types-export.cell
+
 
 // Main file
 

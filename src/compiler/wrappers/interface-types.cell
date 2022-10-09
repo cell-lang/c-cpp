@@ -1,0 +1,371 @@
+type AtomicInterType        = bool, integer, float, string, date, time;
+type BasicInterType         = AtomicInterType, generic;
+
+type SymbolInterType        = symbol(Symbol); ## NOT IN USE AT THE MOMENT
+
+type TupleInterType         = tuple(InterType+);
+type RecordInterType        = record([+Symbol -> InterType]);
+
+type TaggedInterType        = tagged(Symbol, InterType);
+
+type OptionalInterType      = optional(InterType);
+
+type EltInterType           = byte, int32, InterType;
+
+type CollInterType          = seq(EltInterType),
+                              set(InterType),
+                              bin_rel(InterType, InterType),
+                              tern_rel(InterType, InterType, InterType);
+
+type GeneratedInterType     = generated(BasicTypeSymbol);
+
+type InterType              = BasicInterType,
+                              SymbolInterType,
+                              TupleInterType,
+                              RecordInterType,
+                              CollInterType,
+                              TaggedInterType,
+                              OptionalInterType,
+                              GeneratedInterType;
+
+type DeclInterType          = RecordInterType, TupleInterType, DeclTaggedInterType;
+type DeclTaggedInterType    = tagged(Symbol, <RecordInterType, TupleInterType>);
+
+////////////////////////////////////////////////////////////////////////////////
+
+Symbol symbol(SymbolInterType)  = symbol(s?) = s;
+
+InterType+ field_types(TupleInterType)  = tuple(ts?) = ts;
+
+[+Symbol -> InterType] fields(RecordInterType) = record(fs?) = fs;
+
+Symbol type_tag(TaggedInterType)      = tagged(s?, _) = s;
+T untagged_type(<tagged(Symbol, T)>)  = tagged(_, t?) = t;
+
+////////////////////////////////////////////////////////////////////////////////
+
+NeType internal_type(AtomicInterType) =
+  bool        = type_bool,
+  integer     = integer,
+  float       = float_type,
+  string      = type_string,
+  date        = type_date,
+  time        = type_time;
+
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  InterType interface_type(NeType type, <input, output> direction) {
+    return interface_type(type, direction);
+
+
+    InterType interface_type(NeType type, <input, output> direction) {
+      // Atomic or standard types
+      for it <- (:bool, :integer, :float, :string, :date, :time)
+        return it if is_subset(type, internal_type(it));
+
+      if type :: TypeRef {
+        type_symb = type_symb(type);
+
+        // Is this type mapped to a generated class?
+        if direction == :output and type_symb :: BasicTypeSymbol and generated(type_symb)
+          return :generated(type_symb);
+
+        // Switching to a generic representation for recursive types
+        return :generic if is_recursive(type_symb);
+      }
+
+      // Sequences, including tuples
+      if is_subset(type, type_seq)
+        return seq_or_tuple_interface_type(type, direction);
+
+      // Sets
+      if is_subset(type, type_set)
+        return set_interface_type(type, direction);
+
+      // Maps, including records
+      if is_subset(type, type_map)
+        return map_record_interface_type(type, direction);
+
+      // Binary relations, excluding records and maps
+      if is_subset(type, type_bin_rel)
+        return bin_rel_interface_type(type, direction);
+
+      // Ternary relations
+      if is_subset(type, type_tern_rel)
+        return tern_rel_interface_type(type, direction);
+
+      // Monomorphically tagged types
+      if is_subset(type, type_tagged_obj) and is_symb_singl_type(tag_supertype(type))
+        return monomorphically_tagged_values_interface_type(type, direction);
+
+      // Maybe type
+      if is_subset(type, type_maybe(type_any))
+        if not is_subset(type, tag_obj_type(symb_type(:just), type_any))
+          if not is_subset(type, symb_type(:nothing))
+            return maybe_value_interface_type(type, direction);
+
+      // // Any combination of symbols and tagged values
+      // if is_subset(type, ne_union_type([atom_type, type_tagged_obj]))
+      //   return symbols_and_tagged_values_interface_type(type, direction);
+
+      return :generic;
+    }
+
+
+    InterType seq_or_tuple_interface_type(NeType type, <input, output> direction) {
+      maybe_types = maybe_tuple_type_fields(type);
+      if maybe_types != nothing {
+        types = value(maybe_types);
+        size = |types|;
+        return :tuple((interface_type(t, direction) : t <- types)) if size >= 2 and size <= 8;
+      }
+
+      elem_type = seq_elem_supertype(type);
+      fail if elem_type == empty_type;
+      return :seq(element_interface_type(elem_type, direction));
+    }
+
+
+    InterType set_interface_type(NeType type, <input, output> direction) {
+      elem_type = set_elem_supertype(type);
+      fail if elem_type == empty_type;
+      return :set(interface_type(elem_type, direction));
+    }
+
+
+    InterType map_record_interface_type(NeType type, <input, output> direction) {
+      maybe_fields = maybe_record_type_fields(type);
+      if maybe_fields != nothing {
+        types = value(maybe_fields);
+        if not (l info <- types : info.optional)
+          return :record([untag(l) -> interface_type(info.type, direction) : l info <- types]);
+      }
+
+      return bin_rel_interface_type(type, direction);
+    }
+
+
+    InterType bin_rel_interface_type(NeType type, <input, output> direction) {
+      left_type, right_type = bin_rel_args_supertypes(type);
+      fail if left_type == empty_type or right_type == empty_type;
+      return :bin_rel(
+        interface_type(left_type, direction),
+        interface_type(right_type, direction)
+      );
+    }
+
+
+    InterType tern_rel_interface_type(NeType type, <input, output> direction) {
+      args_types = tern_rel_args_supertypes(type);
+      fail if not args_types :: (NeType, NeType, NeType);
+      return :tern_rel((interface_type(t, direction) : t <- args_types));
+    }
+
+
+    InterType monomorphically_tagged_values_interface_type(NeType type, <input, output> direction) {
+      tag = untag(only_symb(tag_supertype(type)));
+      untagged_type = untagged_objs_supertype(type);
+      fail if untagged_type == empty_type;
+      untagged_inter_type = interface_type(untagged_type, direction);
+      return :tagged(tag, untagged_inter_type);
+    }
+
+
+    InterType maybe_value_interface_type(NeType type, <input, output> direction) {
+      inner_type = maybe_type_type_param(type);
+      return :optional(interface_type(inner_type, direction));
+    }
+
+
+    EltInterType element_interface_type(NeType type, <input, output> direction) =
+      if is_subset(type, type_byte) then
+        :byte
+      else if is_subset(type, type_int32) then
+        :int32
+      else
+        interface_type(type, direction);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  ([Symbol -> DeclInterType], [Symbol, Symbol]) inter_types_decls {
+    merged_decls : [Symbol -> DeclInterType];
+
+    merged_decls = [];
+    hierarchies = ();
+
+    for ts <- generated {
+      decls, hierarchy = type_decls(nonempty_type(expand_type_ref(ts, typedefs)), ts);
+      for n t <- decls
+        merged_decls = _put_(merged_decls, n, t);
+      hierarchies = (hierarchies | hierarchy);
+    }
+    hierarchy = [sub, sup : h <- hierarchies, sub sup <- h];
+    return (merged_decls, hierarchy);
+  }
+
+
+  ([Symbol -> DeclInterType], [Symbol, Symbol])
+  type_decls(NeType type, BasicTypeSymbol type_id) =
+    union_type(ts?) = union_type_type_decls(ts, type_id),
+    type_ref(ts?)   = if not generated(ts)
+                        then type_decls(nonempty_type(expand_type_ref(ts, typedefs)), type_id)
+                        else ([], []),
+    _               = { inter_type = interface_type(type, :output);
+                        fail if not inter_type :: DeclInterType;
+                        return ([bare_id(type_id) -> inter_type], []);
+                      };
+
+
+  ([Symbol -> DeclInterType], [Symbol, Symbol])
+  union_type_type_decls([+NeType] types, BasicTypeSymbol type_id) {
+    decls : [Symbol -> DeclInterType];
+    hierarchy : [Symbol, Symbol]*;
+
+    decls = [];
+    hierarchy = ();
+    for t <- types {
+      if t :: TypeRef {
+        symb = type_symb(t);
+        if not generated(symb) {
+          fail if not symb :: BasicTypeSymbol;
+          nested_decls, nested_hierarchy = type_decls(t, symb);
+          hierarchy = (hierarchy | [bare_id(symb) -> bare_id(type_id)]);
+        }
+        else {
+          nested_decls = [];
+          nested_hierarchy = [bare_id(symb) -> bare_id(type_id)];
+        }
+      }
+      else if t :: TagObjType {
+        fail if t.tag_type == atom_type;
+        subtype_id = bare_symb(t.tag_type);
+        nested_decls, nested_hierarchy = type_decls(t, type_symbol(subtype_id));
+        hierarchy = (hierarchy | [subtype_id -> bare_id(type_id)]);
+      }
+      else
+        fail;
+
+      for name nested_type <- nested_decls {
+        assert not decls(name, _) or decls(name) == nested_type;
+        decls = _put_(decls, name, nested_type);
+      }
+
+      hierarchy = (hierarchy | nested_hierarchy);
+    }
+
+    return (decls, [sub, sup : h <- hierarchy, sub sup <- h]);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit typedefs : [TypeName -> NeType] {
+  Bool is_declarable(BasicTypeSymbol type_symb) {
+    exp_type = expand_type_ref(type_symb, typedefs);
+
+    return match (exp_type)
+      tuple_type()        = true,
+      ne_record_type(fs?) = not (_ f <- fs : f.optional),
+      tag_obj_type()      = tag_obj_type_is_decl(exp_type.tag_type, exp_type.obj_type),
+      union_type(ts?)     = union_type_is_decl(ts),
+      _                   = false;
+
+
+    Bool tag_obj_type_is_decl(TagType tag_type, NeType obj_type) {
+      return false if tag_type == atom_type;
+      return match (obj_type)
+        tuple_type()        = true,
+        ne_record_type(fs?) = not (_ f <- fs : f.optional),
+        _                   = false;
+    }
+
+
+    Bool union_type_is_decl([+NeType] types) {
+      symbols : Symbol*;
+
+      symbols = ();
+      for t <- types {
+        if t :: <type_ref(type_symbol(Symbol))> {
+          type_symb = untag(t);
+          return false if not subtype_is_decl(type_symb);
+          symbols = (symbols | bare_id(type_symb));
+        }
+        else if t :: TagObjType {
+          return false if t.tag_type == atom_type;
+          is_decl = match (t.obj_type)
+            tuple_type()        = true,
+            ne_record_type(fs?) = not (_ f <- fs : f.optional),
+            _                   = false;
+          return false if not is_decl;
+          symbols = (symbols | bare_symb(t.tag_type));
+
+        }
+        else
+          return false;
+      }
+      return duplicates(symbols) == [];
+    }
+
+
+    Bool subtype_is_decl(BasicTypeSymbol type_symb) {
+      exp_type = expand_type_ref(type_symb, typedefs);
+
+      return match (exp_type)
+        tag_obj_type()      = tag_obj_type_is_decl(exp_type.tag_type, exp_type.obj_type),
+        union_type(ts?)     = union_type_is_decl(ts),
+        _                   = false;
+    }
+  }
+
+
+  [BasicTypeSymbol] named_types_to_declare([BasicTypeSymbol] root_symbs) {
+    return root_symbs & [ts : rts <- root_symbs, ts <- nested_type_symbs(expand_type_ref(rts, typedefs))];
+
+
+    [BasicTypeSymbol] nested_type_symbs(Type type) =
+      union_type(ts?)             = [s : t <- ts, s <- nested_type_symbs(t)],
+      type_ref(type_symbol() ts?) = [ts] & nested_type_symbs(expand_type_ref(ts, typedefs)),
+      _                           = [];
+  }
+
+
+  Symbol* tags_promoted_to_type_names(BasicTypeSymbol type_symb) {
+    return promoted_tags(expand_type_ref(type_symb, typedefs));
+
+
+    Symbol* promoted_tags(Type type) =
+      union_type(ts?)             = join((union_alternative_promoted_tags(t) : t <- isort(ts))),
+      type_ref(type_symbol() ts?) = undefined, // Not supposed to happen with the current restrictions
+      _                           = ();
+
+
+    Symbol* union_alternative_promoted_tags(NeType type) =
+      tag_obj_type()              = (bare_symb(type.tag_type) if type.tag_type != atom_type),
+      type_ref(type_symbol() ts?) = tags_promoted_to_type_names(ts),
+      _                           = ();
+  }
+
+
+  [BasicTypeSymbol] all_named_types_to_declare([BasicTypeSymbol] root_symbs) {
+    return [ts : rts <- root_symbs, ts <- named_subtypes(rts)];
+
+
+    [BasicTypeSymbol] named_subtypes(BasicTypeSymbol type_symb) =
+      _insert_(named_subtypes(expand_type_ref(type_symb, typedefs)), type_symb);
+
+
+    [BasicTypeSymbol] named_subtypes(Type type) =
+      union_type(ts?)             = [s : t <- ts, s <- named_subtypes(t)],
+      type_ref(type_symbol() ts?) = named_subtypes(ts),
+      ne_record_type()            |
+      tuple_type()                |
+      tag_obj_type()              = [],
+      _                           = undefined;
+  }
+}

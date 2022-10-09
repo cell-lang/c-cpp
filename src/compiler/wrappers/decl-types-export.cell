@@ -1,0 +1,126 @@
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
+  Text decl_types_export_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
+    type_symbs = isort(keys(type_decls));
+
+    hierarchy_closure = flat_transitive_closure(hierarchy);
+    concrete_classes = keys(type_decls);
+    abstract_classes = [ts : _ ts <- hierarchy];
+    all_classes = concrete_classes & abstract_classes;
+
+    assert disjoint(concrete_classes, abstract_classes);
+    assert not (ts _ <- hierarchy : not concrete_classes(ts) and not abstract_classes(ts));
+
+    class_names = [ts -> "Cell.Typedefs." & gen_class_name(ts) : ts <- all_classes];
+    export_fns_names = [ts -> decl_type_export_funct_name(ts) : ts <- all_classes];
+
+    let class_names = class_names, export_fns_names = export_fns_names {
+      // Concrete types
+      code = ();
+      for ts @ i <- type_symbs {
+        inter_type = type_decls(ts);
+        code = (code | "") if i > 0;
+        code = (code | decl_type_export_funct(ts, inter_type));
+      }
+
+      // Abstract types
+      for ts <- abstract_classes {
+        concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
+        code = (code | "", abstract_type_export_funct(ts, concrete_subclasses));
+      }
+    }
+
+    return code;
+  }
+}
+
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symbol -> String], export_fns_names : [Symbol -> String] {
+  Text abstract_type_export_funct(Symbol type_symb, [Symbol -> DeclInterType] concrete_subclasses) {
+    code = (
+      "public static " & class_names(type_symb) & " " & export_fns_names(type_symb) & "(Cell.Runtime.Obj obj) {",
+      "  ushort tagId = obj.GetTagId();"
+    );
+
+    for ts def <- concrete_subclasses {
+      tag = match (def)
+        tagged(t?, _) = t,
+        _             = undefined;
+
+      code = (
+        code |
+        "",
+        "  if (tagId == " & symb_id_qual_name(tag) & ")",
+        "    return " & export_fns_names(ts) & "(obj);"
+      );
+    }
+
+    return (
+      code |
+      "  throw Cell.Runtime.ErrorHandler.InternalFail();",
+      "}"
+    );
+  }
+
+
+  Text decl_type_export_funct(Symbol type_symb, DeclInterType inter_type) {
+    tmp_var = new_unique_var(:unused);
+    bare_type, expr, body_header = match (inter_type)
+      tuple()       |
+      record()      = (inter_type, "obj", ()),
+      tagged(_, t?) = (t, tmp_var, ("Cell.Runtime.Obj " & tmp_var & " = obj.GetInnerObj();"));
+
+    class_name = class_names(type_symb);
+    fn_name = export_fns_names(type_symb);
+
+    code = decl_type_export_code(bare_type, class_name, expr, body_header);
+    sign_line = "public static " & class_name & " " & fn_name & "(Cell.Runtime.Obj obj) {";
+    return (sign_line, code, "}");
+  }
+
+
+  String* decl_type_export_code(RecordInterType inter_type, String class_name, String expr, String* body_header) {
+    fields = fields(inter_type);
+    fields_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+    fields_vars = [v -> new_unique_var(:unused) : v _ <- fields];
+
+    code = body_header;
+
+    // Converting all the fields
+    for l t <- fields {
+      tmp_var = new_unique_var(:unused);
+      code = (
+        code |
+        "Cell.Runtime.Obj " & tmp_var & " = " & expr & ".LookupField(" & symb_id_qual_name(l) & ");",
+        qualified_return_type(t) & " " & fields_vars(l) & ";"
+      );
+      code = code & export_code(t, tmp_var, fields_vars(l) & " = ");
+    }
+
+    // Instantiating and returning the object
+    labels = sort_record_labels(keys(fields));
+    args = (fields_names(l) & ": " & fields_vars(l) : l <- labels);
+    return (code | "return new " & class_name & "(" & append(args, ", ") & ");");
+  }
+
+
+  String* decl_type_export_code(TupleInterType inter_type, String class_name, String expr, String* body_header) {
+    args_types = field_types(inter_type);
+    args_vars = (new_unique_var(:unused) : _ < |args_types|);
+
+    code = body_header;
+
+    // Converting all the fields
+    for t @ i <- args_types {
+      tmp_var = new_unique_var(:unused);
+      code = (
+        code |
+        "Cell.Runtime.Obj " & tmp_var & " = " & expr & ".GetObjAt(" & _print_(i) & ");",
+        qualified_return_type(t) & " " & args_vars(i) & ";"
+      );
+      code = code & export_code(t, tmp_var, args_vars(i) & " = ");
+    }
+
+    // Instantiating and returning the object
+    return (code | "return new " & class_name & "(" & append(args_vars, ", ") & ");");
+  }
+}

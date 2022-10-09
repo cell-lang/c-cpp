@@ -1,0 +1,120 @@
+implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String*, String*) handler_wrapper(HandlerId, HandlerWrapper wrapper,
+                                     DBSymbol block_name, String ext_name, String class_name)
+  {
+    fields_types, fields_vars, fields_cond_vars, fields_memb_preds = unzip4(wrapper.args);
+    arity = |fields_vars|;
+    optional = (v != nothing : v <- fields_cond_vars);
+
+    args_inter_types = ({
+      it = interface_type(t, :input);
+      it = match (it)
+        optional()  = if optional(i) then :generic else it,
+        _           = it;
+      return it;
+    } : t @ i <- fields_types);
+
+    fields_ids = (bare_id(v) : v <- fields_vars);
+    args_names_map = adjusted_unambiguous_lower_camel_case_names(set(fields_ids));
+    args_names = (args_names_map(l) : l <- fields_ids);
+
+    args_types = (input_arg_type(it, optional(i)) : it @ i <- args_inter_types);
+    args_decls = (it & " " & args_names(i) & if optional(i) then " = null" else "" : it @ i <- args_types);
+
+    code = (
+      "",
+      "public void " & ext_name & "(" & append(args_decls, ", ") & ") {"
+    );
+
+    let context = :wrapper {
+      field_vars = (native_var_ref_name(v) : v <- fields_vars);
+      code = (code | "  Cell.Runtime.Obj " & append(field_vars, ", ") & ";") if field_vars != ();
+      already_decl_vars = [v : v <- fields_vars];
+      code = code & indent_lines(gen_vars_decls(wrapper.msg_inst_code, already_decl_vars));
+      code = (code | "") if |code| > 2;
+
+      code = code & join(({
+          cond_var = fields_cond_vars(i);
+          if cond_var != nothing {
+            if is_boxed_if_opt(it) {
+              tmp_var = new_unique_var(:unused);
+              nonboxed_type = input_arg_type(it, false);
+              non_null_conv_code = (
+                nonboxed_type & " " & tmp_var & " = (" & nonboxed_type & ") " & args_names(i) & ";",
+              ) & import_code(it, tmp_var, field_vars(i) & " = ");
+            }
+            else
+              non_null_conv_code = import_code(it, args_names(i), field_vars(i) & " = ");
+
+            cond_var_name = native_var_ref_name(value(cond_var));
+            conv_code = (
+              "if (" & args_names(i) & " != null) {",
+              "  " & cond_var_name & " = true;"
+            ) & indent_lines(non_null_conv_code) & (
+              "}",
+              "else {",
+              "  " & cond_var_name & " = false;",
+              "  " & native_var_ref_name(fields_vars(i)) & " = null;",
+              "}"
+            );
+          }
+          else
+            conv_code = import_code(it, args_names(i), field_vars(i) & " = ");
+
+          return indent_lines(conv_code);
+        } : it @ i <- args_inter_types
+      ));
+
+      for p @ i <- fields_memb_preds {
+        ## I SHOULD CHECK TO SEE IF THE NATIVE REPRESENTATION CAN LEAD
+        ## TO INVALID TYPES, AND PERFORM THIS CHECK ONLY IF NECESSARY
+        var_name = native_var_ref_name(fields_vars(i));
+        cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
+        type_user_repr = "\"" & user_repr(fields_types(i)) & "\""; ## THIS SHOULD BE ESCAPED
+        check_prefix = if optional(i) then var_name & " != null && !" else "!";
+        code = (code | "if (" & check_prefix & cond_str & ")");
+        exception_args = _print_(i) & ", " & var_name & ", " & type_user_repr;
+        code = (code | "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+      }
+
+      native_msg_expr = native_expr(wrapper.msg_expr);
+      code = (
+        code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing)) |
+        "  bool ok = automaton.UpdateEntryPoint(" & native_msg_expr & ", updater, env);",
+        "  if (ok) {",
+        "    if (OnSuccess != null)",
+        "      OnSuccess(" & native_msg_expr & ".ToString());",
+        "  }",
+        "  else {",
+        "    if (OnFailure != null)",
+        "      OnFailure(" & native_msg_expr & ".ToString());",
+        "    env = new Cell.Generated.Static.Env();",
+        "    throw updater.lastException;",
+        "  }",
+        "}"
+      );
+    }
+
+    args_types_docs = (remove_path(s) : s <- args_types);
+    if |args_decls| < 5 {
+      args_docs = (
+        t & " " & n & if optional(i) then " = null" else ""
+        : t, n @ i <- zip(args_types_docs, args_names)
+      );
+      docs = ("void " & ext_name & "(" & append(args_docs, ", ") & ");");
+    }
+    else {
+      alignment = nat(1 + max((length(s) : s <- nonempty(args_types_docs))));
+      docs = ("void " & ext_name & "(");
+      for t, n @ i <- zip(args_types_docs, args_names) {
+        arg_doc = "  " & right_padded(t, alignment, ` `) & n;
+        arg_doc = arg_doc & " = null" if optional(i);
+        arg_doc = arg_doc & "," if i < arity - 1;
+        docs = (docs | arg_doc);
+      }
+      docs = (docs | ");");
+    }
+
+    return (code, docs);
+  }
+}

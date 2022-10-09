@@ -1,0 +1,167 @@
+implicit prg : CompiledPrg {
+  String safe_class_name(<DBSymbol, AutoSymbol> id) = safe_block_class_names(id, !);
+
+  [<DBSymbol, AutoSymbol> -> String] safe_block_class_names = [
+    b.name -> {
+      name = upper_camel_case(bare_id(b.name));
+      name = name & "_" if is_reserved(name);
+      return name;
+    } : b <- prg.static_blocks | b <- prg.react_blocks
+  ];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+[Symbol -> String] adjusted_unambiguous_lower_camel_case_names([Symbol] symbols) {
+  nice_field_names = [s -> safe_lower_camel_case(s) : s <- symbols];
+  conflicting_names = duplicate_values(nice_field_names);
+  unambiguous_names = [s -> n : s n <- nice_field_names, not conflicting_names(n)];
+  for n <- conflicting_names {
+    conflicting_symbols = isort([s : s <- nice_field_names(?, n)]);
+    for s @ i <- conflicting_symbols
+      unambiguous_names = _put_(unambiguous_names, s, n & "_" & _print_(i));
+  }
+  return unambiguous_names;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+String safe_lower_camel_case(Symbol symb) {
+  name = lower_camel_case(symb);
+  name = "_" & name if is_reserved(name);
+  return name;
+}
+
+
+String safe_upper_camel_case(Symbol symb) {
+  name = upper_camel_case(symb);
+  name = "_" & name if is_reserved(name);
+  return name;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+Bool is_reserved(String id) {
+  for p <- isort(standard_generated_class_prefixes) {
+    len = length(p);
+    if length(id) > length(p) {
+      prefix = take(p, len);
+      if prefix == p {
+        rest = drop(p, len);
+        return false if (ch <- chars(rest) : not is_digit(ch));
+      }
+    }
+  }
+
+  return in(id, keywords_and_literals) or
+         in(id, runtime_classes) or
+         in(id, standard_generated_classes);
+}
+
+
+[String] keywords_and_literals = [
+  "abstract",
+  "as",
+  "base",
+  "bool",
+  "break",
+  "byte",
+  "case",
+  "catch",
+  "char",
+  "checked",
+  "class",
+  "const",
+  "continue",
+  "decimal",
+  "default",
+  "delegate",
+  "do",
+  "double",
+  "else",
+  "enum",
+  "event",
+  "explicit",
+  "extern",
+  "false",
+  "finally",
+  "fixed",
+  "float",
+  "for",
+  "foreach",
+  "goto",
+  "if",
+  "implicit",
+  "in",
+  "int",
+  "interface",
+  "internal",
+  "is",
+  "lock",
+  "long",
+  "namespace",
+  "new",
+  "null",
+  "object",
+  "operator",
+  "out",
+  "override",
+  "params",
+  "private",
+  "protected",
+  "public",
+  "readonly",
+  "ref",
+  "return",
+  "sbyte",
+  "sealed",
+  "short",
+  "sizeof",
+  "stackalloc",
+  "static",
+  "string",
+  "struct",
+  "switch",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "typeof",
+  "uint",
+  "ulong",
+  "unchecked",
+  "unsafe",
+  "ushort",
+  "using",
+  "using",
+  "static",
+  "virtual",
+  "void",
+  "volatile",
+  "while"
+];
+
+
+[String] standard_generated_classes = [
+  "Generated", ## NOT SURE ABOUT THIS ONE, BUT JUST IN CASE
+  "Env",
+  "Lambda"
+];
+
+
+[String] standard_generated_class_prefixes = [
+  "Lambda",
+  "ConstIntSeq"
+];
+
+
+[String] runtime_classes = [
+  // No need to worry here, they're in a different namespace
+];
+
+////////////////////////////////////////////////////////////////////////////////
+
+String gen_class_name(Symbol symb) = upper_camel_case(symb);
+
+String decl_type_export_funct_name(Symbol symb) = "Export_" & gen_class_name(symb);

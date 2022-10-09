@@ -1,0 +1,212 @@
+implicit prg : CompiledPrg {
+  String* import_code(InterType it, String expr, String action_prefix) =
+    bool                    = (action_prefix & "Cell.Runtime.SymbObj.Get(" & expr & ");"),
+    integer                 = (action_prefix & "Cell.Runtime.IntObj.Get(" & expr & ");"),
+    float                   = (action_prefix & "new Cell.Runtime.FloatObj(" & expr & ");"),
+    string                  = (action_prefix & "Cell.Runtime.Conversions.StringToObj(" & expr & ");"),
+    date                    = (action_prefix & "Cell.Runtime.Conversions.DateToObj(" & expr & ");"),
+    time                    = (action_prefix & "Cell.Runtime.Conversions.DateTimeToObj(" & expr & ");"),
+    symbol(s?)              = (action_prefix & "Cell.Runtime.SymbObj.Get(" & symb_id_qual_name(s) & ");"),
+    tuple(ts?)              = tuple_import_code(ts, expr, action_prefix),
+    record(fs?)             = record_import_code(fs, expr, action_prefix),
+    seq(t?)                 = seq_import_code(t, expr, action_prefix),
+    set(t?)                 = set_import_code(t, expr, action_prefix),
+    bin_rel(a1?, a2?)       = bin_rel_import_code(a1, a2, expr, action_prefix),
+    tern_rel(a1?, a2?, a3?) = tern_rel_import_code(a1, a2, a3, expr, action_prefix),
+    tagged()                = tagged_value_import_code(it, expr, action_prefix),
+    optional(t?)            = optional_value_import_code(t, expr, action_prefix),
+    generic                 = (action_prefix & "Cell.Runtime.Conversions.ConvertText(" & expr & ");");
+
+
+  String* tuple_import_code(InterType+ types, String expr, String action_prefix) {
+    field_vars_base_name = new_unique_var(:unused);
+    field_vars = (field_vars_base_name & "_" & printed(i) : t @ i <- types);
+    fields_code = (
+        ("Cell.Runtime.Obj " & field_vars(i) & ";",) &
+        import_code(t, expr & ".Item" & printed(i+1), field_vars(i) & " = ")
+      : t @ i <- types
+    );
+
+    tuple_instr = action_prefix & "Cell.Runtime.Builder.CreateSeq(new Cell.Runtime.Obj[] {" & append(field_vars, ", ") & "});";
+
+    return (join(fields_code) | tuple_instr);
+  }
+
+
+  String* record_import_code([+Symbol -> InterType] fields, String expr, String action_prefix) {
+    ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
+
+    field_vars_base_name = new_unique_var(:unused);
+    field_vars = (field_vars_base_name & "_" & printed(l) : l, t @ i <- ord_fields);
+    field_names = adjusted_unambiguous_lower_camel_case_names(set(left(unzip(ord_fields))));
+
+    fields_code = (
+      ("Cell.Runtime.Obj " & field_vars(i) & ";",) &
+      import_code(t, expr & "." & field_names(l), field_vars(i) & " = ")
+      : l, t @ i <- ord_fields
+    );
+
+    labels = "new ushort[] {" & append((symb_id_qual_name(l) : l, _ <- ord_fields), ", ") & "}";
+    values = "new Cell.Runtime.Obj[] {" & append(field_vars, ", ") & "}";
+    tuple_instr = action_prefix & "Cell.Runtime.Builder.CreateRecord(" & labels & ", " & values & ");";
+
+    return (join(fields_code) | tuple_instr);
+  }
+
+
+  String* seq_import_code(EltInterType elem_type, String expr, String action_prefix) {
+    if elem_type == :byte {
+      return (action_prefix & "Cell.Runtime.Conversions.FromByteArray(" & expr & ");");
+    }
+    else if elem_type == :int32 {
+      return (action_prefix & "Cell.Runtime.Conversions.FromIntArray(" & expr & ");");
+    }
+    else {
+      expr_var  = new_unique_var(:unused);
+      idx_var   = new_unique_var(:unused);
+      array_var = new_unique_var(:unused);
+
+      elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
+
+      native_elem_type = input_arg_type(elem_type);
+
+      return (
+        native_elem_type & "[] " & expr_var & " = " & expr & ";",
+        "Cell.Runtime.Obj[] " & array_var & " = new Cell.Runtime.Obj[" & expr_var & ".Length];",
+        "for (int " & idx_var & " = 0 ; " & idx_var & " < " & expr_var & ".Length ; " & idx_var & "++) {"
+      ) & indent_lines(elem_code) & (
+        "}",
+        action_prefix & "Cell.Runtime.Builder.CreateSeq(" & array_var & ");"
+      );
+    }
+  }
+
+
+  String* set_import_code(InterType elem_type, String expr, String action_prefix) {
+    expr_var  = new_unique_var(:unused);
+    idx_var   = new_unique_var(:unused);
+    array_var = new_unique_var(:unused);
+
+    elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
+
+    native_elem_type = input_arg_type(elem_type);
+
+    return (
+      native_elem_type & "[] " & expr_var & " = " & expr & ";",
+      "Cell.Runtime.Obj[] " & array_var & " = new Cell.Runtime.Obj[" & expr_var & ".Length];",
+      "for (int " & idx_var & " = 0 ; " & idx_var & " < " & expr_var & ".Length ; " & idx_var & "++) {"
+    ) & indent_lines(elem_code) & (
+      "}",
+      action_prefix & "Cell.Runtime.Builder.CreateSet(" & array_var & ");"
+    );
+  }
+
+
+  String* bin_rel_import_code(InterType left_type, InterType right_type, String expr, String action_prefix) {
+    idx_var       = new_unique_var(:unused);
+    entry_var     = new_unique_var(:unused);
+    idx_var       = new_unique_var(:unused);
+    left_var      = new_unique_var(:unused);
+    right_var     = new_unique_var(:unused);
+    left_col_var  = new_unique_var(:unused);
+    right_col_var = new_unique_var(:unused);
+
+    left_type_str  = input_arg_type(left_type);
+    right_type_str = input_arg_type(right_type);
+
+    code = (
+      "Cell.Runtime.Obj[] " & left_col_var & " = new Cell.Runtime.Obj[" & expr & ".Length];",
+      "Cell.Runtime.Obj[] " & right_col_var & " = new Cell.Runtime.Obj[" & expr & ".Length];",
+      "int " & idx_var & " = 0;",
+      "foreach (var " & entry_var & " in " & expr & ") {",
+      "  " & left_type_str & " " & left_var & " = " & entry_var & ".Item1;",
+      "  " & right_type_str & " " & right_var & " = " & entry_var & ".Item2;"
+    );
+
+    code = code & indent_lines(import_code(left_type, left_var, left_col_var & "[" & idx_var & "] = "));
+    code = code & indent_lines(import_code(right_type, right_var, right_col_var & "[" & idx_var & "] = "));
+
+    return (
+      code |
+      "  " & idx_var & "++;",
+      "}",
+      action_prefix & "Cell.Runtime.Builder.CreateBinRel(" & left_col_var & ", " & right_col_var & ");"
+    );
+  }
+
+
+  String* tern_rel_import_code(InterType type1, InterType type2, InterType type3, String expr, String action_prefix) {
+    idx_var   = new_unique_var(:unused);
+    entry_var = new_unique_var(:unused);
+    idx_var   = new_unique_var(:unused);
+    arg1_var  = new_unique_var(:unused);
+    arg2_var  = new_unique_var(:unused);
+    arg3_var  = new_unique_var(:unused);
+    col1_var  = new_unique_var(:unused);
+    col2_var  = new_unique_var(:unused);
+    col3_var  = new_unique_var(:unused);
+
+    type1_str = input_arg_type(type1);
+    type2_str = input_arg_type(type2);
+    type3_str = input_arg_type(type3);
+
+    code = (
+      "Cell.Runtime.Obj[] " & col1_var & " = new Cell.Runtime.Obj[" & expr & ".Length];",
+      "Cell.Runtime.Obj[] " & col2_var & " = new Cell.Runtime.Obj[" & expr & ".Length];",
+      "Cell.Runtime.Obj[] " & col3_var & " = new Cell.Runtime.Obj[" & expr & ".Length];",
+      "int " & idx_var & " = 0;",
+      "foreach (var " & entry_var & " in " & expr & ") {",
+      "  " & type1_str & " " & arg1_var & " = " & entry_var & ".Item1;",
+      "  " & type2_str & " " & arg2_var & " = " & entry_var & ".Item2;",
+      "  " & type3_str & " " & arg3_var & " = " & entry_var & ".Item3;"
+    );
+
+    code = code & indent_lines(import_code(type1, arg1_var, col1_var & "[" & idx_var & "] = "));
+    code = code & indent_lines(import_code(type2, arg2_var, col2_var & "[" & idx_var & "] = "));
+    code = code & indent_lines(import_code(type3, arg3_var, col3_var & "[" & idx_var & "] = "));
+
+    return (
+      code |
+      "  " & idx_var & "++;",
+      "}",
+      action_prefix & "Cell.Runtime.Builder.CreateTernRel(" & col1_var & ", " & col2_var & ", " & col3_var & ");"
+    );
+  }
+
+
+  String* tagged_value_import_code(TaggedInterType tagged_type, String expr, String action_prefix) {
+    return import_code(:generic, expr, action_prefix) if tagged_type == :generic;
+    out_var = new_unique_var(:unused);
+    code = ("Cell.Runtime.Obj " & out_var & ";");
+    code = code & import_code(untagged_type(tagged_type), expr, out_var & " = ");
+    tag = object(type_tag(tagged_type));
+    instr = action_prefix & "Cell.Runtime.Builder.CreateTaggedObj(" & symb_id_qual_name(tag) & ", " & out_var & ");";
+    return (code | instr);
+  }
+
+
+  String* optional_value_import_code(InterType inner_type, String expr, String action_prefix) {
+    if is_boxed_if_opt(inner_type) {
+      unboxed_type = input_arg_type(inner_type);
+      adj_expr = new_unique_var(:unused);
+      code = (unboxed_type & " " & adj_expr & " = (" & unboxed_type & ") " & expr & ";");
+    }
+    else {
+      code = ();
+      adj_expr = expr;
+    }
+
+    tmp_var = new_unique_var(:unused);
+    code = (code | "Cell.Runtime.Obj " & tmp_var & ";");
+    code = code & import_code(inner_type, adj_expr, tmp_var & " = ");
+
+    return (
+      "if (" & expr & " != null) {",
+    ) & indent_lines(code) & (
+      "  " & action_prefix & "Cell.Runtime.Builder.CreateTaggedObj(Cell.Runtime.SymbObj.JustSymbId, " & tmp_var & ");",
+      "}",
+      "else",
+      "  " & action_prefix & "Cell.Runtime.SymbObj.Get(Cell.Runtime.SymbObj.NothingSymbId);"
+    );
+  }
+}

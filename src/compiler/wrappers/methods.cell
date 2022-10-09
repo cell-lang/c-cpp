@@ -1,0 +1,162 @@
+////////////////////////////////////////////////////////////////////////////////
+/////////////// Code shared between static and reactive automata ///////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String*, String*) method_wrapper(MethodId method_id, <CompiledMethod, OptCompMethod> method,
+    <AutoSymbol, DBSymbol> block_name, String ext_name, String class_name, String method_path) {
+    args_inter_types = (interface_type(t, :input) : t <- method.args_types);
+    inter_ret_type = interface_type(method.ret_type, :output);
+
+    // Argument names, as seen by the user
+    args_ids = match (method)
+      compiled_method() = (if a != nothing then user_name_symbol(value(a)) else nothing : a <- method.args_vars),
+      opt_comp_method() = (user_name_symbol(v) : v <- method.args);
+    // Making sure that there are no two named arguments have the same name
+    // which is supposed to be checked during well-formedness checking
+    assert duplicates((value(a) : a <- args_ids, a != nothing)) == [];
+    args_names_map = adjusted_unambiguous_lower_camel_case_names(set(values(args_ids)));
+    args_names = (
+      if id != nothing
+        then args_names_map(value(id))
+        else "arg" & _print_(i)
+      : id @ i <- args_ids
+    );
+
+    input_args_types = (input_arg_type(it) : it <- args_inter_types);
+    args_decls = append((it & " " & args_names(i) : it @ i <- input_args_types), ", ");
+
+    ret_val_str = qualified_return_type(inter_ret_type);
+
+
+    arity = |method.args_types|;
+    memb_preds = method.args_memb_preds;
+    args_types_by_pos = ([ps(i) : ps <- memb_preds] : i < arity);
+    monomorphic_args = ((i, only(ts)) : ts @ i <- args_types_by_pos, |ts| == 1);
+    polymorphic_args = isort([i : ts @ i <- args_types_by_pos, |ts| != 1]);
+
+    args_obj_vars = (new_unique_var(:unused) : _ < arity);
+
+    body = if arity > 0
+      then ("Cell.Runtime.Obj " & append(args_obj_vars, ", ") & ";", "")
+      else ();
+
+    body = body & join((
+      import_code(it, args_names(i), args_obj_vars(i) & " = ")
+      : it @ i <- args_inter_types
+    ));
+
+    for i, p <- monomorphic_args {
+      var_name = args_obj_vars(i);
+      cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
+      type_user_repr = user_repr(method.args_types(i)); ## THIS SHOULD BE ESCAPED
+      body = (body | "if (!" & cond_str & ")");
+      exception_args = _print_(i) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
+      body = (body | "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+    }
+
+    if polymorphic_args != () {
+      if |polymorphic_args| == 1 {
+        arg_idx = only(polymorphic_args);
+        var_name = args_obj_vars(arg_idx);
+        type_user_repr = user_repr(method.args_types(arg_idx)); ## THIS SHOULD BE ESCAPED
+        exception_args = _print_(arg_idx) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
+        check_code = ("throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+
+      }
+      else {
+        args_list = append((_print_(i+1) : i <- polymorphic_args), ", ");
+        ## REPLACE THIS EXCEPTION WITH ONE THAT IS MORE INFORMATIVE,
+        ## JUST LIKE WHAT WAS DONE WITH MONOMORPHIC ARGUMENTS
+        check_code = ("throw new System.Exception(\"Invalid types for arguments " & args_list & "\");");
+      }
+
+      vars_names = [i -> args_obj_vars(i) : i <- polymorphic_args];
+
+      for s <- method.args_memb_preds {
+        neg_conds_strs = (
+          "!" & native_fn_name(s(i), context = :wrapper) & "(" & vars_names(i) & ")"
+          : i <- polymorphic_args
+        );
+        neg_cond_str = append(neg_conds_strs, " || ");
+        check_code = ("if (" & append(neg_conds_strs, " || ") & ")",) & indent_lines(check_code);
+      }
+
+      body = body & check_code;
+    }
+
+    full_method_name = method_path & user_def_method_name(block_name, method_id);
+
+    body = body & (
+      "try {",
+      "  Cell.Runtime.Obj _r = " & method_call(method, full_method_name, args_obj_vars) & ";"
+      ) & indent_lines(export_code(inter_ret_type, "_r", "return ")) & (
+      "}",
+      "catch (System.Exception _e) {",
+      "  env = new Cell.Generated.Static.Env();",
+      "  throw _e;",
+      "}"
+    );
+
+    sgn = "public " & ret_val_str & " " & ext_name & "(" & args_decls & ") {";
+    code = ("", sgn) & indent_lines(body) & ("}");
+    bare_types = (remove_path(s) : s <- input_args_types);
+    expl_args_names = (if id != nothing then " " & args_names_map(value(id)) else "" : id @ i <- args_ids);
+    args_decls_docs = (bare_types(i) & expl_args_names(i) : i < |bare_types|);
+    docs = remove_path(ret_val_str) & " " & ext_name & "(" & append(args_decls_docs, ", ") & ");";
+
+    return (code, (docs));
+  }
+}
+
+
+String method_call(CompiledMethod method, String method_name, String* args_obj_vars) =
+  method_name & "(" & append((args_obj_vars | "env"), ", ") & ")";
+
+
+String method_call(OptCompMethod method, String method_name, String* args_obj_vars) {
+  converted_args = (obj_to_repr(low_level_repr(a), args_obj_vars(i)) : a @ i <- method.args);
+  pre_call = method_name & "(" & append((converted_args | "env"), ", ") & ")";
+  return repr_to_obj(method.ret_val_repr, pre_call);
+}
+
+
+String obj_to_repr(AnyLowLevelRepr repr, String expr) =
+  bool                = expr & ".GetBool()",
+  int                 = expr & ".GetLong()",
+  float               = expr & ".GetDouble()",
+  symbol              |
+  array()             |
+  object              = expr,
+  opt_tag_rec_repr()  = "(" & opt_tag_rec_name(repr.tag, repr.index, context=:wrapper) & ") " & expr;
+
+
+String repr_to_obj(AnyLowLevelRepr repr, String expr) =
+  bool                = "Cell.Runtime.SymbObj.Get(" & expr & ")",
+  int                 = "Cell.Runtime.IntObj.Get("  & expr & ")",
+  float               = "new Cell.Runtime.FloatObj(" & expr & ")",
+  symbol              |
+  array()             |
+  object              |
+  opt_tag_rec_repr()  = expr;
+
+
+Maybe[Symbol] user_name_symbol(StdVar var) =
+  var(s?) = just(s);
+
+Maybe[Symbol] user_name_symbol(LocBoolVar var) =
+  bvar(<+> s?)  = just(s),
+  bvar(<*..*>)  = nothing;
+
+Maybe[Symbol] user_name_symbol(LocIntVar var) =
+  ivar(<+> s?)  = just(s),
+  ivar(<*..*>)  = nothing;
+
+Maybe[Symbol] user_name_symbol(LocFloatVar var) =
+  fvar(<+> s?)  = just(s),
+  fvar(<*..*>)  = nothing;
+
+Maybe[Symbol] user_name_symbol(LocOptTagRecVar var) =
+  if var.id :: Symbol then just(var.id) else nothing;
+
+Nothing user_name_symbol(<FnArg, BoolFnArg, IntFnArg, FloatFnArg, OptTagRecFnArg>) = nothing;

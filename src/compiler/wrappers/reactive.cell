@@ -1,0 +1,366 @@
+implicit prg : CompiledPrg, block : ReactBlock {
+  String auto_class_name = safe_class_name(block.name);
+  String auto_struct_ptr = "((" & native_name(block.name) & " *) ptr)";
+
+  [String] duplicate_names {
+    inputs = keys(block.inputs);
+    inputs_names = ("Set" & upper_camel_case(id) : id <- isort(inputs));
+    outputs = keys(block.outputs) - inputs;
+    outputs_names = (safe_lower_camel_case(id) : id <- isort(outputs));
+    return duplicates(inputs_names & outputs_names);
+  }
+
+  String safe_setter_name(Symbol input_signal) {
+    name = upper_camel_case(input_signal);
+    name = capitalize(_print_(input_signal), true) if in(name, duplicate_names);
+    name = "_" & name if has_conflicts(name);
+    return name;
+  }
+
+  String safe_name(Symbol signal) {
+    name = safe_upper_camel_case(signal);
+    name = capitalize(_print_(signal), true) if in(name, duplicate_names); ## MOVE THIS TO A NEW FUNCTION IN utils.cell
+    name = "_" & name if has_conflicts(name);
+    return name;
+  }
+
+  [String] inputs_and_outputs_names = [
+    safe_name(s) : s _ <- block.inputs | s _ <- block.outputs
+  ];
+
+  [String, Nat] duplicate_method_names {
+    method_ids = [id.symbol, id.arity : id _ <- block.methods, not id.id?];
+    native_ids = ((safe_lower_camel_case(bare_id(s)), a) : s, a <- isort(method_ids));
+    return [nid(0), nid(1) : nid <- duplicates(native_ids)];
+  }
+
+  String safe_name(MethodSymbol method_symb, Nat arity) {
+    symbol = bare_id(method_symb);
+    name = safe_lower_camel_case(symbol);
+    // We first check if this conflicts with other method names
+    duplicate_method_names = duplicate_method_names; //## BAD
+    name = capitalize(_print_(symbol), true) if duplicate_method_names(name, arity);
+    // Now we've to deal with conflicts with inputs, outputs and reserved_names
+    name = "__" & name if in(name, inputs_and_outputs_names) or has_conflicts(name);
+    return name;
+  }
+
+  Bool has_conflicts(String name) {
+    return name == auto_class_name or in(name, reserved_names);
+
+    [String] reserved_names = [
+      // Object class constructor
+      "Object",
+
+      // Object class instance methods
+      "Equals",
+      "Equals",
+      "Finalize",
+      "GetHashCode",
+      "GetType",
+      "MemberwiseClone",
+      "ReferenceEquals",
+      "ToString",
+
+      // Always present methods
+      "ReadState",
+      "SetState",
+      "Execute",
+
+      // Automata reserved names
+      "Input",
+      "Output",
+
+      // Standard automaton methods
+      "Apply",
+      "ReadState",
+      "SetState",
+      "SetElapsedMillisecs",
+      "SetElapsedSecs",
+      "InternalSetInput",
+      "SetInput",
+      "ReadOutput",
+      "ChangedOutputs"
+    ];
+  }
+}
+
+
+implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String*, String*) input_setter(Atom id) {
+    type = block.inputs[id].type;
+    inter_type = interface_type(type, :input);
+    // return ((), ()) if inter_type == :generic;
+    input_type = input_arg_type(inter_type);
+
+    name = safe_setter_name(id);
+    uc_name = uppercase(id);
+
+    code = (
+      "",
+      "public " & input_type & " " & name & " {",
+      "  set {",
+      "    Cell.Runtime.Obj obj;"
+    ) & indent_lines(indent_lines(import_code(inter_type, "value", "obj = "))) & (
+      "    InternalSetInput(Input." & uc_name & ", obj);",
+      "  }",
+      "}"
+    );
+
+    docs = "  " & remove_path(input_type) & " " & name & ";";
+
+    return (code, (docs));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  (String*, String*) output_getter(Atom id) {
+    output = block.outputs[id];
+    type = output.type;
+    inter_type = interface_type(type, :output);
+    ret_type = qualified_return_type(inter_type);
+    name = safe_name(id);
+    var_name = native_var_decl_name(signal_var(id), context=:wrapper);
+
+    code = (
+      "",
+      "public " & ret_type & " " & name & " {",
+      "  get {",
+      "    Cell.Runtime.Obj obj = automaton." & var_name & ";",
+      "    if (obj.IsNullObj())",
+      "      throw new System.Exception(\"Output is undefined\");",
+      "    if (obj.IsBlankObj())" if output.discrete,
+      "      throw new System.Exception(\"Discrete output is not set\");" if output.discrete
+    ) & indent_lines(indent_lines(export_code(inter_type, "obj", "return "))) & (
+      "  }",
+      "}"
+    );
+
+    docs = "  " & remove_path(ret_type) & " " & name & ";";
+
+    return (code, (docs));
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String*, String*) auto_method_wrapper(MethodId method_id, CompiledMethod method) {
+    return ((), ()) if method_id.id?;
+    name = safe_name(method_id.symbol, method_id.arity);
+    return method_wrapper(method_id, method, block.name, name, auto_class_name, "automaton.");
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+[NeType] interface_types(ReactBlock block) {
+  inputs_types = [info.type : id info <- block.inputs];
+  outputs_types = [info.type : id info <- block.outputs];
+  methods_types = union([set(m.args_types) & [m.ret_type] : id m <- block.methods]);
+  return inputs_types & outputs_types & methods_types;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String, Text, String*) react_auto_wrapper(ReactBlock block) {
+    ord_inputs = block.ord_inputs;
+    ord_outputs = (o : o <- block.ord_outputs, not block.inputs(o, _));
+
+    inputs = (uppercase(i) : i <- ord_inputs);
+    outputs = (uppercase(o) : o <- ord_outputs, not block.inputs(o, _));
+
+    is_time_sensitive = block.memb_vars(elapsed_time); ## BAD BAD: NOT A RELIABLE WAY TO DO IT...
+    apply_ret_type = if is_time_sensitive then "bool" else "void";
+
+    auto_name = native_name(block.name);
+
+    pre_init_method_name = pre_init_method_name(block.name);
+    cleanup_method_name = cleanup_method_name(block.name);
+    apply_method_name = apply_method_name(block.name);
+
+    let context = :wrapper {
+      input_set_methods_names = (input_set_method_name(block.name, i) : i <- ord_inputs);
+      output_vars_names = (native_var_decl_name(signal_var(o)) : o <- ord_outputs);
+
+      input_memb_test_pred_name = (native_fn_name(block.input_memb_preds[i]) : i <- ord_inputs);
+
+      elapsed_time_var_name = native_var_decl_name(elapsed_time);
+      changed_outputs_count_var_name = native_var_decl_name(changed_outputs_count);
+    }
+
+    methods = block.methods;
+    let block = block {
+      input_setters, input_setters_docs = (join(ls) : ls <- unzip((input_setter(i) : i <- ord_inputs)));
+      output_getters, output_getters_docs = (join(ls) : ls <- unzip((output_getter(o) : o <- ord_outputs)));
+      methods_wrappers, methods_wrappers_docs = (
+        join(ls) : ls <- unzip(isort([auto_method_wrapper(id, m) : id m <- methods]))
+      );
+    }
+
+    input_enum_docs = if inputs == ()
+        then ()
+      else if sum((length(i) : i <- inputs)) <= 80
+        then ("enum Input {" & append(inputs, ", ") & "};")
+      else
+        ("enum Input {") & ("    " & i & "," : i <- inputs) & ("  };");
+
+    output_enum_docs = if outputs == ()
+        then ()
+      else if sum((length(o) : o <- inputs)) <= 80
+        then ("enum Output {" & append(outputs, ", ") & "};")
+      else
+        ("enum Output {") & ("    " & o & "," : o <- outputs) & ("  };");
+
+    enum_empty_line = ("" if input_enum_docs != () and output_enum_docs != ());
+    enums_docs = input_enum_docs & enum_empty_line & output_enum_docs;
+    enums_decls = (if i == 0 then "public " & l else l : l @ i <- input_enum_docs) &
+                  enum_empty_line &
+                  (if i == 0 then "public " & l else l : l @ i <- output_enum_docs);
+
+    auto_class_name = auto_class_name(block = block);
+
+    docs = (
+      "class " & auto_class_name & " {",
+    ) & indent_lines(enums_docs) & (
+      "",
+      "  " & auto_class_name & "();",
+      "",
+      "  void SetInput(Input input, String value);" if inputs != (),
+      "  string ReadOutput(Output output);" if outputs != (),
+      "" if is_time_sensitive,
+      "  void SetElapsedMillisecs(int);" if is_time_sensitive,
+      "  void SetElapsedSecs(int);" if is_time_sensitive,
+      "",
+      "  " & apply_ret_type & " apply();",
+      "  string ReadState();",
+      "  void SetState(String);",
+      "",
+      "  Output[] ChangedOutputs();" if outputs != ()
+    );
+
+    docs = docs & ("", "  // Inputs") & input_setters_docs if input_setters_docs != ();
+    docs = docs & ("", "  // Outputs") & output_getters_docs if output_getters_docs != ();
+    docs = docs & ("", "  // Methods") & indent_lines(methods_wrappers_docs) if methods_wrappers_docs != ();
+    docs = (docs | "}");
+
+    code = enums_decls & (
+      "" if enums_decls != (),
+      "Cell.Generated.Static.Env env;",
+      "Cell.Generated.Static." & auto_name & " automaton;",
+      "",
+      "public " & auto_class_name & "() {",
+      "  env = new Cell.Generated.Static.Env();",
+      "  automaton = new Cell.Generated.Static." & auto_name & "(env);", ## WHY IS env NEEDED HERE? AND WHAT HAPPENS IF AN EXCEPTION IS THROWN?
+      "}",
+      "",
+      "public " & apply_ret_type & " Apply() {",
+      "  automaton.Apply(env);",
+      "  return automaton.elapsed_time == 0;" if is_time_sensitive,
+      "}",
+      "",
+      "public string ReadState() {",
+      "  return Cell.Runtime.Conversions.ExportAsText(automaton.CopyState());",
+      "}",
+      "",
+      "public void SetState(string str) {",
+      "  if (automaton.is_new)",
+      "    throw new System.Exception(\"Cannot set state: automaton instance is not new\");",
+      "  Cell.Runtime.Obj obj = Cell.Runtime.Conversions.ConvertText(str);",
+      "  if (!" & native_fn_name(block.state_memb_pred, context=:wrapper) & "(obj))",
+      "    throw new System.Exception(\"Invalid state\");",
+      "  automaton.SetState(obj);",
+      "}"
+    );
+
+    if is_time_sensitive {
+      code = code & (
+        "",
+        "public void SetElapsedMillisecs(int time) {",
+        "  if (automaton.is_new | automaton.elapsed_time > 0)",
+        "    throw new System.Exception(\"Cannot set elapsed time now\");",
+        "  if (time < 0)",
+        "    throw new System.Exception(\"Time cannot be negative\");",
+        "  automaton.elapsed_time = 1000000L * time;",
+        "}",
+        "",
+        "public void SetElapsedSecs(int time) {",
+        "  SetElapsedMillisecs(1000 * time);",
+        "}"
+      );
+    }
+
+    if inputs != () {
+      code = code & (
+        "",
+        "void InternalSetInput(Input input, Cell.Runtime.Obj obj) {",
+        "  switch (input) {"
+      );
+      for input @ j <- inputs {
+        code = code & (
+          "" if j > 0,
+          "    case Input." & input & ":",
+          "      if (" & input_memb_test_pred_name(j) & "(obj)) {",
+          "        automaton." & input_set_methods_names(j) & "(obj);",
+          "        return;",
+          "      }",
+          "      break;"
+        );
+      }
+      code = (code |
+        "  }",
+        "  System.Environment.Exit(1); // Internal error",
+        "}",
+        "",
+        "public void SetInput(Input input, string value) {",
+        "  InternalSetInput(input, Cell.Runtime.Conversions.ConvertText(value));",
+        "}"
+      );
+    }
+
+    if outputs != () {
+      code = code & (
+        "",
+        "public Output[] ChangedOutputs() {",
+        "  int count = (int) automaton.changedOutputsCount;",
+        "  Output[] outputs = new Output[count];",
+        // "  Output[] values = Output.values();", ## THIS SHOULD BE MADE MORE EFFICIENT
+        "  for (int i=0 ; i < count ; i++)",
+        "    outputs[i] = (Output) automaton.changedOutputs[i];",
+        "  return outputs;",
+        "}",
+        "",
+        "public string ReadOutput(Output output) {",
+        "  Cell.Runtime.Obj obj = null;",
+        "  switch (output) {"
+      );
+      for output @ i <- outputs {
+        code = code & (
+          "" if i > 0,
+          "    case Output." & output & ":",
+          "      obj = automaton." & output_vars_names(i) & ";",
+          "      break;"
+        );
+      }
+      code = code & (
+        "  }",
+        "  return Cell.Runtime.Conversions.ExportAsText(obj);",
+        "}"
+      );
+    }
+
+    code = code & input_setters & output_getters & methods_wrappers;
+    code = (
+      "public class " & auto_class_name & " {",
+      code,
+      "}"
+    );
+
+    return (auto_class_name, code, docs);
+  }
+}

@@ -1,0 +1,82 @@
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  String* gen_inter_types_decls {
+    type_decls, subtype_decls = inter_types_decls;
+
+    native_decls = ();
+    for intertypes <- topological_sort(group_by_left_arg(subtype_decls))
+      for intertype <- isort(intertypes)
+        if not type_decls(intertype, _) {
+          parents = isort([gen_class_name(p) : p <- subtype_decls(intertype, ?)]);
+          inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
+          native_decls = (native_decls | "") if native_decls != ();
+          native_decls = (native_decls |
+            "public interface " & gen_class_name(intertype) & inheritance_list & " {",
+            "",
+            "}"
+          );
+        }
+
+    for ts tdef <- type_decls {
+      parents = isort([gen_class_name(p) : p <- subtype_decls(ts, ?)]);
+      native_decl = native_inter_type_decl(tdef, gen_class_name(ts), parents);
+      native_decls = native_decls & native_decl;
+    }
+
+    return native_decls;
+  }
+
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* native_inter_type_decl(DeclTaggedInterType inter_type, String class_name, String* parents) =
+    tagged(_, t?) = native_inter_type_decl(t, class_name, parents);
+
+
+  String* native_inter_type_decl(RecordInterType inter_type, String class_name, String* parents) {
+    fields = untag(inter_type);
+    labels = [s : s _ <- fields];
+    fields_names = adjusted_unambiguous_lower_camel_case_names(labels);
+    labels = sort_record_labels(labels);
+    fields_types = (return_value_type(fields(l)) : l <- labels);
+    max_len = max([length(t) : t <- fields_types]);
+    inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
+    lines = ("", "public partial class " & class_name & inheritance_list &  " {");
+    for l @ i <- labels {
+      name = fields_names(l);
+      type = fields_types(i);
+      spaces = string((` ` : _ < max_len - length(type) + 1));
+      line = "  public " & type & spaces & name & ";";
+      lines = (lines | line);
+    }
+
+    ctor_args = (fields_types(i) & " " & fields_names(l) : l @ i <- labels);
+    lines = (lines | "", "  public " & class_name & "(" & append(ctor_args, ", ") & ") {");
+    for l <- labels {
+      name = fields_names(l);
+      lines = (lines | "    this." & name & " = " & name & ";");
+    }
+
+    return (lines | "  }", "}");
+  }
+
+
+  String* native_inter_type_decl(TupleInterType inter_type, String class_name, String* parents) {
+    types = (return_value_type(t) : t <- field_types(inter_type));
+    max_len = max([length(t) : t <- types]);
+    inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
+    lines = ("", "public partial class " & class_name & inheritance_list &  " {");
+    for t @ i <- types {
+      spaces = string((` ` : _ < max_len - length(t) + 1));
+      line = "  public " & t & spaces & "Item" & _print_(i + 1) & ";";
+      lines = (lines | line);
+    }
+
+    ctor_args = (t & " item" & _print_(i + 1) : t @ i <- types);
+    lines = (lines | "", "  public " & class_name & "(" & append(ctor_args, ", ") & ") {");
+    for i < |types|
+      lines = (lines | "    this.Item" & _print_(i + 1) & " = item" & _print_(i + 1) & ";");
+
+    return (lines | "  }", "}");
+  }
+}

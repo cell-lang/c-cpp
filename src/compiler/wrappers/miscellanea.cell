@@ -1,0 +1,34 @@
+Symbol+ sort_record_labels([+Symbol] labels) = isort(labels);
+
+
+implicit typedefs : [TypeName -> NeType] {
+  NeType expand_top_level_type_refs(NeType type) =
+    symb_type()         |
+    atom_type           |
+    integer             |
+    low_ints()          |
+    high_ints()         |
+    int_range()         |
+    float_type          |
+    empty_seq_type      |
+    empty_rel_type      |
+    type_var()          |
+    ne_seq_type()       |
+    ne_set_type()       |
+    ne_map_type()       |
+    ne_bin_rel_type()   |
+    ne_tern_rel_type()  |
+    ne_record_type()    |
+    tuple_type()        |
+    tag_obj_type()      = type,
+    type_ref(ts?)       = expand_top_level_type_refs(cast_ne_type(expand_type_ref(ts, typedefs))),
+    union_type(ts?)     = ne_union_type([expand_top_level_type_refs(t) : t <- ts]);
+}
+
+
+String new_unique_var(<unused>) = "uniqueVar_" & _print_(new_unique_id(:unused));
+Nat new_unique_id(<unused>) = _counter_(:unused);
+
+
+// String symb_id_base_name(<Atom, SymbObj> symb) = symb_id_name(symb, context=:core);
+String symb_id_qual_name(<Atom, SymbObj> symb) = symb_id_name(symb, context=:wrapper);

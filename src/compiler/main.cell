@@ -737,33 +737,24 @@ Nat new_unique_id(<unused>) = _counter_(:unused);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-implicit typedefs : [TypeName -> NeType] {
-  String* gen_inter_types_decls = ();
-}
-
-([], []) inter_types_decls = ([], []);
-
-Text decl_types_export_functs(Any, Any) = undefined;
-
-(String, Text, String*) react_auto_wrapper(ReactBlock block) = undefined;
-(String, String*, String*) static_auto_wrapper(StaticBlock block) = undefined;
+DBSymbol linked_db_var_type(StaticBlock block, LinkedDBVar var) =
+  match (var)
+    linked_db_var(i?) = block.links(i);
 
 ////////////////////////////////////////////////////////////////////////////////
 
 String gen_class_name(Symbol symb) = upper_camel_case(symb);
 
-implicit typedefs : [TypeName -> NeType] {
-  Bool is_declarable(BasicTypeSymbol type_symb) = undefined;
-
-  [BasicTypeSymbol] named_types_to_declare([BasicTypeSymbol] root_symbs) = [];
-
-  [BasicTypeSymbol] all_named_types_to_declare([BasicTypeSymbol] root_symbs) = [];
-
-  Symbol* tags_promoted_to_type_names(BasicTypeSymbol type_symb) = ();
-}
-
+////////////////////////////////////////////////////////////////////////////////
+////////////// ## BAD BAD BAD: TEMPORARY HACK, REMOVE WHEN DONE ## /////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-DBSymbol linked_db_var_type(StaticBlock block, LinkedDBVar var) =
-  match (var)
-    linked_db_var(i?) = block.links(i);
+String update_entry_point_name(DBSymbol db_type) = "UpdateEntryPoint";
+
+implicit context : NativeContext {
+  String native_method_call(Encodable target, String method_name, Encodable* args) =
+    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
+
+  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
+    native_code(res) & " = " & native_method_call(target, method_name, args);
+}

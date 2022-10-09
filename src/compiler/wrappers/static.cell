@@ -1,0 +1,239 @@
+String path_prefix = "automaton.";
+
+
+implicit prg : CompiledPrg, block_name : DBSymbol {
+  String external_name(Symbol name) = sentence_case(name);
+
+  String pretty_name(Symbol name) = safe_upper_camel_case(name);
+
+  String db_class_name = safe_class_name(block_name);
+}
+
+
+implicit prg : CompiledPrg, block_name : DBSymbol, duplicate_names : [String, Nat] {
+  String call_handler_name(Symbol name, Nat arity) =
+    if pretty_name_has_conflicts(name, arity)
+      then "__" & external_name(name) // Fallback name
+      else pretty_name(name);
+
+
+  String call_method_name(MethodId method_id) {
+    bare_id = bare_id(method_id.symbol);
+    return if pretty_name_has_conflicts(bare_id, method_id.arity)
+      then "_" & external_name(bare_id) // Fallback name
+      else pretty_name(bare_id);
+  }
+
+
+  Bool pretty_name_has_conflicts(Symbol member_id, Nat arity) {
+    pretty_name = pretty_name(member_id);
+    builtin_methods = builtin_methods;
+    return pretty_name == db_class_name or
+           builtin_methods(pretty_name, arity) or
+           duplicate_names(pretty_name, arity);
+
+    [String, Nat] builtin_methods = [
+      // Object class constructor
+      "Object",           0;
+
+      // Object class instance methods
+      "Equals",           1;
+      "Equals",           2;
+      "Finalize",         0;
+      "GetHashCode",      0;
+      "GetType",          0;
+      "MemberwiseClone",  0;
+      "ReferenceEquals",  2;
+      "ToString",         0;
+
+      // Always present methods
+      "Load",             1;
+      "Save",             1;
+      "Execute",          1;
+
+      // Always present fields
+      ## BUG: DO THEY CONFLICT WITH METHODS OF ANY ARITY?
+      "OnSuccess",        0;
+      "OnFailure",        0
+    ];
+  }
+}
+
+
+## REMOVE typedefs IF POSSIBLE. IT'S REDUNDANT
+implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], block_name : DBSymbol, duplicate_names : [String, Nat] {
+  (String*, String*) db_method_wrapper(MethodId method_id, <CompiledMethod, OptCompMethod> method) {
+    if not method_id.id? {
+      ext_name = call_method_name(method_id);
+      return method_wrapper(method_id, method, block_name, ext_name, db_class_name, path_prefix);
+    }
+    else
+      return ((), ());
+  }
+
+
+  (String*, String*) handler_wrapper(HandlerId handler_id, HandlerWrapper wrapper) {
+    ext_name = call_handler_name(untag(wrapper.tag), |wrapper.args|);
+    return handler_wrapper(handler_id, wrapper, block_name, ext_name, db_class_name);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  (String*, String*) static_auto_accessors(StaticBlock block) {
+    handlers_wrappers = (handler_wrapper(id, h) : id, h <- isort(block.exported_handlers));
+    handlers_wrappers_code, handlers_wrappers_docs = (join(ls) : ls <- unzip(handlers_wrappers));
+    handlers_wrappers_docs = ("") & handlers_wrappers_docs if handlers_wrappers_docs != ();
+
+    methods_wrappers = isort([db_method_wrapper(id, m) : id m <- block.methods]);
+    methods_wrappers_code, methods_wrappers_docs = (join(ls) : ls <- unzip(methods_wrappers));
+    methods_wrappers_docs = ("") & methods_wrappers_docs if methods_wrappers_docs != ();
+
+    code = handlers_wrappers_code & methods_wrappers_code;
+
+    docs_by_type = (handlers_wrappers_docs, methods_wrappers_docs);
+    docs = join((indent_lines(d) : d <- docs_by_type));
+
+    return (code, docs);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, block_name : DBSymbol {
+  (String, Nat)* pretty_names(StaticBlock block) {
+    handlers_names = ((pretty_name(_untag_(h.tag)), |h.args|) : id, h <- isort(block.exported_handlers));
+    methods_names = (
+      (pretty_name(bare_id(id.symbol)), id.arity) : id, _ <- isort(block.methods), not id.id?
+    );
+    return handlers_names & methods_names;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+[NeType] interface_types(StaticBlock block) {
+  handlers_types = [t : _ h <- block.exported_handlers, (t, _, _, _) <- h.args];
+  methods_types = union([set(m.args_types) & [m.ret_type] : _ m <- block.methods]);
+  return handlers_types & methods_types;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  (String, String*, String*) static_auto_wrapper(StaticBlock block) {
+    let block_name = block.name {
+      dup_names = [id(0), id(1) : id <- duplicates(pretty_names(block))];
+      let duplicate_names = dup_names {
+        accessors_code, accessors_docs = static_auto_accessors(block);
+        class_name = db_class_name;
+      }
+    }
+
+    db_name = native_name(block.name);
+    updater_name = native_auxiliary_name(block.name);
+    has_any_updates = block.msg_memb_pred != nothing;
+
+    links_types = (upper_camel_case(bare_id(l)) : l <- block.links);
+
+    ctor_impl_args = (t & " d" & printed(i) : t @ i <- links_types);
+
+    dep_autos_args_list = append(("d" & printed(i) & ".automaton, " : i < |links_types|));
+    dep_updaters_args_list = append(("d" & printed(i) & ".updater" : i < |links_types|), ", ");
+
+    dep_autos_list = append(("dependee" & printed(i) & ".automaton, " : i < |links_types|));
+    dep_updaters_list = append(("dependee" & printed(i) & ".updater" : i < |links_types|), ", ");
+
+    class_impl = (
+      "public class " & class_name & " {",
+      "  Cell.Generated.Static.Env env;",
+      "  internal Cell.Generated.Static." & db_name & " automaton;",
+      "  internal Cell.Generated.Static." & updater_name & " updater;"
+    );
+
+    for rel_auto_id @ i <- block.links {
+      dep_decl = "  " & safe_class_name(rel_auto_id) & " dependee" & _print_(i) & ";";
+      class_impl = (class_impl | dep_decl);
+    }
+
+    class_impl = (class_impl |
+      "",
+      "  public " & class_name & "(" & append(ctor_impl_args, ", ") & ") {",
+      "    env = new Cell.Generated.Static.Env();",
+      "    automaton = new Cell.Generated.Static." & db_name & "(" & dep_autos_args_list & "env);",
+      "    updater = automaton.NewUpdater(" & dep_updaters_args_list & ");"
+    );
+
+    for rel_auto_id @ i <- block.links {
+      idx_str = _print_(i);
+      class_impl = (class_impl | "    dependee" & idx_str & " = d" & idx_str & ";");
+    }
+
+    class_impl = (class_impl |
+      "  }",
+      "",
+      "  public void Save(System.IO.Stream stream) {",
+      "    " & native_method_call("automaton", write_state_proc_name(block.name), ("Cell.Runtime.IO.DataWriter(stream)"), context=:wrapper),
+      "  }",
+      "",
+      "  public void Load(System.IO.Stream stream) {",
+      "    System.IO.TextReader reader = new System.IO.StreamReader(stream);",
+      "    Cell.Generated.Static." & db_name & " newAutomaton = new Cell.Generated.Static." & db_name & "(" & dep_autos_list & "reader, env);",
+      "    Cell.Generated.Static." & updater_name & " newUpdater = newAutomaton.NewUpdater(" & dep_updaters_list & ");",
+      "",
+      "    automaton = newAutomaton;",
+      "    updater = newUpdater;",
+      "  }"
+    );
+
+    if has_any_updates {
+      class_impl = class_impl & (
+        "",
+        "  public void Execute(string text) {",
+        "    Cell.Runtime.Obj msg = Cell.Runtime.Conversions.ConvertText(text);",
+        "    if (!" & native_fn_name(value_unsafe(block.msg_memb_pred), context=:wrapper) & "(msg))",
+        "      throw new System.Exception(\"Invalid message type\");",
+        "    bool " & native_method_call("ok", "automaton", update_entry_point_name(block.name), ("msg", "updater", "env"), context=:wrapper),
+        "    if (ok) {",
+        "      if (OnSuccess != null)",
+        "        OnSuccess(text);",
+        "    }",
+        "    else {",
+        "      if (OnFailure != null)",
+        "        OnFailure(text);",
+        "      env = new Cell.Generated.Static.Env();",
+        "      throw updater.lastException;",
+        "    }",
+        "  }",
+        "",
+        "  public System.Action<string> OnSuccess;",
+        "  public System.Action<string> OnFailure;",
+        ""
+      );
+    }
+
+    class_impl = class_impl & indent_lines(accessors_code) & ("}") ;
+
+    class_docs = (
+      "class " & class_name & " {",
+      "  " & class_name & "(" & append(ctor_impl_args, ", ") & ");",
+      "",
+      "  void Load(Stream);",
+      "  void Save(Stream);"
+    );
+    if has_any_updates
+      class_docs = (
+        class_docs |
+        "",
+        "  void Execute(string);",
+        "",
+        "  Action<string> OnSuccess;",
+        "  Action<string> OnFailure;"
+      );
+    class_docs = class_docs & accessors_docs if accessors_docs != ();
+    class_docs = (class_docs | "}");
+
+    return (class_name, class_impl, class_docs);
+  }
+}
