@@ -105,7 +105,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     args_decls_docs = (bare_types(i) & expl_args_names(i) : i < |bare_types|);
     docs = remove_path(ret_val_str) & " " & ext_name & "(" & append(args_decls_docs, ", ") & ");";
 
-    return (code, (docs));
+    return ((docs), code);
   }
 }
 

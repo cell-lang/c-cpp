@@ -187,12 +187,13 @@ type PrgData =  prg_data(
   gen_content = gen_content & main_fn(debug_mode) if has_main;
 
   data_exchange_types = data_exchange_types(prg, generated);
-  wrappers_content = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
+  wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
 
   return [
     "generated.cpp" -> flatten(gen_content),
     "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
-    "automata.cpp"  -> flatten(wrappers_content) if not has_main
+    "generated.h"   -> (flatten(wrappers_decls) | "") if not has_main and wrappers_decls != (),
+    "automata.cpp"  -> flatten(wrappers_impls) if not has_main
   ];
 }
 
@@ -210,29 +211,32 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
   );
 }
 
-Text wrappers_content(CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated, StaticBlock* ord_static_blocks, ReactBlock* ord_react_blocks) {
-  content = (
-    "#pragma warning disable 162, 164, 168, 169, 219",
-    "",
-    "namespace Cell.Automata {"
-  );
+(Text, Text) wrappers_content(CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated, StaticBlock* ord_static_blocks, ReactBlock* ord_react_blocks) {
+  // content = (
+  //   "namespace Cell.Automata {"
+  // );
 
-  rel_auto_wrappers = rel_auto_wrappers(ord_static_blocks, prg, prg_data, generated);
-  if rel_auto_wrappers != ()
-    content = (content | ("// Facades for relational automata", "", rel_auto_wrappers));
+  decls = ();
+  impls = ();
 
-  react_auto_wrappers = react_auto_wrappers(ord_react_blocks, prg, generated);
-  if react_auto_wrappers != ()
-    content = (content | "// Facades for reactive automata", "", react_auto_wrappers);
+  rel_auto_wrappers_decls, rel_auto_wrappers_impls = rel_auto_wrappers(ord_static_blocks, prg, prg_data, generated);
+  if rel_auto_wrappers_decls != ()
+    decls = (decls | ("// Facades for relational automata", "", rel_auto_wrappers_decls));
+  if rel_auto_wrappers_impls != ()
+    impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
 
-  content = (content | "}");
+  react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
+  if react_auto_wrappers_decls != ()
+    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
+  if react_auto_wrappers_impls != ()
+    impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
   let prg = prg, typedefs = prg.typedefs, generated = generated {
     types_decls, hierarchy = inter_types_decls;
     if types_decls != [] {
       conv_fns = decl_types_export_functs(types_decls, hierarchy);
-      content = (
-        content |
+      impls = (
+        impls |
         "",
         "",
         "namespace Cell.Generated {",
@@ -246,21 +250,21 @@ Text wrappers_content(CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] gener
     }
   }
 
-  return content;
+  return (decls, impls);
 }
 
 
-Text rel_auto_wrappers(StaticBlock* ord_static_blocks, CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated) {
+(Text, Text) rel_auto_wrappers(StaticBlock* ord_static_blocks, CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated) {
   let prg = prg, prg_data = prg_data, typedefs = prg.typedefs, generated = generated
     rel_auto_wrappers = (static_auto_wrapper(b) : b <- ord_static_blocks);
-  return (code : _, code, _ <- rel_auto_wrappers);
+  return unzip(((decl, impl) : _, decl, impl <- rel_auto_wrappers));
 }
 
 
-Text react_auto_wrappers(ReactBlock* ord_react_blocks, CompiledPrg prg, [BasicTypeSymbol] generated) {
+(Text, Text) react_auto_wrappers(ReactBlock* ord_react_blocks, CompiledPrg prg, [BasicTypeSymbol] generated) {
   let prg = prg, typedefs = prg.typedefs, generated = generated
     react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
-  return (code : _, code, _ <- react_auto_wrappers);
+  return unzip(((decl, impl) : _, decl, impl <- react_auto_wrappers));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

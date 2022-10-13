@@ -1,7 +1,5 @@
 implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
-  (String*, String*) handler_wrapper(HandlerId, HandlerWrapper wrapper,
-                                     DBSymbol block_name, String ext_name, String class_name)
-  {
+  (String*, String*) handler_wrapper(HandlerId handler_id, NeType msg_type, HandlerWrapper wrapper, DBSymbol block_name, String ext_name, String class_name, String typed_ptr_def) {
     fields_types, fields_vars, fields_cond_vars, fields_memb_preds = unzip4(wrapper.args);
     arity = |fields_vars|;
     optional = (v != nothing : v <- fields_cond_vars);
@@ -23,15 +21,16 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
 
     code = (
       "",
-      "public void " & ext_name & "(" & append(args_decls, ", ") & ") {"
+      "void " & class_name & "::" & ext_name & "(" & append(args_decls, ", ") & ") {",
+      "  " & typed_ptr_def
     );
 
     let context = :wrapper {
       field_vars = (native_var_ref_name(v) : v <- fields_vars);
-      code = (code | "  Cell.Runtime.Obj " & append(field_vars, ", ") & ";") if field_vars != ();
+      code = (code | "  OBJ " & append(field_vars, ", ") & ";") if field_vars != ();
       already_decl_vars = [v : v <- fields_vars];
       code = code & indent_lines(gen_vars_decls(wrapper.msg_inst_code, already_decl_vars));
-      code = (code | "") if |code| > 2;
+      code = (code | "") if |code| > 3;
 
       code = code & join(({
           cond_var = fields_cond_vars(i);
@@ -48,13 +47,13 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
 
             cond_var_name = native_var_ref_name(value(cond_var));
             conv_code = (
-              "if (" & args_names(i) & " != null) {",
+              "if (" & args_names(i) & " != NULL) {",
               "  " & cond_var_name & " = true;"
             ) & indent_lines(non_null_conv_code) & (
               "}",
               "else {",
               "  " & cond_var_name & " = false;",
-              "  " & native_var_ref_name(fields_vars(i)) & " = null;",
+              "  " & native_var_ref_name(fields_vars(i)) & " = NULL;",
               "}"
             );
           }
@@ -71,25 +70,19 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         var_name = native_var_ref_name(fields_vars(i));
         cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
         type_user_repr = "\"" & user_repr(fields_types(i)) & "\""; ## THIS SHOULD BE ESCAPED
-        check_prefix = if optional(i) then var_name & " != null && !" else "!";
+        check_prefix = if optional(i) then var_name & " != NULL && !" else "!";
         code = (code | "if (" & check_prefix & cond_str & ")");
         exception_args = _print_(i) & ", " & var_name & ", " & type_user_repr;
         code = (code | "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
       }
 
+      method_name = native_handler_name(block_name, handler_id, msg_type);
       native_msg_expr = native_expr(wrapper.msg_expr);
       code = (
         code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing)) |
-        "  bool ok = automaton.UpdateEntryPoint(" & native_msg_expr & ", updater, env);",
-        "  if (ok) {",
-        "    if (OnSuccess != null)",
-        "      OnSuccess(" & native_msg_expr & ".ToString());",
-        "  }",
-        "  else {",
-        "    if (OnFailure != null)",
-        "      OnFailure(" & native_msg_expr & ".ToString());",
-        "    env = new Cell.Generated.Static.Env();",
-        "    throw updater.lastException;",
+        "  bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
+        "  if (!ok) {",
+        "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
         "  }",
         "}"
       );
@@ -98,7 +91,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     args_types_docs = (remove_path(s) : s <- args_types);
     if |args_decls| < 5 {
       args_docs = (
-        t & " " & n & if optional(i) then " = null" else ""
+        t & " " & n & if optional(i) then " = NULL" else ""
         : t, n @ i <- zip(args_types_docs, args_names)
       );
       docs = ("void " & ext_name & "(" & append(args_docs, ", ") & ");");
@@ -108,13 +101,13 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       docs = ("void " & ext_name & "(");
       for t, n @ i <- zip(args_types_docs, args_names) {
         arg_doc = "  " & right_padded(t, alignment, ` `) & n;
-        arg_doc = arg_doc & " = null" if optional(i);
+        arg_doc = arg_doc & " = NULL" if optional(i);
         arg_doc = arg_doc & "," if i < arity - 1;
         docs = (docs | arg_doc);
       }
       docs = (docs | ");");
     }
 
-    return (code, docs);
+    return (docs, code);
   }
 }

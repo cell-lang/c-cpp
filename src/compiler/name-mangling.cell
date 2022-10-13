@@ -55,7 +55,7 @@ implicit context : NativeContext {
     str = "OBJ_" & upper_camel_case(tag) & idx_str;
     return match (context)
       core    = str,
-      wrapper = "Cell.Generated.Static." & str;
+      wrapper = str;
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -68,7 +68,7 @@ implicit context : NativeContext {
     str = _print_(symb) & "_A";
     return match (context)
       core    = str,
-      wrapper = "Cell.Generated.Static." & str;
+      wrapper = str;
   }
 
   String symb_id_name(SymbObj symb) =
@@ -458,7 +458,7 @@ implicit context : NativeContext {
     str = native_fn_name(id);
     return match (context)
       core    = str,
-      wrapper = str; // "Cell.Generated.Static." & str;
+      wrapper = str;
 
 
     String native_fn_name(FnId id) =

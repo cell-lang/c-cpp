@@ -72,28 +72,24 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
   }
 
 
-  (String*, String*) handler_wrapper(HandlerId handler_id, HandlerWrapper wrapper) {
+  (String*, String*) handler_wrapper(HandlerId handler_id, NeType msg_type, HandlerWrapper wrapper, String typed_ptr_def) {
     ext_name = call_handler_name(untag(wrapper.tag), |wrapper.args|);
-    return handler_wrapper(handler_id, wrapper, block_name, ext_name, db_class_name);
+    return handler_wrapper(handler_id, msg_type, wrapper, block_name, ext_name, db_class_name, typed_ptr_def);
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  (String*, String*) static_auto_accessors(StaticBlock block) {
-    handlers_wrappers = (handler_wrapper(id, h) : id, h <- isort(block.exported_handlers));
-    handlers_wrappers_code, handlers_wrappers_docs = (join(ls) : ls <- unzip(handlers_wrappers));
-    handlers_wrappers_docs = ("") & handlers_wrappers_docs if handlers_wrappers_docs != ();
+  (String*, String*) static_auto_accessors(StaticBlock block, String typed_ptr_def) {
+    handlers_wrappers = (handler_wrapper(id, block.handlers(id).msg_type, h, typed_ptr_def) : id, h <- isort(block.exported_handlers));
+    handlers_wrappers_decls, handlers_wrappers_impls = (join(ls) : ls <- unzip(handlers_wrappers));
 
     methods_wrappers = isort([db_method_wrapper(id, m) : id m <- block.methods]);
-    methods_wrappers_code, methods_wrappers_docs = (join(ls) : ls <- unzip(methods_wrappers));
-    methods_wrappers_docs = ("") & methods_wrappers_docs if methods_wrappers_docs != ();
+    methods_wrappers_decls, methods_wrappers_impls = (join(ls) : ls <- unzip(methods_wrappers));
 
-    code = handlers_wrappers_code & methods_wrappers_code;
+    decls = handlers_wrappers_decls & methods_wrappers_decls;
+    impls = handlers_wrappers_impls & methods_wrappers_impls;
 
-    docs_by_type = (handlers_wrappers_docs, methods_wrappers_docs);
-    docs = join((indent_lines(d) : d <- docs_by_type));
-
-    return (code, docs);
+    return (decls, impls);
   }
 }
 
@@ -123,117 +119,147 @@ implicit prg : CompiledPrg, block_name : DBSymbol {
 
 implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   (String, String*, String*) static_auto_wrapper(StaticBlock block) {
+    class_name = db_class_name(block_name = block.name);
+    data_struct_name = class_name & "_DATA";
+    typed_ptr_def = data_struct_name & " *ptr = (" & data_struct_name & " *) this->ptr;";
+
     let block_name = block.name {
       dup_names = [id(0), id(1) : id <- duplicates(pretty_names(block))];
-      let duplicate_names = dup_names {
-        accessors_code, accessors_docs = static_auto_accessors(block);
-        class_name = db_class_name;
-      }
+      let duplicate_names = dup_names
+        accessors_decls, accessors_impls = static_auto_accessors(block, typed_ptr_def);
     }
 
     db_name = native_name(block.name);
-    updater_name = native_auxiliary_name(block.name);
+    auxiliary_name = native_auxiliary_name(block.name);
     has_any_updates = block.msg_memb_pred != nothing;
 
     links_types = (upper_camel_case(bare_id(l)) : l <- block.links);
 
     ctor_impl_args = (t & " d" & printed(i) : t @ i <- links_types);
 
-    dep_autos_args_list = append(("d" & printed(i) & ".automaton, " : i < |links_types|));
-    dep_updaters_args_list = append(("d" & printed(i) & ".updater" : i < |links_types|), ", ");
+    dep_autos_args_list = ("d" & printed(i) & ".automaton" : i < |links_types|);
+    dep_auxs_args_list = ("d" & printed(i) & ".auxiliary" : i < |links_types|);
 
-    dep_autos_list = append(("dependee" & printed(i) & ".automaton, " : i < |links_types|));
-    dep_updaters_list = append(("dependee" & printed(i) & ".updater" : i < |links_types|), ", ");
+    dep_autos_list = ("dependee" & printed(i) & ".automaton" : i < |links_types|);
+    dep_auxs_list = ("dependee" & printed(i) & ".auxiliary" : i < |links_types|);
+
+    ctor_sgn = class_name & "(" & append(ctor_impl_args, ", ") & ")";
+
+    // Class declaration
+
+    class_decl = (
+      "class " & class_name & " {",
+      "  private:",
+      "    void *ptr;",
+      "",
+      "  public:",
+      "    " & ctor_sgn & ";",
+      "    ~" & class_name & "();",
+      "",
+      "    void save(const std::string &filename);",
+      "    void load(const std::string &filename);"
+    );
+
+    class_decl = (class_decl | "", "    void execute(const std::string &message);") if has_any_updates;
+    class_decl = (class_decl | "") & indent_lines(accessors_decls, 2) if accessors_decls != ();
+    class_decl = (class_decl | "};");
+
+    // Class implementation
+
+    env_ref = "ptr->env";
+    auto_ref = "&ptr->automaton";
+    aux_ref = "&ptr->auxiliary";
 
     class_impl = (
-      "public class " & class_name & " {",
-      "  Cell.Generated.Static.Env env;",
-      "  internal Cell.Generated.Static." & db_name & " automaton;",
-      "  internal Cell.Generated.Static." & updater_name & " updater;"
+      "#include <string>",
+      "#include <exception>",
+      "",
+      "#include \"generated.cpp\"",
+      "",
+      ""
+      ) & class_decl & (
+      "",
+      "",
+      "struct " & data_struct_name & " {",
+      "  ENV env;",
+      "  " & db_name & " automaton;",
+      "  " & auxiliary_name & " auxiliary;"
     );
 
     for rel_auto_id @ i <- block.links {
-      dep_decl = "  " & safe_class_name(rel_auto_id) & " dependee" & _print_(i) & ";";
-      class_impl = (class_impl | dep_decl);
+      dep_decl = "  " & safe_class_name(rel_auto_id) & " *dependee" & _print_(i) & ";";
+      class_decl = (class_decl | dep_decl);
     }
 
     class_impl = (class_impl |
+      "};",
       "",
-      "  public " & class_name & "(" & append(ctor_impl_args, ", ") & ") {",
-      "    env = new Cell.Generated.Static.Env();",
-      "    automaton = new Cell.Generated.Static." & db_name & "(" & dep_autos_args_list & "env);",
-      "    updater = automaton.NewUpdater(" & dep_updaters_args_list & ");"
+      "",
+      class_name & "::" & ctor_sgn & " {",
+      "  " & data_struct_name & " *ptr = new " & data_struct_name & "();",
+      "  this->ptr = ptr;",
+      "  memset(&ptr->env, 0, sizeof(ENV));",
+      "  " & native_call(init_method_name(block.name), (auto_ref) & dep_autos_args_list & (env_ref), context=:wrapper),
+      "  " & native_call(aux_init_method_name(block.name), (auto_ref, aux_ref) & dep_auxs_args_list, context=:wrapper)
     );
 
     for rel_auto_id @ i <- block.links {
       idx_str = _print_(i);
-      class_impl = (class_impl | "    dependee" & idx_str & " = d" & idx_str & ";");
+      class_impl = (class_impl | "  ptr->dependee" & idx_str & " = d" & idx_str & ";");
     }
 
     class_impl = (class_impl |
+      "}",
+      "",
+      class_name & "::~" & class_name & "() {",
+      "  " & typed_ptr_def,
+      "  " & native_call(cleanup_method_name(block.name), (auto_ref, aux_ref), context=:wrapper),
+      "  delete ptr;",
+      "}",
+      "",
+      "void " & class_name & "::save(const std::string &filename) {",
+      "  " & typed_ptr_def,
+      "  OBJ fname_obj = str_to_obj(filename.c_str());",
+      "  OBJ succeeded = " & native_call(save_state_entry_point_name(block.name), ("fname_obj", auto_ref, aux_ref), context=:wrapper),
+      "  if (!get_bool(succeeded)) {",
+      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
       "  }",
+      "}",
       "",
-      "  public void Save(System.IO.Stream stream) {",
-      "    " & native_method_call("automaton", write_state_proc_name(block.name), ("Cell.Runtime.IO.DataWriter(stream)"), context=:wrapper),
+      "void " & class_name & "::load(const std::string &filename) {",
+      "  " & typed_ptr_def,
+      "  OBJ fname_obj = str_to_obj(filename.c_str());",
+      "  OBJ succeeded = " & native_call(load_state_entry_point_name(block.name), ("fname_obj", auto_ref, aux_ref, env_ref), context=:wrapper),
+      "  if (!get_bool(succeeded)) {",
+      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
       "  }",
-      "",
-      "  public void Load(System.IO.Stream stream) {",
-      "    System.IO.TextReader reader = new System.IO.StreamReader(stream);",
-      "    Cell.Generated.Static." & db_name & " newAutomaton = new Cell.Generated.Static." & db_name & "(" & dep_autos_list & "reader, env);",
-      "    Cell.Generated.Static." & updater_name & " newUpdater = newAutomaton.NewUpdater(" & dep_updaters_list & ");",
-      "",
-      "    automaton = newAutomaton;",
-      "    updater = newUpdater;",
-      "  }"
+      "}"
     );
 
-    if has_any_updates {
-      class_impl = class_impl & (
-        "",
-        "  public void Execute(string text) {",
-        "    Cell.Runtime.Obj msg = Cell.Runtime.Conversions.ConvertText(text);",
-        "    if (!" & native_fn_name(value_unsafe(block.msg_memb_pred), context=:wrapper) & "(msg))",
-        "      throw new System.Exception(\"Invalid message type\");",
-        "    bool " & native_method_call("ok", "automaton", update_entry_point_name(block.name), ("msg", "updater", "env"), context=:wrapper),
-        "    if (ok) {",
-        "      if (OnSuccess != null)",
-        "        OnSuccess(text);",
-        "    }",
-        "    else {",
-        "      if (OnFailure != null)",
-        "        OnFailure(text);",
-        "      env = new Cell.Generated.Static.Env();",
-        "      throw updater.lastException;",
-        "    }",
-        "  }",
-        "",
-        "  public System.Action<string> OnSuccess;",
-        "  public System.Action<string> OnFailure;",
-        ""
-      );
-    }
-
-    class_impl = class_impl & indent_lines(accessors_code) & ("}") ;
-
-    class_docs = (
-      "class " & class_name & " {",
-      "  " & class_name & "(" & append(ctor_impl_args, ", ") & ");",
+    class_impl = class_impl & (
       "",
-      "  void Load(Stream);",
-      "  void Save(Stream);"
-    );
-    if has_any_updates
-      class_docs = (
-        class_docs |
-        "",
-        "  void Execute(string);",
-        "",
-        "  Action<string> OnSuccess;",
-        "  Action<string> OnFailure;"
-      );
-    class_docs = class_docs & accessors_docs if accessors_docs != ();
-    class_docs = (class_docs | "}");
+      "void " & class_name & "::execute(const std::string &message) {",
+      "  uint32 error_offset;",
+      "  OBJ parsed_msg;",
+      "  if (!parse(message.c_str(), message.length(), &parsed_msg, &error_offset)) {",
+      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
+      "  }",
+      "  if (!" & native_fn_name(value_unsafe(block.msg_memb_pred), context=:wrapper) & "(parsed_msg)) {",
+      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
+      "  }",
+      "  " & typed_ptr_def,
+      "  uint32 index = " & native_call(handler_dispatch_resolver_name(block.name), ("parsed_msg"), context=:wrapper),
+      "  bool (*msg_handler)(" & db_name & " *, " & auxiliary_name & " *, OBJ, ENV &) = " & msg_handler_entry_point_array(block.name) & "[index];",
+      "  bool succeeded = " & native_call("msg_handler", (auto_ref, aux_ref, "parsed_msg", env_ref), context=:wrapper),
+      "  if (!succeeded) {",
+      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR (WHICH OUGHT TO BE STORED IN THE AUXILIARY DATA STRUCTURE)
+      "  }",
+      "}"
+    ) if has_any_updates;
 
-    return (class_name, class_impl, class_docs);
+    class_impl = (class_impl | "") & accessors_impls if accessors_impls != ();
+    class_impl = (class_impl | "");
+
+    return (class_name, class_decl, class_impl);
   }
 }

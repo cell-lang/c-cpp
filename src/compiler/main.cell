@@ -735,26 +735,8 @@ String* create_error_msg(ParserError err, String filename) =
 
 Nat new_unique_id(<unused>) = _counter_(:unused);
 
-////////////////////////////////////////////////////////////////////////////////
-
 DBSymbol linked_db_var_type(StaticBlock block, LinkedDBVar var) =
   match (var)
     linked_db_var(i?) = block.links(i);
 
-////////////////////////////////////////////////////////////////////////////////
-
 String gen_class_name(Symbol symb) = upper_camel_case(symb);
-
-////////////////////////////////////////////////////////////////////////////////
-////////////// ## BAD BAD BAD: TEMPORARY HACK, REMOVE WHEN DONE ## /////////////
-////////////////////////////////////////////////////////////////////////////////
-
-String update_entry_point_name(DBSymbol db_type) = "UpdateEntryPoint";
-
-implicit context : NativeContext {
-  String native_method_call(Encodable target, String method_name, Encodable* args) =
-    native_code(target) & "." & method_name & "(" & append((native_code(a) : a <- args), ", ") & ");";
-
-  String native_method_call(Encodable res, Encodable target, String method_name, Encodable* args) =
-    native_code(res) & " = " & native_method_call(target, method_name, args);
-}
