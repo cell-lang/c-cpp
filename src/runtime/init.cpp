@@ -5,5 +5,9 @@ void init_twin_stacks();
 
 
 void init_runtime() {
-  init_twin_stacks();
+  bool initialized = false;
+  if (!initialized) {
+    init_twin_stacks();
+    initialized = true;
+  }
 }

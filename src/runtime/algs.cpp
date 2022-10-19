@@ -169,7 +169,9 @@ uint64 encoded_index_or_insertion_point_in_unique_sorted_array(OBJ *sorted_array
     if (is_inline_obj(obj)) {
       if (len <= 12) {
         for (uint32 i=0 ; i < len ; i++) {
-          int cr = shallow_cmp(sorted_array[i], obj);
+          OBJ elt = sorted_array[i];
+          assert(is_inline_obj(elt) || comp_objs(elt, obj) < 0);
+          int cr = is_inline_obj(elt) ? shallow_cmp(elt, obj) : -1;
           if (cr == 0)
             return i;
           if (cr < 0) // sorted_array[i] > obj
