@@ -98,9 +98,9 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 
     code = (
       "",
-      "public " & input_type & " " & name & " {",
+      input_type & " " & name & " {",
       "  set {",
-      "    Cell.Runtime.Obj obj;"
+      "    OBJ obj;"
     ) & indent_lines(indent_lines(import_code(inter_type, "value", "obj = "))) & (
       "    InternalSetInput(Input." & uc_name & ", obj);",
       "  }",
@@ -125,9 +125,9 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 
     code = (
       "",
-      "public " & ret_type & " " & name & " {",
+      ret_type & " " & name & " {",
       "  get {",
-      "    Cell.Runtime.Obj obj = automaton." & var_name & ";",
+      "    OBJ obj = automaton." & var_name & ";",
       "    if (obj.IsNullObj())",
       "      throw new System.Exception(\"Output is undefined\");",
       "    if (obj.IsBlankObj())" if output.discrete,
@@ -147,10 +147,10 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
-  (String*, String*) auto_method_wrapper(MethodId method_id, CompiledMethod method) {
+  (String*, String*) auto_method_wrapper(MethodId method_id, CompiledMethod method, String typed_ptr_def) {
     return ((), ()) if method_id.id?;
     name = safe_name(method_id.symbol, method_id.arity);
-    return method_wrapper(method_id, method, block.name, name, auto_class_name, "automaton.");
+    return method_wrapper(method_id, method, block.name, name, auto_class_name, typed_ptr_def);
   }
 }
 
@@ -169,6 +169,9 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   (String, Text, String*) react_auto_wrapper(ReactBlock block) {
+    // typed_ptr_def = undefined; ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
+    typed_ptr_def = ""; ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
+
     ord_inputs = block.ord_inputs;
     ord_outputs = (o : o <- block.ord_outputs, not block.inputs(o, _));
 
@@ -199,7 +202,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       input_setters, input_setters_docs = (join(ls) : ls <- unzip((input_setter(i) : i <- ord_inputs)));
       output_getters, output_getters_docs = (join(ls) : ls <- unzip((output_getter(o) : o <- ord_outputs)));
       methods_wrappers, methods_wrappers_docs = (
-        join(ls) : ls <- unzip(isort([auto_method_wrapper(id, m) : id m <- methods]))
+        join(ls) : ls <- unzip(isort([auto_method_wrapper(id, m, typed_ptr_def) : id m <- methods]))
       );
     }
 
@@ -219,9 +222,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     enum_empty_line = ("" if input_enum_docs != () and output_enum_docs != ());
     enums_docs = input_enum_docs & enum_empty_line & output_enum_docs;
-    enums_decls = (if i == 0 then "public " & l else l : l @ i <- input_enum_docs) &
-                  enum_empty_line &
-                  (if i == 0 then "public " & l else l : l @ i <- output_enum_docs);
+    enums_decls = input_enum_docs & enum_empty_line & output_enum_docs;
 
     auto_class_name = auto_class_name(block = block);
 
@@ -254,24 +255,24 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "Cell.Generated.Static.Env env;",
       "Cell.Generated.Static." & auto_name & " automaton;",
       "",
-      "public " & auto_class_name & "() {",
+      auto_class_name & "() {",
       "  env = new Cell.Generated.Static.Env();",
       "  automaton = new Cell.Generated.Static." & auto_name & "(env);", ## WHY IS env NEEDED HERE? AND WHAT HAPPENS IF AN EXCEPTION IS THROWN?
       "}",
       "",
-      "public " & apply_ret_type & " Apply() {",
+      apply_ret_type & " Apply() {",
       "  automaton.Apply(env);",
       "  return automaton.elapsed_time == 0;" if is_time_sensitive,
       "}",
       "",
-      "public string ReadState() {",
+      "string ReadState() {",
       "  return Cell.Runtime.Conversions.ExportAsText(automaton.CopyState());",
       "}",
       "",
-      "public void SetState(string str) {",
+      "void SetState(string str) {",
       "  if (automaton.is_new)",
       "    throw new System.Exception(\"Cannot set state: automaton instance is not new\");",
-      "  Cell.Runtime.Obj obj = Cell.Runtime.Conversions.ConvertText(str);",
+      "  OBJ obj = Cell.Runtime.Conversions.ConvertText(str);",
       "  if (!" & native_fn_name(block.state_memb_pred, context=:wrapper) & "(obj))",
       "    throw new System.Exception(\"Invalid state\");",
       "  automaton.SetState(obj);",
@@ -281,7 +282,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     if is_time_sensitive {
       code = code & (
         "",
-        "public void SetElapsedMillisecs(int time) {",
+        "void SetElapsedMillisecs(int time) {",
         "  if (automaton.is_new | automaton.elapsed_time > 0)",
         "    throw new System.Exception(\"Cannot set elapsed time now\");",
         "  if (time < 0)",
@@ -289,7 +290,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "  automaton.elapsed_time = 1000000L * time;",
         "}",
         "",
-        "public void SetElapsedSecs(int time) {",
+        "void SetElapsedSecs(int time) {",
         "  SetElapsedMillisecs(1000 * time);",
         "}"
       );
@@ -298,7 +299,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     if inputs != () {
       code = code & (
         "",
-        "void InternalSetInput(Input input, Cell.Runtime.Obj obj) {",
+        "void InternalSetInput(Input input, OBJ obj) {",
         "  switch (input) {"
       );
       for input @ j <- inputs {
@@ -317,7 +318,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "  System.Environment.Exit(1); // Internal error",
         "}",
         "",
-        "public void SetInput(Input input, string value) {",
+        "void SetInput(Input input, string value) {",
         "  InternalSetInput(input, Cell.Runtime.Conversions.ConvertText(value));",
         "}"
       );
@@ -326,7 +327,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     if outputs != () {
       code = code & (
         "",
-        "public Output[] ChangedOutputs() {",
+        "Output[] ChangedOutputs() {",
         "  int count = (int) automaton.changedOutputsCount;",
         "  Output[] outputs = new Output[count];",
         // "  Output[] values = Output.values();", ## THIS SHOULD BE MADE MORE EFFICIENT
@@ -335,8 +336,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "  return outputs;",
         "}",
         "",
-        "public string ReadOutput(Output output) {",
-        "  Cell.Runtime.Obj obj = null;",
+        "string ReadOutput(Output output) {",
+        "  OBJ obj = make_blank_obj();", ## BUG BUG BUG: NOT SURE IF IT'S A BLANK OR A NULL WE NEED HERE
         "  switch (output) {"
       );
       for output @ i <- outputs {
@@ -356,7 +357,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     code = code & input_setters & output_getters & methods_wrappers;
     code = (
-      "public class " & auto_class_name & " {",
+      "class " & auto_class_name & " {",
       code,
       "}"
     );

@@ -17,7 +17,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     args_names = (args_names_map(l) : l <- fields_ids);
 
     args_types = (input_arg_type(it, optional(i)) : it @ i <- args_inter_types);
-    args_decls = (it & " " & args_names(i) & if optional(i) then " = null" else "" : it @ i <- args_types);
+    args_decls = (it & " " & args_names(i) : it @ i <- args_types);
 
     code = (
       "",
@@ -35,16 +35,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       code = code & join(({
           cond_var = fields_cond_vars(i);
           if cond_var != nothing {
-            if is_boxed_if_opt(it) {
-              tmp_var = new_unique_var(:unused);
-              nonboxed_type = input_arg_type(it, false);
-              non_null_conv_code = (
-                nonboxed_type & " " & tmp_var & " = (" & nonboxed_type & ") " & args_names(i) & ";",
-              ) & import_code(it, tmp_var, field_vars(i) & " = ");
-            }
-            else
-              non_null_conv_code = import_code(it, args_names(i), field_vars(i) & " = ");
-
+            non_null_conv_code = import_code(it, "(*" & args_names(i) & ")", field_vars(i) & " = ");
             cond_var_name = native_var_ref_name(value(cond_var));
             conv_code = (
               "if (" & args_names(i) & " != NULL) {",
@@ -53,7 +44,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
               "}",
               "else {",
               "  " & cond_var_name & " = false;",
-              "  " & native_var_ref_name(fields_vars(i)) & " = NULL;",
+              "  " & native_var_ref_name(fields_vars(i)) & " = make_blank_obj();",
               "}"
             );
           }
@@ -70,10 +61,10 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         var_name = native_var_ref_name(fields_vars(i));
         cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
         type_user_repr = "\"" & user_repr(fields_types(i)) & "\""; ## THIS SHOULD BE ESCAPED
-        check_prefix = if optional(i) then var_name & " != NULL && !" else "!";
-        code = (code | "if (" & check_prefix & cond_str & ")");
+        check_prefix = if optional(i) then "!is_blank(" & var_name & ") && !" else "!";
+        code = (code | "  if (" & check_prefix & cond_str & ")");
         exception_args = _print_(i) & ", " & var_name & ", " & type_user_repr;
-        code = (code | "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+        code = (code | "    throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
       }
 
       method_name = native_handler_name(block_name, handler_id, msg_type);
@@ -82,7 +73,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing)) |
         "  bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
         "  if (!ok) {",
-        "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
+        "    throw std::exception();", ## TODO: ADD ERROR INFORMATION
         "  }",
         "}"
       );

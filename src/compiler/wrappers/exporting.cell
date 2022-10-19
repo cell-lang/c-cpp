@@ -1,52 +1,53 @@
 implicit prg : CompiledPrg {
   String* export_code(InterType it, String expr, String action_prefix) =
-    bool                    = (action_prefix & expr & ".GetBool();"),
-    integer                 = (action_prefix & expr & ".GetLong();"),
-    float                   = (action_prefix & expr & ".GetDouble();"),
-    string                  = (action_prefix & expr & ".GetString();"),
-    date                    = (action_prefix & "Cell.Runtime.Conversions.ObjToDate(" & expr & ");"),
-    time                    = (action_prefix & "Cell.Runtime.Conversions.ObjToDateTime(" & expr & ");"),
-    symbol()                = (action_prefix & expr & ".stringRepr;"),
+    bool                    = (action_prefix & "get_bool(" & expr & ");"),
+    integer                 = (action_prefix & "get_int(" & expr & ");"),
+    float                   = (action_prefix & "get_float(" & expr & ");"),
+    string                  = (action_prefix & "export_string(" & expr & ");"),
+    date                    = (action_prefix & "export_date(" & expr & ");"),
+    time                    = (action_prefix & "export_time(" & expr & ");"),
+    symbol()                = (action_prefix & "export_symbol(" & expr & ");"),
     tuple(ts?)              = tuple_export_code(ts, expr, action_prefix),
-    record(fs?)             = record_export_code(fs, expr, action_prefix),
+    record(fs?)             = (action_prefix & "export_as_text(" & expr & ");"), ## WAS: record_export_code(fs, expr, action_prefix),
     seq(t?)                 |
     set(t?)                 = array_export_code(t, expr, action_prefix),
     bin_rel(a1?, a2?)       = bin_rel_export_code(a1, a2, expr, action_prefix),
     tern_rel(a1?, a2?, a3?) = tern_rel_export_code(a1, a2, a3, expr, action_prefix),
     tagged()                = tagged_type_export_code(it, expr, action_prefix),
     optional(t?)            = optional_type_export_code(t, expr, action_prefix),
-    generic                 = (action_prefix & "Cell.Runtime.Conversions.ExportAsText(" & expr & ");"),
-    generated(ts?)          = (action_prefix & "Cell.Generated.Convert." &
-                              decl_type_export_funct_name(bare_id(ts)) & "(" & expr & ");");
+    generic                 = (action_prefix & "export_as_text(" & expr & ");"),
+    generated(ts?)          = (action_prefix & decl_type_export_funct_name(bare_id(ts)) & "(" & expr & ");");
 
 
   String* optional_type_export_code(InterType inner_type, String expr, String action_prefix) {
-    code_nothing = (action_prefix & "null;");
 
-    code_just = match (inner_type)
-      bool    = (action_prefix & expr & ".GetInnerObj().IsSymb(Cell.Runtime.SymbObj.TrueSymbId);"),
-      integer = (action_prefix & expr & ".GetInnerLong();"),
-      float   = (action_prefix & expr & ".GetInnerObj().GetDouble();"),
-      _       = { var = new_unique_var(:unused);
-                  instr = "Cell.Runtime.Obj " & var & " = " & expr & ".GetInnerObj();";
-                  return (instr) & export_code(inner_type, var, action_prefix);
-                };
+    // code_just = match (inner_type)
+    //   bool    = (action_prefix & expr & ".GetInnerObj().IsSymb(Cell.Runtime.SymbObj.TrueSymbId);"),
+    //   integer = (action_prefix & expr & ".GetInnerLong();"),
+    //   float   = (action_prefix & expr & ".GetInnerObj().GetDouble();"),
+    //   _       = { var = new_unique_var(:unused);
+    //               instr = "OBJ " & var & " = " & expr & ".GetInnerObj();";
+    //               return (instr) & export_code(inner_type, var, action_prefix);
+    //             };
+
+    code_just = (action_prefix & "NULL;"); ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
 
     return (
-      "if (!" & expr & ".IsSymb(Cell.Runtime.SymbObj.NothingSymbId)) {",
+      "if (!is_symb(" & expr & ", symb_id_nothing)) {",
     ) & indent_lines(code_just) & (
       "}",
-      "else {"
-    ) & indent_lines(code_nothing) & (
-      "}"
+      "else",
+      "  " & action_prefix & "NULL;"
     );
   }
 
 
   String* tagged_type_export_code(TaggedInterType tagged_type, String expr, String action_prefix) {
-    return export_code(:generic, expr, action_prefix) if tagged_type == :generic;
+    assert tagged_type != :generic;
+    // return export_code(:generic, expr, action_prefix) if tagged_type == :generic; ## QUESTION: WHY WAS THIS HERE IN THE PLACE
+
     in_var = new_unique_var(:unused);
-    instr = "Cell.Runtime.Obj " & in_var & " = " & expr & ".GetInnerObj();";
+    instr = "OBJ " & in_var & " = get_inner_obj(" & expr & ");";
     untagged_type = untagged_type(tagged_type);
     return (instr) & export_code(untagged_type, in_var, action_prefix);
   }
@@ -61,50 +62,50 @@ implicit prg : CompiledPrg {
     asgnm_code = join(({
         item_var_decl = item_types(i) & " " & item_vars(i) & ";";
         asgnm_text = item_vars(i) & " = ";
-        elt_fetch_instr = tmp_var & " = " & expr & ".GetObjAt(" & printed(i) & ");";
+        elt_fetch_instr = tmp_var & " = get_obj_at(" & expr & ", " & printed(i) & ");";
         return (item_var_decl, elt_fetch_instr) & export_code(t, tmp_var, asgnm_text);
       } : t @ i <- types
     ));
 
-    tmp_var_decl = "Cell.Runtime.Obj " & tmp_var & ";";
-    tuple_inst_instr = action_prefix & "(" & append(item_vars, ", ") & ");";
+    tmp_var_decl = "OBJ " & tmp_var & ";";
+    tuple_inst_instr = action_prefix & "std::make_tuple(" & append(item_vars, ", ") & ");";
 
     return (tmp_var_decl) & (asgnm_code | tuple_inst_instr);
   }
 
 
-  String* record_export_code([+Symbol -> InterType] fields, String expr, String action_prefix) {
-    ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
+  // String* record_export_code([+Symbol -> InterType] fields, String expr, String action_prefix) {
+  //   ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
 
-    field_vars_base_name = new_unique_var(:unused);
-    field_vars = (field_vars_base_name & "_" & _print_(l) : l, t @ i <- ord_fields);
-    field_names = adjusted_unambiguous_lower_camel_case_names(set(left(unzip(ord_fields))));
+  //   field_vars_base_name = new_unique_var(:unused);
+  //   field_vars = (field_vars_base_name & "_" & _print_(l) : l, t @ i <- ord_fields);
+  //   field_names = adjusted_unambiguous_lower_camel_case_names(set(left(unzip(ord_fields))));
 
-    asgnm_code = join(({
-      obj_var = "obj_" & field_vars(i);
-      field_var_decl = qualified_return_type(t) & " " & field_vars(i) & ";";
-      asgnm_text = field_vars(i) & " = ";
-      symb_name = symb_id_qual_name(l);
-      field_lookup_instr = "Cell.Runtime.Obj " & obj_var & " = " & expr & ".LookupField(" & symb_name & ");";
-      return (field_lookup_instr, field_var_decl) & export_code(t, obj_var, asgnm_text);
-    } : l, t @ i <- ord_fields));
+  //   asgnm_code = join(({
+  //     obj_var = "obj_" & field_vars(i);
+  //     field_var_decl = qualified_return_type(t) & " " & field_vars(i) & ";";
+  //     asgnm_text = field_vars(i) & " = ";
+  //     symb_name = symb_id_qual_name(l);
+  //     field_lookup_instr = "OBJ " & obj_var & " = lookup_field(" & expr & ", " & symb_name & ");";
+  //     return (field_lookup_instr, field_var_decl) & export_code(t, obj_var, asgnm_text);
+  //   } : l, t @ i <- ord_fields));
 
-    field_values = (field_names(l) & ": " & field_vars(i) : l, _ @ i <- ord_fields);
-    record_inst_instr = action_prefix & "(" & append(field_values, ", ") & ");";
+  //   field_values = (field_names(l) & ": " & field_vars(i) : l, _ @ i <- ord_fields);
+  //   record_inst_instr = action_prefix & "(" & append(field_values, ", ") & ");";
 
-    return (asgnm_code | record_inst_instr);
-  }
+  //   return (asgnm_code | record_inst_instr);
+  // }
 
 
   String* array_export_code(EltInterType elem_type, String expr, String action_prefix) {
     return match (elem_type)
-      bool                = (action_prefix & "Cell.Runtime.Conversions.ToBoolArray(" & expr & ");"),
-      byte                = (action_prefix & "Cell.Runtime.Conversions.ToByteArray(" & expr & ");"),
-      int32               = (action_prefix & "Cell.Runtime.Conversions.ToIntArray(" & expr & ");"),
-      integer             = (action_prefix & "Cell.Runtime.Conversions.ToLongArray(" & expr & ");"),
-      float               = (action_prefix & "Cell.Runtime.Conversions.ToDoubleArray(" & expr & ");"),
-      string              = (action_prefix & "Cell.Runtime.Conversions.ToStringArray(" & expr & ");"),
-      generic             = (action_prefix & "Cell.Runtime.Conversions.ToTextArray(" & expr & ");"),
+      bool                = (action_prefix & "export_bool_vector(" & expr & ");"),
+      byte                = (action_prefix & "export_byte_vector(" & expr & ");"),
+      int32               = (action_prefix & "export_int32_vector(" & expr & ");"),
+      integer             = (action_prefix & "export_int64_vector(" & expr & ");"),
+      float               = (action_prefix & "export_double_vector(" & expr & ");"),
+      string              = (action_prefix & "export_string_vector(" & expr & ");"),
+      generic             = (action_prefix & "export_text_vector(" & expr & ");"),
       tagged(_, generic)  = array_export_code(:generic, expr, action_prefix),
       date                |
       time                |
@@ -123,30 +124,30 @@ implicit prg : CompiledPrg {
     String* generic_array_export_code(InterType elem_type, String expr, String action_prefix) {
       expr_var   = new_unique_var(:unused);
       size_var   = new_unique_var(:unused);
+      vector_var = new_unique_var(:unused);
       array_var  = new_unique_var(:unused);
-      buffer_var = new_unique_var(:unused);
       elt_var    = new_unique_var(:unused);
       idx_var    = new_unique_var(:unused);
 
       out_elem_type = qualified_return_type(elem_type);
 
       return (
-        "Cell.Runtime.Obj " & expr_var & " = " & expr & ";",
-        "int " & size_var & " = " & expr_var & ".GetSize();",
-        out_elem_type & "[] " & array_var & " = new " & array_new_expr(elem_type, size_var) & ";",
-        "Cell.Runtime.Obj[] " & buffer_var & " = " & expr_var & ".GetObjArray();",
+        "OBJ " & expr_var & " = " & expr & ";",
+        "int " & size_var & " = get_size(" & expr_var & ");",
+        "vector<" & out_elem_type & "> " & vector_var & "(" & size_var & ");",
+        "OBJ *" & array_var & " = get_seq_elts_ptr(" & expr_var & ");",
         "for (int " & idx_var & " = 0 ; " & idx_var & " < " & size_var & " ; " & idx_var & "++) {",
-        "  Cell.Runtime.Obj " & elt_var & " = " & buffer_var & "[" & idx_var & "];"
-      ) & indent_lines(export_code(elem_type, elt_var, array_var & "[" & idx_var & "] = ")) & (
+        "  OBJ " & elt_var & " = " & array_var & "[" & idx_var & "];"
+      ) & indent_lines(export_code(elem_type, elt_var, vector_var & "[" & idx_var & "] = ")) & (
         "}",
-        action_prefix & array_var & ";"
+        action_prefix & vector_var & ";"
       );
     }
 
 
-    String array_new_expr(EltInterType elem_type, String size_expr) =
-      seq(t?) | set(t?) = array_new_expr(t, size_expr) & "[]",
-      _                 = qualified_return_type(elem_type) & "[" & size_expr & "]";
+    // String array_new_expr(EltInterType elem_type, String size_expr) =
+    //   seq(t?) | set(t?) = array_new_expr(t, size_expr) & "[]",
+    //   _                 = qualified_return_type(elem_type) & "[" & size_expr & "]";
   }
 
 
@@ -162,15 +163,16 @@ implicit prg : CompiledPrg {
     out_type = qualified_return_type(:bin_rel(left_arg_type, right_arg_type));
     out_left_arg_type = qualified_return_type(left_arg_type);
     out_right_arg_type = qualified_return_type(right_arg_type);
-    out_elt_type = "(" & out_left_arg_type & ", " & out_right_arg_type & ")";
+    out_elt_type = "std::vector<std::tuple<" & out_left_arg_type & ", " & out_right_arg_type & ">>";
 
     code = (
-      out_type & " " & bin_rel_var & " = new " & out_elt_type & "[" & expr & ".GetSize()];",
-      "Cell.Runtime.BinRelIter " & iter_var & " = " & expr & ".GetBinRelIter();",
+      out_type & " " & bin_rel_var & "(get_size(" & expr & "));",
+      "BIN_REL_ITER " & iter_var & ";",
+      "get_bin_rel_iter(" & iter_var & ", " & expr & ");",
       "int " & idx_var & " = 0;",
-      "while (!" & iter_var & ".Done()) {",
-      "  Cell.Runtime.Obj " & left_arg_var & " = " & iter_var & ".Get1();",
-      "  Cell.Runtime.Obj " & right_arg_var & " = " & iter_var & ".Get2();",
+      "while (!is_out_of_range(" & iter_var & ")) {",
+      "  OBJ " & left_arg_var & " = get_curr_left_arg(" & iter_var & ");",
+      "  OBJ " & right_arg_var & " = get_curr_right_arg(" & iter_var & ");",
       "  " & out_left_arg_type & " " & out_left_arg_var & ";",
       "  " & out_right_arg_type & " " & out_right_arg_var & ";"
     );
@@ -180,11 +182,11 @@ implicit prg : CompiledPrg {
 
     return (
       code |
-      "  " & bin_rel_var & "[" & idx_var & "] = (" & out_left_arg_var & ", " & out_right_arg_var & ");",
-      "  " & iter_var & ".Next();",
+      "  " & bin_rel_var & "[" & idx_var & "] = std::make_tuple(" & out_left_arg_var & ", " & out_right_arg_var & ");",
+      "  move_forward(" & iter_var & ");",
       "  " & idx_var & "++;",
       "}",
-      action_prefix & " " & bin_rel_var & ";"
+      action_prefix & bin_rel_var & ";"
     );
   }
 
@@ -204,16 +206,17 @@ implicit prg : CompiledPrg {
     out_type1 = qualified_return_type(type1);
     out_type2 = qualified_return_type(type2);
     out_type3 = qualified_return_type(type3);
-    out_elt_type = "(" & out_type1 & ", " & out_type2  & ", " & out_type3 & ")";
+    out_elt_type = "std::vector<std::tuple<" & out_type1 & ", " & out_type2  & ", " & out_type3 & ">>";
 
     code = (
-      out_type & " " & tern_rel_var & " = new " & out_elt_type & "[" & expr & ".GetSize()];",
-      "Cell.Runtime.TernRelIter " & iter_var & " = " & expr & ".GetTernRelIter();",
+      out_type & " " & tern_rel_var & "(get_size(" & expr & "));",
+      "TERN_REL_ITER " & iter_var & ";",
+      "get_tern_rel_iter(" & iter_var & ", " & expr & ");",
       "int " & idx_var & " = 0;",
-      "while (!" & iter_var & ".Done()) {",
-      "  Cell.Runtime.Obj " & arg1_var & " = " & iter_var & ".Get1();",
-      "  Cell.Runtime.Obj " & arg2_var & " = " & iter_var & ".Get2();",
-      "  Cell.Runtime.Obj " & arg3_var & " = " & iter_var & ".Get3();",
+      "while (!is_out_of_range(" & iter_var & ")) {",
+      "  OBJ " & arg1_var & " = tern_rel_it_get_left_arg(" & iter_var & ");",
+      "  OBJ " & arg2_var & " = tern_rel_it_get_mid_arg(" & iter_var & ");",
+      "  OBJ " & arg3_var & " = tern_rel_it_get_right_arg(" & iter_var & ");",
       "  " & out_type1 & " " & out_arg1_var & ";",
       "  " & out_type2 & " " & out_arg2_var & ";",
       "  " & out_type3 & " " & out_arg3_var & ";"
@@ -226,11 +229,11 @@ implicit prg : CompiledPrg {
     args_vars = out_arg1_var & ", " & out_arg2_var & ", " & out_arg3_var;
     return (
       code |
-      "  " & tern_rel_var & "[" & idx_var & "] = (" & args_vars & ");",
-      "  " & iter_var & ".Next();",
+      "  " & tern_rel_var & "[" & idx_var & "] = std::make_tuple(" & args_vars & ");",
+      "  move_forward(" & iter_var & ");",
       "  " & idx_var & "++;",
       "}",
-      action_prefix & " " & tern_rel_var & ";"
+      action_prefix & tern_rel_var & ";"
     );
   }
 }

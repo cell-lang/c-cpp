@@ -4,7 +4,7 @@
 
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   (String*, String*) method_wrapper(MethodId method_id, <CompiledMethod, OptCompMethod> method,
-    <AutoSymbol, DBSymbol> block_name, String ext_name, String class_name, String method_path) {
+    <AutoSymbol, DBSymbol> block_name, String ext_name, String class_name, String typed_ptr_def) {
     args_inter_types = (interface_type(t, :input) : t <- method.args_types);
     inter_ret_type = interface_type(method.ret_type, :output);
 
@@ -38,7 +38,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     args_obj_vars = (new_unique_var(:unused) : _ < arity);
 
     body = if arity > 0
-      then ("Cell.Runtime.Obj " & append(args_obj_vars, ", ") & ";", "")
+      then ("OBJ " & append(args_obj_vars, ", ") & ";", "")
       else ();
 
     body = body & join((
@@ -52,7 +52,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       type_user_repr = user_repr(method.args_types(i)); ## THIS SHOULD BE ESCAPED
       body = (body | "if (!" & cond_str & ")");
       exception_args = _print_(i) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
-      body = (body | "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+      body = (body | "  throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
     }
 
     if polymorphic_args != () {
@@ -61,7 +61,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         var_name = args_obj_vars(arg_idx);
         type_user_repr = user_repr(method.args_types(arg_idx)); ## THIS SHOULD BE ESCAPED
         exception_args = _print_(arg_idx) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
-        check_code = ("throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+        check_code = ("throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
 
       }
       else {
@@ -85,20 +85,21 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       body = body & check_code;
     }
 
-    full_method_name = method_path & user_def_method_name(block_name, method_id);
+    method_name = user_def_method_name(block_name, method_id);
 
     body = body & (
+      typed_ptr_def,
       "try {",
-      "  Cell.Runtime.Obj _r = " & method_call(method, full_method_name, args_obj_vars) & ";"
-      ) & indent_lines(export_code(inter_ret_type, "_r", "return ")) & (
+      "  OBJ result = " & method_call(method, method_name, args_obj_vars) & ";"
+      ) & indent_lines(export_code(inter_ret_type, "result", "return ")) & (
       "}",
-      "catch (System.Exception _e) {",
-      "  env = new Cell.Generated.Static.Env();",
-      "  throw _e;",
+      "catch (...) {",
+      "  memset(&ptr->env, 0, sizeof(ENV));",
+      "  throw;",
       "}"
     );
 
-    sgn = "public " & ret_val_str & " " & ext_name & "(" & args_decls & ") {";
+    sgn = ret_val_str & " " & class_name & "::" & ext_name & "(" & args_decls & ") {";
     code = ("", sgn) & indent_lines(body) & ("}");
     bare_types = (remove_path(s) : s <- input_args_types);
     expl_args_names = (if id != nothing then " " & args_names_map(value(id)) else "" : id @ i <- args_ids);
@@ -111,20 +112,20 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
 
 String method_call(CompiledMethod method, String method_name, String* args_obj_vars) =
-  method_name & "(" & append((args_obj_vars | "env"), ", ") & ")";
+  method_name & "(" & append(("&ptr->automaton") & args_obj_vars & ("ptr->env"), ", ") & ")";
 
 
 String method_call(OptCompMethod method, String method_name, String* args_obj_vars) {
   converted_args = (obj_to_repr(low_level_repr(a), args_obj_vars(i)) : a @ i <- method.args);
-  pre_call = method_name & "(" & append((converted_args | "env"), ", ") & ")";
+  pre_call = method_name & "(" & append(("&ptr->automaton") & converted_args & ("ptr->env"), ", ") & ")";
   return repr_to_obj(method.ret_val_repr, pre_call);
 }
 
 
 String obj_to_repr(AnyLowLevelRepr repr, String expr) =
-  bool                = expr & ".GetBool()",
-  int                 = expr & ".GetLong()",
-  float               = expr & ".GetDouble()",
+  bool                = "get_bool("  & expr & ")",
+  int                 = "get_int("   & expr & ")",
+  float               = "get_float(" & expr & ")",
   symbol              |
   array()             |
   object              = expr,
@@ -132,9 +133,9 @@ String obj_to_repr(AnyLowLevelRepr repr, String expr) =
 
 
 String repr_to_obj(AnyLowLevelRepr repr, String expr) =
-  bool                = "Cell.Runtime.SymbObj.Get(" & expr & ")",
-  int                 = "Cell.Runtime.IntObj.Get("  & expr & ")",
-  float               = "new Cell.Runtime.FloatObj(" & expr & ")",
+  bool                = "make_symb(" & expr & ")",
+  int                 = "make_int("  & expr & ")",
+  float               = "make_float(" & expr & ")",
   symbol              |
   array()             |
   object              |

@@ -37,7 +37,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symbol -> String], export_fns_names : [Symbol -> String] {
   Text abstract_type_export_funct(Symbol type_symb, [Symbol -> DeclInterType] concrete_subclasses) {
     code = (
-      "public static " & class_names(type_symb) & " " & export_fns_names(type_symb) & "(Cell.Runtime.Obj obj) {",
+      class_names(type_symb) & " " & export_fns_names(type_symb) & "(OBJ obj) {",
       "  ushort tagId = obj.GetTagId();"
     );
 
@@ -56,7 +56,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
 
     return (
       code |
-      "  throw Cell.Runtime.ErrorHandler.InternalFail();",
+      "  internal_fail();",
       "}"
     );
   }
@@ -67,13 +67,13 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
     bare_type, expr, body_header = match (inter_type)
       tuple()       |
       record()      = (inter_type, "obj", ()),
-      tagged(_, t?) = (t, tmp_var, ("Cell.Runtime.Obj " & tmp_var & " = obj.GetInnerObj();"));
+      tagged(_, t?) = (t, tmp_var, ("OBJ " & tmp_var & " = obj.GetInnerObj();"));
 
     class_name = class_names(type_symb);
     fn_name = export_fns_names(type_symb);
 
     code = decl_type_export_code(bare_type, class_name, expr, body_header);
-    sign_line = "public static " & class_name & " " & fn_name & "(Cell.Runtime.Obj obj) {";
+    sign_line = class_name & " " & fn_name & "(OBJ obj) {";
     return (sign_line, code, "}");
   }
 
@@ -90,7 +90,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
       tmp_var = new_unique_var(:unused);
       code = (
         code |
-        "Cell.Runtime.Obj " & tmp_var & " = " & expr & ".LookupField(" & symb_id_qual_name(l) & ");",
+        "OBJ " & tmp_var & " = " & expr & ".LookupField(" & symb_id_qual_name(l) & ");",
         qualified_return_type(t) & " " & fields_vars(l) & ";"
       );
       code = code & export_code(t, tmp_var, fields_vars(l) & " = ");
@@ -114,7 +114,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
       tmp_var = new_unique_var(:unused);
       code = (
         code |
-        "Cell.Runtime.Obj " & tmp_var & " = " & expr & ".GetObjAt(" & _print_(i) & ");",
+        "OBJ " & tmp_var & " = " & expr & ".GetObjAt(" & _print_(i) & ");",
         qualified_return_type(t) & " " & args_vars(i) & ";"
       );
       code = code & export_code(t, tmp_var, args_vars(i) & " = ");

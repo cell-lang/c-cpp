@@ -10,7 +10,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
           inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
           native_decls = (native_decls | "") if native_decls != ();
           native_decls = (native_decls |
-            "public interface " & gen_class_name(intertype) & inheritance_list & " {",
+            "class " & gen_class_name(intertype) & inheritance_list & " {",
             "",
             "}"
           );
@@ -41,23 +41,23 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     fields_types = (return_value_type(fields(l)) : l <- labels);
     max_len = max([length(t) : t <- fields_types]);
     inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
-    lines = ("", "public partial class " & class_name & inheritance_list &  " {");
+    lines = ("", "class " & class_name & inheritance_list &  " {", "  public:");
     for l @ i <- labels {
       name = fields_names(l);
       type = fields_types(i);
       spaces = string((` ` : _ < max_len - length(type) + 1));
-      line = "  public " & type & spaces & name & ";";
+      line = "    " & type & spaces & name & ";";
       lines = (lines | line);
     }
 
     ctor_args = (fields_types(i) & " " & fields_names(l) : l @ i <- labels);
-    lines = (lines | "", "  public " & class_name & "(" & append(ctor_args, ", ") & ") {");
+    lines = (lines | "", "    " & class_name & "(" & append(ctor_args, ", ") & ") {");
     for l <- labels {
       name = fields_names(l);
-      lines = (lines | "    this." & name & " = " & name & ";");
+      lines = (lines | "      this->" & name & " = " & name & ";");
     }
 
-    return (lines | "  }", "}");
+    return (lines | "    }", "}");
   }
 
 
@@ -65,15 +65,15 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     types = (return_value_type(t) : t <- field_types(inter_type));
     max_len = max([length(t) : t <- types]);
     inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
-    lines = ("", "public partial class " & class_name & inheritance_list &  " {");
+    lines = ("", "partial class " & class_name & inheritance_list &  " {");
     for t @ i <- types {
       spaces = string((` ` : _ < max_len - length(t) + 1));
-      line = "  public " & t & spaces & "Item" & _print_(i + 1) & ";";
+      line = "  " & t & spaces & "Item" & _print_(i + 1) & ";";
       lines = (lines | line);
     }
 
     ctor_args = (t & " item" & _print_(i + 1) : t @ i <- types);
-    lines = (lines | "", "  public " & class_name & "(" & append(ctor_args, ", ") & ") {");
+    lines = (lines | "", "  " & class_name & "(" & append(ctor_args, ", ") & ") {");
     for i < |types|
       lines = (lines | "    this.Item" & _print_(i + 1) & " = item" & _print_(i + 1) & ";");
 

@@ -1,57 +1,34 @@
 implicit direction : <input, output>, qualified : Bool {
   String native_inter_type(EltInterType it, Bool nullable) {
     return match (it)
-      bool                = if nullable then "bool?" else "bool",
-      byte                = if nullable then "byte?" else "byte",
-      int32               = if nullable then "int?" else "int",
-      integer             = if nullable then "long?" else "long",
-      float               = if nullable then "double?" else "double",
-      date                |
-      time                = if nullable then "System.DateTime?" else "System.DateTime",
-      optional(t?)        = native_inter_type(t, true),
-      symbol()            = "String",
-      record(fs?)         = record_native_inter_type(fs, nullable),
-      tuple(ts?)          = "(" & append((native_inter_type(t, false) : t <- ts), ", ") &
-                            if nullable then ")?" else ")",
+      bool                = "bool"          & if nullable then " *" else "",
+      byte                = "unsigned char" & if nullable then " *" else "",
+      int32               = "int"           & if nullable then " *" else "",
+      integer             = "long long"     & if nullable then " *" else "",
+      float               = "double"        & if nullable then " *" else "",
+      date                = "std::string"   & if nullable then " *" else "",
+      time                = "std::string"   & if nullable then " *" else "",
+      optional(t?)        = native_inter_type(t, true) & if nullable then " *" else "",
+      symbol()            = "std::string" & if nullable then " *" else "",
+      record(fs?)         = "std::string" & if nullable then " *" else "", ## TODO: REENABLE THIS: record_native_inter_type(fs, nullable),
+      tuple(ts?)          = "std::tuple<" & append((native_inter_type(t, false) : t <- ts), ", ") & ">" & if nullable then " *" else "",
       seq(t?)             |
-      set(t?)             = native_inter_type(t, false) & "[]",
+      set(t?)             = "std::vector<" & native_inter_type(t, false) & "> " & if nullable then "*" else "",
       bin_rel(ts?)        |
-      tern_rel(ts?)       = "(" & append((native_inter_type(t, false) : t <- ts), ", ") & ")[]",
+      tern_rel(ts?)       = "std::vector<std::tuple<" & append((native_inter_type(t, false) : t <- ts), ", ") & "> > " & if nullable then "*" else "",
       tagged(_, t?)       = native_inter_type(t, nullable),
       string              |
-      generic             = "string",
-      generated(ts?)      = {if qualified then "Cell.Typedefs." else ""} & gen_class_name(bare_id(ts));
+      generic             = "std::string" & if nullable then " *" else "",
+      generated(ts?)      = gen_class_name(bare_id(ts)); ## WAS: {if qualified then "generated::" else ""} & gen_class_name(bare_id(ts));
 
-    String record_native_inter_type([+Symbol -> InterType] fields, Bool nullable) {
-      ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
-      field_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
-      native_fields = (native_inter_type(t, false) & " " & field_names(l) : l, t <- ord_fields);
-      return "(" & append(native_fields, ", ") & if nullable then ")?" else ")";
-    }
+    // String record_native_inter_type([+Symbol -> InterType] fields, Bool nullable) {
+    //   ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
+    //   field_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+    //   native_fields = (native_inter_type(t, false) & " " & field_names(l) : l, t <- ord_fields);
+    //   return "(" & append(native_fields, ", ") & ")" & if nullable then " *" else "";
+    // }
   }
 }
-
-/////////////////////////////////////////////////////////////////////////////////
-
-Bool is_boxed_if_opt(InterType) =
-  bool          |
-  integer       |
-  float         |
-  date          |
-  time          |
-  record()      |
-  tuple()       = true,
-
-  symbol()      |
-  seq()         |
-  set()         |
-  bin_rel()     |
-  tern_rel()    |
-  string        |
-  generic       = false,
-
-  optional(t?)  |
-  tagged(_, t?) = is_boxed_if_opt(t);
 
 /////////////////////////////////////////////////////////////////////////////////
 

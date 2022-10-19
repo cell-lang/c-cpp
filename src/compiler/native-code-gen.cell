@@ -189,6 +189,13 @@ type PrgData =  prg_data(
   data_exchange_types = data_exchange_types(prg, generated);
   wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
 
+  wrappers_impls = ((
+    "#include \"generated.cpp\"",
+    "#include \"conversion.h\"",
+    "",
+    ""
+  ), wrappers_impls);
+
   return [
     "generated.cpp" -> flatten(gen_content),
     "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
@@ -226,10 +233,10 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
     impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
 
   react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
-  if react_auto_wrappers_decls != ()
-    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
-  if react_auto_wrappers_impls != ()
-    impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
+  // if react_auto_wrappers_decls != ()
+  //   decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
+  // if react_auto_wrappers_impls != ()
+  //   impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
   let prg = prg, typedefs = prg.typedefs, generated = generated {
     types_decls, hierarchy = inter_types_decls;
@@ -241,9 +248,7 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
         "",
         "namespace Cell.Generated {",
         ( "// Conversion functions for declared interface types",
-          "public static class Convert {",
-          conv_fns,
-          "}"
+          conv_fns
         ),
         "}"
       );
