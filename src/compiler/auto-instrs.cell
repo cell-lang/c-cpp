@@ -1,8 +1,8 @@
 implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_target : Maybe[String] {
   String auto_expr_native_code(RefObjExpr expr, WriteObjVar var) =
-    copy_state()              = native_call(var, copy_state_proc_name(expr.type), (native_var_ref_name(expr.var))),
+    copy_state()              = native_call(var, copy_state_method_name(expr.type), (native_var_ref_name(expr.var))),
     copy_rel()                = undefined,
-    copy_persistent_state()   = native_call(var, copy_state_proc_name(expr.type), (expr.var)),
+    copy_persistent_state()   = native_call(var, copy_state_method_name(expr.type), (expr.var)),
     read_pending_var(v?)      = native_var_ref_name(var) & " = " & native_var_ref_name(v) & ";";
 
 
@@ -247,7 +247,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     set_input()           = (native_call(input_set_method_name(instr.type, instr.input), (instr.var, instr.value))),
     auto_apply()          = (native_call(apply_method_name(instr.type), (if instr.var? then instr.var else auto_or_db_arg_name, "env"))),
 
-    set_persistent_state()  = (native_call(set_state_proc_name(instr.type), (instr.auto_var, instr.state))),
+    set_persistent_state()  = (native_call(set_state_method_name(instr.type), (instr.auto_var, instr.state))),
 
     init_db()             = native_init_db_code(instr.db_var, instr.links, instr.type),
     cleanup_db()          = (native_call(cleanup_method_name(instr.type), (instr.db_var, updater_var_ref_name(instr.db_var)))),

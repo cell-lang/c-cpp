@@ -212,7 +212,7 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
   decls = gen_inter_types_decls(prg = prg, typedefs = prg.typedefs, generated = generated);
   return () if decls == ();
   return (
-    "namespace Cell.Typedefs {",
+    "namespace ??? {",
     decls,
     "}"
   );
@@ -220,7 +220,7 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
 
 (Text, Text) wrappers_content(CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated, StaticBlock* ord_static_blocks, ReactBlock* ord_react_blocks) {
   // content = (
-  //   "namespace Cell.Automata {"
+  //   "namespace ??? {"
   // );
 
   decls = ();
@@ -233,10 +233,10 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
     impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
 
   react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
-  // if react_auto_wrappers_decls != ()
-  //   decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
-  // if react_auto_wrappers_impls != ()
-  //   impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
+  if react_auto_wrappers_decls != ()
+    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
+  if react_auto_wrappers_impls != ()
+    impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
   let prg = prg, typedefs = prg.typedefs, generated = generated {
     types_decls, hierarchy = inter_types_decls;
@@ -246,11 +246,11 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
         impls |
         "",
         "",
-        "namespace Cell.Generated {",
+        // "namespace ??? {",
         ( "// Conversion functions for declared interface types",
           conv_fns
-        ),
-        "}"
+        )
+        // "}"
       );
     }
   }

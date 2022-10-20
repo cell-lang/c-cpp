@@ -49,45 +49,26 @@ implicit prg : CompiledPrg, block : ReactBlock {
     return name == auto_class_name or in(name, reserved_names);
 
     [String] reserved_names = [
-      // Object class constructor
-      "Object",
-
-      // Object class instance methods
-      "Equals",
-      "Equals",
-      "Finalize",
-      "GetHashCode",
-      "GetType",
-      "MemberwiseClone",
-      "ReferenceEquals",
-      "ToString",
-
-      // Always present methods
-      "ReadState",
-      "SetState",
-      "Execute",
-
       // Automata reserved names
       "Input",
       "Output",
 
       // Standard automaton methods
-      "Apply",
-      "ReadState",
-      "SetState",
-      "SetElapsedMillisecs",
-      "SetElapsedSecs",
-      "InternalSetInput",
-      "SetInput",
-      "ReadOutput",
-      "ChangedOutputs"
+      "apply",
+      "read_state",
+      "set_state",
+      "set_elapsed_millisecs",
+      "set_elapsed_secs",
+      "set_input",
+      "read_output",
+      "changed_outputs"
     ];
   }
 }
 
 
 implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
-  (String*, String*) input_setter(Atom id) {
+  (String, String*) input_setter(Atom id, String memb_test_pred_name, String set_method_name, String class_name, String typed_ptr_def) {
     type = block.inputs[id].type;
     inter_type = interface_type(type, :input);
     // return ((), ()) if inter_type == :generic;
@@ -96,26 +77,30 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
     name = safe_setter_name(id);
     uc_name = uppercase(id);
 
-    code = (
+    decl = "void " & name & "(" & input_type & ");";
+
+    impl = (
       "",
-      input_type & " " & name & " {",
-      "  set {",
-      "    OBJ obj;"
-    ) & indent_lines(indent_lines(import_code(inter_type, "value", "obj = "))) & (
-      "    InternalSetInput(Input." & uc_name & ", obj);",
+      "void " & class_name & "::" & name & "(" & input_type & " value) {",
+      "  OBJ obj;",
+      "",
+      "  " & typed_ptr_def
+    ) & indent_lines(import_code(inter_type, "value", "obj = ")) & (
+      "  if (" & memb_test_pred_name & "(obj)) {",
+      "    " & set_method_name & "(&ptr->automaton, obj);",
       "  }",
+      "  else",
+      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION
       "}"
     );
 
-    docs = "  " & remove_path(input_type) & " " & name & ";";
-
-    return (code, (docs));
+    return (decl, impl);
   }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  (String*, String*) output_getter(Atom id) {
+  (String, String*) output_getter(Atom id, String class_name, String typed_ptr_def) {
     output = block.outputs[id];
     type = output.type;
     inter_type = interface_type(type, :output);
@@ -123,23 +108,22 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
     name = safe_name(id);
     var_name = native_var_decl_name(signal_var(id), context=:wrapper);
 
-    code = (
+    decl = ret_type & " " & name & "();";
+
+    impl = (
       "",
-      ret_type & " " & name & " {",
-      "  get {",
-      "    OBJ obj = automaton." & var_name & ";",
-      "    if (obj.IsNullObj())",
-      "      throw new System.Exception(\"Output is undefined\");",
-      "    if (obj.IsBlankObj())" if output.discrete,
-      "      throw new System.Exception(\"Discrete output is not set\");" if output.discrete
-    ) & indent_lines(indent_lines(export_code(inter_type, "obj", "return "))) & (
-      "  }",
+      ret_type & " " & class_name & "::" & name & "() {",
+      "  " & typed_ptr_def,
+      "  OBJ obj = ptr->automaton." & var_name & ";",
+      "  if (is_null(obj))",
+      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Output is undefined")
+      "  if (is_blank(obj))" if output.discrete,
+      "    throw std::exception();" if output.discrete ## TODO: ADD ERROR INFORMATION (WAS: "Discrete output is not set")
+    ) & indent_lines(export_code(inter_type, "obj", "return ")) & (
       "}"
     );
 
-    docs = "  " & remove_path(ret_type) & " " & name & ";";
-
-    return (code, (docs));
+    return (decl, impl);
   }
 }
 
@@ -168,9 +152,10 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
-  (String, Text, String*) react_auto_wrapper(ReactBlock block) {
-    // typed_ptr_def = undefined; ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
-    typed_ptr_def = ""; ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
+  (String, String*, Text) react_auto_wrapper(ReactBlock block) {
+    class_name = auto_class_name(block = block);
+    data_struct_name = class_name & "_DATA";
+    typed_ptr_def = data_struct_name & " *ptr = (" & data_struct_name & " *) this->ptr;";
 
     ord_inputs = block.ord_inputs;
     ord_outputs = (o : o <- block.ord_outputs, not block.inputs(o, _));
@@ -182,10 +167,6 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     apply_ret_type = if is_time_sensitive then "bool" else "void";
 
     auto_name = native_name(block.name);
-
-    pre_init_method_name = pre_init_method_name(block.name);
-    cleanup_method_name = cleanup_method_name(block.name);
-    apply_method_name = apply_method_name(block.name);
 
     let context = :wrapper {
       input_set_methods_names = (input_set_method_name(block.name, i) : i <- ord_inputs);
@@ -199,8 +180,22 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     methods = block.methods;
     let block = block {
-      input_setters, input_setters_docs = (join(ls) : ls <- unzip((input_setter(i) : i <- ord_inputs)));
-      output_getters, output_getters_docs = (join(ls) : ls <- unzip((output_getter(o) : o <- ord_outputs)));
+      input_setters_decls = ();
+      input_setters_impls = ();
+      for input @ i <- ord_inputs {
+        decl, impl = input_setter(input, input_memb_test_pred_name(i), input_set_methods_names(i), class_name, typed_ptr_def);
+        input_setters_decls = (input_setters_decls | decl);
+        input_setters_impls = input_setters_impls & impl;
+      }
+
+      output_getters_decls = ();
+      output_getters_impls = ();
+      for o <- ord_outputs {
+        decl, impl = output_getter(o, class_name, typed_ptr_def);
+        output_getters_decls = (output_getters_decls | decl);
+        output_getters_impls = output_getters_impls & impl;
+      }
+
       methods_wrappers, methods_wrappers_docs = (
         join(ls) : ls <- unzip(isort([auto_method_wrapper(id, m, typed_ptr_def) : id m <- methods]))
       );
@@ -221,147 +216,172 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         ("enum Output {") & ("    " & o & "," : o <- outputs) & ("  };");
 
     enum_empty_line = ("" if input_enum_docs != () and output_enum_docs != ());
-    enums_docs = input_enum_docs & enum_empty_line & output_enum_docs;
     enums_decls = input_enum_docs & enum_empty_line & output_enum_docs;
 
     auto_class_name = auto_class_name(block = block);
 
-    docs = (
+    class_decl = (
       "class " & auto_class_name & " {",
-    ) & indent_lines(enums_docs) & (
+      "  private:",
+      "    void *ptr;",
+      "" if enums_decls != ()
+    ) & indent_lines(enums_decls) & (
       "",
       "  " & auto_class_name & "();",
+      "  ~" & auto_class_name & "();",
       "",
-      "  void SetInput(Input input, String value);" if inputs != (),
-      "  string ReadOutput(Output output);" if outputs != (),
+      "  void set_input(Input input, std::string &value);" if inputs != (),
+      "  std::string read_output(Output output);" if outputs != (),
       "" if is_time_sensitive,
-      "  void SetElapsedMillisecs(int);" if is_time_sensitive,
-      "  void SetElapsedSecs(int);" if is_time_sensitive,
+      "  void set_elapsed_millisecs(unsigned int);" if is_time_sensitive,
+      "  void set_elapsed_secs(unsigned int);" if is_time_sensitive,
       "",
       "  " & apply_ret_type & " apply();",
-      "  string ReadState();",
-      "  void SetState(String);",
+      "  std::string read_state();",
+      "  void set_state(std::string &state);",
       "",
-      "  Output[] ChangedOutputs();" if outputs != ()
+      "  std::vector<Output> changed_outputs();" if outputs != ()
     );
 
-    docs = docs & ("", "  // Inputs") & input_setters_docs if input_setters_docs != ();
-    docs = docs & ("", "  // Outputs") & output_getters_docs if output_getters_docs != ();
-    docs = docs & ("", "  // Methods") & indent_lines(methods_wrappers_docs) if methods_wrappers_docs != ();
-    docs = (docs | "}");
+    class_decl = class_decl & ("", "  // Inputs") & indent_lines(input_setters_decls) if input_setters_decls != ();
+    class_decl = class_decl & ("", "  // Outputs") & indent_lines(output_getters_decls) if output_getters_decls != ();
+    class_decl = class_decl & ("", "  // Methods") & indent_lines(methods_wrappers_docs) if methods_wrappers_docs != ();
+    class_decl = (class_decl | "};");
 
-    code = enums_decls & (
-      "" if enums_decls != (),
-      "Cell.Generated.Static.Env env;",
-      "Cell.Generated.Static." & auto_name & " automaton;",
+    env_ref = "ptr->env";
+    auto_ref = "&ptr->automaton";
+
+    class_impl = (
       "",
-      auto_class_name & "() {",
-      "  env = new Cell.Generated.Static.Env();",
-      "  automaton = new Cell.Generated.Static." & auto_name & "(env);", ## WHY IS env NEEDED HERE? AND WHAT HAPPENS IF AN EXCEPTION IS THROWN?
+      ""
+      ) & class_decl & (
+      "",
+      "",
+      "struct " & data_struct_name & " {",
+      "  ENV env;",
+      "  " & auto_name & " automaton;",
+      "};",
+      "",
+      "",
+      auto_class_name & "::" & auto_class_name & "() {",
+      "  " & data_struct_name & " *ptr = new " & data_struct_name & "();",
+      "  this->ptr = ptr;",
+      "  memset(&ptr->env, 0, sizeof(ENV));",
+      "  " & native_call(pre_init_method_name(block.name), (auto_ref, env_ref), context=:wrapper),
       "}",
       "",
-      apply_ret_type & " Apply() {",
-      "  automaton.Apply(env);",
-      "  return automaton.elapsed_time == 0;" if is_time_sensitive,
+      auto_class_name & "::~" & auto_class_name & "() {",
+      "  " & typed_ptr_def,
+      "  " & native_call(cleanup_method_name(block.name), (auto_ref), context=:wrapper),
+      "  delete ptr;",
       "}",
       "",
-      "string ReadState() {",
-      "  return Cell.Runtime.Conversions.ExportAsText(automaton.CopyState());",
+      apply_ret_type & " " & auto_class_name & "::" & " apply() {",
+      "  " & typed_ptr_def,
+      "  " & native_call(apply_method_name(block.name), (auto_ref, env_ref), context=:wrapper),
+      "  return " & auto_ref & ".elapsed_time == 0;" if is_time_sensitive,
       "}",
       "",
-      "void SetState(string str) {",
-      "  if (automaton.is_new)",
-      "    throw new System.Exception(\"Cannot set state: automaton instance is not new\");",
-      "  OBJ obj = Cell.Runtime.Conversions.ConvertText(str);",
+      "std::string " & auto_class_name & "::" & "read_state() {",
+      "  " & typed_ptr_def,
+      "  OBJ state = " & native_call(copy_state_method_name(block.name), (auto_ref), context=:wrapper),
+      "  return export_as_text(state);",
+      "}",
+      "",
+      "void " & auto_class_name & "::" & "set_state(std::string &state) {",
+      "  " & typed_ptr_def,
+      "  if (!ptr->automaton.is_new)", ## BUG BUG BUG: WHY WAS THIS NOT NEGATED?
+      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Cannot set state: automaton instance is not new")
+      "  OBJ obj = import_obj(state);",
       "  if (!" & native_fn_name(block.state_memb_pred, context=:wrapper) & "(obj))",
-      "    throw new System.Exception(\"Invalid state\");",
-      "  automaton.SetState(obj);",
+      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Invalid state")
+      "  " & native_call(set_state_method_name(block.name), (auto_ref, "obj"), context=:wrapper),
       "}"
     );
 
     if is_time_sensitive {
-      code = code & (
+      class_impl = (class_impl |
         "",
-        "void SetElapsedMillisecs(int time) {",
-        "  if (automaton.is_new | automaton.elapsed_time > 0)",
-        "    throw new System.Exception(\"Cannot set elapsed time now\");",
-        "  if (time < 0)",
-        "    throw new System.Exception(\"Time cannot be negative\");",
-        "  automaton.elapsed_time = 1000000L * time;",
+        "void " & auto_class_name & "::" & "set_elapsed_millisecs(unsigned int time) {",
+        "  " & typed_ptr_def,
+        "  if (ptr->automaton.is_new | ptr->automaton.elapsed_time > 0)",
+        "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Cannot set elapsed time now")
+        "  ptr->automaton.elapsed_time = 1000000L * time;",
         "}",
         "",
-        "void SetElapsedSecs(int time) {",
-        "  SetElapsedMillisecs(1000 * time);",
+        "void " & auto_class_name & "::" & "set_elapsed_secs(unsigned int time) {",
+        "  set_elapsed_millisecs(1000 * time);",
         "}"
       );
     }
 
     if inputs != () {
-      code = code & (
+      class_impl = (class_impl |
         "",
-        "void InternalSetInput(Input input, OBJ obj) {",
+        "void " & auto_class_name & "::set_input(Input input, std::string &value) {",
+      "  " & typed_ptr_def,
+        "  OBJ obj = import_obj(value);",
         "  switch (input) {"
       );
       for input @ j <- inputs {
-        code = code & (
+        class_impl = class_impl & (
           "" if j > 0,
-          "    case Input." & input & ":",
-          "      if (" & input_memb_test_pred_name(j) & "(obj)) {",
-          "        automaton." & input_set_methods_names(j) & "(obj);",
-          "        return;",
-          "      }",
+          "    case " & input & ":",
+          "      if (" & input_memb_test_pred_name(j) & "(obj))",
+          "        " & input_set_methods_names(j) & "(&ptr->automaton, obj);",
+          "      else",
+          "        throw std::exception();", ## TODO: ADD ERROR INFORMATION
           "      break;"
         );
       }
-      code = (code |
-        "  }",
-        "  System.Environment.Exit(1); // Internal error",
-        "}",
+      class_impl = (class_impl |
         "",
-        "void SetInput(Input input, string value) {",
-        "  InternalSetInput(input, Cell.Runtime.Conversions.ConvertText(value));",
+        "    default:",
+        "      throw std::exception();",
+        "  }",
         "}"
       );
     }
 
     if outputs != () {
-      code = code & (
+      class_impl = class_impl & (
         "",
-        "Output[] ChangedOutputs() {",
-        "  int count = (int) automaton.changedOutputsCount;",
-        "  Output[] outputs = new Output[count];",
-        // "  Output[] values = Output.values();", ## THIS SHOULD BE MADE MORE EFFICIENT
+        "std::vector<" & class_name & "::Output> " & class_name & "::changed_outputs() {",
+        "  " & typed_ptr_def,
+        "  uint32 count = ptr->automaton.changed_outputs_count;",
+        "  std::vector<Output> outputs(count);",
+        // "  vector<Output> values = Output.values();", ## THIS SHOULD BE MADE MORE EFFICIENT
         "  for (int i=0 ; i < count ; i++)",
-        "    outputs[i] = (Output) automaton.changedOutputs[i];",
+        "    outputs[i] = (Output) ptr->automaton.changed_outputs[i];",
         "  return outputs;",
         "}",
         "",
-        "string ReadOutput(Output output) {",
+        "std::string " & class_name & "::read_output(Output output) {",
+        "  " & typed_ptr_def,
         "  OBJ obj = make_blank_obj();", ## BUG BUG BUG: NOT SURE IF IT'S A BLANK OR A NULL WE NEED HERE
         "  switch (output) {"
       );
       for output @ i <- outputs {
-        code = code & (
+        class_impl = class_impl & (
           "" if i > 0,
-          "    case Output." & output & ":",
-          "      obj = automaton." & output_vars_names(i) & ";",
+          "    case " & output & ":",
+          "      obj = ptr->automaton." & output_vars_names(i) & ";",
           "      break;"
         );
       }
-      code = code & (
+      class_impl = class_impl & (
+        "",
+        "    default:",
+        "      throw std::exception();",
         "  }",
-        "  return Cell.Runtime.Conversions.ExportAsText(obj);",
+        "",
+        "  return export_as_text(obj);",
         "}"
       );
     }
 
-    code = code & input_setters & output_getters & methods_wrappers;
-    code = (
-      "class " & auto_class_name & " {",
-      code,
-      "}"
-    );
+    class_impl = class_impl & input_setters_impls & output_getters_impls & methods_wrappers;
 
-    return (auto_class_name, code, docs);
+    return (auto_class_name, class_decl, class_impl);
   }
 }

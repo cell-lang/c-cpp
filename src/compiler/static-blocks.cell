@@ -84,7 +84,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     init_method_name = init_method_name(db_type);
     aux_init_method_name = aux_init_method_name(db_type);
     cleanup_method_name = cleanup_method_name(db_type);
-    set_state_method_name = set_state_proc_name(db_type);
+    set_state_method_name = set_state_method_name(db_type);
     db_type_name = native_name(db_type);
     aux_type_name = native_auxiliary_name(db_type);
 
@@ -356,7 +356,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //   return (
   //     "bool " & init_set_state_method_name(block_name) & "(" & formal_set_state_args & ") {",
   //     "  " & init_method & "(" & init_method_call_args & ");",
-  //     "  if (!" & set_state_proc_name(block_name) & "(" & target_name & ", state)) {",
+  //     "  if (!" & set_state_method_name(block_name) & "(" & target_name & ", state)) {",
   //     "    return false;",
   //     "  }",
   //     "  if (!" & full_check_method & "(" & target_name & ")) {",
@@ -407,7 +407,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* native_copy_state_code(DBSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    sgn = obj_type_name & " " & copy_state_proc_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ") {";
+    sgn = obj_type_name & " " & copy_state_method_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ") {";
     return (sgn) & indent_lines(body) & ("}");
   }
 
@@ -570,7 +570,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     vars_decls = gen_vars_decls(code, []);
     //body = vars_decls & ("" if vars_decls != (), updater_init_call) & native_code(code, nothing);
     body = vars_decls & native_code(code, nothing, break_target = nothing);
-    sgn = "bool " & set_state_proc_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ", " & obj_type_name & " a0) {";
+    sgn = "bool " & set_state_method_name(name) & "(" & native_name(name) & " *" & auto_or_db_arg_name & ", " & obj_type_name & " a0) {";
     return (sgn) & indent_lines(body) & ("}");
   }
 

@@ -165,7 +165,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
   String* native_copy_state_code(AutoSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    sgn = "OBJ " & copy_state_proc_name(name) & "(" & target_arg_decl(name) & ")";
+    sgn = "OBJ " & copy_state_method_name(name) & "(" & target_arg_decl(name) & ")";
     return ("", sgn & " {") & indent_lines(body) & ("}");
   }
 
@@ -173,7 +173,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
   String* native_set_state_code(AutoSymbol name, Instr* code) {
     vars_decls = gen_vars_decls(code, []);
     body = vars_decls & ("" if vars_decls != ()) & native_code(code, nothing, break_target = nothing);
-    sgn = "void " & set_state_proc_name(name) & "(" & target_arg_decl(name) & ", OBJ a0)";
+    sgn = "void " & set_state_method_name(name) & "(" & target_arg_decl(name) & ", OBJ a0)";
     return ("", sgn & " {") & indent_lines(body) & ("}");
   }
 

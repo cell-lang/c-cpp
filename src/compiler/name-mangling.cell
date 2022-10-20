@@ -680,9 +680,9 @@ String aux_init_method_name       (DBSymbol db_type) = qualified_name(db_type, "
 String init_set_state_method_name (DBSymbol db_type) = qualified_name(db_type, "set_init_state");
 String init_load_state_method_name(DBSymbol db_type) = qualified_name(db_type, "load_init_state");
 String cleanup_method_name        (DBSymbol db_type) = qualified_name(db_type, "cleanup");
-String copy_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "copy_state");
+String copy_state_method_name     (DBSymbol db_type) = qualified_name(db_type, "copy_state");
 String write_state_proc_name      (DBSymbol db_type) = qualified_name(db_type, "write_state");
-String set_state_proc_name        (DBSymbol db_type) = qualified_name(db_type, "set_state");
+String set_state_method_name      (DBSymbol db_type) = qualified_name(db_type, "set_state");
 String load_state_proc_name       (DBSymbol db_type) = qualified_name(db_type, "load_state");
 // String updater_creation_proc_name (DBSymbol db_type) = qualified_name(db_type, "new_updater");
 String auxiliary_reset_proc_name  (DBSymbol db_type) = qualified_name(db_type, "reset_auxiliary");
@@ -702,9 +702,9 @@ String msg_handler_reset_array(DBSymbol db_type)        = qualified_name(db_type
 
 String state_is_def_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "state_is_def");
 
-String set_state_proc_name(AutoSymbol auto_type) = qualified_name(auto_type, "set_state");
+String set_state_method_name(AutoSymbol auto_type) = qualified_name(auto_type, "set_state");
 
-String copy_state_proc_name     (AutoSymbol auto_type) = qualified_name(auto_type, "copy_state");
+String copy_state_method_name   (AutoSymbol auto_type) = qualified_name(auto_type, "copy_state");
 String pre_init_method_name     (AutoSymbol auto_type) = qualified_name(auto_type, "preinit");
 String apply_method_name        (AutoSymbol auto_type) = qualified_name(auto_type, "apply");
 String cleanup_method_name      (AutoSymbol auto_type) = qualified_name(auto_type, "cleanup");
