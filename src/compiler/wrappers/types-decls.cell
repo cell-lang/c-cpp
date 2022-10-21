@@ -12,7 +12,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
           native_decls = (native_decls |
             "class " & gen_class_name(intertype) & inheritance_list & " {",
             "",
-            "}"
+            "};"
           );
         }
 
@@ -50,14 +50,16 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       lines = (lines | line);
     }
 
-    ctor_args = (fields_types(i) & " " & fields_names(l) : l @ i <- labels);
-    lines = (lines | "", "    " & class_name & "(" & append(ctor_args, ", ") & ") {");
-    for l <- labels {
-      name = fields_names(l);
-      lines = (lines | "      this->" & name & " = " & name & ";");
-    }
+    // ctor_args = (fields_types(i) & " " & fields_names(l) : l @ i <- labels);
+    // lines = (lines | "", "    " & class_name & "(" & append(ctor_args, ", ") & ") {");
+    // for l <- labels {
+    //   name = fields_names(l);
+    //   lines = (lines | "      this->" & name & " = " & name & ";");
+    // }
+    // lines = (lines | "    }", "}");
 
-    return (lines | "    }", "}");
+    lines = (lines | "};");
+    return lines;
   }
 
 

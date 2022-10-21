@@ -189,16 +189,18 @@ type PrgData =  prg_data(
   data_exchange_types = data_exchange_types(prg, generated);
   wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
 
+  wrappers_decls = (data_exchange_types, wrappers_decls);
+
   wrappers_impls = ((
     "#include \"generated.cpp\"",
     "#include \"conversion.h\"",
     "",
     ""
-  ), wrappers_impls);
+  ), data_exchange_types, wrappers_impls);
 
   return [
     "generated.cpp" -> flatten(gen_content),
-    "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
+    // "typedefs.cpp"  -> flatten(data_exchange_types) if not has_main and data_exchange_types != (),
     "generated.h"   -> (flatten(wrappers_decls) | "") if not has_main and wrappers_decls != (),
     "automata.cpp"  -> flatten(wrappers_impls) if not has_main
   ];
@@ -211,11 +213,12 @@ type PrgData =  prg_data(
 Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
   decls = gen_inter_types_decls(prg = prg, typedefs = prg.typedefs, generated = generated);
   return () if decls == ();
-  return (
-    "namespace ??? {",
-    decls,
-    "}"
-  );
+  return decls;
+  // return (
+  //   "namespace ??? {",
+  //   decls,
+  //   "}"
+  // );
 }
 
 (Text, Text) wrappers_content(CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated, StaticBlock* ord_static_blocks, ReactBlock* ord_react_blocks) {
@@ -225,18 +228,6 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
 
   decls = ();
   impls = ();
-
-  rel_auto_wrappers_decls, rel_auto_wrappers_impls = rel_auto_wrappers(ord_static_blocks, prg, prg_data, generated);
-  if rel_auto_wrappers_decls != ()
-    decls = (decls | ("// Facades for relational automata", "", rel_auto_wrappers_decls));
-  if rel_auto_wrappers_impls != ()
-    impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
-
-  react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
-  if react_auto_wrappers_decls != ()
-    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
-  if react_auto_wrappers_impls != ()
-    impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
   let prg = prg, typedefs = prg.typedefs, generated = generated {
     types_decls, hierarchy = inter_types_decls;
@@ -254,6 +245,18 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
       );
     }
   }
+
+  rel_auto_wrappers_decls, rel_auto_wrappers_impls = rel_auto_wrappers(ord_static_blocks, prg, prg_data, generated);
+  if rel_auto_wrappers_decls != ()
+    decls = (decls | ("// Facades for relational automata", "", rel_auto_wrappers_decls));
+  if rel_auto_wrappers_impls != ()
+    impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
+
+  react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
+  if react_auto_wrappers_decls != ()
+    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
+  if react_auto_wrappers_impls != ()
+    impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
   return (decls, impls);
 }
