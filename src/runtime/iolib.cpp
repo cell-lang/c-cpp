@@ -10,7 +10,7 @@ OBJ FileRead_P(OBJ filename) {
   if (size == -1)
     return make_symb(symb_id_nothing);
 
-  OBJ seq = size != 0 ? make_slice_uint8(data, size) : make_empty_seq();
+  OBJ seq = build_seq_uint8(data, size);
   return make_tag_obj(symb_id_just, seq);
 
   // OBJ seq_obj = make_empty_seq();
