@@ -1,0 +1,165 @@
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
+  Text decl_types_import_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
+    type_symbs = isort(keys(type_decls));
+
+    hierarchy_closure = flat_transitive_closure(hierarchy);
+    concrete_classes = keys(type_decls);
+    abstract_classes = [ts : _ ts <- hierarchy];
+    all_classes = concrete_classes & abstract_classes;
+
+    assert disjoint(concrete_classes, abstract_classes);
+    assert not (ts _ <- hierarchy : not concrete_classes(ts) and not abstract_classes(ts));
+
+    class_names = [ts -> gen_class_name(ts) : ts <- all_classes];
+    import_fns_names = [ts -> decl_type_import_funct_name(ts) : ts <- all_classes];
+
+    let class_names = class_names, import_fns_names = import_fns_names {
+      // Concrete types
+      code = ();
+      for ts @ i <- type_symbs {
+        inter_type = type_decls(ts);
+        code = (code | "") if i > 0;
+        code = (code | decl_type_import_funct(ts, inter_type));
+      }
+
+      // Abstract types
+      for ts <- abstract_classes {
+        concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
+        code = (code | "", abstract_type_import_funct(ts, concrete_subclasses));
+      }
+    }
+
+    return code;
+  }
+}
+
+
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symbol -> String], import_fns_names : [Symbol -> String] {
+  Text abstract_type_import_funct(Symbol type_symb, [Symbol -> DeclInterType] concrete_subclasses) {
+    code = (
+      "OBJ " & import_fns_names(type_symb) & "(" & class_names(type_symb) & " ext_obj) {",
+      "  uint16 tag_id = get_tag_id(obj);"
+    );
+
+    for ts def <- concrete_subclasses {
+      tag = match (def)
+        tagged(t?, _) = t,
+        _             = undefined;
+
+      code = (
+        code |
+        "",
+        "  if (tag_id == " & symb_id_qual_name(tag) & ")",
+        "    return " & import_fns_names(ts) & "(obj);"
+      );
+    }
+
+    return (
+      code |
+      "  internal_fail();",
+      "}"
+    );
+  }
+
+
+  // String* decl_type_import_functions(DeclInterType inter_type) {
+  //   type_name = input_types_names(inter_type, !);
+  //   type_def = match (inter_type)
+  //     named()   = named_interface_types_defs(inter_type, !),
+  //     _         = inter_type;
+  //   body = decl_type_import_code(type_def, "obj", "return ");
+  //   sign_line = "static Obj " & decl_type_import_funct_name(type_name) & "(" & type_name & " obj) {";
+  //   code = (sign_line) & indent_lines(body) & ("}");
+  //   out_type_name = output_types_names(inter_type, !);
+  //   if out_type_name != type_name {
+  //     out_body = decl_type_import_code(type_def, "obj", "return ");
+  //     out_fn_name = decl_type_import_funct_name(out_type_name);
+  //     out_sign_line = "static Obj " & out_fn_name & "(" & out_type_name & " obj) {";
+  //     code = code & ("", out_sign_line) & indent_lines(out_body) & ("}");
+  //   }
+  //   return code;
+  // }
+
+  Text decl_type_import_funct(Symbol type_symb, DeclInterType inter_type) {
+    tmp_var = new_unique_var(:unused);
+    bare_type, expr, body_header = match (inter_type)
+      tuple()       |
+      record()      = (inter_type, "cpp_obj", ()),
+      tagged(_, t?) = (t, "cpp_obj", ());
+
+    class_name = class_names(type_symb);
+    fn_name = import_fns_names(type_symb);
+
+    code = decl_type_import_code(bare_type, class_name, "cpp_obj");
+    sign_line = "OBJ " & fn_name & "(" & class_name & " cpp_obj) {";
+    return (sign_line, code, "}");
+  }
+
+
+  String* decl_type_import_code(RecordInterType inter_type, String class_name, String expr) {
+    fields = fields(inter_type);
+    labels = isort(keys(fields));
+    fields_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+    fields_vars = [v -> new_unique_var(:unused) : v _ <- fields];
+
+    count_str = _print_(|fields|);
+
+    unique_id = printed(_counter_(:any_value_will_do));
+    labels_var = "labels_" & unique_id;
+    values_var = "values_" & unique_id;
+
+    code = (
+      "const static uint16 " & labels_var & "[" & count_str & "] = {" & append((symb_id_qual_name(l) : l <- labels), ", ") & "};",
+      "",
+      "OBJ " & values_var & "[" & count_str & "];"
+    );
+
+    // fields: [+Symbol -> InterType]
+
+    // Converting all the fields
+    for l @ i <- labels {
+      // tmp_var = new_unique_var(:unused);
+      // code = (
+      //   code |
+      //   "OBJ " & tmp_var & " = lookup_field(" & expr & ", " & symb_id_qual_name(l) & ");",
+      //   qualified_return_type(t) & " " & fields_vars(l) & ";"
+      // );
+      code = code & import_code(fields(l), "(" & expr & "." & fields_names(l) & ")", values_var & "[" & _print_(i) & "] = ");
+    }
+
+    return (code | "return build_record(" & append((labels_var, values_var, count_str), ", ") & ");");
+
+    // // Instantiating and returning the object
+    // obj_var = new_unique_var(:unused);
+    // code = (code | class_name & " " & obj_var & ";");
+    // labels = sort_record_labels(keys(fields));
+    // for l <- labels {
+    //   line = obj_var & "." & fields_names(l) & " = " & fields_vars(l) & ";";
+    //   code = (code | line);
+    // }
+    // code = (code | "return " & obj_var & ";");
+    // return code;
+  }
+
+
+  String* decl_type_import_code(TupleInterType inter_type, String class_name, String expr) {
+    args_types = field_types(inter_type);
+    args_vars = (new_unique_var(:unused) : _ < |args_types|);
+
+    code = ();
+
+    // Converting all the fields
+    for t @ i <- args_types {
+      tmp_var = new_unique_var(:unused);
+      code = (
+        code |
+        "OBJ " & tmp_var & " = get_obj_at(" & expr & ", " & _print_(i) & ");",
+        qualified_return_type(t) & " " & args_vars(i) & ";"
+      );
+      code = code & import_code(t, tmp_var, args_vars(i) & " = ");
+    }
+
+    // Instantiating and returning the object
+    return (code | "return new " & class_name & "(" & append(args_vars, ", ") & ");");
+  }
+}

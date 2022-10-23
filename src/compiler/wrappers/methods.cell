@@ -128,8 +128,8 @@ String obj_to_repr(AnyLowLevelRepr repr, String expr) =
   float               = "get_float(" & expr & ")",
   symbol              |
   array()             |
-  object              = expr,
-  opt_tag_rec_repr()  = "(" & opt_tag_rec_name(repr.tag, repr.index, context=:wrapper) & ") " & expr;
+  object              |
+  opt_tag_rec_repr()  = expr;
 
 
 String repr_to_obj(AnyLowLevelRepr repr, String expr) =

@@ -165,3 +165,4 @@ Bool is_reserved(String id) {
 String gen_class_name(Symbol symb) = upper_camel_case(symb);
 
 String decl_type_export_funct_name(Symbol symb) = "Export_" & gen_class_name(symb);
+String decl_type_import_funct_name(Symbol symb) = "Import_" & gen_class_name(symb);

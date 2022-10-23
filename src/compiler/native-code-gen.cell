@@ -232,14 +232,15 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
   let prg = prg, typedefs = prg.typedefs, generated = generated {
     types_decls, hierarchy = inter_types_decls;
     if types_decls != [] {
-      conv_fns = decl_types_export_functs(types_decls, hierarchy);
-      impls = (
-        impls |
+      import_fns = decl_types_import_functs(types_decls, hierarchy);
+      export_fns = decl_types_export_functs(types_decls, hierarchy);
+      impls = (impls |
         "",
         "",
         // "namespace ??? {",
         ( "// Conversion functions for declared interface types",
-          conv_fns
+          import_fns,
+          export_fns
         )
         // "}"
       );

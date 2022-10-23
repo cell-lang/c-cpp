@@ -1308,7 +1308,7 @@ OBJ build_seq_uint8(uint8* array, int32 size);
 OBJ build_seq_bool(bool* array, int32 size);
 OBJ build_seq_double(double* array, int32 size);
 
-OBJ build_record(uint16 *labels, OBJ *value, int32 count);
+OBJ build_record(const uint16 *labels, OBJ *value, int32 count);
 
 double float_pow(double, double);
 double float_sqrt(double);

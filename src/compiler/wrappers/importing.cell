@@ -15,7 +15,8 @@ implicit prg : CompiledPrg {
     tern_rel(a1?, a2?, a3?) = tern_rel_import_code(a1, a2, a3, expr, action_prefix),
     tagged()                = tagged_value_import_code(it, expr, action_prefix),
     optional(t?)            = optional_value_import_code(t, expr, action_prefix),
-    generic                 = (action_prefix & "import_obj(" & expr & ");");
+    generic                 = (action_prefix & "import_obj(" & expr & ");"),
+    generated(ts?)          = (action_prefix & decl_type_import_funct_name(bare_id(ts)) & "(" & expr & ");");
 
 
   String* tuple_import_code(InterType+ types, String expr, String action_prefix) {

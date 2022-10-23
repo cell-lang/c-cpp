@@ -68,7 +68,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         type_symb = type_symb(type);
 
         // Is this type mapped to a generated class?
-        if direction == :output and type_symb :: BasicTypeSymbol and generated(type_symb)
+        // if direction == :output and type_symb :: BasicTypeSymbol and generated(type_symb) ## WHAT WAS THE RATIONAL FOR THE EXTRA direction == :output CONDITION?
+        if type_symb :: BasicTypeSymbol and generated(type_symb)
           return :generated(type_symb);
 
         // Switching to a generic representation for recursive types

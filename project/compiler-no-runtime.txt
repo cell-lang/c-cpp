@@ -184,6 +184,7 @@ src/compiler/wrappers/handlers.cell
 src/compiler/wrappers/miscellanea.cell
 src/compiler/wrappers/importing.cell
 src/compiler/wrappers/exporting.cell
+src/compiler/wrappers/decl-types-import.cell
 src/compiler/wrappers/decl-types-export.cell
 
 

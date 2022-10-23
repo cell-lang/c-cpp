@@ -163,7 +163,7 @@ OBJ build_map(STREAM &key_stream, STREAM &value_stream) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-OBJ build_record(uint16 *labels, OBJ *values, int32 count) {
+OBJ build_record(const uint16 *labels, OBJ *values, int32 count) {
   OBJ buffer[1024];
   if (count > 1024)
     impl_fail("Record with more than 1024 fields");
