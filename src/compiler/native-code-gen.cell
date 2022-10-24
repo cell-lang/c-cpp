@@ -192,6 +192,8 @@ type PrgData =  prg_data(
   wrappers_decls = (data_exchange_types, wrappers_decls);
 
   wrappers_impls = ((
+    "#include <memory>",
+    "",
     "#include \"generated.cpp\"",
     "#include \"conversion.h\"",
     "",

@@ -1,4 +1,4 @@
-implicit prg : CompiledPrg {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   String* export_code(InterType it, String expr, String action_prefix) =
     bool                    = (action_prefix & "get_bool(" & expr & ");"),
     integer                 = (action_prefix & "get_int(" & expr & ");"),

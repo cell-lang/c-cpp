@@ -1,4 +1,4 @@
-implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   Text decl_types_import_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
     type_symbs = isort(keys(type_decls));
 
@@ -34,11 +34,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
 }
 
 
-implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symbol -> String], import_fns_names : [Symbol -> String] {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], class_names : [Symbol -> String], import_fns_names : [Symbol -> String] {
   Text abstract_type_import_funct(Symbol type_symb, [Symbol -> DeclInterType] concrete_subclasses) {
+    class_name = class_names(type_symb);
+
     code = (
-      "OBJ " & import_fns_names(type_symb) & "(" & class_names(type_symb) & " ext_obj) {",
-      "  uint16 tag_id = get_tag_id(obj);"
+      "OBJ " & import_fns_names(type_symb) & "(" & class_names(type_symb) & " *cpp_obj) {"
     );
 
     for ts def <- concrete_subclasses {
@@ -46,19 +47,18 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
         tagged(t?, _) = t,
         _             = undefined;
 
-      code = (
-        code |
-        "",
-        "  if (tag_id == " & symb_id_qual_name(tag) & ")",
-        "    return " & import_fns_names(ts) & "(obj);"
+      ptr_var_name = new_unique_var(:unused);
+      subclass_name = class_names(ts);
+
+      code = (code |
+        "  " & subclass_name & " *" & ptr_var_name & " = dynamic_cast<" & subclass_name & " *>(cpp_obj);",
+        "  if (" & ptr_var_name & " != NULL)",
+        "    return " & import_fns_names(ts) & "(*" & ptr_var_name & ");",
+        ""
       );
     }
 
-    return (
-      code |
-      "  internal_fail();",
-      "}"
-    );
+    return (code | "  internal_fail();", "}"); ## BUG BUG BUG: SHOULDN'T THIS BE A soft_fail(..)?
   }
 
 

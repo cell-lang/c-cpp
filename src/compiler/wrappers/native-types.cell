@@ -1,4 +1,4 @@
-implicit direction : <input, output>, qualified : Bool {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], direction : <input, output>, qualified : Bool {
   String native_inter_type(EltInterType it, Bool nullable) {
     return match (it)
       bool                = "bool"          & if nullable then " *" else "",
@@ -13,13 +13,13 @@ implicit direction : <input, output>, qualified : Bool {
       record(fs?)         = "std::string" & if nullable then " *" else "", ## TODO: REENABLE THIS: record_native_inter_type(fs, nullable),
       tuple(ts?)          = "std::tuple<" & append((native_inter_type(t, false) : t <- ts), ", ") & ">" & if nullable then " *" else "",
       seq(t?)             |
-      set(t?)             = "std::vector<" & native_inter_type(t, false) & "> " & if nullable then "*" else "",
+      set(t?)             = "std::vector<" & native_inter_type(t, false) & ">" & if nullable then " *" else "",
       bin_rel(ts?)        |
-      tern_rel(ts?)       = "std::vector<std::tuple<" & append((native_inter_type(t, false) : t <- ts), ", ") & "> > " & if nullable then "*" else "",
+      tern_rel(ts?)       = "std::vector<std::tuple<" & append((native_inter_type(t, false) : t <- ts), ", ") & ">>" & if nullable then " *" else "",
       tagged(_, t?)       = native_inter_type(t, nullable),
       string              |
       generic             = "std::string" & if nullable then " *" else "",
-      generated(ts?)      = gen_class_name(bare_id(ts)); ## WAS: {if qualified then "generated::" else ""} & gen_class_name(bare_id(ts));
+      generated(ts?)      = native_generated_inter_type(ts);
 
     // String record_native_inter_type([+Symbol -> InterType] fields, Bool nullable) {
     //   ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
@@ -27,23 +27,35 @@ implicit direction : <input, output>, qualified : Bool {
     //   native_fields = (native_inter_type(t, false) & " " & field_names(l) : l, t <- ord_fields);
     //   return "(" & append(native_fields, ", ") & ")" & if nullable then " *" else "";
     // }
+
+    String native_generated_inter_type(BasicTypeSymbol type_symb) {
+      bare_type_id = bare_id(type_symb);
+      native_type = gen_class_name(bare_type_id); ## WAS: {if qualified then "generated::" else ""} & gen_class_name(bare_id(ts));
+      if not is_concrete_class(bare_type_id)
+        native_type = if direction == :input
+          then native_type & " *"
+          else "std::unique_ptr<" & native_type & ">";
+      return native_type;
+    }
   }
 }
 
 /////////////////////////////////////////////////////////////////////////////////
 
-String input_arg_type(EltInterType it) =
-  native_inter_type(it, false, direction = :input, qualified = false);
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  String input_arg_type(EltInterType it) =
+    native_inter_type(it, false, direction = :input, qualified = false);
 
-String input_arg_type(EltInterType it, Bool nullable) =
-  native_inter_type(it, nullable, direction = :input, qualified = false);
+  String input_arg_type(EltInterType it, Bool nullable) =
+    native_inter_type(it, nullable, direction = :input, qualified = false);
 
 
-String return_value_type(EltInterType it) =
-  native_inter_type(it, false, direction = :output, qualified = false);
+  String return_value_type(EltInterType it) =
+    native_inter_type(it, false, direction = :output, qualified = false);
 
-String return_value_type(EltInterType it, Bool nullable) =
-  native_inter_type(it, nullable, direction = :output, qualified = false);
+  String return_value_type(EltInterType it, Bool nullable) =
+    native_inter_type(it, nullable, direction = :output, qualified = false);
 
-String qualified_return_type(EltInterType it) =
-  native_inter_type(it, false, direction = :output, qualified = true);
+  String qualified_return_type(EltInterType it) =
+    native_inter_type(it, false, direction = :output, qualified = true);
+}

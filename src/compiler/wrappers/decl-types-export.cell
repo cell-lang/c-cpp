@@ -1,4 +1,4 @@
-implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   Text decl_types_export_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
     type_symbs = isort(keys(type_decls));
 
@@ -34,11 +34,14 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType] {
 }
 
 
-implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symbol -> String], export_fns_names : [Symbol -> String] {
+implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], class_names : [Symbol -> String], export_fns_names : [Symbol -> String] {
   Text abstract_type_export_funct(Symbol type_symb, [Symbol -> DeclInterType] concrete_subclasses) {
+    class_name = class_names(type_symb);
+
     code = (
-      class_names(type_symb) & " " & export_fns_names(type_symb) & "(OBJ obj) {",
-      "  uint16 tag_id = get_tag_id(obj);"
+      "std::unique_ptr<" & class_name & "> " & export_fns_names(type_symb) & "(OBJ obj) {",
+      "  uint16 tag_id = get_tag_id(obj);",
+      ""
     );
 
     for ts def <- concrete_subclasses {
@@ -46,19 +49,20 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], class_names : [Symb
         tagged(t?, _) = t,
         _             = undefined;
 
-      code = (
-        code |
-        "",
-        "  if (tag_id == " & symb_id_qual_name(tag) & ")",
-        "    return " & export_fns_names(ts) & "(obj);"
+      subclass_name = class_names(ts);
+
+      code = (code |
+        "  if (tag_id == " & symb_id_qual_name(tag) & ") {",
+        "    " & subclass_name & " value = " & export_fns_names(ts) & "(obj);",
+        "    " & subclass_name & " *ptr = new " & subclass_name & ";",
+        "    *ptr = value;",
+        "    return std::unique_ptr<" & class_name & ">(ptr);",
+        "}",
+        ""
       );
     }
 
-    return (
-      code |
-      "  internal_fail();",
-      "}"
-    );
+    return (code | "  internal_fail();", "}");
   }
 
 

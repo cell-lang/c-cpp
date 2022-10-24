@@ -193,6 +193,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
+  Bool is_concrete_class(Symbol type_symb) {
+    type_decls, subtype_decls = inter_types_decls;
+    return type_decls(type_symb, _);
+  }
+
+
   ([Symbol -> DeclInterType], [Symbol, Symbol]) inter_types_decls {
     merged_decls : [Symbol -> DeclInterType];
 

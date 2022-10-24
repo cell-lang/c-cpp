@@ -7,11 +7,13 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       for intertype <- isort(intertypes)
         if not type_decls(intertype, _) {
           parents = isort([gen_class_name(p) : p <- subtype_decls(intertype, ?)]);
-          inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
+          inheritance_list = if parents != () then " : " & append(("public " & p : p <- parents), ", ") else "";
           native_decls = (native_decls | "") if native_decls != ();
+          class_name = gen_class_name(intertype);
           native_decls = (native_decls |
-            "class " & gen_class_name(intertype) & inheritance_list & " {",
-            "",
+            "class " & class_name & inheritance_list & " {",
+            "  public:",
+            "    virtual ~"  & class_name & "() {}",
             "};"
           );
         }
@@ -40,7 +42,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     labels = sort_record_labels(labels);
     fields_types = (return_value_type(fields(l)) : l <- labels);
     max_len = max([length(t) : t <- fields_types]);
-    inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
+    inheritance_list = if parents != () then " : " & append(("public " & p : p <- parents), ", ") else "";
     lines = ("", "class " & class_name & inheritance_list &  " {", "  public:");
     for l @ i <- labels {
       name = fields_names(l);
