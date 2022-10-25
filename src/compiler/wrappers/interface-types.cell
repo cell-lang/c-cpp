@@ -376,3 +376,26 @@ implicit typedefs : [TypeName -> NeType] {
       _                           = undefined;
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+[Symbol] generated_nested_types(EltInterType inter_type) =
+  bool                |
+  byte                |
+  int32               |
+  integer             |
+  float               |
+  date                |
+  time                |
+  symbol()            |
+  string              |
+  generic             = [],
+  optional(t?)        = generated_nested_types(t),
+  record(fs?)         = [s : _ t <- fs, s <- generated_nested_types(t)],
+  tuple(ts?)          = [s : t <- ts, s <- generated_nested_types(t)],
+  seq(t?)             |
+  set(t?)             = generated_nested_types(t),
+  bin_rel(ts?)        |
+  tern_rel(ts?)       = [s : t <- ts, s <- generated_nested_types(t)],
+  tagged(_, t?)       = generated_nested_types(t),
+  generated(ts?)      = [bare_id(ts)];

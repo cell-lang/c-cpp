@@ -2,7 +2,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   Text decl_types_export_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
     type_symbs = isort(keys(type_decls));
 
+    nesting_dependencies = [s, ns : s t <- type_decls, ns <- generated_nested_types(t)];
+    dependencies = [s1, s2 : s2 s1 <- hierarchy | s1 s2 <- nesting_dependencies];
+    dependency_closure = flat_transitive_closure(dependencies);
+
     hierarchy_closure = flat_transitive_closure(hierarchy);
+
     concrete_classes = keys(type_decls);
     abstract_classes = [ts : _ ts <- hierarchy];
     all_classes = concrete_classes & abstract_classes;
@@ -13,19 +18,22 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     class_names = [ts -> gen_class_name(ts) : ts <- all_classes];
     export_fns_names = [ts -> decl_type_export_funct_name(ts) : ts <- all_classes];
 
-    let class_names = class_names, export_fns_names = export_fns_names {
-      // Concrete types
-      code = ();
-      for ts @ i <- type_symbs {
-        inter_type = type_decls(ts);
-        code = (code | "") if i > 0;
-        code = (code | decl_type_export_funct(ts, inter_type));
-      }
+    ord_classes = join((isort(ts) : ts <- topological_sort(group_by_left_arg(dependency_closure))));
 
-      // Abstract types
-      for ts <- abstract_classes {
-        concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
-        code = (code | "", abstract_type_export_funct(ts, concrete_subclasses));
+    code = ();
+    let class_names = class_names, export_fns_names = export_fns_names {
+      for ts @ i <- ord_classes {
+        if concrete_classes(ts) {
+          // Concrete types
+          inter_type = type_decls(ts);
+          code = (code | "") if i > 0;
+          code = (code | decl_type_export_funct(ts, inter_type));
+        }
+        else {
+          // Abstract types
+          concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
+          code = (code | "", abstract_type_export_funct(ts, concrete_subclasses));
+        }
       }
     }
 
@@ -105,7 +113,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     code = (code | class_name & " " & obj_var & ";");
     labels = sort_record_labels(keys(fields));
     for l <- labels {
-      line = obj_var & "." & fields_names(l) & " = " & fields_vars(l) & ";";
+      src_expr = fields_vars(l);
+      src_expr = "std::move(" & src_expr & ")" if not can_be_copied(fields(l));
+      line = obj_var & "." & fields_names(l) & " = " & src_expr & ";";
       code = (code | line);
     }
     code = (code | "return " & obj_var & ";");
@@ -134,3 +144,26 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     return (code | "return new " & class_name & "(" & append(args_vars, ", ") & ");");
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+
+Bool can_be_copied(EltInterType inter_type) =
+  bool                |
+  byte                |
+  int32               |
+  integer             |
+  float               |
+  date                |
+  time                |
+  symbol()            |
+  string              |
+  generic             = true,
+  optional(t?)        = can_be_copied(t),
+  record(fs?)         = not (_ t <- fs : not can_be_copied(t)),
+  tuple(ts?)          = not (t <- ts : not can_be_copied(t)),
+  seq(t?)             |
+  set(t?)             = can_be_copied(t),
+  bin_rel(ts?)        |
+  tern_rel(ts?)       = not (t <- ts : not can_be_copied(t)),
+  tagged(_, t?)       = can_be_copied(t),
+  generated(ts?)      = false; ## BAD BAD BAD

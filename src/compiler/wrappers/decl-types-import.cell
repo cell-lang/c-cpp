@@ -2,7 +2,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   Text decl_types_import_functs([Symbol -> DeclInterType] type_decls, [Symbol, Symbol] hierarchy) {
     type_symbs = isort(keys(type_decls));
 
+    nesting_dependencies = [s, ns : s t <- type_decls, ns <- generated_nested_types(t)];
+    dependencies = [s1, s2 : s2 s1 <- hierarchy | s1 s2 <- nesting_dependencies];
+    dependency_closure = flat_transitive_closure(dependencies);
+
     hierarchy_closure = flat_transitive_closure(hierarchy);
+
     concrete_classes = keys(type_decls);
     abstract_classes = [ts : _ ts <- hierarchy];
     all_classes = concrete_classes & abstract_classes;
@@ -13,19 +18,22 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     class_names = [ts -> gen_class_name(ts) : ts <- all_classes];
     import_fns_names = [ts -> decl_type_import_funct_name(ts) : ts <- all_classes];
 
-    let class_names = class_names, import_fns_names = import_fns_names {
-      // Concrete types
-      code = ();
-      for ts @ i <- type_symbs {
-        inter_type = type_decls(ts);
-        code = (code | "") if i > 0;
-        code = (code | decl_type_import_funct(ts, inter_type));
-      }
+    ord_classes = join((isort(ts) : ts <- topological_sort(group_by_left_arg(dependency_closure))));
 
-      // Abstract types
-      for ts <- abstract_classes {
-        concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
-        code = (code | "", abstract_type_import_funct(ts, concrete_subclasses));
+    code = ();
+    let class_names = class_names, import_fns_names = import_fns_names {
+      for ts @ i <- ord_classes {
+        if concrete_classes(ts) {
+          // Concrete types
+          inter_type = type_decls(ts);
+          code = (code | "") if i > 0;
+          code = (code | decl_type_import_funct(ts, inter_type));
+        }
+        else {
+          // Abstract types
+          concrete_subclasses = [sts -> type_decls(sts) : sts <- hierarchy_closure(?, ts), concrete_classes(sts)];
+          code = (code | "", abstract_type_import_funct(ts, concrete_subclasses));
+        }
       }
     }
 
@@ -39,7 +47,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     class_name = class_names(type_symb);
 
     code = (
-      "OBJ " & import_fns_names(type_symb) & "(" & class_names(type_symb) & " *cpp_obj) {"
+      "OBJ " & import_fns_names(type_symb) & "(const " & class_names(type_symb) & " &cpp_obj) {"
     );
 
     for ts def <- concrete_subclasses {
@@ -51,7 +59,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       subclass_name = class_names(ts);
 
       code = (code |
-        "  " & subclass_name & " *" & ptr_var_name & " = dynamic_cast<" & subclass_name & " *>(cpp_obj);",
+        "  const " & subclass_name & " *" & ptr_var_name & " = dynamic_cast<const " & subclass_name & " *>(&cpp_obj);",
         "  if (" & ptr_var_name & " != NULL)",
         "    return " & import_fns_names(ts) & "(*" & ptr_var_name & ");",
         ""
@@ -91,7 +99,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     fn_name = import_fns_names(type_symb);
 
     code = decl_type_import_code(bare_type, class_name, "cpp_obj");
-    sign_line = "OBJ " & fn_name & "(" & class_name & " cpp_obj) {";
+    sign_line = "OBJ " & fn_name & "(const " & class_name & " &cpp_obj) {";
     return (sign_line, code, "}");
   }
 
@@ -114,31 +122,17 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "OBJ " & values_var & "[" & count_str & "];"
     );
 
-    // fields: [+Symbol -> InterType]
-
     // Converting all the fields
     for l @ i <- labels {
-      // tmp_var = new_unique_var(:unused);
-      // code = (
-      //   code |
-      //   "OBJ " & tmp_var & " = lookup_field(" & expr & ", " & symb_id_qual_name(l) & ");",
-      //   qualified_return_type(t) & " " & fields_vars(l) & ";"
-      // );
-      code = code & import_code(fields(l), "(" & expr & "." & fields_names(l) & ")", values_var & "[" & _print_(i) & "] = ");
+      field_expr = "(" & expr & "." & fields_names(l) & ")";
+      is_ref = match (fields(l))
+        generated(ts?)  = not is_concrete_class(bare_id(ts)),
+        _               = false;
+      field_expr = "(*" & field_expr & ")" if is_ref;
+      code = code & import_code(fields(l), field_expr, values_var & "[" & _print_(i) & "] = ");
     }
 
     return (code | "return build_record(" & append((labels_var, values_var, count_str), ", ") & ");");
-
-    // // Instantiating and returning the object
-    // obj_var = new_unique_var(:unused);
-    // code = (code | class_name & " " & obj_var & ";");
-    // labels = sort_record_labels(keys(fields));
-    // for l <- labels {
-    //   line = obj_var & "." & fields_names(l) & " = " & fields_vars(l) & ";";
-    //   code = (code | line);
-    // }
-    // code = (code | "return " & obj_var & ";");
-    // return code;
   }
 
 
