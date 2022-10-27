@@ -3,16 +3,16 @@
 #include <exception>
 
 
-OBJ import_string(std::string &str);
+OBJ import_string(const std::string &str);
 OBJ import_date(int64 days_since_epoch);
 OBJ import_time(int64 nanosecs_since_epoch);
-OBJ import_obj(std::string &str);
-OBJ import_symbol(std::string &str);
-OBJ import_date(std::string &str);
-OBJ import_time(std::string &str);
+OBJ import_obj(const std::string &str);
+OBJ import_symbol(const std::string &str);
+OBJ import_date(const std::string &str);
+OBJ import_time(const std::string &str);
 
-OBJ import_byte_array(std::vector<unsigned char> &vector);
-OBJ import_int_array(std::vector<int> &vector);
+OBJ import_byte_array(const std::vector<unsigned char> &vector);
+OBJ import_int_array(const std::vector<int> &vector);
 
 ////////////////////////////////////////////////////////////////////////////////
 

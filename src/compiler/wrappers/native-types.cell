@@ -1,24 +1,29 @@
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], qualified : Bool {
-  String native_input_inter_type(EltInterType it, Bool nullable) =
-    bool                = "bool"          & if nullable then " *" else "",
-    byte                = "unsigned char" & if nullable then " *" else "",
-    int32               = "int"           & if nullable then " *" else "",
-    integer             = "long long"     & if nullable then " *" else "",
-    float               = "double"        & if nullable then " *" else "",
-    date                = "std::string"   & if nullable then " *" else " &",
-    time                = "std::string"   & if nullable then " *" else " &",
-    optional(t?)        = native_input_inter_type(t, true) & if nullable then " *" else "",
-    symbol()            = "std::string" & if nullable then " *" else " &",
-    record(fs?)         = "std::string" & if nullable then " *" else " &",
-    tuple(ts?)          = "std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">" & if nullable then " *" else " &",
-    seq(t?)             |
-    set(t?)             = "std::vector<" & native_nested_inter_type(t, false) & ">" & if nullable then " *" else " &",
-    bin_rel(ts?)        |
-    tern_rel(ts?)       = "std::vector<std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>" & if nullable then " *" else " &",
-    tagged(_, t?)       = native_input_inter_type(t, nullable),
-    string              |
-    generic             = "std::string" & if nullable then " *" else " &",
-    generated(ts?)      = gen_class_name(bare_id(ts)) & if nullable then " *" else " &";
+  String native_input_inter_type(EltInterType it, Bool nullable) {
+    return match (it)
+      bool                = "bool"          & if nullable then " *" else "",
+      byte                = "unsigned char" & if nullable then " *" else "",
+      int32               = "int"           & if nullable then " *" else "",
+      integer             = "long long"     & if nullable then " *" else "",
+      float               = "double"        & if nullable then " *" else "",
+      date                = full_type("std::string", nullable),
+      time                = full_type("std::string", nullable),
+      optional(t?)        = native_input_inter_type(t, true) & if nullable then " *" else "",
+      symbol()            = full_type("std::string", nullable),
+      record(fs?)         = full_type("std::string", nullable),
+      tuple(ts?)          = full_type("std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">", nullable),
+      seq(t?)             |
+      set(t?)             = full_type("std::vector<" & native_nested_inter_type(t, false) & ">", nullable),
+      bin_rel(ts?)        |
+      tern_rel(ts?)       = full_type("std::vector<std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>", nullable),
+      tagged(_, t?)       = native_input_inter_type(t, nullable),
+      string              |
+      generic             = full_type("std::string", nullable),
+      generated(ts?)      = full_type(gen_class_name(bare_id(ts)), nullable);
+
+
+    String full_type(String base_type, Bool nullable) = if nullable then base_type & " *" else "const " & base_type & " &";
+  }
 
 
   String native_nested_inter_type(EltInterType it, Bool nullable) {

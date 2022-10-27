@@ -189,16 +189,27 @@ type PrgData =  prg_data(
   data_exchange_types = data_exchange_types(prg, generated);
   wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
 
-  wrappers_decls = (data_exchange_types, wrappers_decls);
-
-  wrappers_impls = ((
+  std_includes = (
     "#include <memory>",
-    "",
-    "#include \"generated.cpp\"",
-    "#include \"conversion.h\"",
+    "#include <vector>",
+    "#include <tuple>",
+    "#include <string>",
     "",
     ""
-  ), data_exchange_types, wrappers_impls);
+  );
+
+  wrappers_decls = (std_includes, data_exchange_types, wrappers_decls);
+
+  wrappers_impls = (
+    std_includes,
+    ( "#include \"generated.cpp\"",
+      "#include \"conversion.h\"",
+      "",
+      ""
+    ),
+    data_exchange_types,
+    wrappers_impls
+  );
 
   return [
     "generated.cpp" -> flatten(gen_content),

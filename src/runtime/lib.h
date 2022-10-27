@@ -1180,7 +1180,7 @@ void obj_to_str(OBJ str_obj, char *buffer, uint32 size);
 
 uint8* obj_to_byte_array(OBJ byte_seq_obj, uint32 &size);
 
-uint64 char_buffer_size(OBJ str_obj);
+int64 utf8_size(OBJ);
 
 //////////////////////////////// conversion.cpp ////////////////////////////////
 
@@ -1297,16 +1297,16 @@ int64  *get_seq_next_frag_int64(OBJ seq, uint32 offset, int64 *buffer, uint32 ca
 double *get_seq_next_frag_double(OBJ seq, uint32 offset, double *buffer, uint32 capacity, uint32 *count_var);
 OBJ    *get_seq_next_frag_obj(OBJ seq, uint32 offset, OBJ *buffer, uint32 capacity, uint32 *count_var);
 
-OBJ build_seq_int64(int64* array, int32 size);
-OBJ build_seq_int32(int32* array, int32 size);
-OBJ build_seq_uint32(uint32* array, int32 size);
-OBJ build_seq_int16(int16* array, int32 size);
-OBJ build_seq_uint16(uint16* array, int32 size);
-OBJ build_seq_int8(int8* array, int32 size);
-OBJ build_seq_uint8(uint8* array, int32 size);
+OBJ build_seq_int64(int64* array, uint32 size);
+OBJ build_seq_int32(int32* array, uint32 size);
+OBJ build_seq_uint32(uint32* array, uint32 size);
+OBJ build_seq_int16(int16* array, uint32 size);
+OBJ build_seq_uint16(uint16* array, uint32 size);
+OBJ build_seq_int8(int8* array, uint32 size);
+OBJ build_seq_uint8(uint8* array, uint32 size);
 
-OBJ build_seq_bool(bool* array, int32 size);
-OBJ build_seq_double(double* array, int32 size);
+OBJ build_seq_bool(bool* array, uint32 size);
+OBJ build_seq_double(double* array, uint32 size);
 
 OBJ build_record(const uint16 *labels, OBJ *value, int32 count);
 

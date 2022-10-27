@@ -490,7 +490,7 @@ bool *get_seq_next_frag_bool(OBJ seq, uint32 offset, bool *buffer, uint32 capaci
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// OBJ* get_obj_array(OBJ seq, OBJ* buffer, int32 size) {
+// OBJ* get_obj_array(OBJ seq, OBJ* buffer, uint32 size) {
 //   if (is_empty_seq(seq))
 //     return NULL;
 
@@ -902,14 +902,14 @@ OBJ build_seq_bool(bool *array, int32 size) {
   return make_seq(seq, size);
 }
 
-OBJ build_seq_double(double *array, int32 size) {
+OBJ build_seq_double(double *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
   else
     return make_slice_float(array, size);
 }
 
-OBJ build_seq_int64(int64 *array, int32 size) {
+OBJ build_seq_int64(int64 *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
 
@@ -950,11 +950,11 @@ OBJ build_seq_int64(int64 *array, int32 size) {
   return make_slice_int64(array, size);
 }
 
-OBJ build_seq_int32(int32 *array, int32 size) {
+OBJ build_seq_int32(int32 *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
 
-  if (size <= 0) {
+  if (size <= 8) {
     int32 min = 0;
     int32 max = 0;
 
@@ -991,7 +991,7 @@ OBJ build_seq_int32(int32 *array, int32 size) {
   return make_slice_int32(array, size);
 }
 
-OBJ build_seq_int16(int16 *array, int32 size) {
+OBJ build_seq_int16(int16 *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
 
@@ -1040,7 +1040,7 @@ OBJ build_seq_int8(int8 *array, int32 size) {
   return make_slice_int8(array, size);
 }
 
-OBJ build_seq_uint8(uint8 *array, int32 size) {
+OBJ build_seq_uint8(uint8 *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
 
