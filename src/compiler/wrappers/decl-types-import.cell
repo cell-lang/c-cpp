@@ -93,7 +93,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     bare_type, body_footer = match (inter_type)
       tuple()         |
       record()        = (inter_type, ()),
-      tagged(s?, t?)  = (t, ("return make_tag_obj(" & symb_id_name(s, context=:wrapper) & ", " & tmp_var & ");"));
+      tagged(s?, t?)  = (t, ("return opt_repr_build(make_symb(" & symb_id_name(s, context=:wrapper) & "), " & tmp_var & ");")); ## BAD BAD BAD: THIS SHOULD BE OPTIMIZED
 
     class_name = class_names(type_symb);
     fn_name = import_fns_names(type_symb);

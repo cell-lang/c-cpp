@@ -198,7 +198,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "  " & unboxed_type & " &" & ref_var & " = *" & expr & ";",
         "  OBJ " & tmp_var & ";"
     ) & indent_lines(import_code(inner_type, ref_var, tmp_var & " = ")) & (
-      "  " & action_prefix & "make_tag_obj(symb_id_just, " & tmp_var & ");",
+      "  " & action_prefix & "make_tag_obj(symb_id_just, " & tmp_var & ");", ## BUG BUG BUG: BYPASSING THE PROCESS FOR CREATING OPTIMIZED TAGGED RECORDS
       "}",
       "else",
       "  " & action_prefix & "make_symb(symb_id_nothing);"

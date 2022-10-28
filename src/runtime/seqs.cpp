@@ -890,7 +890,7 @@ OBJ build_seq(OBJ *elts, uint32 length) {
   return make_slice(elts, length);
 }
 
-OBJ build_seq_bool(bool *array, int32 size) {
+OBJ build_seq_bool(bool *array, uint32 size) {
   if (size == 0)
     return make_empty_seq();
 
