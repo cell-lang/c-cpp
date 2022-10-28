@@ -89,73 +89,51 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   // }
 
   Text decl_type_import_funct(Symbol type_symb, DeclInterType inter_type) {
-    tmp_var = new_unique_var(:unused);
-    bare_type, body_footer = match (inter_type)
-      tuple()         |
-      record()        = (inter_type, ()),
-      tagged(s?, t?)  = (t, ("return opt_repr_build(make_symb(" & symb_id_name(s, context=:wrapper) & "), " & tmp_var & ");")); ## BAD BAD BAD: THIS SHOULD BE OPTIMIZED
-
     class_name = class_names(type_symb);
     fn_name = import_fns_names(type_symb);
 
-    code = decl_type_import_code(bare_type, class_name, "OBJ " & tmp_var & " = ");
+    type_tag, record_type = _untag_(inter_type);
+
+    ## BAD BAD BAD: THIS SHOULD BE OPTIMIZED
+    tmp_var = new_unique_var(:unused);
+    code = record_type_import_code(record_type, class_name, tmp_var);
+    code = (code | "return opt_repr_build(make_symb(" & symb_id_name(type_tag, context=:wrapper) & "), " & tmp_var & ");");
+
     sign_line = "OBJ " & fn_name & "(const " & class_name & " &cpp_obj) {";
-    return (sign_line, code, body_footer, "}");
-  }
+    return (sign_line, code, "}");
 
 
-  String* decl_type_import_code(RecordInterType inter_type, String class_name, String action_prefix) {
-    fields = fields(inter_type);
-    labels = isort(keys(fields));
-    fields_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
-    fields_vars = [v -> new_unique_var(:unused) : v _ <- fields];
+    String* record_type_import_code(RecordInterType inter_type, String class_name, String target_var) {
+      fields = fields(inter_type);
+      labels = isort(keys(fields));
+      fields_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+      fields_vars = [v -> new_unique_var(:unused) : v _ <- fields];
 
-    count_str = _print_(|fields|);
+      count_str = _print_(|fields|);
 
-    unique_id = printed(_counter_(:any_value_will_do));
-    labels_var = "labels_" & unique_id;
-    values_var = "values_" & unique_id;
+      unique_id = printed(_counter_(:any_value_will_do));
+      labels_var = "labels_" & unique_id;
+      values_var = "values_" & unique_id;
 
-    code = (
-      "const static uint16 " & labels_var & "[" & count_str & "] = {" & append((symb_id_qual_name(l) : l <- labels), ", ") & "};",
-      "",
-      "OBJ " & values_var & "[" & count_str & "];"
-    );
+      code = (
+        "const static uint16 " & labels_var & "[" & count_str & "] = {" & append((symb_id_qual_name(l) : l <- labels), ", ") & "};",
+        "",
+        "OBJ " & values_var & "[" & count_str & "];"
+      );
 
-    // Converting all the fields
-    for l @ i <- labels {
-      field_expr = "(cpp_obj." & fields_names(l) & ")";
-      is_ref = match (fields(l))
-        generated(ts?)  = not is_concrete_class(bare_id(ts)),
-        _               = false;
-      field_expr = "(*" & field_expr & ")" if is_ref;
-      code = code & import_code(fields(l), field_expr, values_var & "[" & _print_(i) & "] = ");
+      // Converting all the fields
+      for l @ i <- labels {
+        field_expr = "(cpp_obj." & fields_names(l) & ")";
+        is_ref = match (fields(l))
+          generated(ts?)  = not is_concrete_class(bare_id(ts)),
+          _               = false;
+        field_expr = "(*" & field_expr & ")" if is_ref;
+        code = code & import_code(fields(l), field_expr, values_var & "[" & _print_(i) & "] = ");
+      }
+
+      code = (code | "OBJ " & target_var & " = build_record(" & append((labels_var, values_var, count_str), ", ") & ");");
+
+      return code;
     }
-
-    return (code | action_prefix & "build_record(" & append((labels_var, values_var, count_str), ", ") & ");");
-  }
-
-
-  String* decl_type_import_code(TupleInterType inter_type, String class_name, String action_prefix) {
-    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-
-    // args_types = field_types(inter_type);
-    // args_vars = (new_unique_var(:unused) : _ < |args_types|);
-
-    // code = ();
-
-    // // Converting all the fields
-    // for t @ i <- args_types {
-    //   tmp_var = new_unique_var(:unused);
-    //   code = (
-    //     code |
-    //     "OBJ " & tmp_var & " = get_obj_at(cpp_obj, " & _print_(i) & ");",
-    //     qualified_return_type(t) & " " & args_vars(i) & ";"
-    //   );
-    //   code = code & import_code(t, tmp_var, args_vars(i) & " = ");
-    // }
-
-    // // Instantiating and returning the object
-    // return (code | "OBJ " & res_var & " = " & class_name & "(" & append(args_vars, ", ") & ");");
   }
 }

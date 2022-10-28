@@ -31,12 +31,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  String* native_inter_type_decl(DeclTaggedInterType inter_type, String class_name, String* parents) =
-    tagged(_, t?) = native_inter_type_decl(t, class_name, parents);
-
-
-  String* native_inter_type_decl(RecordInterType inter_type, String class_name, String* parents) {
-    fields = untag(inter_type);
+  String* native_inter_type_decl(DeclInterType inter_type, String class_name, String* parents) {
+    record_type = match (inter_type) tagged(_, t?) = t;
+    fields = untag(record_type);
     labels = [s : s _ <- fields];
     fields_names = adjusted_unambiguous_lower_camel_case_names(labels);
     labels = sort_record_labels(labels);
@@ -51,36 +48,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       line = "    " & type & spaces & name & ";";
       lines = (lines | line);
     }
-
-    // ctor_args = (fields_types(i) & " " & fields_names(l) : l @ i <- labels);
-    // lines = (lines | "", "    " & class_name & "(" & append(ctor_args, ", ") & ") {");
-    // for l <- labels {
-    //   name = fields_names(l);
-    //   lines = (lines | "      this->" & name & " = " & name & ";");
-    // }
-    // lines = (lines | "    }", "}");
-
     lines = (lines | "};");
     return lines;
-  }
-
-
-  String* native_inter_type_decl(TupleInterType inter_type, String class_name, String* parents) {
-    types = (return_value_type(t) : t <- field_types(inter_type));
-    max_len = max([length(t) : t <- types]);
-    inheritance_list = if parents != () then " : " & append(parents, ", ") else "";
-    lines = ("", "partial class " & class_name & inheritance_list &  " {");
-    for t @ i <- types {
-      spaces = string((` ` : _ < max_len - length(t) + 1));
-      line = "  " & t & spaces & "Item" & _print_(i + 1) & ";";
-      lines = (lines | line);
-    }
-
-    ctor_args = (t & " item" & _print_(i + 1) : t @ i <- types);
-    lines = (lines | "", "  " & class_name & "(" & append(ctor_args, ", ") & ") {");
-    for i < |types|
-      lines = (lines | "    this.Item" & _print_(i + 1) & " = item" & _print_(i + 1) & ";");
-
-    return (lines | "  }", "}");
   }
 }

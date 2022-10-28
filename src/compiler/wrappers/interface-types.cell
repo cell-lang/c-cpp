@@ -28,8 +28,7 @@ type InterType              = BasicInterType,
                               OptionalInterType,
                               GeneratedInterType;
 
-type DeclInterType          = RecordInterType, TupleInterType, DeclTaggedInterType;
-type DeclTaggedInterType    = tagged(Symbol, <RecordInterType, TupleInterType>);
+type DeclInterType          = tagged(Symbol, RecordInterType);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -277,8 +276,6 @@ implicit typedefs : [TypeName -> NeType] {
     exp_type = expand_type_ref(type_symb, typedefs);
 
     return match (exp_type)
-      tuple_type()        = true,
-      ne_record_type(fs?) = not (_ f <- fs : f.optional),
       tag_obj_type()      = tag_obj_type_is_decl(exp_type.tag_type, exp_type.obj_type),
       union_type(ts?)     = union_type_is_decl(ts),
       _                   = false;
