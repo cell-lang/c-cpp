@@ -44,10 +44,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
       elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
 
-      native_elem_type = input_arg_type(elem_type);
+      native_elem_type = nested_input_arg_type(elem_type);
 
       return (
-        "vector<" & native_elem_type & "> &" & expr_var & " = " & expr & ";",
+        "const std::vector<" & native_elem_type & "> &" & expr_var & " = " & expr & ";",
         "uint32 " & len_var & " = " & expr_var & ".size();",
         "OBJ *" & array_var & " = new_obj_array(" & len_var & ");",
         "for (uint32 " & idx_var & " = 0 ; " & idx_var & " < " & len_var & " ; " & idx_var & "++) {"
@@ -67,10 +67,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
 
-    native_elem_type = input_arg_type(elem_type);
+    native_elem_type = nested_input_arg_type(elem_type);
 
     return (
-      "vector<" & native_elem_type & "> &" & expr_var & " = " & expr & ";",
+      "const std::vector<" & native_elem_type & "> &" & expr_var & " = " & expr & ";",
       "uint32 " & size_var & " = " & expr_var & ".size();",
       "OBJ *" & array_var & " = new_obj_array(" & size_var & ");",
       "for (int " & idx_var & " = 0 ; " & idx_var & " < " & size_var & " ; " & idx_var & "++) {"
@@ -166,11 +166,11 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     ref_var = new_unique_var(:unused);
     tmp_var = new_unique_var(:unused);
 
-    unboxed_type = input_arg_type(inner_type);
+    native_type = nested_input_arg_type(inner_type);
 
     return (
       "if (" & expr & " != NULL) {",
-        "  " & unboxed_type & " &" & ref_var & " = *" & expr & ";",
+        "  " & native_type & " &" & ref_var & " = *" & expr & ";",
         "  OBJ " & tmp_var & ";"
     ) & indent_lines(import_code(inner_type, ref_var, tmp_var & " = ")) & (
       "  " & action_prefix & "make_tag_obj(symb_id_just, " & tmp_var & ");", ## BUG BUG BUG: BYPASSING THE PROCESS FOR CREATING OPTIMIZED TAGGED RECORDS

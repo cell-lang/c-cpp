@@ -108,6 +108,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   String input_arg_type(EltInterType it)                = native_input_inter_type(it, false, qualified = false);
   String input_arg_type(EltInterType it, Bool nullable) = native_input_inter_type(it, nullable, qualified = false);
 
+  String nested_input_arg_type(EltInterType it) = native_nested_inter_type(it, false, qualified = false);
+
   String return_value_type(EltInterType it)                 = native_output_inter_type(it, false, qualified = false);
   String return_value_type(EltInterType it, Bool nullable)  = native_output_inter_type(it, nullable, qualified = false);
   String qualified_return_type(EltInterType it)             = native_output_inter_type(it, false, qualified = true);
