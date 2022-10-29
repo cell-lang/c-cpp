@@ -68,7 +68,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         args_list = append((_print_(i+1) : i <- polymorphic_args), ", ");
         ## REPLACE THIS EXCEPTION WITH ONE THAT IS MORE INFORMATIVE,
         ## JUST LIKE WHAT WAS DONE WITH MONOMORPHIC ARGUMENTS
-        check_code = ("throw new System.Exception(\"Invalid types for arguments " & args_list & "\");");
+        check_code = ("throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "throw new System.Exception(\"Invalid types for arguments " & args_list & "\");"
       }
 
       vars_names = [i -> args_obj_vars(i) : i <- polymorphic_args];

@@ -66,27 +66,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       );
     }
 
-    return (code | "  internal_fail();", "}"); ## BUG BUG BUG: SHOULDN'T THIS BE A soft_fail(..)?
+    return (code | "  throw std::exception();", "}");
   }
 
-
-  // String* decl_type_import_functions(DeclInterType inter_type) {
-  //   type_name = input_types_names(inter_type, !);
-  //   type_def = match (inter_type)
-  //     named()   = named_interface_types_defs(inter_type, !),
-  //     _         = inter_type;
-  //   body = decl_type_import_code(type_def, "obj", "return ");
-  //   sign_line = "static Obj " & decl_type_import_funct_name(type_name) & "(" & type_name & " obj) {";
-  //   code = (sign_line) & indent_lines(body) & ("}");
-  //   out_type_name = output_types_names(inter_type, !);
-  //   if out_type_name != type_name {
-  //     out_body = decl_type_import_code(type_def, "obj", "return ");
-  //     out_fn_name = decl_type_import_funct_name(out_type_name);
-  //     out_sign_line = "static Obj " & out_fn_name & "(" & out_type_name & " obj) {";
-  //     code = code & ("", out_sign_line) & indent_lines(out_body) & ("}");
-  //   }
-  //   return code;
-  // }
 
   Text decl_type_import_funct(Symbol type_symb, DeclInterType inter_type) {
     class_name = class_names(type_symb);

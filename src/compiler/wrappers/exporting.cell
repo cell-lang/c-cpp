@@ -8,7 +8,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     time                    = (action_prefix & "export_time(" & expr & ");"),
     symbol()                = (action_prefix & "export_symbol(" & expr & ");"),
     tuple(ts?)              = tuple_export_code(ts, expr, action_prefix),
-    record(fs?)             = (action_prefix & "export_as_text(" & expr & ");"), ## WAS: record_export_code(fs, expr, action_prefix),
+    record(fs?)             = (action_prefix & "export_as_text(" & expr & ");"),
     seq(t?)                 |
     set(t?)                 = array_export_code(t, expr, action_prefix),
     bin_rel(a1?, a2?)       = bin_rel_export_code(a1, a2, expr, action_prefix),
@@ -20,24 +20,20 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
 
   String* optional_type_export_code(InterType inner_type, String expr, String action_prefix) {
-
-    // code_just = match (inner_type)
-    //   bool    = (action_prefix & expr & ".GetInnerObj().IsSymb(Cell.Runtime.SymbObj.TrueSymbId);"),
-    //   integer = (action_prefix & expr & ".GetInnerLong();"),
-    //   float   = (action_prefix & expr & ".GetInnerObj().GetDouble();"),
-    //   _       = { var = new_unique_var(:unused);
-    //               instr = "OBJ " & var & " = " & expr & ".GetInnerObj();";
-    //               return (instr) & export_code(inner_type, var, action_prefix);
-    //             };
-
-    code_just = (action_prefix & "NULL;"); ## TODO: IMPLEMENT IMPLEMENT IMPLEMENT
+    var = new_unique_var(:unused);
+    ptr_var = new_unique_var(:unused);
+    native_type = return_value_type(inner_type);
+    inner_type_export_code = export_code(inner_type, var, "*" & ptr_var & " = ");
 
     return (
       "if (!is_symb(" & expr & ", symb_id_nothing)) {",
-    ) & indent_lines(code_just) & (
+      "  OBJ " & var & " = get_inner_obj(" & expr & ");",
+      "  " & native_type & " *" & ptr_var & " = new " & native_type & ";"
+    ) & indent_lines(inner_type_export_code) & (
+      "  " & action_prefix & "std::unique_ptr<" & native_type & ">(" & ptr_var & ");",
       "}",
       "else",
-      "  " & action_prefix & "NULL;"
+      "  " & action_prefix & "std::unique_ptr<" & native_type & ">();"
     );
   }
 
@@ -72,29 +68,6 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     return (tmp_var_decl) & (asgnm_code | tuple_inst_instr);
   }
-
-
-  // String* record_export_code([+Symbol -> InterType] fields, String expr, String action_prefix) {
-  //   ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
-
-  //   field_vars_base_name = new_unique_var(:unused);
-  //   field_vars = (field_vars_base_name & "_" & _print_(l) : l, t @ i <- ord_fields);
-  //   field_names = adjusted_unambiguous_lower_camel_case_names(set(left(unzip(ord_fields))));
-
-  //   asgnm_code = join(({
-  //     obj_var = "obj_" & field_vars(i);
-  //     field_var_decl = qualified_return_type(t) & " " & field_vars(i) & ";";
-  //     asgnm_text = field_vars(i) & " = ";
-  //     symb_name = symb_id_qual_name(l);
-  //     field_lookup_instr = "OBJ " & obj_var & " = lookup_field(" & expr & ", " & symb_name & ");";
-  //     return (field_lookup_instr, field_var_decl) & export_code(t, obj_var, asgnm_text);
-  //   } : l, t @ i <- ord_fields));
-
-  //   field_values = (field_names(l) & ": " & field_vars(i) : l, _ @ i <- ord_fields);
-  //   record_inst_instr = action_prefix & "(" & append(field_values, ", ") & ");";
-
-  //   return (asgnm_code | record_inst_instr);
-  // }
 
 
   String* array_export_code(EltInterType elem_type, String expr, String action_prefix) {
@@ -143,11 +116,6 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         action_prefix & vector_var & ";"
       );
     }
-
-
-    // String array_new_expr(EltInterType elem_type, String size_expr) =
-    //   seq(t?) | set(t?) = array_new_expr(t, size_expr) & "[]",
-    //   _                 = qualified_return_type(elem_type) & "[" & size_expr & "]";
   }
 
 
