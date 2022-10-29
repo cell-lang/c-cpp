@@ -8,7 +8,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     time                    = (action_prefix & "import_time(" & expr & ");"),
     symbol(s?)              = (action_prefix & "import_symbol(" & symb_id_qual_name(s) & ");"),
     tuple(ts?)              = tuple_import_code(ts, expr, action_prefix),
-    record(fs?)             = record_import_code(fs, expr, action_prefix),
+    record()                = (action_prefix & "import_obj(" & expr & ");"),
     seq(t?)                 = seq_import_code(t, expr, action_prefix),
     set(t?)                 = set_import_code(t, expr, action_prefix),
     bin_rel(a1?, a2?)       = bin_rel_import_code(a1, a2, expr, action_prefix),
@@ -21,36 +21,11 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
   String* tuple_import_code(InterType+ types, String expr, String action_prefix) {
     tuple_args_array_name = new_unique_var(:unused);
-    code = ("OBJ " & tuple_args_array_name & "[" & _print_(|types|) & "];");
+    code = ("OBJ *" & tuple_args_array_name & " = new_obj_array(" & _print_(|types|) & ");");
     for t @ i <- types
       code = code & import_code(t, "std::get<" & _print_(i) & ">(" & expr & ")", tuple_args_array_name & "[" & _print_(i) & "] = ");
     code = (code | action_prefix & "build_seq(" & tuple_args_array_name & ", " & _print_(|types|) & ");");
     return code;
-  }
-
-
-  String* record_import_code([+Symbol -> InterType] fields, String expr, String action_prefix) {
-    return (action_prefix & "import_obj(" & expr & ");");
-
-    // ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
-
-    // labels_array_name = new_unique_var(:unused);
-    // values_array_name = new_unique_var(:unused);
-
-    // field_vars = (field_vars_base_name & "_" & printed(l) : l, t @ i <- ord_fields);
-    // field_names = adjusted_unambiguous_lower_camel_case_names(set(left(unzip(ord_fields))));
-
-    // fields_code = (
-    //   ("OBJ " & field_vars(i) & ";",) &
-    //   import_code(t, expr & "." & field_names(l), field_vars(i) & " = ")
-    //   : l, t @ i <- ord_fields
-    // );
-
-    // labels = "new ushort[] {" & append((symb_id_qual_name(l) : l, _ <- ord_fields), ", ") & "}";
-    // values = "new OBJ[] {" & append(field_vars, ", ") & "}";
-    // tuple_instr = action_prefix & "Cell.Runtime.Builder.CreateRecord(" & labels & ", " & values & ");";
-
-    // return (join(fields_code) | tuple_instr);
   }
 
 
