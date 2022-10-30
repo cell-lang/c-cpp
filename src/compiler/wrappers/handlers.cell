@@ -19,18 +19,16 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     args_types = (input_arg_type(it, optional(i)) : it @ i <- args_inter_types);
     args_decls = (it & " " & args_names(i) : it @ i <- args_types);
 
-    code = (
-      "",
-      "void " & class_name & "::" & ext_name & "(" & append(args_decls, ", ") & ") {",
-      "  " & typed_ptr_def
-    );
+    code = ("", "void " & class_name & "::" & ext_name & "(" & append(args_decls, ", ") & ") {");
 
     let context = :wrapper {
       field_vars = (native_var_ref_name(v) : v <- fields_vars);
       code = (code | "  OBJ " & append(field_vars, ", ") & ";") if field_vars != ();
       already_decl_vars = [v : v <- fields_vars];
       code = code & indent_lines(gen_vars_decls(wrapper.msg_inst_code, already_decl_vars));
-      code = (code | "") if |code| > 3;
+      code = (code | "") if |code| > 2;
+
+      code = (code | "  " & typed_ptr_def, "  handler_wrapper_begin();", "", "  try {");
 
       code = code & join(({
           cond_var = fields_cond_vars(i);
@@ -51,7 +49,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
           else
             conv_code = import_code(it, args_names(i), field_vars(i) & " = ");
 
-          return indent_lines(conv_code);
+          return indent_lines(conv_code, 2);
         } : it @ i <- args_inter_types
       ));
 
@@ -62,43 +60,51 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
         type_user_repr = "\"" & user_repr(fields_types(i)) & "\""; ## THIS SHOULD BE ESCAPED
         check_prefix = if optional(i) then "!is_blank(" & var_name & ") && !" else "!";
-        code = (code | "  if (" & check_prefix & cond_str & ")");
+        code = (code | "    if (" & check_prefix & cond_str & ")");
         exception_args = _print_(i) & ", " & var_name & ", " & type_user_repr;
-        code = (code | "    throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
+        code = (code | "      throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
       }
 
       method_name = msg_handler_entry_point_name(block_name, handler_id, msg_type);
       native_msg_expr = native_expr(wrapper.msg_expr);
       code = (
         code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing)) |
-        "  bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
-        "  if (!ok) {",
-        "    throw std::exception();", ## TODO: ADD ERROR INFORMATION
+        "    bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
+        "    if (!ok) {",
+        "      throw std::exception();", ## TODO: ADD ERROR INFORMATION
+        "    }",
         "  }",
+        "  catch (...) {",
+        "    handler_wrapper_abort();",
+        "    memset(&ptr->env, 0, sizeof(ENV));",
+        "    throw;",
+        "  }",
+        "",
+        "  handler_wrapper_finish();",
         "}"
       );
     }
 
-    args_types_docs = (remove_path(s) : s <- args_types);
+    args_types_decl = (remove_path(s) : s <- args_types);
     if |args_decls| < 5 {
-      args_docs = (
+      args_decl = (
         t & " " & n & if optional(i) then " = NULL" else ""
-        : t, n @ i <- zip(args_types_docs, args_names)
+        : t, n @ i <- zip(args_types_decl, args_names)
       );
-      docs = ("void " & ext_name & "(" & append(args_docs, ", ") & ");");
+      decl = ("void " & ext_name & "(" & append(args_decl, ", ") & ");");
     }
     else {
-      alignment = nat(1 + max((length(s) : s <- nonempty(args_types_docs))));
-      docs = ("void " & ext_name & "(");
-      for t, n @ i <- zip(args_types_docs, args_names) {
+      alignment = nat(1 + max((length(s) : s <- nonempty(args_types_decl))));
+      decl = ("void " & ext_name & "(");
+      for t, n @ i <- zip(args_types_decl, args_names) {
         arg_doc = "  " & right_padded(t, alignment, ` `) & n;
         arg_doc = arg_doc & " = NULL" if optional(i);
         arg_doc = arg_doc & "," if i < arity - 1;
-        docs = (docs | arg_doc);
+        decl = (decl | arg_doc);
       }
-      docs = (docs | ");");
+      decl = (decl | ");");
     }
 
-    return (docs, code);
+    return (decl, code);
   }
 }

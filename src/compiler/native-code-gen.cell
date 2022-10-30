@@ -204,6 +204,7 @@ type PrgData =  prg_data(
     std_includes,
     ( "#include \"generated.cpp\"",
       "#include \"conversion.h\"",
+      "#include \"wrappers.h\"",
       "",
       ""
     ),

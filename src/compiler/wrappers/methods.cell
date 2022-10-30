@@ -41,8 +41,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       then ("OBJ " & append(args_obj_vars, ", ") & ";", "")
       else ();
 
+    body = (body | typed_ptr_def, "", "method_wrapper_begin();", "", "try {");
+
     body = body & join((
-      import_code(it, args_names(i), args_obj_vars(i) & " = ")
+      indent_lines(import_code(it, args_names(i), args_obj_vars(i) & " = "))
       : it @ i <- args_inter_types
     ));
 
@@ -50,9 +52,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       var_name = args_obj_vars(i);
       cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
       type_user_repr = user_repr(method.args_types(i)); ## THIS SHOULD BE ESCAPED
-      body = (body | "if (!" & cond_str & ")");
+      body = (body | "  if (!" & cond_str & ")");
       exception_args = _print_(i) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
-      body = (body | "  throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
+      body = (body | "    throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
     }
 
     if polymorphic_args != () {
@@ -82,19 +84,21 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         check_code = ("if (" & append(neg_conds_strs, " || ") & ")",) & indent_lines(check_code);
       }
 
-      body = body & check_code;
+      body = body & indent_lines(check_code);
     }
 
     method_name = user_def_method_name(block_name, method_id);
 
     body = body & (
-      typed_ptr_def,
-      "try {",
-      "  OBJ result = " & method_call(method, method_name, args_obj_vars) & ";"
-      ) & indent_lines(export_code(inter_ret_type, "result", "return ")) & (
+      "  OBJ result = " & method_call(method, method_name, args_obj_vars) & ";",
+      "  " & ret_val_str & " exported_result;"
+      ) & indent_lines(export_code(inter_ret_type, "result", "exported_result = ")) & (
+      "  method_wrapper_finish();",
+      "  return exported_result;",
       "}",
       "catch (...) {",
       "  memset(&ptr->env, 0, sizeof(ENV));",
+      "  method_wrapper_abort();",
       "  throw;",
       "}"
     );
@@ -103,10 +107,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     code = ("", sgn) & indent_lines(body) & ("}");
     bare_types = (remove_path(s) : s <- input_args_types);
     expl_args_names = (if id != nothing then " " & args_names_map(value(id)) else "" : id @ i <- args_ids);
-    args_decls_docs = (bare_types(i) & expl_args_names(i) : i < |bare_types|);
-    docs = remove_path(ret_val_str) & " " & ext_name & "(" & append(args_decls_docs, ", ") & ");";
+    args_decls_decl = (bare_types(i) & expl_args_names(i) : i < |bare_types|);
+    decl = remove_path(ret_val_str) & " " & ext_name & "(" & append(args_decls_decl, ", ") & ");";
 
-    return ((docs), code);
+    return ((decl), code);
   }
 }
 
