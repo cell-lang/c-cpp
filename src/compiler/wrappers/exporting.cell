@@ -112,10 +112,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "OBJ " & expr_var & " = " & expr & ";",
         "int " & size_var & " = get_size(" & expr_var & ");",
         "vector<" & out_elem_type & "> " & vector_var & "(" & size_var & ");",
-        "OBJ *" & array_var & " = get_seq_elts_ptr(" & expr_var & ");",
-        "for (int " & idx_var & " = 0 ; " & idx_var & " < " & size_var & " ; " & idx_var & "++) {",
-        "  OBJ " & elt_var & " = " & array_var & "[" & idx_var & "];"
-      ) & indent_lines(export_code(elem_type, elt_var, vector_var & "[" & idx_var & "] = ")) & (
+        "if (" & size_var & " > 0) {",
+        "  OBJ *" & array_var & " = get_seq_elts_ptr(" & expr_var & ");",
+        "  for (int " & idx_var & " = 0 ; " & idx_var & " < " & size_var & " ; " & idx_var & "++) {",
+        "    OBJ " & elt_var & " = " & array_var & "[" & idx_var & "];"
+      ) & indent_lines(export_code(elem_type, elt_var, vector_var & "[" & idx_var & "] = "), 2) & (
+        "  }",
         "}",
         action_prefix & copied_expr & ";"
       );
