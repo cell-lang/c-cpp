@@ -64,7 +64,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     ));
 
     tmp_var_decl = "OBJ " & tmp_var & ";";
-    tuple_inst_instr = action_prefix & "std::make_tuple(" & append(item_vars, ", ") & ");";
+    tuple_args = (if must_be_moved(t) then "std::move(" & item_vars(i) & ")" else item_vars(i) : t @ i <- types);
+    tuple_inst_expr = "std::make_tuple(" & append(tuple_args, ", ") & ")";
+    tuple_inst_expr = "std::move(" & tuple_inst_expr & ")" if (t <- types : must_be_moved(t));
+    tuple_inst_instr = action_prefix & tuple_inst_expr & ";";
 
     return (tmp_var_decl) & (asgnm_code | tuple_inst_instr);
   }
@@ -103,6 +106,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       idx_var    = new_unique_var(:unused);
 
       out_elem_type = qualified_return_type(elem_type);
+      copied_expr = if must_be_moved(elem_type) then "std::move(" & vector_var & ")" else vector_var;
 
       return (
         "OBJ " & expr_var & " = " & expr & ";",
@@ -113,7 +117,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "  OBJ " & elt_var & " = " & array_var & "[" & idx_var & "];"
       ) & indent_lines(export_code(elem_type, elt_var, vector_var & "[" & idx_var & "] = ")) & (
         "}",
-        action_prefix & vector_var & ";"
+        action_prefix & copied_expr & ";"
       );
     }
   }

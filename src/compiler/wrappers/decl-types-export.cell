@@ -115,7 +115,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       labels = sort_record_labels(keys(fields));
       for l <- labels {
         src_expr = fields_vars(l);
-        src_expr = "std::move(" & src_expr & ")" if not can_be_copied(fields(l));
+        src_expr = "std::move(" & src_expr & ")" if must_be_moved(fields(l));
         line = obj_var & "." & fields_names(l) & " = " & src_expr & ";";
         code = (code | line);
       }
@@ -124,26 +124,3 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     }
   }
 }
-
-/////////////////////////////////////////////////////////////////////////////////
-
-Bool can_be_copied(EltInterType inter_type) =
-  bool                |
-  byte                |
-  int32               |
-  integer             |
-  float               |
-  date                |
-  time                |
-  symbol()            |
-  string              |
-  generic             = true,
-  optional(t?)        = can_be_copied(t),
-  record(fs?)         = not (_ t <- fs : not can_be_copied(t)),
-  tuple(ts?)          = not (t <- ts : not can_be_copied(t)),
-  seq(t?)             |
-  set(t?)             = can_be_copied(t),
-  bin_rel(ts?)        |
-  tern_rel(ts?)       = not (t <- ts : not can_be_copied(t)),
-  tagged(_, t?)       = can_be_copied(t),
-  generated(ts?)      = false; ## BAD BAD BAD

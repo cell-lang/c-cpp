@@ -396,3 +396,27 @@ implicit typedefs : [TypeName -> NeType] {
   tern_rel(ts?)       = [s : t <- ts, s <- generated_nested_types(t)],
   tagged(_, t?)       = generated_nested_types(t),
   generated(ts?)      = [bare_id(ts)];
+
+
+/////////////////////////////////////////////////////////////////////////////////
+
+Bool must_be_moved(EltInterType inter_type) =
+  bool                |
+  byte                |
+  int32               |
+  integer             |
+  float               |
+  date                |
+  time                |
+  symbol()            |
+  string              |
+  generic             = false,
+  optional(t?)        = true,
+  record(fs?)         = (_ t <- fs : must_be_moved(t)),
+  tuple(ts?)          = (t <- ts : must_be_moved(t)),
+  seq(t?)             |
+  set(t?)             = must_be_moved(t),
+  bin_rel(ts?)        |
+  tern_rel(ts?)       = (t <- ts : must_be_moved(t)),
+  tagged(_, t?)       = must_be_moved(t),
+  generated(ts?)      = true; ## BUG BUG BUG: CAN BE COPIED WHEN ALL THE FIELDS CAN BE COPIED
