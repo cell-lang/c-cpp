@@ -68,7 +68,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       method_name = msg_handler_entry_point_name(block_name, handler_id, msg_type);
       native_msg_expr = native_expr(wrapper.msg_expr);
       code = (
-        code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing)) |
+        code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing), 2) |
         "    bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
         "    if (!ok) {",
         "      throw std::exception();", ## TODO: ADD ERROR INFORMATION

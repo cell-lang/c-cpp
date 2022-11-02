@@ -9,8 +9,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     symbol()                = (action_prefix & "export_symbol(" & expr & ");"),
     tuple(ts?)              = tuple_export_code(ts, expr, action_prefix),
     record(fs?)             = (action_prefix & "export_as_text(" & expr & ");"),
-    seq(t?)                 |
-    set(t?)                 = array_export_code(t, expr, action_prefix),
+    seq(t?)                 = seq_export_code(t, expr, action_prefix),
+    set(t?)                 = set_export_code(t, expr, action_prefix),
     bin_rel(a1?, a2?)       = bin_rel_export_code(a1, a2, expr, action_prefix),
     tern_rel(a1?, a2?, a3?) = tern_rel_export_code(a1, a2, a3, expr, action_prefix),
     tagged()                = tagged_type_export_code(it, expr, action_prefix),
@@ -73,7 +73,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   }
 
 
-  String* array_export_code(EltInterType elem_type, String expr, String action_prefix) {
+  String* seq_export_code(EltInterType elem_type, String expr, String action_prefix) {
     return match (elem_type)
       bool                = (action_prefix & "export_bool_vector(" & expr & ");"),
       byte                = (action_prefix & "export_byte_vector(" & expr & ");"),
@@ -82,7 +82,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       float               = (action_prefix & "export_double_vector(" & expr & ");"),
       string              = (action_prefix & "export_string_vector(" & expr & ");"),
       generic             = (action_prefix & "export_text_vector(" & expr & ");"),
-      tagged(_, generic)  = array_export_code(:generic, expr, action_prefix),
+      tagged(_, generic)  = seq_export_code(:generic, expr, action_prefix),
       date                |
       time                |
       tuple()             |
@@ -94,10 +94,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       tagged()            |
       optional()          |
       symbol()            |
-      generated()         = generic_array_export_code(elem_type, expr, action_prefix);
+      generated()         = generic_seq_export_code(elem_type, expr, action_prefix);
 
 
-    String* generic_array_export_code(InterType elem_type, String expr, String action_prefix) {
+    String* generic_seq_export_code(InterType elem_type, String expr, String action_prefix) {
       expr_var   = new_unique_var(:unused);
       size_var   = new_unique_var(:unused);
       vector_var = new_unique_var(:unused);
@@ -125,6 +125,31 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   }
 
 
+  String* set_export_code(InterType elt_type, String expr, String action_prefix) {
+    set_var     = new_unique_var(:unused);
+    idx_var     = new_unique_var(:unused);
+    iter_var    = new_unique_var(:unused);
+    elt_var     = new_unique_var(:unused);
+    out_elt_var = new_unique_var(:unused);
+
+    out_type = qualified_return_type(:set(elt_type));
+
+    return (
+      out_type & " " & set_var & "(get_size(" & expr & "));",
+      "SET_ITER " & iter_var & ";",
+      "get_set_iter(" & iter_var & ", " & expr & ");",
+      "uint32 " & idx_var & " = 0;",
+      "while (!is_out_of_range(" & iter_var & ")) {",
+      "  OBJ " & elt_var & " = get_curr_obj(" & iter_var & ");"
+    ) & indent_lines(export_code(elt_type, elt_var, set_var & "[" & idx_var & "] = ")) & (
+      "  move_forward(" & iter_var & ");",
+      "  " & idx_var & "++;",
+      "}",
+      action_prefix & set_var & ";"
+    );
+  }
+
+
   String* bin_rel_export_code(InterType left_arg_type, InterType right_arg_type, String expr, String action_prefix) {
     bin_rel_var       = new_unique_var(:unused);
     idx_var           = new_unique_var(:unused);
@@ -137,13 +162,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     out_type = qualified_return_type(:bin_rel(left_arg_type, right_arg_type));
     out_left_arg_type = qualified_return_type(left_arg_type);
     out_right_arg_type = qualified_return_type(right_arg_type);
-    out_elt_type = "std::vector<std::tuple<" & out_left_arg_type & ", " & out_right_arg_type & ">>";
 
     code = (
       out_type & " " & bin_rel_var & "(get_size(" & expr & "));",
       "BIN_REL_ITER " & iter_var & ";",
       "get_bin_rel_iter(" & iter_var & ", " & expr & ");",
-      "int " & idx_var & " = 0;",
+      "uint32 " & idx_var & " = 0;",
       "while (!is_out_of_range(" & iter_var & ")) {",
       "  OBJ " & left_arg_var & " = get_curr_left_arg(" & iter_var & ");",
       "  OBJ " & right_arg_var & " = get_curr_right_arg(" & iter_var & ");",
@@ -180,13 +204,12 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     out_type1 = qualified_return_type(type1);
     out_type2 = qualified_return_type(type2);
     out_type3 = qualified_return_type(type3);
-    out_elt_type = "std::vector<std::tuple<" & out_type1 & ", " & out_type2  & ", " & out_type3 & ">>";
 
     code = (
       out_type & " " & tern_rel_var & "(get_size(" & expr & "));",
       "TERN_REL_ITER " & iter_var & ";",
       "get_tern_rel_iter(" & iter_var & ", " & expr & ");",
-      "int " & idx_var & " = 0;",
+      "uint32 " & idx_var & " = 0;",
       "while (!is_out_of_range(" & iter_var & ")) {",
       "  OBJ " & arg1_var & " = tern_rel_it_get_left_arg(" & iter_var & ");",
       "  OBJ " & arg2_var & " = tern_rel_it_get_mid_arg(" & iter_var & ");",
