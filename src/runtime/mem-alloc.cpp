@@ -48,6 +48,16 @@ void clear_unused_mem() {
   stack_alloc_clear(&stack_B);
 }
 
+void clear_all_mem() {
+  stack_A_active = true;
+  stack_alloc_reset(&stack_A);
+  stack_alloc_reset(&stack_B);
+}
+
+uint64 total_stack_mem_alloc() {
+  return stack_A.allocated + stack_B.allocated;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool is_in_released_mem(void *ptr) {

@@ -2,28 +2,34 @@
 
 
 void handler_wrapper_begin() {
-  // entering_transaction();
+  assert(total_stack_mem_alloc() == 0);
 }
 
 void handler_wrapper_finish() {
-  // exiting_transaction();
+  clear_all_mem();
+  assert(total_stack_mem_alloc() == 0);
 }
 
 void handler_wrapper_abort() {
-  // exiting_transaction();
+  clear_all_mem();
+  assert(total_stack_mem_alloc() == 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 void method_wrapper_begin() {
+  assert(total_stack_mem_alloc() == 0);
   entering_transaction();
 }
 
 void method_wrapper_finish() {
   exiting_transaction();
+  clear_all_mem();
+  assert(total_stack_mem_alloc() == 0);
 }
 
 void method_wrapper_abort() {
   exiting_transaction();
+  clear_all_mem();
+  assert(total_stack_mem_alloc() == 0);
 }
-

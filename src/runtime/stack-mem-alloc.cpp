@@ -64,9 +64,17 @@ void stack_alloc_clear(STACK_ALLOC *alloc) {
   uint64 allocated = alloc->allocated;
   uint64 reduced_committed = stack_alloc_round_up_by_dealloc_size(allocated);
   if (reduced_committed < committed) {
-    void *ptr = ((uint8 *) alloc->ptr) + reduced_committed;
     os_interface_dealloc(alloc->ptr, reduced_committed, committed - reduced_committed);
     alloc->committed = reduced_committed;
+  }
+}
+
+void stack_alloc_reset(STACK_ALLOC *alloc) {
+  alloc->allocated = 0;
+  uint64 committed = alloc->committed;
+  if (committed > STACK_ALLOC_BLOCK_SIZE) {
+    os_interface_dealloc(alloc->ptr, STACK_ALLOC_BLOCK_SIZE, committed - STACK_ALLOC_BLOCK_SIZE);
+    alloc->committed = STACK_ALLOC_BLOCK_SIZE;
   }
 }
 

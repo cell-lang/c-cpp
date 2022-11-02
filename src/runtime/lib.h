@@ -699,6 +699,7 @@ void stack_alloc_cleanup(STACK_ALLOC *);
 void *stack_alloc_allocate(STACK_ALLOC *, uint64 size);
 void stack_alloc_rewind(STACK_ALLOC *, uint64 position);
 void stack_alloc_clear(STACK_ALLOC *);
+void stack_alloc_reset(STACK_ALLOC *);
 
 uint64 stack_alloc_bookmark(STACK_ALLOC *);
 bool stack_alloc_is_unallocated_memory(STACK_ALLOC *, void *);
@@ -1013,7 +1014,6 @@ OBJ build_set(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
-// OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value);
 OBJ rev_seq(OBJ seq);
 OBJ internal_sort(OBJ set);
 OBJ parse_value(OBJ str);
@@ -1181,20 +1181,6 @@ void obj_to_str(OBJ str_obj, char *buffer, uint32 size);
 uint8* obj_to_byte_array(OBJ byte_seq_obj, uint32 &size);
 
 int64 utf8_size(OBJ);
-
-//////////////////////////////// conversion.cpp ////////////////////////////////
-
-OBJ convert_bool_seq(const bool *array, uint32 size);
-OBJ convert_int32_seq(const int32 *array, uint32 size);
-OBJ convert_int_seq(const int64 *array, uint32 size);
-OBJ convert_float_seq(const double *array, uint32 size);
-OBJ convert_text(const char *buffer);
-
-// void export_as_c_string(OBJ obj, char *buffer, uint32 capacity);
-uint32 export_as_bool_array(OBJ obj, bool *array, uint32 capacity);
-uint32 export_as_long_long_array(OBJ obj, int64 *array, uint32 capacity);
-uint32 export_as_float_array(OBJ obj, double *array, uint32 capacity);
-void export_literal_as_c_string(OBJ obj, char *buffer, uint32 capacity);
 
 ///////////////////////////////// printing.cpp /////////////////////////////////
 
@@ -1394,6 +1380,9 @@ bool needs_copying(void*);
 void switch_mem_stacks();
 void unswitch_mem_stacks();
 void clear_unused_mem();
+void clear_all_mem();
+
+uint64 total_stack_mem_alloc();
 
 ///////////////////////////////// mem-core.cpp /////////////////////////////////
 
