@@ -758,24 +758,6 @@ OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len) {
   }
 }
 
-// OBJ update_seq_at(OBJ seq, OBJ idx, OBJ value) {
-//   uint32 len = read_size_field(seq);
-//   int64 int_idx = get_int(idx);
-
-//   if (int_idx < 0 | int_idx >= len)
-//     soft_fail("Invalid sequence index");
-
-//   OBJ *src_ptr = get_seq_elts_ptr(seq);
-//   SEQ_OBJ *new_seq_ptr = new_obj_seq(len);
-
-//   new_seq_ptr->buffer.obj[int_idx] = value;
-//   for (uint32 i=0 ; i < len ; i++)
-//     if (i != int_idx)
-//       new_seq_ptr->buffer.obj[i] = src_ptr[i];
-
-//   return make_seq(new_seq_ptr, len);
-// }
-
 OBJ rev_seq(OBJ seq) {
   // No need to check the parameters here
 

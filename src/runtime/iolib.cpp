@@ -12,16 +12,6 @@ OBJ FileRead_P(OBJ filename) {
 
   OBJ seq = build_seq_uint8(data, size);
   return make_tag_obj(symb_id_just, seq);
-
-  // OBJ seq_obj = make_empty_seq();
-  // if (size > 0) {
-  //   SEQ_OBJ *seq = new_obj_seq(size);
-  //   for (uint32 i=0 ; i < size ; i++)
-  //     seq->buffer.obj[i] = make_int((uint8) data[i]);
-  //   seq_obj = make_seq(seq, size);
-  // }
-
-  // return make_tag_obj(symb_id_just, seq_obj);
 }
 
 OBJ FileWrite_P(OBJ filename, OBJ data) {
