@@ -959,7 +959,7 @@ static bool finish_parsing_sequence(PARSER *parser, OBJ first_elt, OBJ *result) 
       return true;
     }
 
-    if (!consume_non_ws_char(parser, ','))
+    if (count > 1 && !consume_non_ws_char(parser, ','))
       return false;
 
     OBJ obj;
@@ -983,6 +983,7 @@ static bool parse_seq_after_open_par(PARSER *parser, OBJ *result) {
 
   for ( ; ; ) {
     consume_ws(parser);
+
     if (consume_non_ws_char(parser, ')')) {
       if (elts == array) {
         elts = new_obj_array(size);
@@ -991,6 +992,11 @@ static bool parse_seq_after_open_par(PARSER *parser, OBJ *result) {
       *result = build_seq(elts, size);
       return true;
     }
+
+    if (size > 0 && !consume_non_ws_char(parser, ','))
+      return false;
+
+    consume_ws(parser);
 
     OBJ elt;
     if (!parse_obj(parser, &elt))
@@ -1048,6 +1054,8 @@ static bool parse_seq_or_record(PARSER *parser, OBJ *result) {
     if (next_char_is(parser, '(')) {
       OBJ first_elt;
       if (!parse_tagged_obj(parser, symb_id, &first_elt))
+        return false;
+      if (!consume_non_ws_char(parser, ','))
         return false;
       return finish_parsing_sequence(parser, first_elt, result);
     }
@@ -1203,7 +1211,12 @@ static bool parse_set_or_relation(PARSER *parser, OBJ *result) {
     elts[count++] = obj;
 
     if (consume_non_ws_char(parser, ']')) {
-      *result = build_set(elts, count); //## DOES IT REALLOCATE THE MEMORY? CHECK
+      if (count <= capacity) {
+        OBJ *dynamic_array = new_obj_array(count);
+        memcpy(dynamic_array, elts, count * sizeof(OBJ));
+        elts = dynamic_array;
+      }
+      *result = build_set_in_place(elts, count);
       return true;
     }
 

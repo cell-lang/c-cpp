@@ -1010,7 +1010,7 @@ OBJ lookup_field(OBJ rec, uint16 field_symb_id);
 void init(STREAM &s);
 void append(STREAM &s, OBJ obj);
 OBJ build_seq(OBJ* elems, uint32 length);
-OBJ build_set(OBJ* elems, uint32 size);
+OBJ build_set_in_place(OBJ* elems, uint32 size);
 OBJ build_set(STREAM &s);
 OBJ int_to_float(OBJ val);
 OBJ get_seq_slice(OBJ seq, int64 idx_first, int64 len);
@@ -2424,6 +2424,15 @@ bool counter_is_cleared(COUNTER *);
 void counter_incr(COUNTER *, uint32 index, STATE_MEM_POOL *);
 void counter_decr(COUNTER *, uint32 index, STATE_MEM_POOL *);
 void counter_decr(COUNTER *, uint32 index, uint32 amount, STATE_MEM_POOL *);
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////// DEPRECATED - REMOVE //////////////////////////////
+
+inline OBJ build_set(OBJ* elems, uint32 size) {
+  return build_set_in_place(elems, size);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
