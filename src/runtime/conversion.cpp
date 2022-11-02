@@ -141,10 +141,11 @@ std::string export_time(OBJ obj) {
 }
 
 std::string export_string(OBJ obj) {
+  char inline_array[1024];
   uint32 size = utf8_size(obj);
-  std::string str(size, ' ');
-  obj_to_str(obj, const_cast<char *>(str.c_str()), size);
-  return str;
+  const char *str = size <= 1024 ? inline_array : (char *) new_uint8_array(size);
+  obj_to_str(obj, const_cast<char *>(str), size);
+  return std::string(str);
 }
 
 std::vector<bool> export_bool_vector(OBJ obj) {
