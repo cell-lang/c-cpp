@@ -40,10 +40,10 @@ void unary_table_aux_clear(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux) {
 
 void unary_table_aux_apply_deletions(UNARY_TABLE *table, UNARY_TABLE_AUX *table_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
   if (table_aux->clear) {
-    if (table_aux->reinsertions_count == 0) {
-      unary_table_clear(table);
+    if (table_aux->insertions.count == 0 && table_aux->reinsertions_count == 0) {
       if (remove != NULL)
         remove(store, 0xFFFFFFFF, mem_pool);
+      unary_table_clear(table);
     }
     else {
       uint32 left = table->count;
@@ -54,9 +54,12 @@ void unary_table_aux_apply_deletions(UNARY_TABLE *table, UNARY_TABLE_AUX *table_
           if (word & 1 != 0) {
             left--;
             uint32 elt = 64 * word_idx + bit_idx;
-            if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
+            if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt)) {
+              bool found = unary_table_delete(table, elt);
+              assert(found);
               if (remove != NULL)
                 remove(store, elt, mem_pool);
+            }
           }
           word >>= 1;
         }
