@@ -58,7 +58,8 @@ type PrgData =  prg_data(
 
   gen_content = (
     ( "#include \"lib.h\"",
-      "#include \"iolib.h\""
+      "#include \"iolib.h\"",
+      "#include \"os-interface.h\""
     ) if not include_runtime,
     symbol_decls(program_symbols),
     symbol_table(program_symbols),

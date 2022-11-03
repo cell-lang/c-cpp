@@ -1234,15 +1234,15 @@ uint32 read_file(void *read_state, uint8 *buffer, uint32 capacity);
 
 ///////////////////////////////// writing.cpp //////////////////////////////////
 
-typedef struct {
-  FILE *fp;
+struct WRITE_FILE_STATE {
+  bool (*write)(void *, const uint8 *, uint32);
+  void *state;
   bool success;
-} WRITE_FILE_STATE;
+};
 
 void write_str(WRITE_FILE_STATE *, const char *);
 void write_symb(WRITE_FILE_STATE *, uint16);
 void write_obj(WRITE_FILE_STATE *, OBJ);
-bool finish_write(WRITE_FILE_STATE *);
 
 ///////////////////////////// os-interface-xxx.cpp /////////////////////////////
 

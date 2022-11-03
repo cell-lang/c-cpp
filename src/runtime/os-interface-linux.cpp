@@ -42,6 +42,21 @@ bool file_write(const char *fname, const char *buffer, int size, bool append) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void *file_io_open_writable(const char *fname) {
+  return fopen(fname, "w");
+}
+
+bool file_io_write(void *fp, const uint8 *data, uint32 size) {
+  size_t written = fwrite(data, 1, size, (FILE *) fp);
+  return written == size;
+}
+
+void file_io_close(void *fp) {
+  fclose((FILE *) fp);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 uint64 phys_mem_byte_size() {
   uint64 num_pages = sysconf (_SC_PHYS_PAGES);
   uint32 page_size = sysconf (_SC_PAGESIZE);

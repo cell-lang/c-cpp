@@ -133,8 +133,6 @@ implicit context : NativeContext {
   String write_symb_proc_name = "write_symb";
   String write_obj_proc_name  = "write_obj";
 
-  String finish_write_proc_name = "finish_write";
-
   // String symb_repr_proc_name = "symb_repr";
 
   String target_arg_decl(<DBSymbol, AutoSymbol> db_type) = native_name(db_type) & " *" & auto_or_db_arg_name;

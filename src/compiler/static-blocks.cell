@@ -183,7 +183,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "  switch_mem_stacks();",
       "",
       "  const char *c_fname = obj_to_str(fname);",
-      "  FILE *fp = fopen(c_fname, \"w\");",
+      "  void *fp = file_io_open_writable(c_fname);",
       "  if (fp == NULL) {",
       "    //## SAVE ERROR INFORMATION SOMEWHERE",
       "    unswitch_mem_stacks();",
@@ -191,12 +191,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       "    return make_bool(false);",
       "  }",
       "",
-      "",
       "  WRITE_FILE_STATE write_state;",
-      "  write_state.fp = fp;",
+      "  write_state.write = file_io_write;",
+      "  write_state.state = fp;",
       "  write_state.success = true;",
+      "",
       "  " & write_fn_name & "(target, &write_state);",
-      "  fclose(fp);",
+      "",
+      "  file_io_close(fp);",
       "",
       "  unswitch_mem_stacks();",
       "  clear_unused_mem();",
@@ -411,6 +413,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (sgn) & indent_lines(body) & ("}");
   }
 
+
   String* native_write_state_code(StaticBlock block) {
     has_rel_vars = block.tables != [];
 
@@ -557,7 +560,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     code = (code |
       "  " & write_str_proc_name & "(write_state, \")\\n\");",
-      "  " & finish_write_proc_name & "(write_state);",
       "}"
     );
 
