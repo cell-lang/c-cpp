@@ -133,6 +133,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     out_elt_var = new_unique_var(:unused);
 
     out_type = qualified_return_type(:set(elt_type));
+    copied_expr = if must_be_moved(elt_type) then "std::move(" & set_var & ")" else set_var;
 
     return (
       out_type & " " & set_var & "(get_size(" & expr & "));",
@@ -145,7 +146,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  move_forward(" & iter_var & ");",
       "  " & idx_var & "++;",
       "}",
-      action_prefix & set_var & ";"
+      action_prefix & copied_expr & ";"
     );
   }
 
@@ -162,6 +163,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     out_type = qualified_return_type(:bin_rel(left_arg_type, right_arg_type));
     out_left_arg_type = qualified_return_type(left_arg_type);
     out_right_arg_type = qualified_return_type(right_arg_type);
+
+    copied_expr = bin_rel_var;
+    copied_expr = "std::move(" & copied_expr & ")" if must_be_moved(left_arg_type) or must_be_moved(right_arg_type);
 
     code = (
       out_type & " " & bin_rel_var & "(get_size(" & expr & "));",
@@ -184,7 +188,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  move_forward(" & iter_var & ");",
       "  " & idx_var & "++;",
       "}",
-      action_prefix & bin_rel_var & ";"
+      action_prefix & copied_expr & ";"
     );
   }
 
@@ -204,6 +208,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     out_type1 = qualified_return_type(type1);
     out_type2 = qualified_return_type(type2);
     out_type3 = qualified_return_type(type3);
+
+    copied_expr = tern_rel_var;
+    copied_expr = "std::move(" & copied_expr & ")" if must_be_moved(type1) or must_be_moved(type2) or must_be_moved(type3);
 
     code = (
       out_type & " " & tern_rel_var & "(get_size(" & expr & "));",
@@ -230,7 +237,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  move_forward(" & iter_var & ");",
       "  " & idx_var & "++;",
       "}",
-      action_prefix & tern_rel_var & ";"
+      action_prefix & copied_expr & ";"
     );
   }
 }

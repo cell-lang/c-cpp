@@ -62,8 +62,9 @@ inline int32 inline_int32_at(uint64 packed_elts, uint32 idx) {
 }
 
 inline uint64 inline_uint8_init_at(uint64 packed_elts, uint32 idx, uint8 value) {
-  assert(idx >= 0 & idx <= 8);
+  assert(idx >= 0 & idx < 8);
   assert((packed_elts >> (8 * idx)) == 0);
+
   uint64 updated_packed_elts = packed_elts | (((uint64) value) << (8 * idx));
   assert(idx == 7 || (updated_packed_elts >> (8 * (idx + 1))) == 0);
   assert(inline_uint8_at(updated_packed_elts, idx) == value);
@@ -75,8 +76,9 @@ inline uint64 inline_uint8_init_at(uint64 packed_elts, uint32 idx, uint8 value) 
 }
 
 inline uint64 inline_int16_init_at(uint64 packed_elts, uint32 idx, int16 value) {
-  assert(idx >= 0 & idx <= 4);
+  assert(idx >= 0 & idx < 4);
   assert((packed_elts >> (16 * idx)) == 0);
+
   uint64 updated_packed_elts = packed_elts | ((((uint64) value) & 0xFFFF) << (16 * idx));
   assert(idx == 3 || (updated_packed_elts >> (16 * (idx + 1))) == 0);
   assert(inline_int16_at(updated_packed_elts, idx) == value);
@@ -90,6 +92,7 @@ inline uint64 inline_int16_init_at(uint64 packed_elts, uint32 idx, int16 value) 
 inline uint64 inline_int32_init_at(uint64 packed_elts, uint32 idx, int32 value) {
   assert(idx == 0 | idx == 1);
   assert((packed_elts >> (32 * idx)) == 0);
+
   uint64 updated_packed_elts = packed_elts | ((((uint64) value) & 0xFFFFFFFF) << (32 * idx));
   assert(idx == 1 || (updated_packed_elts >> 32) == 0);
   if (idx == 1)
@@ -131,7 +134,10 @@ inline uint64 inline_int16_pack(int16 *array, uint32 size) {
 inline uint64 inline_uint8_slice(uint64 packed_elts, uint32 idx_first, uint32 count) {
   assert(idx_first < 8 & count <= 8 & idx_first + count <= 8);
 
-  uint64 slice = (packed_elts >> (8 * idx_first)) & ((1ULL << (8 * count)) - 1);
+  assert((0xFFFFFFFFFFFFFFFF >> (8 * (8 - count))) == (count < 8 ? ((1ULL << (8 * count)) - 1) : (uint64) -1LL));
+  assert((0xFFFFFFFFFFFFFFFF >> (8 * (8 - count))) == (-1ULL >> (8 * (8 - count))));
+
+  uint64 slice = (packed_elts >> (8 * idx_first)) & (-1ULL >> (8 * (8 - count)));
   for (int i=0 ; i < count ; i++)
     assert(inline_uint8_at(slice, i) == inline_uint8_at(packed_elts, i + idx_first));
   for (int i=count ; i < 8 ; i++)
@@ -142,7 +148,10 @@ inline uint64 inline_uint8_slice(uint64 packed_elts, uint32 idx_first, uint32 co
 inline uint64 inline_int16_slice(uint64 packed_elts, uint32 idx_first, uint32 count) {
   assert(idx_first < 4 & count <= 4 & idx_first + count <= 4);
 
-  uint64 slice = (packed_elts >> (16 * idx_first)) & ((1ULL << (16 * count)) - 1);
+  assert((0xFFFFFFFFFFFFFFFF >> (16 * (4 - count))) == (count < 4 ? ((1ULL << (16 * count)) - 1) : (uint64) -1LL));
+  assert((0xFFFFFFFFFFFFFFFF >> (16 * (4 - count))) == (-1ULL >> (16 * (4 - count))));
+
+  uint64 slice = (packed_elts >> (16 * idx_first)) & (-1ULL >> (16 * (4 - count)));
   for (int i=0 ; i < count ; i++)
     assert(inline_int16_at(slice, i) == inline_int16_at(packed_elts, i + idx_first));
   for (int i=count ; i < 4 ; i++)

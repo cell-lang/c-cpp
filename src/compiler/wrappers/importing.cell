@@ -1,5 +1,8 @@
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
-  String* import_code(InterType it, String expr, String action_prefix) =
+  String* import_code(InterType it, String expr, String action_prefix) = import_code(it, expr, action_prefix, false);
+
+
+  String* import_code(InterType it, String expr, String action_prefix, Bool nested) =
     bool                    = (action_prefix & "make_bool(" & expr & ");"),
     integer                 = (action_prefix & "make_int(" & expr & ");"),
     float                   = (action_prefix & "make_float(" & expr & ");"),
@@ -13,17 +16,24 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     set(t?)                 = set_import_code(t, expr, action_prefix),
     bin_rel(a1?, a2?)       = bin_rel_import_code(a1, a2, expr, action_prefix),
     tern_rel(a1?, a2?, a3?) = tern_rel_import_code(a1, a2, a3, expr, action_prefix),
-    tagged()                = tagged_value_import_code(it, expr, action_prefix),
+    tagged()                = tagged_value_import_code(it, expr, action_prefix, nested),
     optional(t?)            = optional_value_import_code(t, expr, action_prefix),
     generic                 = (action_prefix & "import_obj(" & expr & ");"),
-    generated(ts?)          = (action_prefix & decl_type_import_funct_name(bare_id(ts)) & "(" & expr & ");");
+    generated(ts?)          = generated_type_import_code(ts, expr, action_prefix, nested);
+
+
+  String* generated_type_import_code(BasicTypeSymbol type_symb, String expr, String action_prefix, Bool nested) {
+    bare_type_id = bare_id(type_symb);
+    value_expr = if nested and not is_concrete_class(bare_type_id) then "*" & expr else expr;
+    return (action_prefix & decl_type_import_funct_name(bare_type_id) & "(" & value_expr & ");");
+  }
 
 
   String* tuple_import_code(InterType+ types, String expr, String action_prefix) {
     tuple_args_array_name = new_unique_var(:unused);
     code = ("OBJ *" & tuple_args_array_name & " = new_obj_array(" & _print_(|types|) & ");");
     for t @ i <- types
-      code = code & import_code(t, "std::get<" & _print_(i) & ">(" & expr & ")", tuple_args_array_name & "[" & _print_(i) & "] = ");
+      code = code & import_code(t, "std::get<" & _print_(i) & ">(" & expr & ")", tuple_args_array_name & "[" & _print_(i) & "] = ", true);
     code = (code | action_prefix & "build_seq(" & tuple_args_array_name & ", " & _print_(|types|) & ");");
     return code;
   }
@@ -42,7 +52,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       idx_var   = new_unique_var(:unused);
       array_var = new_unique_var(:unused);
 
-      elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
+      elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ", true);
 
       native_elem_type = nested_input_arg_type(elem_type);
 
@@ -65,7 +75,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     idx_var   = new_unique_var(:unused);
     array_var = new_unique_var(:unused);
 
-    elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ");
+    elem_code = import_code(elem_type, expr_var & "[" & idx_var & "]", array_var & "[" & idx_var & "] = ", true);
 
     native_elem_type = nested_input_arg_type(elem_type);
 
@@ -101,8 +111,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  " & right_type_str & " " & right_var & " = std::get<1>(" & expr & "[" & idx_var & "]);"
     );
 
-    code = code & indent_lines(import_code(left_type, left_var, left_col_var & "[" & idx_var & "] = "));
-    code = code & indent_lines(import_code(right_type, right_var, right_col_var & "[" & idx_var & "] = "));
+    code = code & indent_lines(import_code(left_type, left_var, left_col_var & "[" & idx_var & "] = ", true));
+    code = code & indent_lines(import_code(right_type, right_var, right_col_var & "[" & idx_var & "] = ", true));
 
     return (
       code |
@@ -137,9 +147,9 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  " & type3_str & " " & arg3_var & " = std::get<2>(" & expr & "[" & idx_var & "]);"
     );
 
-    code = code & indent_lines(import_code(type1, arg1_var, col1_var & "[" & idx_var & "] = "));
-    code = code & indent_lines(import_code(type2, arg2_var, col2_var & "[" & idx_var & "] = "));
-    code = code & indent_lines(import_code(type3, arg3_var, col3_var & "[" & idx_var & "] = "));
+    code = code & indent_lines(import_code(type1, arg1_var, col1_var & "[" & idx_var & "] = ", true));
+    code = code & indent_lines(import_code(type2, arg2_var, col2_var & "[" & idx_var & "] = ", true));
+    code = code & indent_lines(import_code(type3, arg3_var, col3_var & "[" & idx_var & "] = ", true));
 
     return (
       code |
@@ -149,13 +159,13 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   }
 
 
-  String* tagged_value_import_code(TaggedInterType tagged_type, String expr, String action_prefix) {
+  String* tagged_value_import_code(TaggedInterType tagged_type, String expr, String action_prefix, Bool nested) {
     assert tagged_type != :generic;
-    // return import_code(:generic, expr, action_prefix) if tagged_type == :generic; ## QUESTION: WHY WAS THIS HERE IN THE FIRST PLACE?
+    // return import_code(:generic, expr, action_prefix, ???) if tagged_type == :generic; ## QUESTION: WHY WAS THIS HERE IN THE FIRST PLACE?
 
     out_var = new_unique_var(:unused);
     code = ("OBJ " & out_var & ";");
-    code = code & import_code(untagged_type(tagged_type), expr, out_var & " = ");
+    code = code & import_code(untagged_type(tagged_type), expr, out_var & " = ", nested);
     tag = object(type_tag(tagged_type));
     instr = action_prefix & "opt_repr_build(make_symb(" & symb_id_qual_name(tag) & "), " & out_var & ");";
     return (code | instr);
@@ -172,7 +182,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "if (" & expr & " != NULL) {",
         "  " & native_type & " &" & ref_var & " = *" & expr & ";",
         "  OBJ " & tmp_var & ";"
-    ) & indent_lines(import_code(inner_type, ref_var, tmp_var & " = ")) & (
+    ) & indent_lines(import_code(inner_type, ref_var, tmp_var & " = ", true)) & (
       "  " & action_prefix & "make_tag_obj(symb_id_just, " & tmp_var & ");", ## BUG BUG BUG: BYPASSING THE PROCESS FOR CREATING OPTIMIZED TAGGED RECORDS
       "}",
       "else",
