@@ -37,6 +37,16 @@ void method_wrapper_abort() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+uint32 istream_read(void *ptr, uint8 *buffer, uint32 capacity) {
+  std::istream &is = *static_cast<std::istream *>(ptr);
+  is.read((char *) buffer, capacity);
+  if (is.bad())
+    throw std::exception(); //## TODO: ADD ERROR INFORMATION
+  uint32 read = is.gcount();
+  assert(read == capacity | is.eof());
+  return read;
+}
+
 bool ostream_write(void *ptr, const uint8 *data, uint32 size) {
   std::ostream &os = *static_cast<std::ostream *>(ptr);
   os.write(reinterpret_cast<const char *>(data), size);

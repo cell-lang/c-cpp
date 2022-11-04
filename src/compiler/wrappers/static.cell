@@ -142,6 +142,10 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
 
     ctor_sgn = class_name & "(" & append(ctor_impl_args, ", ") & ")";
 
+    init_method = init_method_name(block.name);
+    aux_init_method = aux_init_method_name(block.name);
+    cleanup_method = cleanup_method_name(block.name);
+
     // Class declaration
 
     class_decl = (
@@ -153,8 +157,8 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "    " & ctor_sgn & ";",
       "    ~" & class_name & "();",
       "",
-      "    void save(std::ostream &os);",
-      "    void load(const std::string &filename);"
+      "    void save(std::ostream &);",
+      "    void load(std::istream &);"
     );
 
     class_decl = (class_decl | "", "    void execute(const std::string &message);") if has_any_updates;
@@ -195,8 +199,8 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "  this->ptr = ptr;",
       "  memset(&ptr->env, 0, sizeof(ENV));",
       "  handler_wrapper_begin();",
-      "  " & native_call(init_method_name(block.name), (auto_ref) & dep_autos_args_list & (env_ref), context=:wrapper),
-      "  " & native_call(aux_init_method_name(block.name), (auto_ref, aux_ref) & dep_auxs_args_list, context=:wrapper),
+      "  " & native_call(init_method, (auto_ref) & dep_autos_args_list & (env_ref), context=:wrapper),
+      "  " & native_call(aux_init_method, (auto_ref, aux_ref) & dep_auxs_args_list, context=:wrapper),
       "  handler_wrapper_finish();"
     );
 
@@ -210,7 +214,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "",
       class_name & "::~" & class_name & "() {",
       "  " & typed_ptr_def,
-      "  " & native_call(cleanup_method_name(block.name), (auto_ref, aux_ref), context=:wrapper),
+      "  " & native_call(cleanup_method, (auto_ref, aux_ref), context=:wrapper),
       "  delete ptr;",
       "}",
       "",
@@ -235,19 +239,40 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "  clear_all_mem();",
       "}",
       "",
-      "void " & class_name & "::load(const std::string &filename) {",
+      "void " & class_name & "::load(std::istream &is) {",
+      "  std::istream::iostate exceptions = is.exceptions();",
+      "  is.exceptions(exceptions | std::istream::badbit);",
+      "  ",
       "  " & typed_ptr_def,
       "",
-      "  handler_wrapper_begin();",
+      "  assert(total_stack_mem_alloc() == 0);",
       "",
-      "  OBJ fname_obj = str_to_obj(filename.c_str());",
-      "  OBJ succeeded = " & native_call(load_state_entry_point_name(block.name), ("fname_obj", auto_ref, aux_ref, env_ref), context=:wrapper),
+      "  " & db_name & " *target = " & auto_ref & ";",
+      "  " & auxiliary_name & " *auxiliary = " & aux_ref & ";",
+      "  ENV &env = " & env_ref & ";",
       "",
-      "  handler_wrapper_finish();",
+      "  " & db_name & " new_inst;",
+      "  " & init_method & "(&new_inst, env);",
       "",
-      "  if (!get_bool(succeeded)) {",
-      "    throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
+      "  try {",
+      "    bool succeeded = " & load_state_proc_name(block.name) & "(&new_inst, istream_read, &is);",
+      "    if (!succeeded)",
+      "      throw std::exception(); //## ADD ERROR INFORMATION",
       "  }",
+      "  catch (...) {",
+      "    " & cleanup_method & "(&new_inst, NULL);",
+      "    clear_all_mem();",
+      "    is.exceptions(exceptions);",
+      "    throw;",
+      "  }",
+      "  ",
+      "  " & cleanup_method & "(target, auxiliary);",
+      "  *target = new_inst;",
+      "  " & aux_init_method & "(target, auxiliary);",
+      "  ",
+      "  clear_all_mem();",
+      "  ",
+      "  is.exceptions(exceptions);",
       "}"
     );
 
