@@ -253,8 +253,15 @@ static bool read_digit(PARSER *parser, int32 *digit) {
     return false;
 }
 
-static bool read_2_digits(PARSER *parser, int32 min, int32 max, int32 *hours) {
-
+static bool read_2_digits(PARSER *parser, int32 min, int32 max, int32 *result) {
+  int32 d1, d2;
+  if (!read_digit(parser, &d1) || !read_digit(parser, &d2))
+    return false;
+  int32 value = 10 * d1 + d2;
+  if (value < min || value > max)
+    return false;
+  *result = value;
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
