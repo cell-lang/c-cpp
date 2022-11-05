@@ -222,31 +222,34 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     class_decl = (
       "class " & auto_class_name & " {",
-      "  private:",
-      "    void *ptr;",
-      "" if enums_decls != ()
-    ) & indent_lines(enums_decls) & (
+      "  public:"
+    ) & indent_lines(enums_decls, 2) & (
+      "" if enums_decls != (),
+      "    " & auto_class_name & "();",
+      "    ~" & auto_class_name & "();",
       "",
-      "  " & auto_class_name & "();",
-      "  ~" & auto_class_name & "();",
-      "",
-      "  void set_input(Input input, std::string &value);" if inputs != (),
-      "  std::string read_output(Output output);" if outputs != (),
+      "    void set_input(Input input, std::string &value);" if inputs != (),
+      "    std::string read_output(Output output);" if outputs != (),
       "" if is_time_sensitive,
-      "  void set_elapsed_millisecs(unsigned int);" if is_time_sensitive,
-      "  void set_elapsed_secs(unsigned int);" if is_time_sensitive,
+      "    void set_elapsed_millisecs(unsigned int);" if is_time_sensitive,
+      "    void set_elapsed_secs(unsigned int);" if is_time_sensitive,
       "",
-      "  " & apply_ret_type & " apply();",
-      "  std::string read_state();",
-      "  void set_state(std::string &state);",
+      "    " & apply_ret_type & " apply();",
+      "    std::string read_state();",
+      "    void set_state(std::string &state);",
       "",
-      "  std::vector<Output> changed_outputs();" if outputs != ()
+      "    std::vector<Output> changed_outputs();" if outputs != ()
     );
 
-    class_decl = class_decl & ("", "  // Inputs") & indent_lines(input_setters_decls) if input_setters_decls != ();
-    class_decl = class_decl & ("", "  // Outputs") & indent_lines(output_getters_decls) if output_getters_decls != ();
-    class_decl = class_decl & ("", "  // Methods") & indent_lines(methods_wrappers_docs) if methods_wrappers_docs != ();
-    class_decl = (class_decl | "};");
+    class_decl = class_decl & ("", "    // Inputs") & indent_lines(input_setters_decls, 2) if input_setters_decls != ();
+    class_decl = class_decl & ("", "    // Outputs") & indent_lines(output_getters_decls, 2) if output_getters_decls != ();
+    class_decl = class_decl & ("", "    // Methods") & indent_lines(methods_wrappers_docs, 2) if methods_wrappers_docs != ();
+    class_decl = (class_decl |
+      "",
+      "  private:",
+      "    void *ptr;",
+      "};"
+    );
 
     env_ref = "ptr->env";
     auto_ref = "&ptr->automaton";

@@ -150,20 +150,20 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
 
     class_decl = (
       "class " & class_name & " {",
-      "  private:",
-      "    void *ptr;",
-      "",
       "  public:",
       "    " & ctor_sgn & ";",
       "    ~" & class_name & "();",
       "",
       "    void save(std::ostream &);",
-      "    void load(std::istream &);"
+      "    void load(std::istream &);",
+      "" if has_any_updates,
+      "    void execute(const std::string &message);" if has_any_updates
+    ) & {if accessors_decls != () then indent_lines(accessors_decls, 2) else ()} & (
+      "",
+      "  private:",
+      "    void *ptr;",
+      "};"
     );
-
-    class_decl = (class_decl | "", "    void execute(const std::string &message);") if has_any_updates;
-    class_decl = (class_decl | "") & indent_lines(accessors_decls, 2) if accessors_decls != ();
-    class_decl = (class_decl | "};");
 
     // Class implementation
 
