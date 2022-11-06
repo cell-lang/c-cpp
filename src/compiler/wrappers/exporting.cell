@@ -39,12 +39,13 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
 
   String* tagged_type_export_code(TaggedInterType tagged_type, String expr, String action_prefix) {
-    assert tagged_type != :generic;
-    // return export_code(:generic, expr, action_prefix) if tagged_type == :generic; ## QUESTION: WHY WAS THIS HERE IN THE PLACE
+    untagged_type = untagged_type(tagged_type);
+
+    if has_textual_repr(untagged_type)
+      return (action_prefix & "export_as_text(" & expr & ");");
 
     in_var = new_unique_var(:unused);
     instr = "OBJ " & in_var & " = get_inner_obj(" & expr & ");";
-    untagged_type = untagged_type(tagged_type);
     return (instr) & export_code(untagged_type, in_var, action_prefix);
   }
 

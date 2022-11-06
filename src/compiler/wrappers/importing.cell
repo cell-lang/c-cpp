@@ -160,12 +160,14 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
 
   String* tagged_value_import_code(TaggedInterType tagged_type, String expr, String action_prefix, Bool nested) {
-    assert tagged_type != :generic;
-    // return import_code(:generic, expr, action_prefix, ???) if tagged_type == :generic; ## QUESTION: WHY WAS THIS HERE IN THE FIRST PLACE?
+    untagged_type = untagged_type(tagged_type);
+
+    if has_textual_repr(untagged_type)
+      return (action_prefix & "import_obj(" & expr & ");");
 
     out_var = new_unique_var(:unused);
     code = ("OBJ " & out_var & ";");
-    code = code & import_code(untagged_type(tagged_type), expr, out_var & " = ", nested);
+    code = code & import_code(untagged_type, expr, out_var & " = ", nested);
     tag = object(type_tag(tagged_type));
     instr = action_prefix & "opt_repr_build(make_symb(" & symb_id_qual_name(tag) & "), " & out_var & ");";
     return (code | instr);

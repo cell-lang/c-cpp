@@ -102,6 +102,29 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 //   return "(" & append(native_fields, ", ") & ")" & if nullable then " *" else "";
 // }
 
+////////////////////////////////////////////////////////////////////////////////
+
+Bool has_textual_repr(EltInterType it) =
+    date          |
+    time          |
+    symbol()      |
+    record()      |
+    generic       = true,
+    bool          |
+    byte          |
+    int32         |
+    integer       |
+    float         |
+    string        |
+    optional()    |
+    tuple()       |
+    seq()         |
+    set()         |
+    bin_rel()     |
+    tern_rel()    |
+    generated()   = false,
+    tagged(_, t?) = has_textual_repr(t);
+
 /////////////////////////////////////////////////////////////////////////////////
 
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
