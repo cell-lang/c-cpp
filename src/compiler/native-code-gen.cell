@@ -74,19 +74,16 @@ type PrgData =  prg_data(
 
   // Obj to tuple conversion functions
   if tuples_args_reprs != [] {
-    gen_content = (gen_content | ("", ""));
-    gen_content = gen_content & make_tuple_fns(tuples_args_reprs, context = :core);
-    gen_content = (gen_content | ("", ""));
-    gen_content = gen_content & obj_to_tuple_conv_fns(tuples_args_reprs, context = :core);
-    gen_content = (gen_content | ("", ""));
-    gen_content = gen_content & tuple_to_obj_conv_fns(tuples_args_reprs, context = :core);
+    gen_content = (gen_content | ("", ""), make_tuple_fns(tuples_args_reprs, context = :core));
+    gen_content = (gen_content | ("", ""), obj_to_tuple_conv_fns(tuples_args_reprs, context = :core));
+    gen_content = (gen_content | ("", ""), tuple_to_obj_conv_fns(tuples_args_reprs, context = :core));
   }
 
   // Runtime typechecking functions' declarations
   gen_content = (gen_content | ("", "")) if bool_procs != ();
   for d @ i <- bool_procs {
     decl = GenProcCode(d, true, prg_data, debug_mode);
-    gen_content = gen_content & decl;
+    gen_content = (gen_content | decl);
   }
 
   // Lambda functions' declarations
@@ -100,7 +97,7 @@ type PrgData =  prg_data(
   gen_content = (gen_content | ("", "")) if fn_procs != ();
   for d @ i <- fn_procs {
     decl = GenProcCode(d, true, prg_data, debug_mode);
-    gen_content = gen_content & decl;
+    gen_content = (gen_content | decl);
   }
 
   // Static block declarations (in topological order)
@@ -113,33 +110,33 @@ type PrgData =  prg_data(
       debug_mode = debug_mode,
       skip_integrity_checks = skip_integrity_checks
     );
-    gen_content = (gen_content | ("", "")) & def;
+    gen_content = (gen_content | ("", ""), def);
   }
 
   // Reactive blocks' declarations (in topological order)
   for block <- ord_react_blocks {
     def = native_react_block_decl(block, prg_data = prg_data, context = :core, debug_mode = debug_mode);
-    gen_content = (gen_content | ("", "")) & def;
+    gen_content = (gen_content | ("", ""), def);
   }
 
   // Procedure declarations
   gen_content = (gen_content | ("", "")) if proc_procs != ();
   for d @ i <- proc_procs {
     decl = GenProcCode(d, true, prg_data, debug_mode);
-    gen_content = gen_content & decl;
+    gen_content = (gen_content | decl);
   }
 
   // Wrappers for push_call_info(..)
   wrappers = GenPushCallInfoWrappers(prg);
   gen_content = (gen_content | ("", "")) if wrappers != ();
-  gen_content = gen_content & wrappers;
+  gen_content = (gen_content | wrappers);
 
   // Runtime typechecking functions
   gen_content = (gen_content | ("", "")) if bool_procs != ();
   for d @ i <- bool_procs {
     def = GenProcCode(d, false, prg_data, debug_mode);
     gen_content = (gen_content | ("", "")) if i > 0;
-    gen_content = gen_content & def;
+    gen_content = (gen_content | def);
   }
 
   // Lambda functions
@@ -154,7 +151,7 @@ type PrgData =  prg_data(
   for d @ i <- fn_procs {
     def = GenProcCode(d, false, prg_data, debug_mode);
     gen_content = (gen_content | ("", "")) if i > 0;
-    gen_content = gen_content & def;
+    gen_content = (gen_content | def);
   }
 
   // Static blocks' implementations (in topological order)
@@ -167,13 +164,13 @@ type PrgData =  prg_data(
       debug_mode = debug_mode,
       skip_integrity_checks = skip_integrity_checks
     );
-    gen_content = (gen_content | ("", "")) & def;
+    gen_content = (gen_content | ("", ""), def);
   }
 
   // Reactive blocks' implementations (in topological order)
   for block <- ord_react_blocks {
     def = native_react_block_impl(block, prg_data = prg_data, context = :core, debug_mode = debug_mode);
-    gen_content = (gen_content | ("", "")) & def;
+    gen_content = (gen_content | ("", ""), def);
   }
 
   // Procedures
@@ -181,11 +178,11 @@ type PrgData =  prg_data(
   for d @ i <- proc_procs {
     def = GenProcCode(d, false, prg_data, debug_mode);
     gen_content = (gen_content | ("", "")) if i > 0;
-    gen_content = gen_content & def;
+    gen_content = (gen_content | def);
   }
 
-  gen_content = gen_content & runtime_callbacks(|program_symbols|);
-  gen_content = gen_content & main_fn(debug_mode) if has_main;
+  gen_content = (gen_content | runtime_callbacks(|program_symbols|));
+  gen_content = (gen_content | main_fn(debug_mode)) if has_main;
 
   data_exchange_types = data_exchange_types(prg, generated);
   wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);
@@ -264,13 +261,13 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
 
   rel_auto_wrappers_decls, rel_auto_wrappers_impls = rel_auto_wrappers(ord_static_blocks, prg, prg_data, generated);
   if rel_auto_wrappers_decls != ()
-    decls = (decls | ("// Facades for relational automata", "", rel_auto_wrappers_decls));
+    decls = (decls | ("", "// Facades for relational automata", "", rel_auto_wrappers_decls));
   if rel_auto_wrappers_impls != ()
-    impls = (impls | ("// Facades for relational automata", "", rel_auto_wrappers_impls));
+    impls = (impls | ("", "// Facades for relational automata", "", rel_auto_wrappers_impls));
 
   react_auto_wrappers_decls, react_auto_wrappers_impls = react_auto_wrappers(ord_react_blocks, prg, generated);
   if react_auto_wrappers_decls != ()
-    decls = (decls | ("// Facades for reactive automata", "", react_auto_wrappers_decls));
+    decls = (decls | ("", "// Facades for reactive automata", "", react_auto_wrappers_decls));
   if react_auto_wrappers_impls != ()
     impls = (impls | "// Facades for reactive automata", "", react_auto_wrappers_impls);
 
@@ -281,14 +278,17 @@ Text data_exchange_types(CompiledPrg prg, [BasicTypeSymbol] generated) {
 (Text, Text) rel_auto_wrappers(StaticBlock* ord_static_blocks, CompiledPrg prg, PrgData prg_data, [BasicTypeSymbol] generated) {
   let prg = prg, prg_data = prg_data, typedefs = prg.typedefs, generated = generated
     rel_auto_wrappers = (static_auto_wrapper(b) : b <- ord_static_blocks);
-  return unzip(((decl, impl) : _, decl, impl <- rel_auto_wrappers));
+  decls, impls = unzip(((decl, impl) : _, decl, impl <- rel_auto_wrappers));
+  return (intermix(decls, ("")), intermix(impls, ("")));
 }
 
 
 (Text, Text) react_auto_wrappers(ReactBlock* ord_react_blocks, CompiledPrg prg, [BasicTypeSymbol] generated) {
   let prg = prg, typedefs = prg.typedefs, generated = generated
     react_auto_wrappers = (react_auto_wrapper(b) : b <- ord_react_blocks);
-  return unzip(((decl, impl) : _, decl, impl <- react_auto_wrappers));
+  decls, impls = unzip(((decl, impl) : _, decl, impl <- react_auto_wrappers));
+  impls = intermix(impls, (""));
+  return (intermix(decls, ("")), intermix(impls, ("")));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -509,7 +509,7 @@ Text runtime_content(Bool has_static_autos) = (
 );
 
 
-Text symbol_decls(SymbObj+ program_symbols) {
+String* symbol_decls(SymbObj+ program_symbols) {
   let context = :core
     code = ("const uint16 " & symb_id_name(s) & " = " & printed(i) & ";" : s @ i <- program_symbols);
   return ("", "") & code;
