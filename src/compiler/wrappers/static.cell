@@ -146,6 +146,8 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     aux_init_method = aux_init_method_name(block.name);
     cleanup_method = cleanup_method_name(block.name);
 
+    load_err_msg = "Loading failed. Either the input had syntax errors, or the input value was not a valid state for " & native_name(block.name);
+
     // Class declaration
 
     class_decl = (
@@ -256,8 +258,9 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "",
       "  try {",
       "    bool succeeded = " & load_state_proc_name(block.name) & "(&new_inst, istream_read, &is);",
-      "    if (!succeeded)",
-      "      throw std::exception(); //## ADD ERROR INFORMATION",
+      "    if (!succeeded) {",
+      "      throw std::domain_error(\"" & load_err_msg & "\");", //## TODO: BE MORE SPECIFIC ABOUT THE TYPE OF THE ERROR
+      "    }",
       "  }",
       "  catch (...) {",
       "    " & cleanup_method & "(&new_inst, NULL);",
@@ -287,17 +290,15 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "  handler_wrapper_begin();",
       "",
       "  try {",
-      "    if (!parse(message.c_str(), message.length(), &parsed_msg, &error_offset)) {",
-      "      throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
-      "    }",
+      "    parsed_msg = import_obj(message);",
       "    if (!" & native_fn_name(value_unsafe(block.msg_memb_pred), context=:wrapper) & "(parsed_msg)) {",
-      "      throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR
+      "      throw std::invalid_argument(\"Invalid message type\");",
       "    }",
       "    uint32 index = " & native_call(handler_dispatch_resolver_name(block.name), ("parsed_msg"), context=:wrapper),
       "    bool (*msg_handler)(" & db_name & " *, " & auxiliary_name & " *, OBJ, ENV &) = " & msg_handler_entry_point_array(block.name) & "[index];",
       "    bool succeeded = " & native_call("msg_handler", (auto_ref, aux_ref, "parsed_msg", env_ref), context=:wrapper),
       "    if (!succeeded) {",
-      "      throw std::exception();", ## TODO: ADD INFORMATION ABOUT THE ERROR (WHICH OUGHT TO BE STORED IN THE AUXILIARY DATA STRUCTURE)
+      "      throw std::runtime_error(\"\");", ## TODO: ADD INFORMATION ABOUT THE ERROR (WHICH OUGHT TO BE STORED IN THE AUXILIARY DATA STRUCTURE)
       "    }",
       "  }",
       "  catch (...) {",

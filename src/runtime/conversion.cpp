@@ -21,7 +21,18 @@ OBJ import_obj(const std::string &str) {
   if (parse(str.c_str(), str.length(), &obj, &error_offset))
     return obj;
 
-  throw std::exception(); //## ADD INFORMATION ABOUT THE ERROR
+  uint32 line = 1;
+  uint32 column = 1;
+  for (uint32 i=0 ; i < error_offset ; i++) {
+    if (str[i] == '\n') {
+      line++;
+      column = 1;
+    }
+    else
+      column++;
+  }
+
+  throw std::runtime_error("Parsing error at line " & std::to_string(line) & ", column " & std::to_string(column));
 }
 
 OBJ import_symbol(const std::string &str) {
@@ -30,7 +41,7 @@ OBJ import_symbol(const std::string &str) {
   if (is_symb(obj))
     return obj;
 
-  throw std::exception(); //## ADD INFORMATION ABOUT THE ERROR
+  throw std::domain_error("Invalid value. Was expecting a symbol: " & str);
 }
 
 OBJ import_date(const std::string &str) {
@@ -39,7 +50,7 @@ OBJ import_date(const std::string &str) {
   if (is_tag_obj(obj) && get_tag_id(obj) == symb_id_date && is_int(get_inner_obj(obj)))
     return obj;
 
-  throw std::exception(); //## ADD INFORMATION ABOUT THE ERROR
+  throw std::domain_error("Invalid value. Was expecting a date: " & str);
 }
 
 OBJ import_time(const std::string &str) {
@@ -48,7 +59,7 @@ OBJ import_time(const std::string &str) {
   if (is_tag_obj(obj) && get_tag_id(obj) == symb_id_time && is_int(get_inner_obj(obj)))
     return obj;
 
-  throw std::exception(); //## ADD INFORMATION ABOUT THE ERROR
+  throw std::domain_error("Invalid value. Was expecting a timestamp: " & str);
 }
 
 OBJ import_byte_array(const std::vector<unsigned char> &vector) {

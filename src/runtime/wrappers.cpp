@@ -41,7 +41,8 @@ uint32 istream_read(void *ptr, uint8 *buffer, uint32 capacity) {
   std::istream &is = *static_cast<std::istream *>(ptr);
   is.read((char *) buffer, capacity);
   if (is.bad())
-    throw std::exception(); //## TODO: ADD ERROR INFORMATION
+    // This is not supposed to happen
+    throw std::ios_base::failure("Internal error: std::istream.read() didn't throw on a bad read");
   uint32 read = is.gcount();
   assert(read == capacity | is.eof());
   return read;

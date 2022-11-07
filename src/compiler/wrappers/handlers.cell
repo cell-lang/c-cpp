@@ -58,11 +58,12 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         ## TO INVALID TYPES, AND PERFORM THIS CHECK ONLY IF NECESSARY
         var_name = native_var_ref_name(fields_vars(i));
         cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
-        type_user_repr = "\"" & user_repr(fields_types(i)) & "\""; ## THIS SHOULD BE ESCAPED
         check_prefix = if optional(i) then "!is_blank(" & var_name & ") && !" else "!";
-        code = (code | "    if (" & check_prefix & cond_str & ")");
-        exception_args = _print_(i) & ", " & var_name & ", " & type_user_repr;
-        code = (code | "      throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
+        err_msg = "Invalid argument " & _print_(i + 1) & ": expected type was " & user_repr(fields_types(i));
+        code = (code |
+          "    if (" & check_prefix & cond_str & ")",
+          "      throw std::invalid_argument(\"" & err_msg & "\");"
+        );
       }
 
       method_name = msg_handler_entry_point_name(block_name, handler_id, msg_type);
@@ -71,7 +72,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing), 2) |
         "    bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
         "    if (!ok) {",
-        "      throw std::exception();", ## TODO: ADD ERROR INFORMATION
+        "      throw std::runtime_error(\"\");", ## TODO: ADD INFORMATION ABOUT THE ERROR (WHICH OUGHT TO BE STORED IN THE AUXILIARY DATA STRUCTURE)
         "    }",
         "  }",
         "  catch (...) {",

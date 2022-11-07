@@ -53,8 +53,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       cond_str = native_fn_name(p, context=:wrapper) & "(" & var_name & ")";
       type_user_repr = user_repr(method.args_types(i)); ## THIS SHOULD BE ESCAPED
       body = (body | "  if (!" & cond_str & ")");
-      exception_args = _print_(i) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
-      body = (body | "    throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "  throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");"
+      err_msg = "Invalid argument " & _print_(i + 1) & ": expected type was " & type_user_repr;
+      body = (body | "    throw std::invalid_argument(\"" & err_msg & "\");");
     }
 
     if polymorphic_args != () {
@@ -62,15 +62,20 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         arg_idx = only(polymorphic_args);
         var_name = args_obj_vars(arg_idx);
         type_user_repr = user_repr(method.args_types(arg_idx)); ## THIS SHOULD BE ESCAPED
-        exception_args = _print_(arg_idx) & ", " & var_name & ", " & "\"" & type_user_repr & "\"";
-        check_code = ("throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "throw new Cell.Runtime.InvalidArgumentTypeException(" & exception_args & ");");
+        err_msg = "Invalid argument " & _print_(arg_idx + 1) & ": expected type was " & type_user_repr;
+        check_code = ("throw std::invalid_argument(\"" & err_msg & "\");");
 
       }
       else {
-        args_list = append((_print_(i+1) : i <- polymorphic_args), ", ");
         ## REPLACE THIS EXCEPTION WITH ONE THAT IS MORE INFORMATIVE,
         ## JUST LIKE WHAT WAS DONE WITH MONOMORPHIC ARGUMENTS
-        check_code = ("throw std::exception();"); ## TODO: ADD ERROR INFORMATION. WAS: "throw new System.Exception(\"Invalid types for arguments " & args_list & "\");"
+        err_msg = "The combination of (polymorphic) arguments ";
+        for idx @ j <- polymorphic_args {
+          err_msg = err_msg & if j == |polymorphic_args| - 1 then " and " else ", " if j > 0;
+          err_msg = err_msg & _print_(idx + 1);
+        }
+        err_msg = err_msg & " is not valid";
+        check_code = ("throw std::invalid_argument(\"" & err_msg & "\");");
       }
 
       vars_names = [i -> args_obj_vars(i) : i <- polymorphic_args];

@@ -90,7 +90,7 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
       "    " & set_method_name & "(&ptr->automaton, obj);",
       "  }",
       "  else",
-      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION
+      "    throw std::domain_error(\"Invalid input value\");",
       "}"
     );
 
@@ -116,9 +116,9 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
       "  " & typed_ptr_def,
       "  OBJ obj = ptr->automaton." & var_name & ";",
       "  if (is_null(obj))",
-      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Output is undefined")
+      "    throw std::runtime_error(\"Output is not defined\");",
       "  if (is_blank(obj))" if output.discrete,
-      "    throw std::exception();" if output.discrete ## TODO: ADD ERROR INFORMATION (WAS: "Discrete output is not set")
+      "    throw std::runtime_error(\"Discrete output is not set\");" if output.discrete
     ) & indent_lines(export_code(inter_type, "obj", "return ")) & (
       "}"
     );
@@ -294,10 +294,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "void " & auto_class_name & "::" & "set_state(std::string &state) {",
       "  " & typed_ptr_def,
       "  if (!ptr->automaton.is_new)", ## BUG BUG BUG: WHY WAS THIS NOT NEGATED?
-      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Cannot set state: automaton instance is not new")
+      "    throw std::runtime_error(\"The state of an automaton can only be set right after instantiation\");",
       "  OBJ obj = import_obj(state);",
       "  if (!" & native_fn_name(block.state_memb_pred, context=:wrapper) & "(obj))",
-      "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Invalid state")
+      "    throw std::domain_error(\"Invalid state\");",
       "  " & native_call(set_state_method_name(block.name), (auto_ref, "obj"), context=:wrapper),
       "}"
     );
@@ -307,8 +307,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
         "",
         "void " & auto_class_name & "::" & "set_elapsed_millisecs(unsigned int time) {",
         "  " & typed_ptr_def,
-        "  if (ptr->automaton.is_new | ptr->automaton.elapsed_time > 0)",
-        "    throw std::exception();", ## TODO: ADD ERROR INFORMATION (WAS: "Cannot set elapsed time now")
+        "  if (ptr->automaton.is_new)",
+        "    throw std::runtime_error(\"Elapsed time cannot be set before the this instance has been fully initialized by invoking apply()\");",
+        "  if (ptr->automaton.elapsed_time > 0)",
+        "    throw std::runtime_error(\"Elapsed time has already been set and cannot be set again before every update has been fully propagated\");",
         "  ptr->automaton.elapsed_time = 1000000L * time;",
         "}",
         "",
@@ -333,14 +335,14 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
           "      if (" & input_memb_test_pred_name(j) & "(obj))",
           "        " & input_set_methods_names(j) & "(&ptr->automaton, obj);",
           "      else",
-          "        throw std::exception();", ## TODO: ADD ERROR INFORMATION
+          "        throw std::domain_error(\"Invalid input value\");",
           "      break;"
         );
       }
       class_impl = (class_impl |
         "",
         "    default:",
-        "      throw std::exception();",
+        "      throw std::runtime_error(\"Unknown input\");",
         "  }",
         "}"
       );
@@ -375,7 +377,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       class_impl = class_impl & (
         "",
         "    default:",
-        "      throw std::exception();",
+        "      throw std::runtime_error(\"Unknown output\");",
         "  }",
         "",
         "  return export_as_text(obj);",
