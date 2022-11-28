@@ -13,7 +13,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     } : t @ i <- fields_types);
 
     fields_ids = (bare_id(v) : v <- fields_vars);
-    args_names_map = adjusted_unambiguous_lower_camel_case_names(set(fields_ids));
+    args_names_map = adjusted_unambiguous_snake_case_names(set(fields_ids));
     args_names = (args_names_map(l) : l <- fields_ids);
 
     args_types = (input_arg_type(it, optional(i)) : it @ i <- args_inter_types);
@@ -86,18 +86,18 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       );
     }
 
-    args_types_decl = (remove_path(s) : s <- args_types);
-    if |args_decls| < 5 {
+    args_types_decls = (input_arg_type(it, optional(i)) : it @ i <- args_inter_types);
+    if |args_types_decls| < 5 {
       args_decl = (
         t & " " & n & if optional(i) then " = NULL" else ""
-        : t, n @ i <- zip(args_types_decl, args_names)
+        : t, n @ i <- zip(args_types_decls, args_names)
       );
       decl = ("void " & ext_name & "(" & append(args_decl, ", ") & ");");
     }
     else {
-      alignment = nat(1 + max((length(s) : s <- nonempty(args_types_decl))));
+      alignment = nat(1 + max((length(s) : s <- nonempty(args_types_decls))));
       decl = ("void " & ext_name & "(");
-      for t, n @ i <- zip(args_types_decl, args_names) {
+      for t, n @ i <- zip(args_types_decls, args_names) {
         arg_doc = "  " & right_padded(t, alignment, ` `) & n;
         arg_doc = arg_doc & " = NULL" if optional(i);
         arg_doc = arg_doc & "," if i < arity - 1;

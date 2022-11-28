@@ -90,7 +90,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     String* record_type_import_code(RecordInterType inter_type, String class_name, String target_var) {
       fields = fields(inter_type);
       labels = isort(keys(fields));
-      fields_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+      fields_names = adjusted_unambiguous_snake_case_names(keys(fields));
       fields_vars = [v -> new_unique_var(:unused) : v _ <- fields];
 
       count_str = _print_(|fields|);

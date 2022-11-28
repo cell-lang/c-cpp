@@ -15,7 +15,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     // Making sure that there are no two named arguments have the same name
     // which is supposed to be checked during well-formedness checking
     assert duplicates((value(a) : a <- args_ids, a != nothing)) == [];
-    args_names_map = adjusted_unambiguous_lower_camel_case_names(set(values(args_ids)));
+    args_names_map = adjusted_unambiguous_snake_case_names(set(values(args_ids)));
     args_names = (
       if id != nothing
         then args_names_map(value(id))
@@ -27,7 +27,6 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     args_decls = append((it & " " & args_names(i) : it @ i <- input_args_types), ", ");
 
     ret_val_str = qualified_return_type(inter_ret_type);
-
 
     arity = |method.args_types|;
     memb_preds = method.args_memb_preds;
@@ -110,10 +109,10 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
 
     sgn = ret_val_str & " " & class_name & "::" & ext_name & "(" & args_decls & ") {";
     code = ("", sgn) & indent_lines(body) & ("}");
-    bare_types = (remove_path(s) : s <- input_args_types);
+    bare_types = (s : s <- input_args_types);
     expl_args_names = (if id != nothing then " " & args_names_map(value(id)) else "" : id @ i <- args_ids);
     args_decls_decl = (bare_types(i) & expl_args_names(i) : i < |bare_types|);
-    decl = remove_path(ret_val_str) & " " & ext_name & "(" & append(args_decls_decl, ", ") & ");";
+    decl = ret_val_str & " " & ext_name & "(" & append(args_decls_decl, ", ") & ");";
 
     return ((decl), code);
   }

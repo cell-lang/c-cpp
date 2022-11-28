@@ -12,8 +12,8 @@ implicit prg : CompiledPrg {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-[Symbol -> String] adjusted_unambiguous_lower_camel_case_names([Symbol] symbols) {
-  nice_field_names = [s -> safe_lower_camel_case(s) : s <- symbols];
+[Symbol -> String] adjusted_unambiguous_snake_case_names([Symbol] symbols) {
+  nice_field_names = [s -> safe_snake_case(s) : s <- symbols];
   conflicting_names = duplicate_values(nice_field_names);
   unambiguous_names = [s -> n : s n <- nice_field_names, not conflicting_names(n)];
   for n <- conflicting_names {
@@ -26,8 +26,8 @@ implicit prg : CompiledPrg {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-String safe_lower_camel_case(Symbol symb) {
-  name = lower_camel_case(symb);
+String safe_snake_case(Symbol symb) {
+  name = snake_case(symb);
   name = "_" & name if is_reserved(name);
   return name;
 }
@@ -61,103 +61,135 @@ Bool is_reserved(String id) {
 
 
 [String] keywords_and_literals = [
-  "abstract",
-  "as",
-  "base",
+  // Keywords
+  "alignas",
+  "alignof",
+  "and",
+  "and_eq",
+  "asm",
+  "atomic_cancel",
+  "atomic_commit",
+  "atomic_noexcept",
+  "auto",
+  "bitand",
+  "bitor",
   "bool",
   "break",
-  "byte",
   "case",
   "catch",
   "char",
-  "checked",
+  "char8_t",
+  "char16_t",
+  "char32_t",
   "class",
+  "compl",
+  "concept",
   "const",
+  "consteval",
+  "constexpr",
+  "constinit",
+  "const_cast",
   "continue",
-  "decimal",
+  "co_await",
+  "co_return",
+  "co_yield",
+  "decltype",
   "default",
-  "delegate",
+  "delete",
   "do",
   "double",
+  "dynamic_cast",
   "else",
   "enum",
-  "event",
   "explicit",
+  "export",
   "extern",
   "false",
-  "finally",
-  "fixed",
   "float",
   "for",
-  "foreach",
+  "friend",
   "goto",
   "if",
-  "implicit",
-  "in",
+  "inline",
   "int",
-  "interface",
-  "internal",
-  "is",
-  "lock",
   "long",
+  "mutable",
   "namespace",
   "new",
-  "null",
-  "object",
+  "noexcept",
+  "not",
+  "not_eq",
+  "nullptr",
   "operator",
-  "out",
-  "override",
-  "params",
+  "or",
+  "or_eq",
   "private",
   "protected",
   "public",
-  "readonly",
-  "ref",
+  "reflexpr",
+  "register",
+  "reinterpret_cast",
+  "requires",
   "return",
-  "sbyte",
-  "sealed",
   "short",
+  "signed",
   "sizeof",
-  "stackalloc",
   "static",
-  "string",
+  "static_assert",
+  "static_cast",
   "struct",
   "switch",
+  "synchronized",
+  "template",
   "this",
+  "thread_local",
   "throw",
   "true",
   "try",
-  "typeof",
-  "uint",
-  "ulong",
-  "unchecked",
-  "unsafe",
-  "ushort",
+  "typedef",
+  "typeid",
+  "typename",
+  "union",
+  "unsigned",
   "using",
-  "using",
-  "static",
   "virtual",
   "void",
   "volatile",
-  "while"
+  "wchar_t",
+  "while",
+  "xor",
+  "xor_eq",
+
+  // Identifiers with special meaning
+  "final",
+  "override",
+  "transaction_safe",
+  "transaction_safe_dynamic",
+  "import",
+  "module",
+
+  // Standard library classes imported with the using declaration
+  "string",
+  "tuple",
+  "unique_ptr",
+  "vector",
+  "ostream",
+  "istream"
 ];
 
 
 [String] standard_generated_classes = [
-  "Generated", ## NOT SURE ABOUT THIS ONE, BUT JUST IN CASE
-  "Env",
-  "Lambda"
+  ## BUG BUG BUG: IS THERE ANYTHING THAT GOES HERE?
 ];
 
 
 [String] standard_generated_class_prefixes = [
-  "Lambda",
-  "ConstIntSeq"
+  ## TODO: IS THERE ANYTHING THAT GOES HERE?
 ];
 
 
 [String] runtime_classes = [
-  // No need to worry here, they're in a different namespace
+  ## TODO: IS THERE ANYTHING THAT GOES HERE?
 ];
 
 ////////////////////////////////////////////////////////////////////////////////

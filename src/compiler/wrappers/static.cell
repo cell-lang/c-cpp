@@ -1,57 +1,37 @@
 implicit prg : CompiledPrg, block_name : DBSymbol {
-  String external_name(Symbol name) = sentence_case(name);
-
-  String pretty_name(Symbol name) = safe_upper_camel_case(name);
+  String pretty_name(Symbol name) = safe_snake_case(name);
 
   String db_class_name = safe_class_name(block_name);
 }
 
 
 implicit prg : CompiledPrg, block_name : DBSymbol, duplicate_names : [String, Nat] {
-  String call_handler_name(Symbol name, Nat arity) =
-    if pretty_name_has_conflicts(name, arity)
-      then "__" & external_name(name) // Fallback name
-      else pretty_name(name);
+  String call_handler_name(Symbol tag, Nat arity) {
+    name = pretty_name(tag);
+    name = name & "_" if static_auto_lowercase_name_has_conflicts(name, arity);
+    return name;
+  }
 
 
   String call_method_name(MethodId method_id) {
     bare_id = bare_id(method_id.symbol);
-    return if pretty_name_has_conflicts(bare_id, method_id.arity)
-      then "_" & external_name(bare_id) // Fallback name
-      else pretty_name(bare_id);
+    name = pretty_name(bare_id);
+    name = name & "_" if static_auto_lowercase_name_has_conflicts(name, method_id.arity);
+    return name;
   }
 
 
-  Bool pretty_name_has_conflicts(Symbol member_id, Nat arity) {
-    pretty_name = pretty_name(member_id);
+  Bool static_auto_lowercase_name_has_conflicts(String name, Nat arity) {
     builtin_methods = builtin_methods;
-    return pretty_name == db_class_name or
-           builtin_methods(pretty_name, arity) or
-           duplicate_names(pretty_name, arity);
+    return builtin_methods(name, arity) or duplicate_names(name, arity);
 
     [String, Nat] builtin_methods = [
-      // Object class constructor
-      "Object",           0;
-
-      // Object class instance methods
-      "Equals",           1;
-      "Equals",           2;
-      "Finalize",         0;
-      "GetHashCode",      0;
-      "GetType",          0;
-      "MemberwiseClone",  0;
-      "ReferenceEquals",  2;
-      "ToString",         0;
-
       // Always present methods
-      "Load",             1;
-      "Save",             1;
-      "Execute",          1;
-
-      // Always present fields
-      ## BUG: DO THEY CONFLICT WITH METHODS OF ANY ARITY?
-      "OnSuccess",        0;
-      "OnFailure",        0
+      "load",             1;
+      "save",             1;
+      "execute",          1;
+      "on_success",       1;
+      "on_failure",       1
     ];
   }
 }
@@ -83,7 +63,7 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
     methods_wrappers = isort([db_method_wrapper(id, m, typed_ptr_def) : id m <- block.methods]);
     methods_wrappers_decls, methods_wrappers_impls = (join(ls) : ls <- unzip(methods_wrappers));
 
-    decls = handlers_wrappers_decls & methods_wrappers_decls;
+    decls = handlers_wrappers_decls & ("" if handlers_wrappers_decls != () and methods_wrappers_decls != ()) & methods_wrappers_decls;
     impls = handlers_wrappers_impls & methods_wrappers_impls;
 
     return (decls, impls);
@@ -156,10 +136,11 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
       "    " & ctor_sgn & ";",
       "    ~" & class_name & "();",
       "",
-      "    void save(std::ostream &);",
-      "    void load(std::istream &);",
+      "    void save(ostream &);",
+      "    void load(istream &);",
       "" if has_any_updates,
-      "    void execute(const std::string &message);" if has_any_updates
+      "    void execute(const string &message);" if has_any_updates,
+      "" if accessors_decls != ()
     ) & {if accessors_decls != () then indent_lines(accessors_decls, 2) else ()} & (
       "",
       "  private:",

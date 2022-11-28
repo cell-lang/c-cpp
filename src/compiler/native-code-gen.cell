@@ -193,10 +193,17 @@ type PrgData =  prg_data(
     "#include <tuple>",
     "#include <string>",
     "",
+    "using std::vector;",
+    "using std::tuple;",
+    "using std::unique_ptr;",
+    "using std::string;",
+    "using std::istream;",
+    "using std::ostream;",
+    "",
     ""
   );
 
-  wrappers_decls = (std_includes, data_exchange_types, wrappers_decls);
+  wrappers_decls = (("#pragma once", ""), std_includes, data_exchange_types, wrappers_decls);
 
   wrappers_impls = (
     std_includes,

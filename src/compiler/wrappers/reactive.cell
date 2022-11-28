@@ -2,66 +2,70 @@ implicit prg : CompiledPrg, block : ReactBlock {
   String auto_class_name = safe_class_name(block.name);
   String auto_struct_ptr = "((" & native_name(block.name) & " *) ptr)";
 
-  [String] duplicate_names {
-    inputs = keys(block.inputs);
-    inputs_names = ("Set" & upper_camel_case(id) : id <- isort(inputs));
-    outputs = keys(block.outputs) - inputs;
-    outputs_names = (safe_lower_camel_case(id) : id <- isort(outputs));
-    return duplicates(inputs_names & outputs_names);
-  }
 
   String safe_setter_name(Symbol input_signal) {
-    name = upper_camel_case(input_signal);
-    name = capitalize(_print_(input_signal), true) if in(name, duplicate_names);
-    name = "_" & name if has_conflicts(name);
+    name = "set_" & safe_snake_case(input_signal);
+    name = name & "_" if reactive_auto_lowercase_name_has_conflicts(name, 1);
     return name;
   }
 
-  String safe_name(Symbol signal) {
-    name = safe_upper_camel_case(signal);
-    name = capitalize(_print_(signal), true) if in(name, duplicate_names); ## MOVE THIS TO A NEW FUNCTION IN utils.cell
-    name = "_" & name if has_conflicts(name);
+
+  String safe_reader_name(Symbol signal) {
+    name = safe_snake_case(signal);
+    name = name & "_" if reactive_auto_lowercase_name_has_conflicts(name, 0);
     return name;
   }
 
-  [String] inputs_and_outputs_names = [
-    safe_name(s) : s _ <- block.inputs | s _ <- block.outputs
-  ];
 
-  [String, Nat] duplicate_method_names {
-    method_ids = [id.symbol, id.arity : id _ <- block.methods, not id.id?];
-    native_ids = ((safe_lower_camel_case(bare_id(s)), a) : s, a <- isort(method_ids));
-    return [nid(0), nid(1) : nid <- duplicates(native_ids)];
-  }
+  [String] safe_inputs_names  = [safe_setter_name(s) : s _ <- block.inputs];
+  [String] safe_outputs_names = [safe_reader_name(s) : s _ <- block.outputs];
 
-  String safe_name(MethodSymbol method_symb, Nat arity) {
-    symbol = bare_id(method_symb);
-    name = safe_lower_camel_case(symbol);
-    // We first check if this conflicts with other method names
-    duplicate_method_names = duplicate_method_names; //## BAD
-    name = capitalize(_print_(symbol), true) if duplicate_method_names(name, arity);
-    // Now we've to deal with conflicts with inputs, outputs and reserved_names
-    name = "__" & name if in(name, inputs_and_outputs_names) or has_conflicts(name);
+
+  String safe_method_name(MethodId method_id) {
+    name = native_method_names(method_id, !);
+    has_conflicts = reactive_auto_lowercase_name_has_conflicts(name, method_id.arity);
+    name = name & "_" if has_conflicts;
+    if method_id.arity == 1 and in(name, safe_inputs_names) {
+      name = name & if has_conflicts then "M" else "_";
+    }
+    if method_id.arity == 0 and in(name, safe_outputs_names) {
+      name = name & if has_conflicts then "M" else "_";
+    }
     return name;
+
+
+    [MethodId -> String] native_method_names {
+      method_ids = keys(block.methods);
+      names_map = [id -> safe_snake_case(bare_id(id.symbol)) : id <- method_ids, not (other_id <- method_ids : other_id != id and other_id.symbol == id.symbol)];
+      conflicting_method_ids = group_by([id : id <- method_ids, not names_map(id, _)], $.symbol);
+      for s ids <- conflicting_method_ids {
+        for id <- ids {
+          symbol = bare_id(id.symbol);
+          name = if id.id?
+            then snake_case(symbol) & "_" & _print_(id.arity) & uppercase_encoding(id.id)
+            else safe_snake_case(symbol);
+          names_map = _put_(names_map, id, name);
+        }
+      }
+      return names_map;
+    }
   }
 
-  Bool has_conflicts(String name) {
-    return name == auto_class_name or in(name, reserved_names);
 
-    [String] reserved_names = [
-      // Automata reserved names
-      "Input",
-      "Output",
+  Bool reactive_auto_lowercase_name_has_conflicts(String name, Nat arity) {
+    builtin_methods = builtin_methods;
+    return builtin_methods(name, arity);
 
+    [String -> Nat] builtin_methods = [
       // Standard automaton methods
-      "apply",
-      "read_state",
-      "set_state",
-      "set_elapsed_millisecs",
-      "set_elapsed_secs",
-      "set_input",
-      "read_output",
-      "changed_outputs"
+      "apply"                 -> 0,
+      "read_state"            -> 0,
+      "set_state"             -> 1,
+      "set_elapsed_millisecs" -> 1,
+      "set_elapsed_secs"      -> 1,
+      "set_input"             -> 2,
+      "read_output"           -> 1,
+      "changed_outputs"       -> 0
     ];
   }
 }
@@ -105,7 +109,7 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
     type = output.type;
     inter_type = interface_type(type, :output);
     ret_type = qualified_return_type(inter_type);
-    name = safe_name(id);
+    name = safe_reader_name(id);
     var_name = native_var_decl_name(signal_var(id), context=:wrapper);
 
     decl = ret_type & " " & name & "();";
@@ -133,7 +137,7 @@ implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType],
 implicit prg : CompiledPrg, block : ReactBlock, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol] {
   (String*, String*) auto_method_wrapper(MethodId method_id, CompiledMethod method, String typed_ptr_def) {
     return ((), ()) if method_id.id?;
-    name = safe_name(method_id.symbol, method_id.arity);
+    name = safe_method_name(method_id);
     return method_wrapper(method_id, method, block.name, name, auto_class_name, typed_ptr_def);
   }
 }
@@ -228,17 +232,17 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "    " & auto_class_name & "();",
       "    ~" & auto_class_name & "();",
       "",
-      "    void set_input(Input input, std::string &value);" if inputs != (),
-      "    std::string read_output(Output output);" if outputs != (),
+      "    void set_input(Input input, string &value);" if inputs != (),
+      "    string read_output(Output output);" if outputs != (),
       "" if is_time_sensitive,
       "    void set_elapsed_millisecs(unsigned int);" if is_time_sensitive,
       "    void set_elapsed_secs(unsigned int);" if is_time_sensitive,
       "",
       "    " & apply_ret_type & " apply();",
-      "    std::string read_state();",
-      "    void set_state(std::string &state);",
+      "    string read_state();",
+      "    void set_state(string &state);",
       "",
-      "    std::vector<Output> changed_outputs();" if outputs != ()
+      "    vector<Output> changed_outputs();" if outputs != ()
     );
 
     class_decl = class_decl & ("", "    // Inputs") & indent_lines(input_setters_decls, 2) if input_setters_decls != ();

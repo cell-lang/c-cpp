@@ -1,4 +1,10 @@
 implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicTypeSymbol], qualified : Bool {
+  String std_vector     = "vector";
+  String std_tuple      = "tuple";
+  String std_unique_ptr = "unique_ptr";
+  String std_string     = "string";
+
+
   String native_input_inter_type(EltInterType it, Bool nullable) {
     return match (it)
       bool                = "bool"          & if nullable then " *" else "",
@@ -6,19 +12,19 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       int32               = "int"           & if nullable then " *" else "",
       integer             = "long long"     & if nullable then " *" else "",
       float               = "double"        & if nullable then " *" else "",
-      date                = full_type("std::string", nullable),
-      time                = full_type("std::string", nullable),
+      date                = full_type(std_string, nullable),
+      time                = full_type(std_string, nullable),
       optional(t?)        = native_input_inter_type(t, true) & if nullable then " *" else "",
-      symbol()            = full_type("std::string", nullable),
-      record(fs?)         = full_type("std::string", nullable),
-      tuple(ts?)          = full_type("std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">", nullable),
+      symbol()            = full_type(std_string, nullable),
+      record(fs?)         = full_type(std_string, nullable),
+      tuple(ts?)          = full_type(std_tuple & "<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">", nullable),
       seq(t?)             |
-      set(t?)             = full_type("std::vector<" & native_nested_inter_type(t, false) & ">", nullable),
+      set(t?)             = full_type(std_vector & "<" & native_nested_inter_type(t, false) & ">", nullable),
       bin_rel(ts?)        |
-      tern_rel(ts?)       = full_type("std::vector<std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>", nullable),
+      tern_rel(ts?)       = full_type(std_vector & "<" & std_tuple & "<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>", nullable),
       tagged(_, t?)       = native_input_inter_type(t, nullable),
       string              |
-      generic             = full_type("std::string", nullable),
+      generic             = full_type(std_string, nullable),
       generated(ts?)      = full_type(gen_class_name(bare_id(ts)), nullable);
 
 
@@ -33,19 +39,19 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       int32               = "int"           & if nullable then " *" else "",
       integer             = "long long"     & if nullable then " *" else "",
       float               = "double"        & if nullable then " *" else "",
-      date                = "std::string"   & if nullable then " *" else "",
-      time                = "std::string"   & if nullable then " *" else "",
+      date                = std_string   & if nullable then " *" else "",
+      time                = std_string   & if nullable then " *" else "",
       optional(t?)        = native_nested_inter_type(t, true) & if nullable then " *" else "",
-      symbol()            = "std::string" & if nullable then " *" else "",
-      record(fs?)         = "std::string" & if nullable then " *" else "",
-      tuple(ts?)          = "std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">" & if nullable then " *" else "",
+      symbol()            = std_string & if nullable then " *" else "",
+      record(fs?)         = std_string & if nullable then " *" else "",
+      tuple(ts?)          = std_tuple & "<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">" & if nullable then " *" else "",
       seq(t?)             |
-      set(t?)             = "std::vector<" & native_nested_inter_type(t, false) & ">" & if nullable then " *" else "",
+      set(t?)             = std_vector & "<" & native_nested_inter_type(t, false) & ">" & if nullable then " *" else "",
       bin_rel(ts?)        |
-      tern_rel(ts?)       = "std::vector<std::tuple<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>" & if nullable then " *" else "",
+      tern_rel(ts?)       = std_vector & "<" & std_tuple & "<" & append((native_nested_inter_type(t, false) : t <- ts), ", ") & ">>" & if nullable then " *" else "",
       tagged(_, t?)       = native_nested_inter_type(t, nullable),
       string              |
-      generic             = "std::string" & if nullable then " *" else "",
+      generic             = std_string & if nullable then " *" else "",
       generated(ts?)      = native_generated_nested_inter_type(ts, nullable);
 
 
@@ -66,19 +72,19 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       int32               = nullify_if_needed("int", nullable),
       integer             = nullify_if_needed("long long", nullable),
       float               = nullify_if_needed("double", nullable),
-      date                = nullify_if_needed("std::string", nullable),
-      time                = nullify_if_needed("std::string", nullable),
+      date                = nullify_if_needed(std_string, nullable),
+      time                = nullify_if_needed(std_string, nullable),
       optional(t?)        = nullify_if_needed(native_output_inter_type(t, true), nullable),
-      symbol()            = nullify_if_needed("std::string", nullable),
-      record(fs?)         = nullify_if_needed("std::string", nullable),
-      tuple(ts?)          = nullify_if_needed("std::tuple<" & append((native_output_inter_type(t, false) : t <- ts), ", ") & ">", nullable),
+      symbol()            = nullify_if_needed(std_string, nullable),
+      record(fs?)         = nullify_if_needed(std_string, nullable),
+      tuple(ts?)          = nullify_if_needed(std_tuple & "<" & append((native_output_inter_type(t, false) : t <- ts), ", ") & ">", nullable),
       seq(t?)             |
-      set(t?)             = nullify_if_needed("std::vector<" & native_output_inter_type(t, false) & ">", nullable),
+      set(t?)             = nullify_if_needed(std_vector & "<" & native_output_inter_type(t, false) & ">", nullable),
       bin_rel(ts?)        |
-      tern_rel(ts?)       = nullify_if_needed("std::vector<std::tuple<" & append((native_output_inter_type(t, false) : t <- ts), ", ") & ">>", nullable),
+      tern_rel(ts?)       = nullify_if_needed(std_vector & "<" & std_tuple & "<" & append((native_output_inter_type(t, false) : t <- ts), ", ") & ">>", nullable),
       tagged(_, t?)       = native_output_inter_type(t, nullable),
       string              |
-      generic             = nullify_if_needed("std::string", nullable),
+      generic             = nullify_if_needed(std_string, nullable),
       generated(ts?)      = native_generated_output_inter_type(ts, nullable);
 
 
@@ -86,18 +92,18 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       bare_type_id = bare_id(type_symb);
       native_type = gen_class_name(bare_type_id);
       is_ref = nullable or not is_concrete_class(bare_type_id);
-      native_type = "std::unique_ptr<" & native_type & ">" if is_ref;
+      native_type = std_unique_ptr & "<" & native_type & ">" if is_ref;
       return native_type;
     }
 
 
-    String nullify_if_needed(String base_type, Bool nullify) = if nullify then "std::unique_ptr<" & base_type & ">" else base_type;
+    String nullify_if_needed(String base_type, Bool nullify) = if nullify then std_unique_ptr & "<" & base_type & ">" else base_type;
   }
 }
 
 // String record_native_inter_type([+Symbol -> InterType] fields, Bool nullable) {
 //   ord_fields = ((l, fields(l)) : l <- sort_record_labels(keys(fields)));
-//   field_names = adjusted_unambiguous_lower_camel_case_names(keys(fields));
+//   field_names = adjusted_unambiguous_snake_case_names(keys(fields));
 //   native_fields = (native_inter_type(t, false) & " " & field_names(l) : l, t <- ord_fields);
 //   return "(" & append(native_fields, ", ") & ")" & if nullable then " *" else "";
 // }

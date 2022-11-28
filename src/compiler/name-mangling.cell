@@ -763,21 +763,4 @@ String const_symb_seq_name(Nat seq_id) = "const_symbs_seq_" & printed(seq_id);
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-String lower_camel_case(Atom a) = lower_camel_case(_print_(a), false);
-
-String lower_camel_case(String s, Bool keep_underscores) {
-  first = false;
-  res = ();
-  for ch @ i <- chars(s) {
-    tr_ch = ch;
-    if ch == ascii_underscore {
-      first = true;
-    }
-    else {
-      tr_ch = nat(ch - ascii_lower_a + ascii_upper_a) if ch >= ascii_lower_a and ch <= ascii_lower_z and first; ## CREATE PRELUDE FUNCTION is_lower()/is_upper() AND to_lower()/to_upper()
-      first = false;
-    }
-    res = res & (tr_ch if tr_ch != ascii_underscore or keep_underscores);
-  }
-  return string(res);
-}
+String snake_case(Atom a) = _print_(a);
