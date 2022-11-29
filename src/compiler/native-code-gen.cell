@@ -57,10 +57,6 @@ type PrgData =  prg_data(
   ord_react_blocks = (react_blocks_by_name(b, !) : b <- ord_react_blocks_names);
 
   gen_content = (
-    ( "#include \"lib.h\"",
-      "#include \"iolib.h\"",
-      "#include \"os-interface.h\""
-    ) if not include_runtime,
     symbol_decls(program_symbols),
     symbol_table(program_symbols),
     int_seqs_decls(prg.int_seqs),
@@ -182,7 +178,26 @@ type PrgData =  prg_data(
   }
 
   gen_content = (gen_content | runtime_callbacks(|program_symbols|));
-  gen_content = (gen_content | main_fn(debug_mode)) if has_main;
+
+  if include_runtime {
+    fail;
+  }
+  else {
+    gen_content = (
+      "#include \"lib.h\"",
+      "#include \"iolib.h\"",
+      "#include \"os-interface.h\"",
+      "",
+      "",
+      "namespace cell_lang_generated_ {",
+      gen_content,
+      "}",
+      "",
+      "using namespace cell_lang_generated_;"
+    );
+  }
+
+  gen_content = gen_content & ("", "") & main_fn(debug_mode) if has_main;
 
   data_exchange_types = data_exchange_types(prg, generated);
   wrappers_decls, wrappers_impls = wrappers_content(prg, prg_data, generated, ord_static_blocks, ord_react_blocks);

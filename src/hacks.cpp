@@ -110,56 +110,58 @@ void void_ptr_obj_hashtable_insert(VOID_PTR_OBJ_HASHTABLE *hashtable, void *ptr,
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-struct ENV_;
-typedef struct ENV_ ENV;
+namespace cell_lang_generated_ {
+  struct ENV_;
+  typedef struct ENV_ ENV;
 
 
-static VOID_PTR_OBJ_HASHTABLE attachments;
+  static VOID_PTR_OBJ_HASHTABLE attachments;
 
 
-OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV &env) {
-  if (!is_inline_obj(obj_V)) {
-    void *ptr = obj_V.core_data.ptr;
-    VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
-    // assert(entry == NULL || are_eq(entry->obj, data_V)); //## NOT ALWAYS TRUE
-    if (entry == NULL) {
-      void_ptr_obj_hashtable_insert(&attachments, ptr, data_V);
-      VOID_PTR_OBJ_HASHTABLE_ENTRY *curr_entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
-      assert(curr_entry != NULL);
-      assert(are_eq(curr_entry->obj, data_V));
+  OBJ attach_F2(OBJ obj_V, OBJ data_V, ENV &env) {
+    if (!is_inline_obj(obj_V)) {
+      void *ptr = obj_V.core_data.ptr;
+      VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
+      // assert(entry == NULL || are_eq(entry->obj, data_V)); //## NOT ALWAYS TRUE
+      if (entry == NULL) {
+        void_ptr_obj_hashtable_insert(&attachments, ptr, data_V);
+        VOID_PTR_OBJ_HASHTABLE_ENTRY *curr_entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
+        assert(curr_entry != NULL);
+        assert(are_eq(curr_entry->obj, data_V));
+      }
     }
+    return obj_V;
   }
-  return obj_V;
-}
 
-OBJ fetch_F1(OBJ obj_V, ENV &env) {
-  if (!is_inline_obj(obj_V)) {
-    void *ptr = obj_V.core_data.ptr;
-    VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
+  OBJ fetch_F1(OBJ obj_V, ENV &env) {
+    if (!is_inline_obj(obj_V)) {
+      void *ptr = obj_V.core_data.ptr;
+      VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&attachments, ptr);
+      if (entry != NULL)
+        return make_tag_obj(symb_id_just, entry->obj);
+    }
+    return make_symb(symb_id_nothing);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  OBJ source_file_location_F1(OBJ mtc_V, ENV &env) {
+    OBJ source_file_location_F1_(OBJ mtc_V, ENV &env);
+
+    // return source_file_location_F1_(mtc_V, env);
+
+    static VOID_PTR_OBJ_HASHTABLE cache;
+
+    if (is_inline_obj(mtc_V))
+      return source_file_location_F1_(mtc_V, env);
+
+    void *ptr = mtc_V.core_data.ptr;
+    VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&cache, ptr);
     if (entry != NULL)
-      return make_tag_obj(symb_id_just, entry->obj);
+      return entry->obj;
+
+    OBJ value = source_file_location_F1_(mtc_V, env);
+    void_ptr_obj_hashtable_insert(&cache, ptr, value);
+    return value;
   }
-  return make_symb(symb_id_nothing);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-OBJ source_file_location_F1(OBJ mtc_V, ENV &env) {
-  OBJ source_file_location_F1_(OBJ mtc_V, ENV &env);
-
-  // return source_file_location_F1_(mtc_V, env);
-
-  static VOID_PTR_OBJ_HASHTABLE cache;
-
-  if (is_inline_obj(mtc_V))
-    return source_file_location_F1_(mtc_V, env);
-
-  void *ptr = mtc_V.core_data.ptr;
-  VOID_PTR_OBJ_HASHTABLE_ENTRY *entry = void_ptr_obj_hashtable_lookup(&cache, ptr);
-  if (entry != NULL)
-    return entry->obj;
-
-  OBJ value = source_file_location_F1_(mtc_V, env);
-  void_ptr_obj_hashtable_insert(&cache, ptr, value);
-  return value;
 }
