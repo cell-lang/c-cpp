@@ -203,7 +203,15 @@ type PrgData =  prg_data(
     ""
   );
 
-  wrappers_decls = (("#pragma once", ""), std_includes, data_exchange_types, wrappers_decls);
+  wrappers_decls = (
+    ("#pragma once", ""),
+    std_includes,
+    ( "namespace cell_lang {",
+      data_exchange_types,
+      wrappers_decls,
+      "}"
+    )
+  );
 
   wrappers_impls = (
     std_includes,
@@ -211,10 +219,12 @@ type PrgData =  prg_data(
       "#include \"conversion.h\"",
       "#include \"wrappers.h\"",
       "",
-      ""
-    ),
-    data_exchange_types,
-    wrappers_impls
+      "",
+      "namespace cell_lang {",
+      data_exchange_types,
+      wrappers_impls,
+      "}"
+    )
   );
 
   return [
