@@ -560,26 +560,10 @@ static int32 read_number(PARSER *parser, int64 *int64_value, double *double_valu
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//  0         Empty
-//  1 - 26    Letter
-// 27 - 36    Digit
-// 37         Underscore (followed by a digit)
-// 38 - 63    Underscore + letter
-
-
-static uint64 encoded_letter(uint8 ch) {
-  return ch - 'a' + 1;
-}
-
-static uint64 encoded_underscored_letter(uint8 ch) {
-  return ch - 'a' + 38;
-}
-
-static uint64 encoded_digit(uint8 ch) {
-  return ch - '0' + 27;
-}
-
-const uint64 encoded_underscore = 37;
+uint64 encoded_letter(uint8);
+uint64 encoded_underscored_letter(uint8);
+uint64 encoded_digit(uint8);
+extern uint64 encoded_underscore;
 
 
 // Returns the number of encoded words read, or -1 on error

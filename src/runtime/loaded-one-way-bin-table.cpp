@@ -10,22 +10,22 @@
 //     This type of slot can only be stored in a block, but cannot be passed in or out
 
 
-const uint32 MIN_CAPACITY = 256;
+const uint32 LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY = 256;
 
 //////////////////////////////////////////////////////////////////////////////
 
-static bool is_empty(uint64 slot) {
+static bool loaded_one_way_bin_table_slot_is_empty(uint64 slot) {
   return slot == EMPTY_SLOT;
 }
 
-static bool is_index(uint64 slot) {
+static bool loaded_one_way_bin_table_slot_is_index(uint64 slot) {
   return slot != EMPTY_SLOT && get_tag(get_low_32(slot)) != INLINE_SLOT;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_pool) {
-  assert(table->capacity >= MIN_CAPACITY);
+static void loaded_one_way_bin_table_resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_pool) {
+  assert(table->capacity >= LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY);
   uint32 capacity = table->capacity;
   uint32 new_capacity = 2 * capacity;
   while (index >= new_capacity)
@@ -46,11 +46,11 @@ static void resize(ONE_WAY_BIN_TABLE *table, uint32 index, STATE_MEM_POOL *mem_p
 
 void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   array_mem_pool_init(&table->array_pool, true, mem_pool);
-  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, 2 * MIN_CAPACITY);
-  for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
+  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, 2 * LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY);
+  for (uint32 i=0 ; i < LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY ; i++)
     slots[i] = EMPTY_SLOT;
   table->column = slots;
-  table->capacity = MIN_CAPACITY;
+  table->capacity = LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY;
   table->count = 0;
 }
 
@@ -78,14 +78,14 @@ void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *me
   array_mem_pool_clear(&table->array_pool, mem_pool);
   uint32 capacity = table->capacity;
   uint64 *slots = table->column;
-  if (capacity > MIN_CAPACITY) { //## WHAT WOULD BE A GOOD VALUE FOR THE REALLOCATION THRESHOLD?
+  if (capacity > LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY) { //## WHAT WOULD BE A GOOD VALUE FOR THE REALLOCATION THRESHOLD?
     release_state_mem_uint64_array(mem_pool, slots, 2 * capacity);
-    slots = alloc_state_mem_uint64_array(mem_pool, 2 * MIN_CAPACITY);
+    slots = alloc_state_mem_uint64_array(mem_pool, 2 * LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY);
     table->column = slots;
-    capacity = MIN_CAPACITY;
+    capacity = LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY;
     table->capacity = capacity;
   }
-  for (uint32 i=0 ; i < MIN_CAPACITY ; i++)
+  for (uint32 i=0 ; i < LOADED_ONE_WAY_BIN_TABLE_MIN_CAPACITY ; i++)
     slots[i] = EMPTY_SLOT;
   table->count = 0;
 }
@@ -99,8 +99,8 @@ uint32 loaded_one_way_bin_table_payload(ONE_WAY_BIN_TABLE *table, uint32 surr1, 
     uint64 *slot_ptr = table->column + surr1;
     uint64 slot = *slot_ptr;
 
-    if (!is_empty(slot)) {
-      if (is_index(slot))
+    if (!loaded_one_way_bin_table_slot_is_empty(slot)) {
+      if (loaded_one_way_bin_table_slot_is_index(slot))
         return loaded_overflow_table_lookup(&table->array_pool, slot, surr2);
 
       if (get_low_32(slot) == surr2 | get_high_32(slot) == surr2) {
@@ -124,10 +124,10 @@ uint32 loaded_one_way_bin_table_restrict(ONE_WAY_BIN_TABLE *table, uint32 surr, 
   uint64 *slot_ptr = table->column + surr;
   uint64 slot = *slot_ptr;
 
-  if (is_empty(slot))
+  if (loaded_one_way_bin_table_slot_is_empty(slot))
     return 0;
 
-  if (is_index(slot)) {
+  if (loaded_one_way_bin_table_slot_is_index(slot)) {
     loaded_overflow_table_copy(&table->array_pool, slot, values, data, 0);
     return get_count(slot);
   }
@@ -157,8 +157,8 @@ UINT32_ARRAY loaded_one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *table, u
     uint64 *slot_ptr = table->column + key;
     uint64 slot = *slot_ptr;
 
-    if (!is_empty(slot)) {
-      if (is_index(slot)) {
+    if (!loaded_one_way_bin_table_slot_is_empty(slot)) {
+      if (loaded_one_way_bin_table_slot_is_index(slot)) {
         result = loaded_overflow_table_range_copy(&table->array_pool, slot, first, output, output_capacity);
       }
       else {
@@ -193,7 +193,7 @@ void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 sur
   uint32 capacity = table->capacity;
 
   if (surr1 >= capacity) {
-    resize(table, surr1, mem_pool);
+    loaded_one_way_bin_table_resize(table, surr1, mem_pool);
     capacity = table->capacity;
   }
 
@@ -204,7 +204,7 @@ void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *table, uint32 sur
 
   table->count++;
 
-  if (is_empty(slot)) {
+  if (loaded_one_way_bin_table_slot_is_empty(slot)) {
     *slot_ptr = pack(surr2, EMPTY_MARKER);
     *data_slot_ptr = pack(data, 0);
     return;
@@ -242,10 +242,10 @@ uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *table, uint32 surr1, u
     uint64 *slot_ptr = table->column + surr1;
     uint64 slot = *slot_ptr;
 
-    if (!is_empty(slot)) {
+    if (!loaded_one_way_bin_table_slot_is_empty(slot)) {
       uint64 *data_slot_ptr = slot_ptr + capacity;
 
-      if (is_index(slot)) {
+      if (loaded_one_way_bin_table_slot_is_index(slot)) {
         uint32 data = loaded_overflow_table_lookup(&table->array_pool, slot, surr2);
         if (data != 0xFFFFFFFF) {
           uint64 updated_slot = loaded_overflow_table_delete(&table->array_pool, slot, surr2, data_slot_ptr);
@@ -295,12 +295,12 @@ void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *table, uint32 sur
   uint64 *slot_ptr = table->column + surr1;
   uint64 slot = *slot_ptr;
 
-  if (is_empty(slot))
+  if (loaded_one_way_bin_table_slot_is_empty(slot))
     return;
 
   *slot_ptr = EMPTY_SLOT;
 
-  if (is_index(slot)) {
+  if (loaded_one_way_bin_table_slot_is_index(slot)) {
     uint32 slot_count = get_count(slot);
     loaded_overflow_table_copy(&table->array_pool, slot, surrs2, data, 0);
     loaded_overflow_table_delete(&table->array_pool, slot);

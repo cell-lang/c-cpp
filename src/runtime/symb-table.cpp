@@ -7,19 +7,20 @@
 // 37         Underscore (followed by a digit)
 // 38 - 63    Underscore + letter
 
-static uint64 encoded_letter(uint8 ch) {
+uint64 encoded_letter(uint8 ch) {
   return ch - 'a' + 1;
 }
 
-static uint64 encoded_underscored_letter(uint8 ch) {
+uint64 encoded_underscored_letter(uint8 ch) {
   return ch - 'a' + 38;
 }
 
-static uint64 encoded_digit(uint8 ch) {
+uint64 encoded_digit(uint8 ch) {
   return ch - '0' + 27;
 }
 
-const uint64 encoded_underscore = 37;
+uint64 encoded_underscore = 37;
+
 
 static uint8 decode_chars(uint8 code, uint8 *chars) {
   assert(code > 0 && code < 64);

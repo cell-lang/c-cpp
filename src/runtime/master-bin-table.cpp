@@ -165,18 +165,18 @@ void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_fr
 
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint32 INIT_SIZE = 256;
+const uint32 MASTER_BIN_TABLE_INIT_SIZE = 256;
 
 void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   loaded_one_way_bin_table_init(&table->table.forward, mem_pool);
   loaded_one_way_bin_table_init(&table->table.backward, mem_pool);
 
-  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
-  for (uint32 i=0 ; i < INIT_SIZE ; i++)
+  uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MASTER_BIN_TABLE_INIT_SIZE);
+  for (uint32 i=0 ; i < MASTER_BIN_TABLE_INIT_SIZE ; i++)
     slots[i] = empty_slot(i + 1);
 
   table->slots = slots;
-  table->capacity = INIT_SIZE;
+  table->capacity = MASTER_BIN_TABLE_INIT_SIZE;
   table->first_free = 0;
 }
 
@@ -349,13 +349,13 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
   uint64 *slots = table->slots;
 
   if (highest_locked_surr == 0xFFFFFFFF) {
-    if (capacity != INIT_SIZE) {
+    if (capacity != MASTER_BIN_TABLE_INIT_SIZE) {
       release_state_mem_uint64_array(mem_pool, slots, capacity);
 
-      capacity = INIT_SIZE;
-      slots = alloc_state_mem_uint64_array(mem_pool, INIT_SIZE);
+      capacity = MASTER_BIN_TABLE_INIT_SIZE;
+      slots = alloc_state_mem_uint64_array(mem_pool, MASTER_BIN_TABLE_INIT_SIZE);
 
-      table->capacity = INIT_SIZE;
+      table->capacity = MASTER_BIN_TABLE_INIT_SIZE;
       table->slots = slots;
     }
 
@@ -364,10 +364,10 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
       slots[i] = empty_slot(i + 1);
   }
   else {
-    if (capacity != INIT_SIZE) {
+    if (capacity != MASTER_BIN_TABLE_INIT_SIZE) {
       release_state_mem_uint64_array(mem_pool, slots, capacity);
 
-      uint32 new_capacity = pow_2_ceiling(highest_locked_surr + 1, INIT_SIZE);
+      uint32 new_capacity = pow_2_ceiling(highest_locked_surr + 1, MASTER_BIN_TABLE_INIT_SIZE);
       uint64 *new_slots = alloc_state_mem_uint64_array(mem_pool, new_capacity);
 
       table->capacity = new_capacity;
@@ -386,8 +386,8 @@ void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr,
       table->first_free = last_free;
     }
     else {
-      uint32 last_free = INIT_SIZE;
-      for (uint32 i=INIT_SIZE-1 ; i != 0xFFFFFFFF ; i--) {
+      uint32 last_free = MASTER_BIN_TABLE_INIT_SIZE;
+      for (uint32 i=MASTER_BIN_TABLE_INIT_SIZE-1 ; i != 0xFFFFFFFF ; i--) {
         uint64 *slot_ptr = slots + i;
         uint64 slot = *slot_ptr;
         if (master_bin_table_slot_is_empty(slot) || !is_locked(slot)) {

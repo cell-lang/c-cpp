@@ -1,11 +1,11 @@
 #include "lib.h"
 
 
-const uint32 INIT_SIZE = 256;
+const uint32 OBJ_COL_INIT_SIZE = 256;
 
 void obj_col_init(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
-  column->array = alloc_state_mem_blanked_obj_array(mem_pool, INIT_SIZE);
-  column->capacity = INIT_SIZE;
+  column->array = alloc_state_mem_blanked_obj_array(mem_pool, OBJ_COL_INIT_SIZE);
+  column->capacity = OBJ_COL_INIT_SIZE;
   column->count = 0;
 }
 
@@ -113,7 +113,7 @@ bool obj_col_delete(OBJ_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
 void obj_col_clear(OBJ_COL *column, STATE_MEM_POOL *mem_pool) {
   uint32 capacity = column->capacity;
   //## MAYBE WE SHOULDN'T GO ALL THE WAY BACK DOWN TO THE INITIAL CAPACITY
-  if (capacity != INIT_SIZE) {
+  if (capacity != OBJ_COL_INIT_SIZE) {
     release_state_mem_obj_array(mem_pool, column->array, capacity);
     obj_col_init(column, mem_pool);
   }

@@ -1,7 +1,7 @@
 #include "lib.h"
 
 
-const uint32 INIT_SIZE = 256;
+const uint32 FLOAT_COL_INIT_SIZE = 256;
 
 // const uint64 NULL_BIT_MASK = 0x7FF8000000000000L;
 // const uint64 NULL_BIT_MASK = 0x7FFFFFFFFFFFFFFFL;
@@ -37,11 +37,11 @@ void float_col_init(FLOAT_COL *column, STATE_MEM_POOL *mem_pool) {
   assert(is_float_col_null(FLOAT_NULL));
   assert(!is_float_col_null(NORM_NAN));
 
-  double *array = alloc_state_mem_float_array(mem_pool, INIT_SIZE);
-  for (int i=0 ; i < INIT_SIZE ; i++)
+  double *array = alloc_state_mem_float_array(mem_pool, FLOAT_COL_INIT_SIZE);
+  for (int i=0 ; i < FLOAT_COL_INIT_SIZE ; i++)
     array[i] = FLOAT_NULL;
   column->array = array;
-  column->capacity = INIT_SIZE;
+  column->capacity = FLOAT_COL_INIT_SIZE;
   column->count = 0;
 }
 
@@ -110,7 +110,7 @@ bool float_col_delete(FLOAT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
 void float_col_clear(FLOAT_COL *column, STATE_MEM_POOL *mem_pool) {
   uint32 capacity = column->capacity;
   //## MAYBE WE SHOULDN'T GO ALL THE WAY BACK DOWN TO THE INITIAL CAPACITY
-  if (capacity != INIT_SIZE) {
+  if (capacity != FLOAT_COL_INIT_SIZE) {
     release_state_mem_float_array(mem_pool, column->array, capacity);
     float_col_init(column, mem_pool);
   }

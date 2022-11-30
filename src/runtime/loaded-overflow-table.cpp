@@ -10,49 +10,49 @@
 //   - Empty:               32 zeros                 - 32 ones
 //     This type of slot can only be stored in a block, but cannot be passed in or out
 
-const uint32 SIZE_2_BLOCK_MIN_COUNT   = 3;
-const uint32 SIZE_4_BLOCK_MIN_COUNT   = 4;
-const uint32 SIZE_8_BLOCK_MIN_COUNT   = 7;
-const uint32 SIZE_16_BLOCK_MIN_COUNT  = 13;
-const uint32 HASHED_BLOCK_MIN_COUNT   = 13;
+const uint32 LOADED_OVERFLOW_TABLE_SIZE_2_BLOCK_MIN_COUNT   = 3;
+const uint32 LOADED_OVERFLOW_TABLE_SIZE_4_BLOCK_MIN_COUNT   = 4;
+const uint32 LOADED_OVERFLOW_TABLE_SIZE_8_BLOCK_MIN_COUNT   = 7;
+const uint32 LOADED_OVERFLOW_TABLE_SIZE_16_BLOCK_MIN_COUNT  = 13;
+const uint32 LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT   = 13;
 
 ////////////////////////////////////////////////////////////////////////////
 
-static uint32 get_capacity(uint32 tag) {
+static uint32 loaded_overflow_table_get_capacity(uint32 tag) {
   assert(tag >= SIZE_2_BLOCK & tag <= SIZE_16_BLOCK);
   assert(SIZE_2_BLOCK == 1 | SIZE_16_BLOCK == 4);
   return 2 << tag;
 }
 
-static uint64 linear_block_handle(uint32 tag, uint32 index, uint32 count) {
+static uint64 loaded_overflow_table_linear_block_handle(uint32 tag, uint32 index, uint32 count) {
   return pack(pack_tag_payload(tag, index), count);
 }
 
-static uint64 size_2_block_handle(uint32 index, uint32 count) {
+static uint64 loaded_overflow_table_size_2_block_handle(uint32 index, uint32 count) {
   assert(get_tag(index) == 0);
-  assert(count >= SIZE_2_BLOCK_MIN_COUNT & count <= 4);
+  assert(count >= LOADED_OVERFLOW_TABLE_SIZE_2_BLOCK_MIN_COUNT & count <= 4);
   return pack(pack_tag_payload(SIZE_2_BLOCK, index), count);
 }
 
-static uint64 size_4_block_handle(uint32 index, uint32 count) {
+static uint64 loaded_overflow_table_size_4_block_handle(uint32 index, uint32 count) {
   assert(get_tag(index) == 0);
-  assert(count >= SIZE_4_BLOCK_MIN_COUNT & count <= 8);
+  assert(count >= LOADED_OVERFLOW_TABLE_SIZE_4_BLOCK_MIN_COUNT & count <= 8);
   return pack(pack_tag_payload(SIZE_4_BLOCK, index), count);
 }
 
-static uint64 size_8_block_handle(uint32 index, uint32 count) {
+static uint64 loaded_overflow_table_size_8_block_handle(uint32 index, uint32 count) {
   assert(get_tag(index) == 0);
-  assert(count >= SIZE_8_BLOCK_MIN_COUNT & count <= 16);
+  assert(count >= LOADED_OVERFLOW_TABLE_SIZE_8_BLOCK_MIN_COUNT & count <= 16);
   return pack(pack_tag_payload(SIZE_8_BLOCK, index), count);
 }
 
-static uint64 size_16_block_handle(uint32 index, uint32 count) {
-  assert(get_tag(index) == 0);
-  assert(count >= SIZE_16_BLOCK_MIN_COUNT & count <= 32);
-  return pack(pack_tag_payload(SIZE_16_BLOCK, index), count);
-}
+// static uint64 loaded_overflow_table_size_16_block_handle(uint32 index, uint32 count) {
+//   assert(get_tag(index) == 0);
+//   assert(count >= LOADED_OVERFLOW_TABLE_SIZE_16_BLOCK_MIN_COUNT & count <= 32);
+//   return pack(pack_tag_payload(SIZE_16_BLOCK, index), count);
+// }
 
-static uint64 hashed_block_handle(uint32 index, uint32 count) {
+static uint64 loaded_overflow_table_hashed_block_handle(uint32 index, uint32 count) {
   assert(get_tag(index) == 0);
   // assert(count >= 7); // Not true when initializing a hashed block
   uint64 handle = pack(pack_tag_payload(HASHED_BLOCK, index), count);
@@ -62,38 +62,34 @@ static uint64 hashed_block_handle(uint32 index, uint32 count) {
   return handle;
 }
 
-static uint32 min_count(uint32 tag) {
+static uint32 loaded_overflow_table_min_count(uint32 tag) {
   if (tag == SIZE_2_BLOCK)
-    return SIZE_2_BLOCK_MIN_COUNT;
+    return LOADED_OVERFLOW_TABLE_SIZE_2_BLOCK_MIN_COUNT;
 
   if (tag == SIZE_4_BLOCK)
-    return SIZE_4_BLOCK_MIN_COUNT;
+    return LOADED_OVERFLOW_TABLE_SIZE_4_BLOCK_MIN_COUNT;
 
   if (tag == SIZE_8_BLOCK)
-    return SIZE_8_BLOCK_MIN_COUNT;
+    return LOADED_OVERFLOW_TABLE_SIZE_8_BLOCK_MIN_COUNT;
 
   assert(tag == SIZE_16_BLOCK | tag == HASHED_BLOCK);
-  assert(SIZE_16_BLOCK_MIN_COUNT == HASHED_BLOCK_MIN_COUNT);
+  assert(LOADED_OVERFLOW_TABLE_SIZE_16_BLOCK_MIN_COUNT == LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT);
 
-  return SIZE_16_BLOCK_MIN_COUNT; // Same as HASHED_BLOCK_MIN_COUNT
-}
-
-static bool is_even(uint32 value) {
-  return (value % 2) == 0;
+  return LOADED_OVERFLOW_TABLE_SIZE_16_BLOCK_MIN_COUNT; // Same as LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT
 }
 
 ////////////////////////////////////////////////////////////////////////////
 
-static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *, uint32, uint32, uint32, uint32, STATE_MEM_POOL *);
+static uint64 loaded_overflow_table_insert_unique_into_hashed_block(ARRAY_MEM_POOL *, uint32, uint32, uint32, uint32, STATE_MEM_POOL *);
 
-static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {
+static uint64 loaded_overflow_table_insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {
   assert(get_tag(get_low_32(handle)) >= SIZE_2_BLOCK & get_tag(get_low_32(handle)) <= SIZE_16_BLOCK);
 
   uint32 low = get_low_32(handle);
   uint32 tag = get_tag(low);
   uint32 block_idx = get_payload(low);
   uint32 count = get_count(handle);
-  uint32 capacity = get_capacity(tag);
+  uint32 capacity = loaded_overflow_table_get_capacity(tag);
 
   // Inserting the new value if there's still room here
   if (count < capacity) {
@@ -111,7 +107,7 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
       set_high_32(slot_ptr, value);
       set_high_32(data_slot_ptr, data);
     }
-    return linear_block_handle(tag, block_idx, count + 1);
+    return loaded_overflow_table_linear_block_handle(tag, block_idx, count + 1);
   }
 
   if (tag != SIZE_16_BLOCK) {
@@ -154,7 +150,7 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
     else
       array_mem_pool_release_8_block(array_pool, block_idx);
 
-    return linear_block_handle(tag + 1, new_block_idx, count + 1);
+    return loaded_overflow_table_linear_block_handle(tag + 1, new_block_idx, count + 1);
   }
 
   // Allocating and initializing the hashed block
@@ -172,10 +168,10 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
     uint64 *src_slots = array_pool->slots + block_idx; // Reading the slot pointer from the source, the local copy may be stale
     uint64 slot = src_slots[i];
     uint64 data_slot = src_slots[distance + i];
-    uint64 tmp_handle = insert_unique_into_hashed_block(array_pool, hashed_block_idx, 2 * i, get_low_32(slot), get_low_32(data_slot), mem_pool);
+    uint64 tmp_handle = loaded_overflow_table_insert_unique_into_hashed_block(array_pool, hashed_block_idx, 2 * i, get_low_32(slot), get_low_32(data_slot), mem_pool);
     assert(get_count(tmp_handle) == 2 * i + 1);
     assert(get_payload(get_low_32(tmp_handle)) == hashed_block_idx);
-    tmp_handle = insert_unique_into_hashed_block(array_pool, hashed_block_idx, 2 * i + 1, get_high_32(slot), get_high_32(data_slot), mem_pool);
+    tmp_handle = loaded_overflow_table_insert_unique_into_hashed_block(array_pool, hashed_block_idx, 2 * i + 1, get_high_32(slot), get_high_32(data_slot), mem_pool);
     assert(get_count(tmp_handle) == 2 * (i + 1));
     assert(get_payload(get_low_32(tmp_handle)) == hashed_block_idx);
   }
@@ -184,10 +180,10 @@ static uint64 insert_unique_with_linear_block(ARRAY_MEM_POOL *array_pool, uint64
   array_mem_pool_release_16_block(array_pool, block_idx);
 
   // Adding the new value
-  return insert_unique_into_hashed_block(array_pool, hashed_block_idx, 32, value, data, mem_pool);
+  return loaded_overflow_table_insert_unique_into_hashed_block(array_pool, hashed_block_idx, 32, value, data, mem_pool);
 }
 
-static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {
+static uint64 loaded_overflow_table_insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {
   uint64 *slots = array_pool->slots;
 
   uint32 slot_idx = block_idx + get_index(value);
@@ -199,7 +195,7 @@ static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32
   if (low == EMPTY_MARKER) {
     slots[slot_idx] = pack(value, EMPTY_MARKER);
     slots[data_slot_idx] = pack(data, 0);
-    return hashed_block_handle(block_idx, count + 1);
+    return loaded_overflow_table_hashed_block_handle(block_idx, count + 1);
   }
 
   uint32 tag = get_tag(low);
@@ -211,7 +207,7 @@ static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32
     if (high == EMPTY_MARKER) {
       slots[slot_idx] = pack(low, value);
       set_high_32(slots + data_slot_idx, data);
-      return hashed_block_handle(block_idx, count + 1);
+      return loaded_overflow_table_hashed_block_handle(block_idx, count + 1);
     }
     assert(get_tag(high) == INLINE_SLOT);
     assert(value != high);
@@ -219,25 +215,25 @@ static uint64 insert_unique_into_hashed_block(ARRAY_MEM_POOL *array_pool, uint32
     uint64 handle = loaded_overflow_table_create_new_block(array_pool, pack(clipped(low), clipped(high)), data_slot, clipped(value), data, mem_pool);
     assert(get_count(handle) == 3);
     array_pool->slots[slot_idx] = handle; // Using the uncached version of the pointer
-    return hashed_block_handle(block_idx, count + 1);
+    return loaded_overflow_table_hashed_block_handle(block_idx, count + 1);
   }
 
   // The slot is not an inline one. Inserting the clipped value into the subblock
 
   uint64 handle;
   if (tag == HASHED_BLOCK)
-    handle = insert_unique_into_hashed_block(array_pool, get_payload(low), get_count(slot), clipped(value), data, mem_pool);
+    handle = loaded_overflow_table_insert_unique_into_hashed_block(array_pool, get_payload(low), get_count(slot), clipped(value), data, mem_pool);
   else
-    handle = insert_unique_with_linear_block(array_pool, slot, clipped(value), data, mem_pool);
+    handle = loaded_overflow_table_insert_unique_with_linear_block(array_pool, slot, clipped(value), data, mem_pool);
 
   assert(get_count(handle) == get_count(slot) + 1);
   array_pool->slots[slot_idx] = handle; // Using the uncached version of the pointer
-  return hashed_block_handle(block_idx, count + 1);
+  return loaded_overflow_table_hashed_block_handle(block_idx, count + 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32 block_idx, uint32 count, uint64 *target_size_2_data_slot_ptr) {
+static uint64 loaded_overflow_table_shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32 block_idx, uint32 count, uint64 *target_size_2_data_slot_ptr) {
   uint64 *slots = array_pool->slots;
   uint32 distance = array_pool->size;
 
@@ -278,19 +274,19 @@ static uint64 shrink_linear_block(ARRAY_MEM_POOL *array_pool, uint32 tag, uint32
     tgt_slots[0] = data_slot_0;
     tgt_slots[1] = data_slot_1;
 
-    return size_2_block_handle(size_2_block_idx, count);
+    return loaded_overflow_table_size_2_block_handle(size_2_block_idx, count);
   }
 
   if (tag == SIZE_8_BLOCK) {
     assert(count == 6);
     array_mem_pool_release_8_block_upper_half(array_pool, block_idx);
-    return size_4_block_handle(block_idx, count);
+    return loaded_overflow_table_size_4_block_handle(block_idx, count);
   }
 
   assert(tag == SIZE_16_BLOCK);
   assert(count == 12);
   array_mem_pool_release_16_block_upper_half(array_pool, block_idx);
-  return size_8_block_handle(block_idx, count);
+  return loaded_overflow_table_size_8_block_handle(block_idx, count);
 }
 
 static void copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, uint64 data_slot, uint32 least_bits, uint32 &write_idx, uint32 &pending_value, uint32 &pending_data) {
@@ -379,7 +375,7 @@ static void copy_and_release_block(ARRAY_MEM_POOL *array_pool, uint64 handle, ui
 }
 
 static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) {
-  assert(HASHED_BLOCK_MIN_COUNT == 13);
+  assert(LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT == 13);
 
   uint64 *target_slots = array_pool->slots + block_idx;
   uint64 *target_data_slots = target_slots + array_pool->size;
@@ -410,7 +406,7 @@ static uint64 shrink_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx) 
   target_slots[7] = EMPTY_SLOT;
 
   array_mem_pool_release_16_block_upper_half(array_pool, block_idx);
-  return size_8_block_handle(block_idx, 12);
+  return loaded_overflow_table_size_8_block_handle(block_idx, 12);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -448,10 +444,10 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
     }
 
     // Shrinking the block if need be
-    if (count == min_count(tag))
-      return shrink_linear_block(array_pool, tag, block_idx, count - 1, target_size_2_data_slot_ptr);
+    if (count == loaded_overflow_table_min_count(tag))
+      return loaded_overflow_table_shrink_linear_block(array_pool, tag, block_idx, count - 1, target_size_2_data_slot_ptr);
     else
-      return linear_block_handle(tag, block_idx, count - 1);
+      return loaded_overflow_table_linear_block_handle(tag, block_idx, count - 1);
   }
 
   // The last slot didn't contain the searched value, looking in the rest of the array
@@ -493,10 +489,10 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
       }
 
       // Shrinking the block if need be
-      if (count == min_count(tag))
-        return shrink_linear_block(array_pool, tag, block_idx, count - 1, target_size_2_data_slot_ptr);
+      if (count == loaded_overflow_table_min_count(tag))
+        return loaded_overflow_table_shrink_linear_block(array_pool, tag, block_idx, count - 1, target_size_2_data_slot_ptr);
       else
-        return linear_block_handle(tag, block_idx, count - 1);
+        return loaded_overflow_table_linear_block_handle(tag, block_idx, count - 1);
     }
   }
 
@@ -504,7 +500,7 @@ static uint64 delete_from_linear_block(ARRAY_MEM_POOL *array_pool, uint64 handle
   return handle;
 }
 
-static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
+static uint64 loaded_overflow_table_delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
   uint64 *slots = array_pool->slots;
 
   uint32 index = get_index(value);
@@ -514,7 +510,7 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
 
   // If the slot is empty there's nothing to do
   if (slot == EMPTY_SLOT)
-    return hashed_block_handle(block_idx, count);
+    return loaded_overflow_table_hashed_block_handle(block_idx, count);
 
   uint32 low = get_low_32(slot);
   uint32 high = get_high_32(slot);
@@ -523,7 +519,7 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
   if (get_tag(low) != INLINE_SLOT) {
     uint64 handle = loaded_overflow_table_delete(array_pool, slot, clipped(value), data_slot_ptr); //## I'D LIKE TO REMOVE THIS DEPENDENCY FROM A PUBLIC FUNCTION
     if (handle == slot)
-      return hashed_block_handle(block_idx, count);
+      return loaded_overflow_table_hashed_block_handle(block_idx, count);
     uint32 handle_low = get_low_32(handle);
     if (get_tag(handle_low) == INLINE_SLOT)
       handle = pack(unclipped(handle_low, index), unclipped(get_high_32(handle), index));
@@ -544,21 +540,21 @@ static uint64 delete_from_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_
     // Upper part of the slot was erased, not moved, so no need to do anything to the corresponding data slot
   }
   else {
-    return hashed_block_handle(block_idx, count);
+    return loaded_overflow_table_hashed_block_handle(block_idx, count);
   }
 
-  assert(count >= HASHED_BLOCK_MIN_COUNT);
+  assert(count >= LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT);
 
   // The value has actually been deleted. Shrinking the block if need be
-  if (count > HASHED_BLOCK_MIN_COUNT)
-    return hashed_block_handle(block_idx, count - 1);
+  if (count > LOADED_OVERFLOW_TABLE_HASHED_BLOCK_MIN_COUNT)
+    return loaded_overflow_table_hashed_block_handle(block_idx, count - 1);
   else
     return shrink_hashed_block(array_pool, block_idx);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 linear_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
+static uint32 loaded_overflow_table_linear_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 count, uint32 value) {
   uint64 *slots = array_pool->slots + block_idx;
   uint32 end = (count + 1) / 2;
   for (uint32 i=0 ; i < end ; i++) {
@@ -571,7 +567,7 @@ static uint32 linear_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
   return 0xFFFFFFFF;
 }
 
-static uint32 hashed_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 value) {
+static uint32 loaded_overflow_table_hashed_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 value) {
   uint64 *slot_ptr = array_pool->slots + block_idx + get_index(value);
   uint64 slot = *slot_ptr;
 
@@ -590,14 +586,14 @@ static uint32 hashed_block_lookup(ARRAY_MEM_POOL *array_pool, uint32 block_idx, 
   }
 
   if (tag == HASHED_BLOCK)
-    return hashed_block_lookup(array_pool, get_payload(low), clipped(value));
+    return loaded_overflow_table_hashed_block_lookup(array_pool, get_payload(low), clipped(value));
 
   return loaded_overflow_table_lookup(array_pool, slot, clipped(value)); //## I'D LIKE TO REMOVE THIS DEPENDENCY FROM A PUBLIC FUNCTION
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *values, uint32 *data, uint32 offset, uint32 shift, uint32 least_bits) {
+static uint32 loaded_overflow_table_copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, uint32 *values, uint32 *data, uint32 offset, uint32 shift, uint32 least_bits) {
   uint64 *slots = array_pool->slots;
   uint32 distance = array_pool->size;
 
@@ -625,7 +621,7 @@ static uint32 copy_hashed_block(ARRAY_MEM_POOL *array_pool, uint32 block_idx, ui
         }
       }
       else if (tag == HASHED_BLOCK) {
-        target_idx = copy_hashed_block(array_pool, get_payload(low), values, data, target_idx, subshift, slot_least_bits);
+        target_idx = loaded_overflow_table_copy_hashed_block(array_pool, get_payload(low), values, data, target_idx, subshift, slot_least_bits);
       }
       else {
         uint32 subblock_idx = get_payload(low);
@@ -773,7 +769,7 @@ uint64 loaded_overflow_table_create_new_block(ARRAY_MEM_POOL *array_pool, uint64
   uint64 *data_slots = value_slots + array_pool->size;
   data_slots[0] = datas;
   data_slots[1] = pack(new_data, 0);
-  return size_2_block_handle(block_idx, 3);
+  return loaded_overflow_table_size_2_block_handle(block_idx, 3);
 }
 
 uint64 loaded_overflow_table_insert_unique(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 value, uint32 data, STATE_MEM_POOL *mem_pool) {
@@ -783,9 +779,9 @@ uint64 loaded_overflow_table_insert_unique(ARRAY_MEM_POOL *array_pool, uint64 ha
   assert(tag != INLINE_SLOT);
 
   if (tag == HASHED_BLOCK)
-    return insert_unique_into_hashed_block(array_pool, get_payload(low), get_count(handle), value, data, mem_pool);
+    return loaded_overflow_table_insert_unique_into_hashed_block(array_pool, get_payload(low), get_count(handle), value, data, mem_pool);
 
-  return insert_unique_with_linear_block(array_pool, handle, value, data, mem_pool);
+  return loaded_overflow_table_insert_unique_with_linear_block(array_pool, handle, value, data, mem_pool);
 }
 
 //## HERE IT WOULD BE GOOD TO RETURN THE DATA THAT WAS ATTACHED TO THE DELETED VALUE
@@ -796,7 +792,7 @@ uint64 loaded_overflow_table_delete(ARRAY_MEM_POOL *array_pool, uint64 handle, u
   assert(tag != INLINE_SLOT);
 
   if (tag == HASHED_BLOCK)
-    return delete_from_hashed_block(array_pool, get_payload(low), get_count(handle), value);
+    return loaded_overflow_table_delete_from_hashed_block(array_pool, get_payload(low), get_count(handle), value);
   else
     return delete_from_linear_block(array_pool, handle, value, target_size_2_data_slot_ptr);
 }
@@ -838,9 +834,9 @@ uint32 loaded_overflow_table_lookup(ARRAY_MEM_POOL *array_pool, uint64 handle, u
   assert(pack_tag_payload(tag, block_idx) == get_low_32(handle));
 
   if (tag != HASHED_BLOCK)
-    return linear_block_lookup(array_pool, block_idx, get_count(handle), value);
+    return loaded_overflow_table_linear_block_lookup(array_pool, block_idx, get_count(handle), value);
   else
-    return hashed_block_lookup(array_pool, block_idx, value);
+    return loaded_overflow_table_hashed_block_lookup(array_pool, block_idx, value);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -882,7 +878,7 @@ void loaded_overflow_table_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint3
     }
   }
   else
-    copy_hashed_block(array_pool, block_idx, values, data, offset, 0, 0);
+    loaded_overflow_table_copy_hashed_block(array_pool, block_idx, values, data, offset, 0, 0);
 }
 
 UINT32_ARRAY loaded_overflow_table_range_copy(ARRAY_MEM_POOL *array_pool, uint64 handle, uint32 first, uint32 *output, uint32 capacity) {

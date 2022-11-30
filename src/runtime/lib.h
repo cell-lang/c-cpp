@@ -1255,8 +1255,6 @@ uint32 hashcode_64(uint64);
 
 ////////////////////////////////// concat.cpp //////////////////////////////////
 
-bool no_sum32_overflow(uint64 x, uint64 y);
-
 OBJ concat_ints(OBJ, OBJ);
 OBJ concat_floats(OBJ, OBJ);
 

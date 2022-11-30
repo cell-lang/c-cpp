@@ -1,7 +1,7 @@
 #include "lib.h"
 
 
-const uint32 MIN_TREE_SIZE = 9;
+const uint32 MIN_TREE_SET_SIZE = 9;
 
 
 static FAT_SET_PTR make_empty_set_ptr() {
@@ -29,7 +29,7 @@ for (uint32 i=0 ; i < size ; i++)
 
 static FAT_SET_PTR make_tree_set_ptr(TREE_SET_NODE *ptr, uint32 size) {
   assert(size > 0);
-  // assert(size >= MIN_TREE_SIZE); //## TRY AGAIN LATER
+  // assert(size >= MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
   FAT_SET_PTR fat_ptr;
   fat_ptr.ptr.tree = ptr;
@@ -93,7 +93,7 @@ static FAT_SET_PTR array_set_insert(OBJ *elts, uint32 size, OBJ elt) {
   if (found)
     return make_array_set_ptr(elts, size);
 
-  if (size + 1 < MIN_TREE_SIZE) {
+  if (size + 1 < MIN_TREE_SET_SIZE) {
     SET_OBJ *new_ptr = new_set(size + 1);
     OBJ *new_elts = new_ptr->buffer;
 
@@ -264,7 +264,7 @@ static FAT_SET_PTR remove_min_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return size > 1 ? make_array_set_ptr(elts + 1, size - 1) : make_empty_set_ptr();
   }
 
-  // assert(size >= MIN_TREE_SIZE); //## TRY AGAIN LATER
+  // assert(size >= MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
   TREE_SET_NODE *ptr = fat_ptr.ptr.tree;
   if (size == 1) {
@@ -278,7 +278,7 @@ static FAT_SET_PTR remove_min_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return ptr->right;
   }
 
-  if (size > MIN_TREE_SIZE) {
+  if (size > MIN_TREE_SET_SIZE) {
     FAT_SET_PTR updated_left_ptr = remove_min_value(left_ptr, value_ptr);
     TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = ptr->value;
@@ -305,7 +305,7 @@ static FAT_SET_PTR remove_max_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return size > 1 ? make_array_set_ptr(elts, size - 1) : make_empty_set_ptr();
   }
 
-  // assert(size >= MIN_TREE_SIZE); //## TRY AGAIN LATER
+  // assert(size >= MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
   TREE_SET_NODE *ptr = fat_ptr.ptr.tree;
   if (size == 1) {
@@ -320,7 +320,7 @@ static FAT_SET_PTR remove_max_value(FAT_SET_PTR fat_ptr, OBJ *value_ptr) {
     return ptr->left;
   }
 
-  if (size > MIN_TREE_SIZE) {
+  if (size > MIN_TREE_SET_SIZE) {
     FAT_SET_PTR updated_right_ptr = remove_max_value(right_ptr, value_ptr);
     TREE_SET_NODE *new_ptr = new_tree_set_node();
     new_ptr->value = ptr->value;
@@ -356,7 +356,7 @@ static FAT_SET_PTR array_set_remove(OBJ *elts, uint32 size, OBJ elt) {
   if (index == size - 1)
     return make_array_set_ptr(elts, size - 1);
 
-  if (size <= MIN_TREE_SIZE) {
+  if (size <= MIN_TREE_SET_SIZE) {
     SET_OBJ *new_ptr = new_set(size - 1);
 
     if (index > 0)
@@ -399,7 +399,7 @@ static FAT_SET_PTR array_set_remove(OBJ *elts, uint32 size, OBJ elt) {
 ////////////////////////////////////////////////////////////////////////////////
 
 static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt) {
-  // assert(size >= MIN_TREE_SIZE); //## TRY AGAIN LATER
+  // assert(size >= MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
   OBJ value = ptr->value;
   int cr = comp_objs(elt, value);
@@ -414,9 +414,9 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     if (right_ptr.size == 0)
       return left_ptr;
 
-    // assert(size > MIN_TREE_SIZE || (left_ptr.is_array_or_empty && right_ptr.is_array_or_empty)); //## TRY AGAIN LATER
+    // assert(size > MIN_TREE_SET_SIZE || (left_ptr.is_array_or_empty && right_ptr.is_array_or_empty)); //## TRY AGAIN LATER
 
-    if (size == MIN_TREE_SIZE) {
+    if (size == MIN_TREE_SET_SIZE) {
       SET_OBJ *new_ptr = new_set(size - 1);
       set_copy(left_ptr, new_ptr->buffer);
       set_copy(right_ptr, new_ptr->buffer + left_ptr.size);
@@ -482,7 +482,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     assert(updated_left_ptr.size == left_ptr.size - 1);
 
     if (!updated_left_ptr.is_array_or_empty) {
-      // assert(size > MIN_TREE_SIZE); //## TRY AGAIN LATER
+      // assert(size > MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
       // The updated left subset is actually a tree, so we need to make sure the heap property is maintained
       if (updated_left_ptr.ptr.tree->priority > ptr->priority) {
@@ -502,7 +502,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
       }
     }
 
-    if (size == MIN_TREE_SIZE) {
+    if (size == MIN_TREE_SET_SIZE) {
       SET_OBJ *new_ptr = new_set(size - 1);
       set_copy(updated_left_ptr, new_ptr->buffer);
       new_ptr->buffer[updated_left_ptr.size] = value;
@@ -536,7 +536,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
     assert(updated_right_ptr.size == right_ptr.size - 1);
 
     if (!updated_right_ptr.is_array_or_empty) {
-      // assert(size > MIN_TREE_SIZE); //## TRY AGAIN LATER
+      // assert(size > MIN_TREE_SET_SIZE); //## TRY AGAIN LATER
 
       // The updated right subset is actually a tree, so we need to make sure the heap property is maintained
       if (updated_right_ptr.ptr.tree->priority > ptr->priority) {
@@ -558,7 +558,7 @@ static FAT_SET_PTR bin_tree_set_remove(TREE_SET_NODE *ptr, uint32 size, OBJ elt)
 
     FAT_SET_PTR left_ptr = ptr->left;
 
-    if (size == MIN_TREE_SIZE) {
+    if (size == MIN_TREE_SET_SIZE) {
       SET_OBJ *new_ptr = new_set(size - 1);
       set_copy(left_ptr, new_ptr->buffer);
       new_ptr->buffer[left_ptr.size] = value;

@@ -8,16 +8,6 @@ void master_bin_table_release_surr(MASTER_BIN_TABLE *, uint32 surr);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline void sort_args(uint32 &arg1, uint32 &arg2) {
-  if (arg1 > arg2) {
-    uint32 tmp = arg1;
-    arg1 = arg2;
-    arg2 = tmp;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void sym_master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   master_bin_table_init(table, mem_pool);
 }
@@ -57,7 +47,7 @@ uint32 sym_master_bin_table_lookup(MASTER_BIN_TABLE *table, uint32 arg) {
 }
 
 uint32 sym_master_bin_table_lookup_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
   return master_bin_table_lookup_surr(table, arg1, arg2);
 }
 
@@ -76,7 +66,7 @@ uint32 sym_master_bin_table_get_arg_2(MASTER_BIN_TABLE *table, uint32 surr) {
 //   uint32 surr12 = code >= 0 ? code : -code - 1;
 //   bool was_new = code >= 0;
 int32 sym_master_bin_table_insert_ex(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
 
   if (one_way_bin_table_contains(&table->table.forward, arg1, arg2)) {
     uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
@@ -101,7 +91,7 @@ bool sym_master_bin_table_insert(MASTER_BIN_TABLE *table, uint32 arg1, uint32 ar
 }
 
 bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
 
   if (!one_way_bin_table_contains(&table->table.forward, arg1, arg2)) {
     master_bin_table_claim_reserved_surr(table, arg1, arg2, surr, mem_pool);
@@ -117,7 +107,7 @@ bool sym_master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1,
 }
 
 bool sym_master_bin_table_delete(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
   uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1, arg2);
   if (surr != 0xFFFFFFFF & arg1 != arg2) {
     bool found = loaded_one_way_bin_table_delete(&table->table.backward, arg2, arg1);

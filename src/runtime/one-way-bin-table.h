@@ -84,9 +84,6 @@ inline void set_high_32(uint64 *ptr, uint32 data) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint64 set_low_32(uint64 slot, uint32 low32);
-uint64 set_high_32(uint64 slot, uint32 high32);
-
 void array_mem_pool_init(ARRAY_MEM_POOL *, bool alloc_parallel_space, STATE_MEM_POOL *);
 void array_mem_pool_release(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool);
 void array_mem_pool_clear(ARRAY_MEM_POOL *array, STATE_MEM_POOL *mem_pool);

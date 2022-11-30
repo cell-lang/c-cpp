@@ -1,18 +1,18 @@
 #include "lib.h"
 
 
-const uint32 INIT_SIZE = 256;
+const uint32 INT_COL_INIT_SIZE = 256;
 
 // const int64 INT_NULL = -9223372036854775808L;
 const int64 INT_NULL = -5091454680840284659L; // Random null value
 
 
 void int_col_init(INT_COL *column, STATE_MEM_POOL *mem_pool) {
-  int64 *array = alloc_state_mem_int64_array(mem_pool, INIT_SIZE);
-  for (int i=0 ; i < INIT_SIZE ; i++)
+  int64 *array = alloc_state_mem_int64_array(mem_pool, INT_COL_INIT_SIZE);
+  for (int i=0 ; i < INT_COL_INIT_SIZE ; i++)
     array[i] = INT_NULL;
   column->array = array;
-  column->capacity = INIT_SIZE;
+  column->capacity = INT_COL_INIT_SIZE;
   column->count = 0;
   bit_map_init(&column->collisions);
 }
@@ -134,7 +134,7 @@ bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
 void int_col_clear(INT_COL *column, STATE_MEM_POOL *mem_pool) {
   uint32 capacity = column->capacity;
   //## MAYBE WE SHOULDN'T GO ALL THE WAY BACK DOWN TO THE INITIAL CAPACITY
-  if (capacity != INIT_SIZE) {
+  if (capacity != INT_COL_INIT_SIZE) {
     release_state_mem_int64_array(mem_pool, column->array, capacity);
     int_col_init(column, mem_pool);
   }

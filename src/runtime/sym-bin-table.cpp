@@ -2,16 +2,6 @@
 #include "one-way-bin-table.h"
 
 
-inline void sort_args(uint32 &arg1, uint32 &arg2) {
-  if (arg1 > arg2) {
-    uint32 tmp = arg1;
-    arg1 = arg2;
-    arg2 = tmp;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void sym_bin_table_init(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   one_way_bin_table_init(&table->forward, mem_pool);
   one_way_bin_table_init(&table->backward, mem_pool);
@@ -22,7 +12,7 @@ uint32 sym_bin_table_size(BIN_TABLE *table) {
 }
 
 bool sym_bin_table_contains(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
   return one_way_bin_table_contains(&table->forward, arg1, arg2);
 }
 
@@ -71,7 +61,7 @@ uint32 sym_bin_table_lookup(BIN_TABLE *table, uint32 arg) {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool sym_bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
   if (!one_way_bin_table_contains(&table->forward, arg1, arg2)) {
     one_way_bin_table_insert_unique(&table->forward, arg1, arg2, mem_pool);
     if (arg1 != arg2)
@@ -82,7 +72,7 @@ bool sym_bin_table_insert(BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_
 }
 
 bool sym_bin_table_delete(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
   bool found = one_way_bin_table_delete(&table->forward, arg1, arg2);
   if (found & arg1 != arg2) {
     bool found_ = one_way_bin_table_delete(&table->backward, arg2, arg1);

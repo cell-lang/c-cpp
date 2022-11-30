@@ -13,16 +13,6 @@ void master_bin_table_aux_unlock_surrs(MASTER_BIN_TABLE *, QUEUE_3U32 *);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline void sort_args(uint32 &arg1, uint32 &arg2) {
-  if (arg1 > arg2) {
-    uint32 tmp = arg1;
-    arg1 = arg2;
-    arg2 = tmp;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 void sym_master_bin_table_aux_init(SYM_MASTER_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *) {
   col_update_bit_map_init(&table_aux->bit_map);
   queue_u64_init(&table_aux->deletions);
@@ -69,7 +59,7 @@ void sym_master_bin_table_aux_delete_1(SYM_MASTER_BIN_TABLE_AUX *table_aux, uint
 }
 
 uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
 
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF) {
@@ -99,7 +89,7 @@ uint32 sym_master_bin_table_aux_insert(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_T
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *table, SYM_MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
-  sort_args(arg1, arg2);
+  sort_u32(arg1, arg2);
 
   uint32 surr = sym_master_bin_table_lookup_surr(table, arg1, arg2);
   if (surr != 0xFFFFFFFF)

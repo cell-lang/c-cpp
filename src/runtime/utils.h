@@ -30,6 +30,20 @@ typedef unsigned long long  uint64;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool is_even(uint32 value) {
+  return (value % 2) == 0;
+}
+
+static void sort_u32(uint32 &x, uint32 &y) {
+  if (x > y) {
+    uint32 tmp = x;
+    x = y;
+    y = tmp;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 inline bool no_sum32_overflow(uint64 x, uint64 y) {
   return x + y <= 0XFFFFFFFF;
 }
