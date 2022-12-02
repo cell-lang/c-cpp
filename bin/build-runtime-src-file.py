@@ -104,6 +104,38 @@ hdr_files = [
 
 ################################################################################
 
+header = [
+  '#include <ctype.h>',
+  '#include <math.h>',
+  '#include <stddef.h>',
+  '#include <stdio.h>',
+  '#include <stdlib.h>',
+  '#include <string.h>',
+  '#include <unistd.h>',
+  '#include <time.h>',
+  '',
+  '#include <algorithm>',
+  '#include <exception>',
+  '#include <iostream>',
+  '#include <string>',
+  '#include <vector>',
+  '',
+  '#include <cstdint>',
+  '#include <cstddef>',
+  '#include <cmath>',
+  '#include <functional>',
+  '#include <algorithm>',
+  '#include <iterator>',
+  '#include <utility>',
+  '#include <type_traits>',
+  '',
+  '#include <sys/mman.h>',
+  '',
+  ''
+]
+
+################################################################################
+
 return_types = [
   'void',
   'bool',
@@ -146,7 +178,7 @@ def needs_static_qualifier(line):
   if idx != -1:
     line = line[:idx].rstrip()
   for rt in return_types:
-    if line.startswith(rt) and (line.endswith(' {') or line.endswith(');')):
+    if line.startswith(rt) and (line.endswith(') {') or line.endswith(');')):
       return True;
   return False
 
@@ -159,6 +191,8 @@ def escape(ch):
     return '\\\\'
   elif ch == ord('"'):
     return '\\"'
+  elif ch == ord('\n'):
+    return '\\n'
   elif ch >= ord(' ') or ch <= ord('~'):
     return chr(ch)
   elif ch == ord('\t'):
@@ -218,37 +252,39 @@ def read_and_strip_files(directory, file_names):
     blocks.append((fn, lines))
   return blocks
 
-################################################################################
 
-header = [
-  '#include <ctype.h>',
-  '#include <math.h>',
-  '#include <stddef.h>',
-  '#include <stdio.h>',
-  '#include <stdlib.h>',
-  '#include <string.h>',
-  '#include <unistd.h>',
-  '#include <time.h>',
-  '',
-  '#include <algorithm>',
-  '#include <exception>',
-  '#include <iostream>',
-  '#include <string>',
-  '#include <vector>',
-  '',
-  '#include <cstdint>',
-  '#include <cstddef>',
-  '#include <cmath>',
-  '#include <functional>',
-  '#include <algorithm>',
-  '#include <iterator>',
-  '#include <utility>',
-  '#include <type_traits>',
-  '',
-  '#include <sys/mman.h>',
-  '',
-  ''
-]
+def read_and_merge_runtime_files(input_dir):
+  blocks = read_and_strip_files(input_dir, ['../external/flat-hash-map.h'] + hdr_files + src_files)
+  content = []
+  for l in header:
+    content.append(l)
+  for i, (f, ls) in enumerate(blocks):
+    if i > 0:
+      content.append('')
+    content.append(80 * '/')
+    l = ' ' + f + ' '
+    l = ((80 - len(l)) / 2) * '/' + l
+    l = l + (80 - len(l)) * '/'
+    content.append(l)
+    content.append(80 * '/')
+    content.append('')
+    for l in ls:
+      content.append(l);
+  return content
+
+
+def generate_string_array(array_name, lines, single_line):
+  if single_line:
+    line = '\n'.join(lines)
+    str = ''.join([escape(ord(ch)) for ch in line])
+    code = ['String* ' + array_name + ' = ("' + str + '");']
+  else:
+    code = ['String* ' + array_name + ' = (']
+    for i, l in enumerate(lines):
+      code_line = '  "' + ''.join([escape(ord(ch)) for ch in l]) + '"' + (',' if i < len(lines) - 1 else '')
+      code.append(code_line)
+    code.extend(');')
+  return code
 
 ################################################################################
 
@@ -260,29 +296,22 @@ if len(argv) != 3:
 
 _, input_dir, out_fname = argv
 
-blocks = read_and_strip_files(input_dir, ['../external/flat-hash-map.h'] + hdr_files + src_files)
+content = read_and_merge_runtime_files(input_dir)
+code = generate_string_array('core_runtime', content, True)
+code.extend([
+  '',
+  '',
+  'String* table_runtime = ();',
+  '',
+  '',
+  'String* interface_runtime = ();',
+  ''
+])
+code_str = '\n'.join(code)
 
 out_file = open(out_fname, 'w')
-
-for l in header:
-  out_file.write(l + '\n')
-
-for i, (f, ls) in enumerate(blocks):
-  if i > 0:
-    out_file.write('\n')
-
-  out_file.write(80 * '/' + '\n')
-  l = ' ' + f + ' '
-  l = ((80 - len(l)) / 2) * '/' + l
-  l = l + (80 - len(l)) * '/'
-  out_file.write(l + '\n')
-  out_file.write(80 * '/' + '\n\n')
-
-  for l in ls:
-    out_file.write(l + '\n');
-
-
-
+out_file.write(code_str)
+out_file.close()
 
 
 

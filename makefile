@@ -13,6 +13,14 @@ cellc:
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 
+cellc-full:
+	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
+	@rm misc/runtime-sources.cell
+	bin/build-runtime-src-file.py src/runtime/ misc/runtime-sources.cell
+	bin/cellc -t project/compiler.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
+	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
+
 cellcd:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
 	bin/cellc -d -t project/compiler-no-runtime.txt tmp/cellc/
@@ -38,6 +46,10 @@ cellcr:
 update-cellcr:
 	@rm -f cellcr
 	g++ -O3 -flto -DNDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp src/runtime/*.cpp -o cellcr
+
+update-cellcr-full:
+	@rm -f cellcr
+	g++ -O3 -flto -DNDEBUG tmp/cellc/cellc.cpp -o cellcr
 
 update-cellcp:
 	@rm -f cellcp
@@ -70,23 +82,45 @@ codegen:
 update-codegen:
 	g++ -ggdb -Isrc/runtime/ tmp/codegen/generated.cpp src/runtime/*.cpp -o codegen
 
-compiler-test-loop: cellc.net
-	@rm -f generated.cpp cellc-1.cpp cellc-2.cpp cellc-3.cpp
+compiler-test-loop:
 	@rm -rf tmp/cellc && mkdir -p tmp/cellc
-	./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/cellc -t project/compiler.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-1.cpp
-	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
-	./cellc-1 project/compiler-no-runtime.txt tmp/cellc/
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc-1.cpp
+	# g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
+	g++ -ggdb tmp/cellc/cellc-1.cpp -o cellc-1
+	./cellc-1 project/compiler.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-2.cpp
-	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-2.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-2
-	./cellc-2 project/compiler-no-runtime.txt tmp/cellc/
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc-2.cpp
+	g++ -ggdb tmp/cellc/cellc-2.cpp -o cellc-2
+	./cellc-2 project/compiler.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-3.cpp
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc-3.cpp
 	# cmp tmp/cellc/cellc-2.cpp tmp/cellc/cellc-3.cpp
 	cd tmp/cellc/ && ln -s cellc-3.cpp cellc.cpp
-	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-3.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-3
-	./cellc-3 project/compiler-no-runtime.txt tmp/cellc/
+	g++ -ggdb tmp/cellc/cellc-3.cpp -o cellc-3
+	./cellc-3 project/compiler.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-4.cpp
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc-4.cpp
 	cmp tmp/cellc/cellc-3.cpp tmp/cellc/cellc-4.cpp
+
+# compiler-test-loop: cellc.net
+# 	@rm -f generated.cpp cellc-1.cpp cellc-2.cpp cellc-3.cpp
+# 	@rm -rf tmp/cellc && mkdir -p tmp/cellc
+# 	./cellc.net -t project/compiler-no-runtime.txt tmp/cellc/
+# 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-1.cpp
+# 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-1.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-1
+# 	./cellc-1 project/compiler-no-runtime.txt tmp/cellc/
+# 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-2.cpp
+# 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-2.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-2
+# 	./cellc-2 project/compiler-no-runtime.txt tmp/cellc/
+# 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-3.cpp
+# 	# cmp tmp/cellc/cellc-2.cpp tmp/cellc/cellc-3.cpp
+# 	cd tmp/cellc/ && ln -s cellc-3.cpp cellc.cpp
+# 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc-3.cpp src/runtime/*.cpp src/hacks.cpp -o cellc-3
+# 	./cellc-3 project/compiler-no-runtime.txt tmp/cellc/
+# 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc-4.cpp
+# 	cmp tmp/cellc/cellc-3.cpp tmp/cellc/cellc-4.cpp
 
 codegen-test-loop: codegen
 	./codegen misc/codegen-opt-code.txt

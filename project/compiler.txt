@@ -196,4 +196,4 @@ src/compiler/main.cell
 
 // Runtime source code
 
-misc/runtime-sources-empty.cell
+misc/runtime-sources.cell

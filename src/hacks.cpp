@@ -20,7 +20,7 @@ inline uint32 ptr_hashcode(void *ptr) {
   return (uint32) (lword ^ (lword >> 32));
 }
 
-inline uint32 hashtable_step(uint32 hashcode) {
+inline uint32 void_ptr_obj_hashtable_step(uint32 hashcode) {
   // Using an odd step size should guarantee that all slots are eventually visited
   //## I'M STILL NOT ENTIRELY SURE ABOUT THIS. CHECK!
   return (hashcode & 0xF) | 1;
@@ -28,7 +28,7 @@ inline uint32 hashtable_step(uint32 hashcode) {
 
 VOID_PTR_OBJ_HASHTABLE_ENTRY *void_ptr_obj_hashtable_lookup(VOID_PTR_OBJ_HASHTABLE *hashtable, void *ptr) {
   uint32 hcode = ptr_hashcode(ptr);
-  uint32 step = hashtable_step(hcode);
+  uint32 step = void_ptr_obj_hashtable_step(hcode);
 
   VOID_PTR_OBJ_HASHTABLE_ENTRY *entries = hashtable->entries;
   uint32 capacity = hashtable->capacity;
@@ -53,7 +53,7 @@ void void_ptr_obj_hashtable_insert_unsafe(VOID_PTR_OBJ_HASHTABLE *hashtable, voi
   assert(void_ptr_obj_hashtable_lookup(hashtable, ptr) == NULL);
 
   uint32 hcode = ptr_hashcode(ptr);
-  uint32 step = hashtable_step(hcode);
+  uint32 step = void_ptr_obj_hashtable_step(hcode);
 
   VOID_PTR_OBJ_HASHTABLE_ENTRY *entries = hashtable->entries;
   uint32 capacity = hashtable->capacity;

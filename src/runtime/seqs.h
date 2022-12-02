@@ -1,5 +1,6 @@
+OBJ get_as_obj_at(OBJ seq, uint32 idx);
+
 inline OBJ get_obj_at(OBJ seq, int64 idx) {
-  OBJ get_as_obj_at(OBJ seq, uint32 idx);
 
   assert(is_seq(seq));
 

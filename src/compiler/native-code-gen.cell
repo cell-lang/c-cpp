@@ -180,7 +180,15 @@ type PrgData =  prg_data(
   gen_content = (gen_content | runtime_callbacks(|program_symbols|));
 
   if include_runtime {
-    fail;
+    gen_content = core_runtime & (
+      "",
+      "",
+      "namespace cell_lang_generated_ {",
+      gen_content,
+      "}",
+      "",
+      "using namespace cell_lang_generated_;"
+    );
   }
   else {
     gen_content = (
