@@ -23,7 +23,7 @@ cellc-full:
 
 cellcd:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
-	bin/cellc -d -t project/compiler-no-runtime.txt tmp/cellc/
+	bin/cellc -d -nrt -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 
