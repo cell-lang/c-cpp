@@ -1130,17 +1130,29 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   String* native_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
     arg = :var(:this);
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
-    args_str = ("OBJ " & native_var_decl_name(arg) & ", ");
-    sgn = "bool " & native_handler_name(block_name, handler_id, msg_type) & "(" & append(args_decls, ", ") & ") {";
+
+    maybe_opt_handler_code = native_optimized_handler_code(block_name, handler_id, msg_type, body);
+
+    code = ();
+
+    if maybe_opt_handler_code != nothing {
+      opt_handler_code = value(maybe_opt_handler_code);
+      method_name = native_opt_handler_name(block.name, handler_id, msg_type);
+      vars_decls = gen_vars_decls(opt_handler_code, [arg]);
+      body_text = vars_decls & ("" if vars_decls != ()) & native_code(opt_handler_code, nothing, break_target = nothing);
+      code = ("", "bool " & method_name & "(" & append(args_decls, ", ") & ") {") & indent_lines(body_text) & ("}");
+    }
+
     vars_decls = gen_vars_decls(body, [arg]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
     body_text = body_text & run_and_check_dependees_and_check_code(handler_id);
+    sgn = "bool " & native_handler_name(block_name, handler_id, msg_type) & "(" & append(args_decls, ", ") & ") {";
+    code = code & ("", sgn) & indent_lines(body_text) & ("}");
 
-    main_method = (sgn) & indent_lines(body_text) & ("}");
-    apply_and_reset_methods = handler_apply_and_reset_methods(handler_id, msg_type);
-    entry_point_method = handler_entry_point_method(handler_id, msg_type);
+    code = code & handler_apply_and_reset_methods(handler_id, msg_type);
+    code = code & handler_entry_point_method(handler_id, msg_type, maybe_opt_handler_code != nothing);
 
-    return main_method & apply_and_reset_methods & entry_point_method;
+    return code;
 
 
     String* run_and_check_dependees_and_check_code(HandlerId handler_id) {
@@ -1183,41 +1195,64 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* handler_entry_point_method(HandlerId handler_id, NeType msg_type) {
+    String* handler_entry_point_method(HandlerId handler_id, NeType msg_type, Bool use_opt_method) {
       auto_type_name = native_name(block.name);
-
       target_name = auto_or_db_arg_name;
       aux_name = db_auxiliary_arg_name;
 
       method_name = msg_handler_entry_point_name(block.name, handler_id, msg_type);
       formal_args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name), obj_type_name & " msg", env_arg_decl);
 
-      run_and_check_method_name = native_handler_name(block.name, handler_id, msg_type);
-      apply_method_name = native_apply_method_name(block.name, handler_id, msg_type);
-      reset_method_name = native_reset_method_name(block.name, handler_id, msg_type);
+      if not use_opt_method {
+        run_and_check_method_name = native_handler_name(block.name, handler_id, msg_type);
+        apply_method_name = native_apply_method_name(block.name, handler_id, msg_type);
+        reset_method_name = native_reset_method_name(block.name, handler_id, msg_type);
 
-      return (
-        "",
-        "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
-        "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
-        "  try {",
-        "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", msg);" if debug_mode,
-        "    entering_transaction();",
-        "    bool ok = " & run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
-        "    exiting_transaction();",
-        "    pop_call_info();" if debug_mode,
-        "    if (ok)",
-        "      " & apply_method_name & "(" & target_name & ", " & aux_name & ");",
-        "    " & reset_method_name & "(" & aux_name & ");",
-        "    return ok;",
-        "  }",
-        "  catch (...) {",
-        "    " & reset_method_name & "(" & aux_name & ");",
-        "    pop_call_infos(bookmark);" if debug_mode,
-        "    return false;",
-        "  }",
-        "}"
-      );
+        return (
+          "",
+          "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
+          "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
+          "  try {",
+          "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", msg);" if debug_mode,
+          "    entering_transaction();",
+          "    bool ok = " & run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+          "    exiting_transaction();",
+          "    pop_call_info();" if debug_mode,
+          "    if (ok)",
+          "      " & apply_method_name & "(" & target_name & ", " & aux_name & ");",
+          "    " & reset_method_name & "(" & aux_name & ");",
+          "    return ok;",
+          "  }",
+          "  catch (...) {",
+          "    " & reset_method_name & "(" & aux_name & ");",
+          "    pop_call_infos(bookmark);" if debug_mode,
+          "    return false;",
+          "  }",
+          "}"
+        );
+      }
+      else {
+        handler_name = native_opt_handler_name(block.name, handler_id, msg_type);
+        return (
+          "",
+          "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
+          "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
+          "  try {",
+          "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", msg);" if debug_mode,
+          "    entering_transaction();",
+          "    bool ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+          "    exiting_transaction();",
+          "    pop_call_info();" if debug_mode,
+          "    return ok;",
+          "  }",
+          "  catch (...) {",
+          ## TODO: IS THERE ANYTHING TO RESET HERE?
+          "    pop_call_infos(bookmark);" if debug_mode,
+          "    return false;",
+          "  }",
+          "}"
+        );
+      }
     }
   }
 

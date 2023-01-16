@@ -1,0 +1,521 @@
+
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
+  Maybe[Instr*] native_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
+    // return nothing if table_vars_with_deletions(handler_id) != [];
+
+    effects_info = instrs_effects_info(body, []);
+
+    print "effects_info";
+    print effects_info;
+
+    return nothing if (v s <- effects_info : s != status(optional: false, multiple: false));
+
+    code, table_var_tmp_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
+
+    insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+    deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
+    check_code = updates_check_code(block, insertion_tables, deletion_tables, table_var_tmp_vars_map);
+
+    return just(code);
+  }
+
+  (Instr*, [TableVar -> TempTableColVar+]) mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, [TableVar -> TableStatus] effects_info) {
+    tables_types = prg_data.tables(block_name);
+    unavailable_vars = temp_table_col_vars_in_use(body);
+
+    table_var_tmp_vars_map = [];
+    for v s <- effects_info {
+      tmp_vars, unavailable_vars = temporary_vars(tables_types(v), unavailable_vars);
+      table_var_tmp_vars_map = _put_(table_var_tmp_vars_map, v, tmp_vars);
+    }
+
+    rw_body = join((rewrite_table_operations(i, table_var_tmp_vars_map) : i <- body));
+
+    return (rw_body, table_var_tmp_vars_map);
+
+
+    (LocInt32Var+, [TempTableColVar]) temporary_vars(Table table_type, [TempTableColVar] unavailable_vars) =
+      any_available_loc_int32_vars(arity(table_type), unavailable_vars);
+
+
+    (LocInt32Var+, [TempTableColVar]) temporary_vars(MasterBinTable table_type, [TempTableColVar] unavailable_vars) =
+      any_available_loc_int32_vars(3, unavailable_vars);
+
+
+    (LocInt32Var+, [TempTableColVar]) temporary_vars(SlaveTernTable table_type, [TempTableColVar] unavailable_vars) =
+      any_available_loc_int32_vars(2, unavailable_vars);
+
+    ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) temporary_vars(AnyColumn col_type, [TempTableColVar] init_unavailable_vars) {
+      unavailable_vars = init_unavailable_vars;
+      key_var = any_available_loc_int32_var(unavailable_vars);
+      unavailable_vars = _insert_(unavailable_vars, key_var);
+      value_var = match (col_type.repr)
+        object  = any_available_loc_var(unavailable_vars),
+        int     = any_available_loc_int_var(unavailable_vars),
+        float   = any_available_loc_float_var(unavailable_vars);
+      unavailable_vars = _insert_(unavailable_vars, value_var);
+      return ((key_var, value_var), unavailable_vars);
+    }
+  }
+}
+
+
+// type AnySurrTable   = Table, MasterBinTable, SlaveTernTable;
+// type AnyColumn      = Column, MandatoryColumn, SlaveColumn;
+// type AnyTable       = AnySurrTable, AnyColumn;
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// Instr rewrite_nested(CompInstr instr, (Instr -> Instr) rw_instr, (AnyTypeExpr -> AnyTypeExpr) rw_expr) =
+
+//  queue_deletes(table_var: TableVar, table: AnyTable, args: Maybe[Int32Var]+, symmetric: Bool)
+//  lookup_or_queue_insert_value(res_var: Int32Var, store: ValueStoreId, store_type: ValueStoreType, value: <AtomicExpr, IntExpr>)
+//  queue_insert_tuple(table_var: TableVar, table: <Table, SlaveTernTable>, tuple: Int32Var+)
+//  queue_insert_master_tuple(assoc_surr_var: Int32Var, table_var: TableVar, table: MasterBinTable, tuple: (Int32Var, Int32Var))
+//  column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
+
+Int32Var+ cast_int32_var_seq(TempTableColVar+ vars) = if vars :: Int32Var+ then vars else undefined;
+
+
+Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+  return match (instr)
+    // queue_deletes()                = undefined,
+    // lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
+    queue_insert_tuple()           = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, table_var_tmp_vars_map),
+    queue_insert_master_tuple()    = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_tmp_vars_map),
+    column_insert_deferred()       = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced, table_var_tmp_vars_map),
+    _                              = rewrite_nested_one_to_many(instr, rewrite_table_operations($, table_var_tmp_vars_map), $);
+
+
+  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    assert |table_var_tmp_vars_map(table_var)| == |tuple|;
+    tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
+    return (set_ivar32(tmp_vars(i), v) : v @ i <- tuple);
+  }
+
+  // get_arg_by_assoc_surr(table_var: AnyTableVar, table_type: MasterBinTable, arg: <0..1>, surr: Int32Var),
+  // get_assoc_surr(table_var: AnyTableVar, table_type: MasterBinTable, args: (Int32Var, Int32Var)),
+
+  Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
+    assert |tmp_vars| == 3;
+    return (
+      set_ivar32(assoc_surr_var, get_assoc_surr(table_var, table, tuple)),
+      branch(
+        are_eq(assoc_surr_var, -1),
+        ( set_ivar32(tmp_vars(0), tuple(0)),
+          set_ivar32(tmp_vars(1), tuple(1)),
+          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var))
+        ),
+        (set_ivar32(tmp_vars(0), -1))
+      ),
+      set_ivar32(tmp_vars(2), assoc_surr_var)
+    );
+  }
+
+
+//  column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
+  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    tmp_vars = table_var_tmp_vars_map(table_var);
+    fail if not tmp_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
+    tmp_key_var, tmp_value_var = tmp_vars;
+    return (
+      do_if(
+        table_contains(table_var, column, (just(key_surr), nothing)),
+        ret_val(false)
+      ) if not forced,
+      set_ivar32(tmp_key_var, key_surr),
+      set_any_var(tmp_value_var, obj_expr(value))
+    );
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+[TableVar -> TableStatus] instrs_effects_info(Instr* instrs, [TableVar -> TableStatus] init_status) {
+  status = init_status;
+  for i <- instrs
+    status = instr_effects_info(i, status);
+  return status;
+}
+
+
+
+[TableVar -> TableStatus] instr_effects_info(BasicInstr instr, [TableVar -> TableStatus] status) {
+  return match (instr)
+    queue_deletes()                = undefined,
+    lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
+    queue_insert_tuple()           = record_insertion(status, instr.table_var, false),
+    queue_insert_master_tuple()    = record_insertion(status, instr.table_var, false),
+    column_insert_deferred()       = record_insertion(status, instr.table_var, instr.forced),
+    _                              = status;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+[TableVar -> TableStatus] instr_effects_info(JumpInstr instr, [TableVar -> TableStatus] status) {
+  return status; ## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+
+[TableVar -> TableStatus] instr_effects_info(CompInstr instr, [TableVar -> TableStatus] status) {
+  return match (instr)
+    branch()            = branch_effect_info(instr.cond, instr.when_true, instr.when_false, status),
+    switch_on_nat()     = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
+    symb_switch()       = symb_switch_effect_info(instr.value, instr.cases, instr.else, status),
+    repeat(is?)         = repeat_effect_info(is, status),
+    execute_block(is?)  = execute_block_effect_info(is, status),
+    try_block()         = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
+    foreach()           = foreach_effect_info(instr.iter, instr.body, status);
+
+
+  [TableVar -> TableStatus] branch_effect_info(BoolExpr cond, Instr+ then, Instr* else, [TableVar -> TableStatus] init_effects_info) {
+    then_effects_info = instrs_effects_info(then, init_effects_info);
+    else_effects_info = instrs_effects_info(then, init_effects_info);
+    table_vars = keys(then_effects_info) & keys(else_effects_info);
+
+    merged_effects_info = [];
+    for v <- table_vars {
+      if then_effects_info(v, _) {
+        then_status = then_effects_info(v);
+        if else_effects_info(v, _) {
+          else_status = else_effects_info(v);
+          optional = then_status.optional or else_status.optional;
+          multiple = then_status.multiple or else_status.multiple;
+          merged_status = status(optional: optional, multiple: multiple);
+        }
+        else
+          merged_status = status(optional: true, multiple: then_status.multiple);
+      }
+      else {
+        else_status = else_effects_info(v);
+        merged_status = status(optional: true, multiple: else_status.multiple);
+      }
+
+      merged_effects_info = _put_(merged_effects_info, v, merged_status);
+    }
+
+    return merged_effects_info;
+  }
+
+
+  [TableVar -> TableStatus] symb_switch_effect_info(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, [TableVar -> TableStatus] init_effects_info) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  [TableVar -> TableStatus] repeat_effect_info(Instr+ instrs, [TableVar -> TableStatus] init_effects_info) {
+    loop_body_effects_info = instrs_effects_info(instrs, []);
+    table_vars = keys(init_effects_info) & keys(loop_body_effects_info);
+
+    merged_effects_info = [];
+    for v <- table_vars {
+      if init_effects_info(v, _) {
+        init_status = init_effects_info(v);
+        if loop_body_effects_info(v, _) {
+          loop_body_status = loop_body_effects_info(v);
+          merged_status = status(optional: init_status.optional, multiple: true);
+        }
+        else
+          merged_status = init_status;
+      }
+      else {
+        loop_body_status = loop_body_effects_info(v);
+        merged_status = status(optional: true, multiple: true);
+      }
+
+      merged_effects_info = _put_(merged_effects_info, v, merged_status);
+    }
+
+    return merged_effects_info;
+  }
+
+
+  [TableVar -> TableStatus] execute_block_effect_info(Instr+ instrs, [TableVar -> TableStatus] init_effects_info) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  [TableVar -> TableStatus] foreach_effect_info(ForeachIter iter, Instr* body, [TableVar -> TableStatus] init_effects_info) {
+    fail if body == ();
+    return repeat_effect_info(body, init_effects_info);
+  }
+}
+
+// type CompInstr      = branch(cond: BoolExpr, when_true: Instr+, when_false: Instr*),
+//                       switch_on_nat(value: IntExpr, cases: Instr*+),
+//                       symb_switch(value: ObjExpr, cases: [+([+SymbObj], Instr+)], else: Instr*),
+//                       repeat(Instr+),
+//                       execute_block(Instr+),
+//                       try_block(var: LocVar, body: Instr+),
+//                       ForeachInstr;
+// type ForeachInstr   = foreach(iter: ForeachIter, body: Instr*);
+
+////////////////////////////////////////////////////////////////////////////////
+
+type TableStatus = status(optional: Bool, multiple: Bool);
+
+
+[TableVar -> TableStatus] record_insertion([TableVar -> TableStatus] statuses, TableVar table_var, Bool forced) {
+  if statuses(table_var, _) {
+    curr_status = statuses(table_var);
+    new_status = status(optional: false, multiple: true);
+  }
+  else
+    new_status = status(optional: false, multiple: false);
+
+  return _put_(statuses, table_var, new_status);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
+  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    mutated_tables = insertion_tables & deletion_tables;
+    mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
+
+    insert_checked_foreign_keys = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)];
+    insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
+
+    delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
+    delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
+
+    check_code = ();
+
+  //   //## BAD BAD BAD: *_prepare(...) ENDS UP BEING CALLED EVEN WHEN ALL FOREIGN KEYS ARE STATICALLY CHECKED
+  //   for t <- mutated_tables
+  //     check_code = check_code & aux_prepare_code(t, block);
+
+  //   insertion_tables_with_keys = isort([v : v <- insertion_tables, keys(block.tables(v)) != []]);
+  //   if insertion_tables_with_keys != () {
+  //     check_code = (check_code | "") if not ends_with_empty_line(check_code);
+  //     for v <- insertion_tables_with_keys {
+  //       table = block.tables(v);
+  //       arity = arity(table);
+  //       keys = keys(table);
+  //       if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
+  //         fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (v, pending_updates_var_ref_name(v), :mem_pool));
+  //         check_code = (check_code | "if (!" & fn_call & ")", "  return false;");
+  //       }
+  //       else {
+  //         for k <- keys {
+  //           fn_call = check_call(v, table, k);
+  //           check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+  //         }
+  //       }
+  //     }
+  //   }
+
+    // check_code = (check_code | annotation(:empty_line)) if insert_checked_foreign_keys != () and not ends_with_empty_line(check_code);
+
+    for k <- insert_checked_foreign_keys {
+      check_expr = foreign_key_forward_check_expr(k, block, table_var_tmp_vars_map);
+      check_code = (check_code | do_if_not(check_expr, ret_val(false)));
+    }
+
+    // check_code = (check_code | annotation(:empty_line)) if delete_checked_foreign_keys != () and not ends_with_empty_line(check_code);
+
+    for k <- delete_checked_foreign_keys {
+      check_expr = foreign_key_backward_check_expr(k, block, table_var_tmp_vars_map);
+      check_code = (check_code | do_if_not(check_expr, ret_val(false)));
+    }
+
+    check_code = () if skip_integrity_checks;
+    check_code = (check_code | ret_val(true));
+
+    return check_code;
+
+
+  //   String* aux_prepare_code(TableVar var, StaticBlock block) {
+  //     table_type = block.tables(var);
+  //     needs_preparation = match (table_type)
+  //       table()             = arity(table_type) != 1,
+  //       mandatory_column()  = false,
+  //       _                   = true;
+  //     return () if not needs_preparation;
+  //     method_name = native_table_method_prefix(table_type) & "_aux_prepare";
+  //     args = (pending_updates_var_ref_name(var));
+  //     return (native_call(method_name, args));
+  //   }
+
+
+  //   String check_call(TableVar var, Table table, [+Nat] key) {
+  //     assert table.keys(key);
+
+  //     arity = arity(table);
+  //     method_name = if      table.symmetric                    then semisym_table_key_check_method_names(arity, key, !)
+  //                   else if arity == 2 and table.keys == [[0]] then "single_key_bin_table_aux_check_key_1"
+  //                                                              else table_key_check_method_names(arity, key, !);
+  //     aux_var = pending_updates_var_ref_name(var);
+  //     args = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2])));
+  //     return native_call_expr(method_name, args);
+  //   }
+
+  //   String check_call(TableVar var, MasterBinTable table, [+Nat] key) = undefined;
+
+  //   String check_call(TableVar var, SlaveTernTable table, [+Nat] key) {
+  //     method_name = slave_tern_table_key_check_method_names(key, !);
+  //     aux_var = pending_updates_var_ref_name(var);
+  //     args = (table.master, var, pending_updates_var_ref_name(table.master) if key == [0, 1], aux_var);
+  //     return native_call_expr(method_name, args);
+  //   }
+
+  //   String check_call(TableVar var, MandatoryColumn column, [+Nat] key) {
+  //     method_name = native_table_method_prefix(column) & "_aux_check_key_1";
+  //     aux_var = pending_updates_var_ref_name(var);
+  //     args = (column.master, var, aux_var, :mem_pool);
+  //     return native_call_expr(method_name, args);
+  //   }
+
+  //   String check_call(TableVar var, Column column, [+Nat] key) {
+  //     method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+  //     aux_var = pending_updates_var_ref_name(var);
+  //     args = (var, aux_var, :mem_pool);
+  //     return native_call_expr(method_name, args);
+  //   }
+
+  //   String check_call(TableVar var, SlaveColumn column, [+Nat] key) {
+  //     method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+  //     aux_var = pending_updates_var_ref_name(var);
+  //     args = (var, aux_var, :mem_pool);
+  //     return native_call_expr(method_name, args);
+  //   }
+
+
+    BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+      origin = key.origin;
+      target = key.target;
+
+      target_type = block.tables(target);
+      origin_vars = table_var_tmp_vars_map(origin);
+
+      args_set = match (key.type)
+        unary_unary             = ((just(cast_int32_var(origin_vars(0))))),
+        unary_binary(i?)        = ((if j == i then just(cast_int32_var(origin_vars(0))) else nothing : j < 2)),
+        unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_vars(0))) else nothing : j < 3)),
+        binary_unary(i?)        |
+        ternary_unary(i?)       = ((just(cast_int32_var(origin_vars(i))))),
+        binary_ternary          = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))), nothing)),
+        ternary_binary          = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))))),
+        unary_sym_binary        = ((just(cast_int32_var(origin_vars(0))), nothing)),
+        unary_sym_ternary_12    = ((just(cast_int32_var(origin_vars(0))), nothing, nothing)),
+        unary_sym_ternary_3     = ((nothing, nothing, just(cast_int32_var(origin_vars(0))))),
+        sym_binary_unary        |
+        sym_ternary_unary_12    = ((just(cast_int32_var(origin_vars(j)))) : j < 2),
+        sym_ternary_unary_3     = ((just(cast_int32_var(origin_vars(2))))),
+        sym_binary_sym_ternary  = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))), nothing)),
+        sym_ternary_sym_binary  = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1)))));
+
+      check_expr = and((table_contains(target, target_type, as) : as <- args_set));
+
+      if table_var_tmp_vars_map(target, _) {
+        target_vars = table_var_tmp_vars_map(target);
+
+        extra_check = match (key.type)
+          unary_unary             = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(0))),
+          unary_binary(i?)        |
+          unary_ternary(i?)       = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(i))),
+          binary_unary(i?)        |
+          ternary_unary(i?)       = are_eq(cast_int32_var(origin_vars(i)), cast_int32_var(target_vars(0))),
+          binary_ternary          |
+          ternary_binary          = and((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(j))) : j < 2)),
+          unary_sym_binary        |
+          unary_sym_ternary_12    = or((are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(j))) : j < 2)),
+          unary_sym_ternary_3     = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(2))),
+          sym_binary_unary        |
+          sym_ternary_unary_12    = or((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(0))) : j < 2)),
+          sym_ternary_unary_3     = are_eq(cast_int32_var(origin_vars(2)), cast_int32_var(target_vars(0))),
+          sym_binary_sym_ternary  |
+          ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
+          ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
+          sym_ternary_sym_binary  = and((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(j))) : j < 2));
+
+        check_expr = or(check_expr, extra_check);
+      }
+
+      return check_expr;
+
+      // method_name = foreign_key_forward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
+      // args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
+      // return native_call_expr(method_name, args);
+    }
+
+
+    BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+      fail;
+      // method_name = foreign_key_backward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
+      // needs_origin_ref = match (block.tables(key.target))
+      //   table() t?  = arity(t) != 1 ,
+      //   _           = true;
+      // args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
+      // return native_call_expr(method_name, args);
+    }
+
+
+  //   [NzNat, [+Nat], String] table_key_check_method_names = [
+  //     2,  [0],    "bin_table_aux_check_key_1";
+  //     2,  [1],    "bin_table_aux_check_key_2";
+  //     3,  [2],    "tern_table_aux_check_key_3";
+  //     3,  [0, 1], "tern_table_aux_check_key_12";
+  //     3,  [1, 2], "tern_table_aux_check_key_23";
+  //     3,  [0, 2], "tern_table_aux_check_key_13"
+  //   ];
+
+
+  //   [NzNat, [+Nat], String] semisym_table_key_check_method_names = [
+  //     3,  [2],    "semisym_tern_table_aux_check_key_3";
+  //     3,  [0, 1], "semisym_tern_table_aux_check_key_12"
+  //   ];
+
+
+  //   [[+Nat] -> String] slave_tern_table_key_check_method_names = [
+  //     [0, 1]  -> "slave_tern_table_aux_check_key_12",
+  //     [2]     -> "slave_tern_table_aux_check_key_3"
+  //   ];
+
+
+  //   Nat order((TableVar, NzNat, [+Nat]) key) {
+  //     _, arity, args = key;
+  //     return key_check_orders(arity, args, !);
+  //   }
+
+
+  //   [NzNat, [+Nat], Nat] key_check_orders = [
+  //     2,  [0],      0;
+  //     3,  [0, 1],   0;
+  //     2,  [1],      1;
+  //     3,  [1, 2],   1;
+  //     3,  [2],      2;
+  //     3,  [0, 2],   2
+  //   ];
+
+
+    Nat order(BlockForeignKey key) =
+      match (key.type)
+        unary_unary             = 0,
+        unary_binary(i?)        = i,
+        unary_ternary(i?)       = i,
+
+        binary_unary(i?)        = i,
+        binary_ternary          = 0,
+
+        ternary_unary(i?)       = i,
+        ternary_binary          = 0,
+
+        unary_sym_binary        = 0,
+        sym_binary_unary        = 0,
+
+        unary_sym_ternary_12    = 0,
+        unary_sym_ternary_3     = 2,
+
+        sym_ternary_unary_12    = 0,
+        sym_ternary_unary_3     = 2,
+
+        sym_binary_sym_ternary  = 0,
+        sym_ternary_sym_binary  = 0;
+  }
+}

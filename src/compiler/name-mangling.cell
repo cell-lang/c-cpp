@@ -711,6 +711,7 @@ String clear_timer_method_name  (AutoSymbol auto_type) = qualified_name(auto_typ
 
 
 String native_handler_name(DBSymbol rid, HandlerId hid, NeType msg_type)          = suffixed_handler_name("msg_handler", rid, hid, msg_type);
+String native_opt_handler_name(DBSymbol rid, HandlerId hid, NeType msg_type)      = suffixed_handler_name("opt_msg_handler", rid, hid, msg_type);
 String native_apply_method_name(DBSymbol rid, HandlerId hid, NeType msg_type)     = suffixed_handler_name("msg_handler_apply", rid, hid, msg_type);
 String native_reset_method_name(DBSymbol rid, HandlerId hid, NeType msg_type)     = suffixed_handler_name("msg_handler_reset", rid, hid, msg_type);
 String msg_handler_entry_point_name(DBSymbol rid, HandlerId hid, NeType msg_type) = suffixed_handler_name("msg_handler_entry_point", rid, hid, msg_type);

@@ -264,7 +264,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     init_table()          = (), //(native_call("init",    (instr.rel_var))),
     cleanup_table()       = (), //(native_call("cleanup", (instr.rel_var))),
 
-    queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args, instr.symmetric)),
+    queue_deletes()       = (native_queue_deletes_code(instr.table_var, instr.table, instr.args)),
     lookup_or_queue_insert_value() = (native_call(instr.res_var, native_value_store_method_prefix(instr.store_type) & "_aux_lookup_or_insert_value", (instr.store, updater_var_ref_name(instr.store), instr.value, :mem_pool))),
     queue_insert_tuple()  = (native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple)),
     queue_insert_master_tuple() = (native_queue_insert_master_tuple_code(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple)),
@@ -404,9 +404,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   // }
 
 
-  String native_queue_deletes_code(TableVar table_var, <Table, MasterBinTable, AnyColumn> table, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_queue_deletes_code(TableVar table_var, <Table, MasterBinTable, AnyColumn> table, Maybe[Int32Var]+ args) {
     set_args = (a != nothing : a <- args);
-    base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
+    base_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
     prefix = match (table)
       mandatory_column()  = if set_args == (true, false)
                               then native_table_method_prefix(table)
@@ -470,11 +470,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_queue_deletes_code(TableVar table_var, SlaveTernTable table, Maybe[Int32Var]+ args, Bool symmetric) {
+  String native_queue_deletes_code(TableVar table_var, SlaveTernTable table, Maybe[Int32Var]+ args) {
     assert |args| == 2;
 
     set_args = (a != nothing : a <- args);
-    base_names = if symmetric then sym_fn_names_by_args else fn_names_by_args;
+    base_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
     prefix = native_table_method_prefix(table);
     method_name = prefix & "_aux_" & base_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);

@@ -6,6 +6,7 @@ type PrgData =  prg_data(
                   cached_semi_consts_by_impl_arg: [ImplArg -> [+FnId]],
                   symbols_sets_info:              [[+Symbol] -> (Symbol+, Nat)],
                   value_stores:                   [DBSymbol -> [ValueStoreId -> ValueStoreType]],
+                  tables:                         [DBSymbol -> [TableVar -> AnyTable]],
                   masters_raw_columns:            [DBSymbol -> [TableVar, TableVar]],
                   handlers_msg_type:              [DBSymbol -> [HandlerId -> NeType]]
                );
@@ -40,6 +41,7 @@ type PrgData =  prg_data(
     cached_semi_consts_by_impl_arg: cached_semi_consts_by_impl_arg(prg),
     symbols_sets_info:              symbols_sets_info(prg),
     value_stores:                   [b.name -> b.value_stores : b <- prg.static_blocks],
+    tables:                         [b.name -> b.tables : b <- prg.static_blocks],
     masters_raw_columns:            [b.name -> masters_raw_columns(b) : b <- prg.static_blocks],
     handlers_msg_type:              [b.name -> [id -> h.msg_type : id h <- b.handlers] : b <- prg.static_blocks]
   );

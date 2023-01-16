@@ -83,6 +83,55 @@ type VarTypesNotToDeclare = FnArg,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+type TempTableColVar = LocVar, LocIntVar, LocFloatVar, Int32Var;
+
+[TempTableColVar] temp_table_col_vars_in_use(Instr* instrs) {
+  vars = select(instrs, $ :: TempTableColVar);
+  fail if not vars :: [TempTableColVar];
+  return vars;
+}
+
+LocVar any_available_loc_var([TempTableColVar] unavailable_vars) {
+  bare_id = 0;
+  while unavailable_vars(lvar(bare_id))
+    bare_id = nat(bare_id + 1);
+  return lvar(bare_id);
+}
+
+LocIntVar any_available_loc_int_var([TempTableColVar] unavailable_vars) {
+  bare_id = 0;
+  while unavailable_vars(ivar(bare_id))
+    bare_id = nat(bare_id + 1);
+  return ivar(bare_id);
+}
+
+LocFloatVar any_available_loc_float_var([TempTableColVar] unavailable_vars) {
+  bare_id = 0;
+  while unavailable_vars(fvar(bare_id))
+    bare_id = nat(bare_id + 1);
+  return fvar(bare_id);
+}
+
+LocInt32Var any_available_loc_int32_var([TempTableColVar] unavailable_vars) {
+  bare_id = 0;
+  while unavailable_vars(ivar32(bare_id))
+    bare_id = nat(bare_id + 1);
+  return ivar32(bare_id);
+}
+
+(LocInt32Var+, [TempTableColVar]) any_available_loc_int32_vars(NzNat count, [TempTableColVar] init_unavailable_vars) {
+  unavailable_vars = init_unavailable_vars;
+  vars = ();
+  for i < count {
+    var = any_available_loc_int32_var(unavailable_vars);
+    vars = (vars | var);
+    unavailable_vars = _insert_(unavailable_vars, var);
+  }
+  return (nonempty(vars), unavailable_vars);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 String parenthesize(String code, Bool parenthesized) = if parenthesized then "(" & code & ")" else code;

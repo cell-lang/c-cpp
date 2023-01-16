@@ -172,6 +172,7 @@ src/compiler/native-code-gen.cell
 src/compiler/opt-types.cell
 src/compiler/table-iters.cell
 src/compiler/static-blocks.cell
+src/compiler/handlers.cell
 src/compiler/react-blocks.cell
 
 src/compiler/wrappers/interface-types.cell
