@@ -12,9 +12,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     code, table_var_tmp_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
 
+    insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
+
     insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
     deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
-    check_code = updates_check_code(block, insertion_tables, deletion_tables, table_var_tmp_vars_map);
+
+    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_tmp_vars_map);
+
+    code = code & updates_apply_code(block, insertion_value_stores, table_var_tmp_vars_map);
+
+    code = (code | ret_val(true));
 
     return just(code);
   }
@@ -149,7 +156,7 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
     lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
     queue_insert_tuple()           = record_insertion(status, instr.table_var, false),
     queue_insert_master_tuple()    = record_insertion(status, instr.table_var, false),
-    column_insert_deferred()       = record_insertion(status, instr.table_var, instr.forced),
+    column_insert_deferred()       = if not instr.forced then record_insertion(status, instr.table_var, instr.forced) else undefined,
     _                              = status;
 }
 
@@ -325,7 +332,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
     check_code = () if skip_integrity_checks;
-    check_code = (check_code | ret_val(true));
 
     return check_code;
 
@@ -517,5 +523,60 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
         sym_binary_sym_ternary  = 0,
         sym_ternary_sym_binary  = 0;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    ord_value_stores = isort(insertion_value_stores);
+    ord_table_vars = sort_set(keys(table_var_tmp_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
+
+    code = ();
+    for vs <- ord_value_stores {
+      instr = value_store_apply(vs, block.value_stores(vs));
+      code = (code | instr);
+    }
+    for v <- ord_table_vars {
+      instrs = immediate_insert_instrs(block, v, block.tables(v), table_var_tmp_vars_map(v));
+      code = code & instrs;
+    }
+    return code;
+
+
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ tmp_vars) {
+      main_resize_instr = immediate_insert_tuple(table_var, table, cast_int32_var_seq(tmp_vars));
+
+      if arity(table) == 1 {
+        masters_raw_columns = prg_data.masters_raw_columns(block.name);
+        if masters_raw_columns(table_var, _) {
+          raw_cols = isort([v : v <- masters_raw_columns(table_var, ?)]);
+          size_var = new_unique_int32_var(:unused);
+          new_size_var = new_unique_int32_var(:unused);
+          size_expr = get_count(table_var, table, (nothing));
+          resize_instrs = (resize_mandatory_column(v, cast_mandatory_column(block.tables(v)), size_var, new_size_var) : v <- raw_cols);
+          return (
+            set_ivar32(size_var, size_expr),
+            main_resize_instr,
+            set_ivar32(new_size_var, size_expr),
+            do_if_not(are_eq(size_var, new_size_var), resize_instrs)
+          );
+        }
+      }
+
+      return (main_resize_instr);
+    }
+
+
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ tmp_vars) =
+      (immediate_insert_tuple(table_var, table, cast_int32_var_seq(tmp_vars)));
+
+
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ tmp_vars) {
+      assert |tmp_vars| == 2;
+      key_var = cast_int32_var(tmp_vars(0));
+      value_var = tmp_vars(1);
+      return (column_insert_immediate(table_var, is_mandatory(column), column.repr, key_var, value_var));
+    }
   }
 }

@@ -735,6 +735,15 @@ String* create_error_msg(ParserError err, String filename) =
 
 Nat new_unique_id(<unused>) = _counter_(:unused);
 
+## BAD BAD BAD: UGLY HACK HERE
+LocInt32Var new_unique_int32_var(<unused>) {
+  id = new_unique_id(:unused);
+  hacked_id = nat(9223372036854775807 - id);
+  return ivar32(hacked_id);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 DBSymbol linked_db_var_type(StaticBlock block, LinkedDBVar var) =
   match (var)
     linked_db_var(i?) = block.links(i);

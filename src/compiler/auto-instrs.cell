@@ -276,6 +276,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value),
 
     resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
+    value_store_apply()       = (native_value_store_apply_code(instr.store, instr.store_type)),
     raise_load_error()        = ("return false;"),
     surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
     surr_set_clear            = (native_call("surr_set_clear", ("&surr_set")));
@@ -292,6 +293,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     args = (table_var, curr_capacity, new_capacity, :mem_pool);
     return (native_call(method_name, args));
   }
+
 
   String* native_invoke_db_method_code(AnyWriteVar res_var, Maybe[AnyDBVar] maybe_db_var, DBSymbol type, MethodId method_id, AnyTypeExpr* args) {
     db_var_name = if maybe_db_var != nothing
@@ -562,5 +564,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     method_name = set_state_entry_point_name(db_type);
     args = (native_var_ref_name(db_var), updater_var_ref_name(db_var), state, "env");
     return (native_call(res_var, method_name, args));
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit context : NativeContext {
+  String native_value_store_apply_code(ValueStoreId store_id, ValueStoreType store_type) {
+    method_name = native_value_store_method_prefix(store_type) & "_aux_apply_insertions";
+    return native_call(method_name, (store_id, updater_var_ref_name(store_id), :mem_pool));
   }
 }
