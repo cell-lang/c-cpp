@@ -1,12 +1,9 @@
-
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
   Maybe[Instr*] native_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
+    ## BUG BUG BUG: REENABLE THIS
     // return nothing if table_vars_with_deletions(handler_id) != [];
 
     effects_info = instrs_effects_info(body, []);
-
-    print "effects_info";
-    print effects_info;
 
     return nothing if (v s <- effects_info : s != status(optional: false, multiple: false));
 
@@ -25,6 +22,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     return just(code);
   }
+
 
   (Instr*, [TableVar -> TempTableColVar+]) mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, [TableVar -> TableStatus] effects_info) {
     tables_types = prg_data.tables(block_name);
@@ -66,21 +64,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 }
 
-
-// type AnySurrTable   = Table, MasterBinTable, SlaveTernTable;
-// type AnyColumn      = Column, MandatoryColumn, SlaveColumn;
-// type AnyTable       = AnySurrTable, AnyColumn;
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-// Instr rewrite_nested(CompInstr instr, (Instr -> Instr) rw_instr, (AnyTypeExpr -> AnyTypeExpr) rw_expr) =
-
-//  queue_deletes(table_var: TableVar, table: AnyTable, args: Maybe[Int32Var]+, symmetric: Bool)
-//  lookup_or_queue_insert_value(res_var: Int32Var, store: ValueStoreId, store_type: ValueStoreType, value: <AtomicExpr, IntExpr>)
-//  queue_insert_tuple(table_var: TableVar, table: <Table, SlaveTernTable>, tuple: Int32Var+)
-//  queue_insert_master_tuple(assoc_surr_var: Int32Var, table_var: TableVar, table: MasterBinTable, tuple: (Int32Var, Int32Var))
-//  column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
 
 Int32Var+ cast_int32_var_seq(TempTableColVar+ vars) = if vars :: Int32Var+ then vars else undefined;
 
@@ -100,9 +85,6 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
     tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
     return (set_ivar32(tmp_vars(i), v) : v @ i <- tuple);
   }
-
-  // get_arg_by_assoc_surr(table_var: AnyTableVar, table_type: MasterBinTable, arg: <0..1>, surr: Int32Var),
-  // get_assoc_surr(table_var: AnyTableVar, table_type: MasterBinTable, args: (Int32Var, Int32Var)),
 
   Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
     tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
@@ -128,10 +110,6 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
     fail if not tmp_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
     tmp_key_var, tmp_value_var = tmp_vars;
     return (
-      do_if(
-        table_contains(table_var, column, (just(key_surr), nothing)),
-        ret_val(false)
-      ) if not forced,
       set_ivar32(tmp_key_var, key_surr),
       set_any_var(tmp_value_var, obj_expr(value))
     );
@@ -158,6 +136,23 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
     queue_insert_master_tuple()    = record_insertion(status, instr.table_var, false),
     column_insert_deferred()       = if not instr.forced then record_insertion(status, instr.table_var, instr.forced) else undefined,
     _                              = status;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+type TableStatus = status(optional: Bool, multiple: Bool);
+
+
+[TableVar -> TableStatus] record_insertion([TableVar -> TableStatus] statuses, TableVar table_var, Bool forced) {
+  if statuses(table_var, _) {
+    curr_status = statuses(table_var);
+    new_status = status(optional: false, multiple: true);
+  }
+  else
+    new_status = status(optional: false, multiple: false);
+
+  return _put_(statuses, table_var, new_status);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -251,31 +246,6 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
   }
 }
 
-// type CompInstr      = branch(cond: BoolExpr, when_true: Instr+, when_false: Instr*),
-//                       switch_on_nat(value: IntExpr, cases: Instr*+),
-//                       symb_switch(value: ObjExpr, cases: [+([+SymbObj], Instr+)], else: Instr*),
-//                       repeat(Instr+),
-//                       execute_block(Instr+),
-//                       try_block(var: LocVar, body: Instr+),
-//                       ForeachInstr;
-// type ForeachInstr   = foreach(iter: ForeachIter, body: Instr*);
-
-////////////////////////////////////////////////////////////////////////////////
-
-type TableStatus = status(optional: Bool, multiple: Bool);
-
-
-[TableVar -> TableStatus] record_insertion([TableVar -> TableStatus] statuses, TableVar table_var, Bool forced) {
-  if statuses(table_var, _) {
-    curr_status = statuses(table_var);
-    new_status = status(optional: false, multiple: true);
-  }
-  else
-    new_status = status(optional: false, multiple: false);
-
-  return _put_(statuses, table_var, new_status);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -291,40 +261,62 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
+    tables = block.tables;
+    cols_subset_map = block.cols_subset_map;
+
+    key_check_exprs = [];
+    for v vs <- table_var_tmp_vars_map {
+      table = tables(v);
+      table_arity = arity(table);
+
+      if table_arity == 2 {
+        if not is_symmetric(table) {
+          keys = keys(table);
+          relvar = original_rel_var(v);
+
+          for idx <- [only(k) : k <- keys] {
+            col = phys_col(relvar, idx);
+            col_equivs = [];
+            for c <- cols_subset_map(col, ?) {
+              if cols_subset_map(c, col) {
+                equiv_table_var = table_var(c.relvar);
+                equiv_table = tables(equiv_table_var);
+                if arity(equiv_table) == 1
+                  col_equivs = _insert_(col_equivs, equiv_table_var);
+              }
+            }
+
+            tmp_key_var = cast_int32_var(vs(idx));
+
+            if col_equivs != [] {
+              col_equiv = any(col_equivs);
+              key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
+            }
+            else
+              key_check_expr = table_contains(v, table, (if i == idx then just(tmp_key_var) else nothing : i < 2));
+
+            key_check_exprs = _insert_(key_check_exprs, key_check_expr);
+          }
+        }
+        else {
+          ## CAN SYMMETRIC TABLE HAVE KEYS?
+          fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+        }
+      }
+      else if table_arity == 3 {
+        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      }
+    }
+
     check_code = ();
 
-  //   //## BAD BAD BAD: *_prepare(...) ENDS UP BEING CALLED EVEN WHEN ALL FOREIGN KEYS ARE STATICALLY CHECKED
-  //   for t <- mutated_tables
-  //     check_code = check_code & aux_prepare_code(t, block);
-
-  //   insertion_tables_with_keys = isort([v : v <- insertion_tables, keys(block.tables(v)) != []]);
-  //   if insertion_tables_with_keys != () {
-  //     check_code = (check_code | "") if not ends_with_empty_line(check_code);
-  //     for v <- insertion_tables_with_keys {
-  //       table = block.tables(v);
-  //       arity = arity(table);
-  //       keys = keys(table);
-  //       if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
-  //         fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (v, pending_updates_var_ref_name(v), :mem_pool));
-  //         check_code = (check_code | "if (!" & fn_call & ")", "  return false;");
-  //       }
-  //       else {
-  //         for k <- keys {
-  //           fn_call = check_call(v, table, k);
-  //           check_code = (check_code | "if (!" & fn_call & ")", " return false;");
-  //         }
-  //       }
-  //     }
-  //   }
-
-    // check_code = (check_code | annotation(:empty_line)) if insert_checked_foreign_keys != () and not ends_with_empty_line(check_code);
+    for e <- key_check_exprs
+      check_code = (check_code | do_if_not(e, ret_val(false)));
 
     for k <- insert_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block, table_var_tmp_vars_map);
       check_code = (check_code | do_if_not(check_expr, ret_val(false)));
     }
-
-    // check_code = (check_code | annotation(:empty_line)) if delete_checked_foreign_keys != () and not ends_with_empty_line(check_code);
 
     for k <- delete_checked_foreign_keys {
       check_expr = foreign_key_backward_check_expr(k, block, table_var_tmp_vars_map);
@@ -334,62 +326,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     check_code = () if skip_integrity_checks;
 
     return check_code;
-
-
-  //   String* aux_prepare_code(TableVar var, StaticBlock block) {
-  //     table_type = block.tables(var);
-  //     needs_preparation = match (table_type)
-  //       table()             = arity(table_type) != 1,
-  //       mandatory_column()  = false,
-  //       _                   = true;
-  //     return () if not needs_preparation;
-  //     method_name = native_table_method_prefix(table_type) & "_aux_prepare";
-  //     args = (pending_updates_var_ref_name(var));
-  //     return (native_call(method_name, args));
-  //   }
-
-
-  //   String check_call(TableVar var, Table table, [+Nat] key) {
-  //     assert table.keys(key);
-
-  //     arity = arity(table);
-  //     method_name = if      table.symmetric                    then semisym_table_key_check_method_names(arity, key, !)
-  //                   else if arity == 2 and table.keys == [[0]] then "single_key_bin_table_aux_check_key_1"
-  //                                                              else table_key_check_method_names(arity, key, !);
-  //     aux_var = pending_updates_var_ref_name(var);
-  //     args = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2])));
-  //     return native_call_expr(method_name, args);
-  //   }
-
-  //   String check_call(TableVar var, MasterBinTable table, [+Nat] key) = undefined;
-
-  //   String check_call(TableVar var, SlaveTernTable table, [+Nat] key) {
-  //     method_name = slave_tern_table_key_check_method_names(key, !);
-  //     aux_var = pending_updates_var_ref_name(var);
-  //     args = (table.master, var, pending_updates_var_ref_name(table.master) if key == [0, 1], aux_var);
-  //     return native_call_expr(method_name, args);
-  //   }
-
-  //   String check_call(TableVar var, MandatoryColumn column, [+Nat] key) {
-  //     method_name = native_table_method_prefix(column) & "_aux_check_key_1";
-  //     aux_var = pending_updates_var_ref_name(var);
-  //     args = (column.master, var, aux_var, :mem_pool);
-  //     return native_call_expr(method_name, args);
-  //   }
-
-  //   String check_call(TableVar var, Column column, [+Nat] key) {
-  //     method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
-  //     aux_var = pending_updates_var_ref_name(var);
-  //     args = (var, aux_var, :mem_pool);
-  //     return native_call_expr(method_name, args);
-  //   }
-
-  //   String check_call(TableVar var, SlaveColumn column, [+Nat] key) {
-  //     method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
-  //     aux_var = pending_updates_var_ref_name(var);
-  //     args = (var, aux_var, :mem_pool);
-  //     return native_call_expr(method_name, args);
-  //   }
 
 
     BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
@@ -444,60 +380,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       }
 
       return check_expr;
-
-      // method_name = foreign_key_forward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
-      // args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
-      // return native_call_expr(method_name, args);
     }
 
 
     BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
-      fail;
-      // method_name = foreign_key_backward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
-      // needs_origin_ref = match (block.tables(key.target))
-      //   table() t?  = arity(t) != 1 ,
-      //   _           = true;
-      // args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
-      // return native_call_expr(method_name, args);
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
-
-
-  //   [NzNat, [+Nat], String] table_key_check_method_names = [
-  //     2,  [0],    "bin_table_aux_check_key_1";
-  //     2,  [1],    "bin_table_aux_check_key_2";
-  //     3,  [2],    "tern_table_aux_check_key_3";
-  //     3,  [0, 1], "tern_table_aux_check_key_12";
-  //     3,  [1, 2], "tern_table_aux_check_key_23";
-  //     3,  [0, 2], "tern_table_aux_check_key_13"
-  //   ];
-
-
-  //   [NzNat, [+Nat], String] semisym_table_key_check_method_names = [
-  //     3,  [2],    "semisym_tern_table_aux_check_key_3";
-  //     3,  [0, 1], "semisym_tern_table_aux_check_key_12"
-  //   ];
-
-
-  //   [[+Nat] -> String] slave_tern_table_key_check_method_names = [
-  //     [0, 1]  -> "slave_tern_table_aux_check_key_12",
-  //     [2]     -> "slave_tern_table_aux_check_key_3"
-  //   ];
-
-
-  //   Nat order((TableVar, NzNat, [+Nat]) key) {
-  //     _, arity, args = key;
-  //     return key_check_orders(arity, args, !);
-  //   }
-
-
-  //   [NzNat, [+Nat], Nat] key_check_orders = [
-  //     2,  [0],      0;
-  //     3,  [0, 1],   0;
-  //     2,  [1],      1;
-  //     3,  [1, 2],   1;
-  //     3,  [2],      2;
-  //     3,  [0, 2],   2
-  //   ];
 
 
     Nat order(BlockForeignKey key) =
