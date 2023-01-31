@@ -1,0 +1,147 @@
+type InstrId = <top_level(Nat), then(Nat), else(Nat), loop(Nat)>+;
+
+type TableAction = insertion, update, deletion;
+
+type EffectsInfo  = effects_info(
+                      tables:       [TableVar     -> [+InstrId -> TableAction]],
+                      value_stores: [ValueStoreId -> [+InstrId]],
+                      memb_vars:    [MembVar      -> [+InstrId]]
+                    );
+
+type InstrStatus = instr_status(optional: Bool, multiple: Bool);
+
+////////////////////////////////////////////////////////////////////////////////
+
+InstrStatus instr_status(InstrId instr_id) {
+  optional = false;
+  multiple = false;
+  for step <- reverse(instr_id)
+    optional, multiple = match (step)
+      top_level() = (optional, multiple),
+      then()      |
+      else()      = (true, multiple),
+      loop()      = (true, true);
+  return instr_status(optional: optional, multiple: multiple);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+EffectsInfo effects_info([TableVar -> [+InstrId -> TableAction]] ts, [ValueStoreId -> [+InstrId]] vs, [MembVar -> [+InstrId]] ms) =
+  effects_info(tables: ts, value_stores: vs, memb_vars: ms);
+
+
+EffectsInfo no_effects = effects_info([], [], []);
+
+EffectsInfo table_deletion(TableVar table_var, InstrId instr_id) =
+  effects_info([table_var -> [instr_id -> :deletion]], [], []);
+
+EffectsInfo table_insertion(TableVar table_var, InstrId instr_id) =
+  effects_info([table_var -> [instr_id -> :insertion]], [], []);
+
+EffectsInfo column_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
+  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
+
+EffectsInfo value_store_maybe_insertion(ValueStoreId value_store_id, InstrId instr_id) =
+  effects_info([], [value_store_id -> [instr_id]], []);
+
+EffectsInfo memb_var_assignment(MembVar memb_var, InstrId instr_id) =
+  effects_info([], [], [memb_var -> [instr_id]]);
+
+
+Bool is_null(EffectsInfo effects_info) =
+  effects_info.tables == [] and effects_info.value_stores == [] and effects_info.memb_vars == [];
+
+
+EffectsInfo merged_effects_info([EffectsInfo] effects_infos) {
+  table : [InstrId -> TableAction];
+
+  tables = [];
+  value_stores = [];
+  memb_vars = [];
+  for effects_info <- effects_infos {
+    for table_var instrs <- effects_info.tables {
+      table = lookup(tables, table_var, []);
+      for instr_id action <- instrs {
+        assert not table(instr_id, _);
+        table = _put_(table, instr_id, action);
+      }
+      tables = _put_(tables, table_var, nonempty_map(table));
+    }
+    for value_store_id instr_ids <- effects_info.value_stores {
+      value_store = lookup(value_stores, value_store_id, []);
+      value_store = value_store & instr_ids;
+      value_stores = _put_(value_stores, value_store_id, value_store);
+    }
+    for memb_var instr_ids <- effects_info.memb_vars {
+      memb_var_instr_ids = lookup(memb_vars, memb_var, []);
+      memb_var_instr_ids = memb_var_instr_ids & instr_ids;
+      memb_vars = _put_(memb_vars, memb_var, memb_var_instr_ids);
+    }
+  }
+  return effects_info(tables, value_stores, memb_vars);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+EffectsInfo instrs_effects_info(Instr* instrs) {
+  return instrs_effects_info(instrs, (:top_level($)));
+
+
+  EffectsInfo instrs_effects_info(Instr* instrs, (Nat -> InstrId) instr_id) {
+    effects_infos = [es : instr @ i <- instrs, es = instr_effects_info(instr, instr_id(i)), not is_null(es)];
+    return merged_effects_info(effects_infos);
+  }
+
+
+  EffectsInfo instr_effects_info(BasicInstr instr, InstrId instr_id) {
+    return match (instr)
+      queue_deletes()                 = table_deletion(instr.table_var, instr_id),
+      lookup_or_queue_insert_value()  = value_store_maybe_insertion(instr.store, instr_id),
+      queue_insert_tuple()            = table_insertion(instr.table_var, instr_id),
+      queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id),
+      column_insert_deferred()        = column_insertion(instr.table_var, instr_id, instr.forced),
+      _                               = no_effects;
+  }
+
+
+  EffectsInfo instr_effects_info(JumpInstr instr, InstrId instr_id) {
+    return no_effects; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  EffectsInfo instr_effects_info(CompInstr instr, InstrId instr_id) =
+    branch()            = branch_effect_info(instr.cond, instr.when_true, instr.when_false, instr_id),
+    switch_on_nat()     = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
+    symb_switch()       = symb_switch_effect_info(instr.value, instr.cases, instr.else, instr_id),
+    repeat(is?)         = repeat_effect_info(is, instr_id),
+    execute_block(is?)  = execute_block_effect_info(is, instr_id),
+    try_block()         = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
+    foreach()           = foreach_effect_info(instr.iter, instr.body, instr_id);
+
+
+  EffectsInfo branch_effect_info(BoolExpr cond, Instr+ then, Instr* else, InstrId instr_id) {
+    then_effects_info = instrs_effects_info(then, (instr_id | :then($)));
+    else_effects_info = instrs_effects_info(else, (instr_id | :else($)));
+    return merged_effects_info([then_effects_info, else_effects_info]);
+  }
+
+
+  EffectsInfo symb_switch_effect_info(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, InstrId instr_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  EffectsInfo repeat_effect_info(Instr+ instrs, InstrId instr_id) {
+    return instrs_effects_info(instrs, (instr_id | :loop($)));
+  }
+
+
+  EffectsInfo execute_block_effect_info(Instr+ instrs, InstrId instr_id) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  EffectsInfo foreach_effect_info(ForeachIter iter, Instr* body, InstrId instr_id) {
+    return instrs_effects_info(body, (instr_id | :loop($)));
+  }
+}

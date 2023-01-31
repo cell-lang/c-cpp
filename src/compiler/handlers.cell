@@ -3,9 +3,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ## BUG BUG BUG: REENABLE THIS
     // return nothing if table_vars_with_deletions(handler_id) != [];
 
-    effects_info = instrs_effects_info(body, []);
+    effects_info = instrs_effects_info(body);
 
-    return nothing if (v s <- effects_info : s != status(optional: false, multiple: false));
+    return nothing if not is_optimizable(effects_info);
 
     code, table_var_tmp_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
 
@@ -24,18 +24,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  (Instr*, [TableVar -> TempTableColVar+]) mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, [TableVar -> TableStatus] effects_info) {
+  (Instr*, [TableVar -> TempTableColVar+]) mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
     tables_types = prg_data.tables(block_name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
     table_var_tmp_vars_map = [];
-    for v s <- effects_info {
-      tmp_vars, unavailable_vars = temporary_vars(tables_types(v), unavailable_vars);
-      table_var_tmp_vars_map = _put_(table_var_tmp_vars_map, v, tmp_vars);
+    for table_var _ <- effects_info.tables {
+      // instr_id, action = only(instr);
+      tmp_vars, unavailable_vars = temporary_vars(tables_types(table_var), unavailable_vars);
+      table_var_tmp_vars_map = _put_(table_var_tmp_vars_map, table_var, tmp_vars);
     }
 
     rw_body = join((rewrite_table_operations(i, table_var_tmp_vars_map) : i <- body));
-
     return (rw_body, table_var_tmp_vars_map);
 
 
@@ -119,132 +119,6 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-[TableVar -> TableStatus] instrs_effects_info(Instr* instrs, [TableVar -> TableStatus] init_status) {
-  status = init_status;
-  for i <- instrs
-    status = instr_effects_info(i, status);
-  return status;
-}
-
-
-
-[TableVar -> TableStatus] instr_effects_info(BasicInstr instr, [TableVar -> TableStatus] status) {
-  return match (instr)
-    queue_deletes()                = undefined,
-    lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
-    queue_insert_tuple()           = record_insertion(status, instr.table_var, false),
-    queue_insert_master_tuple()    = record_insertion(status, instr.table_var, false),
-    column_insert_deferred()       = if not instr.forced then record_insertion(status, instr.table_var, instr.forced) else undefined,
-    _                              = status;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-type TableStatus = status(optional: Bool, multiple: Bool);
-
-
-[TableVar -> TableStatus] record_insertion([TableVar -> TableStatus] statuses, TableVar table_var, Bool forced) {
-  if statuses(table_var, _) {
-    curr_status = statuses(table_var);
-    new_status = status(optional: false, multiple: true);
-  }
-  else
-    new_status = status(optional: false, multiple: false);
-
-  return _put_(statuses, table_var, new_status);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-[TableVar -> TableStatus] instr_effects_info(JumpInstr instr, [TableVar -> TableStatus] status) {
-  return status; ## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-
-[TableVar -> TableStatus] instr_effects_info(CompInstr instr, [TableVar -> TableStatus] status) {
-  return match (instr)
-    branch()            = branch_effect_info(instr.cond, instr.when_true, instr.when_false, status),
-    switch_on_nat()     = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
-    symb_switch()       = symb_switch_effect_info(instr.value, instr.cases, instr.else, status),
-    repeat(is?)         = repeat_effect_info(is, status),
-    execute_block(is?)  = execute_block_effect_info(is, status),
-    try_block()         = undefined, ## THIS ONE IS ONLY USED FOR REACTIVE AUTOMATA
-    foreach()           = foreach_effect_info(instr.iter, instr.body, status);
-
-
-  [TableVar -> TableStatus] branch_effect_info(BoolExpr cond, Instr+ then, Instr* else, [TableVar -> TableStatus] init_effects_info) {
-    then_effects_info = instrs_effects_info(then, init_effects_info);
-    else_effects_info = instrs_effects_info(then, init_effects_info);
-    table_vars = keys(then_effects_info) & keys(else_effects_info);
-
-    merged_effects_info = [];
-    for v <- table_vars {
-      if then_effects_info(v, _) {
-        then_status = then_effects_info(v);
-        if else_effects_info(v, _) {
-          else_status = else_effects_info(v);
-          optional = then_status.optional or else_status.optional;
-          multiple = then_status.multiple or else_status.multiple;
-          merged_status = status(optional: optional, multiple: multiple);
-        }
-        else
-          merged_status = status(optional: true, multiple: then_status.multiple);
-      }
-      else {
-        else_status = else_effects_info(v);
-        merged_status = status(optional: true, multiple: else_status.multiple);
-      }
-
-      merged_effects_info = _put_(merged_effects_info, v, merged_status);
-    }
-
-    return merged_effects_info;
-  }
-
-
-  [TableVar -> TableStatus] symb_switch_effect_info(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, [TableVar -> TableStatus] init_effects_info) {
-    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-  }
-
-
-  [TableVar -> TableStatus] repeat_effect_info(Instr+ instrs, [TableVar -> TableStatus] init_effects_info) {
-    loop_body_effects_info = instrs_effects_info(instrs, []);
-    table_vars = keys(init_effects_info) & keys(loop_body_effects_info);
-
-    merged_effects_info = [];
-    for v <- table_vars {
-      if init_effects_info(v, _) {
-        init_status = init_effects_info(v);
-        if loop_body_effects_info(v, _) {
-          loop_body_status = loop_body_effects_info(v);
-          merged_status = status(optional: init_status.optional, multiple: true);
-        }
-        else
-          merged_status = init_status;
-      }
-      else {
-        loop_body_status = loop_body_effects_info(v);
-        merged_status = status(optional: true, multiple: true);
-      }
-
-      merged_effects_info = _put_(merged_effects_info, v, merged_status);
-    }
-
-    return merged_effects_info;
-  }
-
-
-  [TableVar -> TableStatus] execute_block_effect_info(Instr+ instrs, [TableVar -> TableStatus] init_effects_info) {
-    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-  }
-
-
-  [TableVar -> TableStatus] foreach_effect_info(ForeachIter iter, Instr* body, [TableVar -> TableStatus] init_effects_info) {
-    fail if body == ();
-    return repeat_effect_info(body, init_effects_info);
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -467,4 +341,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return (column_insert_immediate(table_var, is_mandatory(column), column.repr, key_var, value_var));
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+Bool is_optimizable(EffectsInfo effects_info) {
+  for v is <- effects_info.tables {
+    return false if |is| != 1;
+    i, a = only([(i, a) : i a <- is]);
+    return false if a != :insertion and a != :update;
+    status = instr_status(i);
+    return false if status.optional or status.multiple;
+  }
+  return true;
 }
