@@ -7,16 +7,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     return nothing if not is_optimizable(effects_info);
 
-    code, table_var_tmp_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
+    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
     insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
     deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
 
-    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_tmp_vars_map);
+    memb_var_status_vars = [sv : _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
+    code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
-    code = code & updates_apply_code(block, insertion_value_stores, table_var_tmp_vars_map);
+    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_aux_vars_map);
+    code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map);
 
     code = (code | ret_val(true));
 
@@ -24,33 +26,42 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  (Instr*, [TableVar -> TempTableColVar+]) mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
+  (Instr*, [TableVar -> TempTableColVar+], [MembVar -> (LocVar, Maybe[LocBoolVar])])
+  mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
     tables_types = prg_data.tables(block_name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
-    table_var_tmp_vars_map = [];
+    table_var_aux_vars_map = [];
     for table_var _ <- effects_info.tables {
       // instr_id, action = only(instr);
-      tmp_vars, unavailable_vars = temporary_vars(tables_types(table_var), unavailable_vars);
-      table_var_tmp_vars_map = _put_(table_var_tmp_vars_map, table_var, tmp_vars);
+      aux_vars, unavailable_vars = table_aux_vars(tables_types(table_var), unavailable_vars);
+      table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, aux_vars);
     }
 
-    rw_body = join((rewrite_table_operations(i, table_var_tmp_vars_map) : i <- body));
-    return (rw_body, table_var_tmp_vars_map);
+    memb_var_aux_vars_map = [];
+    for memb_var instr_ids <- effects_info.memb_vars {
+      always_set_once = memb_var_is_always_set_once(instr_ids);
+      aux_vars, unavailable_vars = memb_var_aux_vars(always_set_once, unavailable_vars);
+      memb_var_aux_vars_map = _put_(memb_var_aux_vars_map, memb_var, aux_vars);
+    }
+
+    rw_body = join((rewrite_handler_code(i, table_var_aux_vars_map, memb_var_aux_vars_map) : i <- body));
+    return (rw_body, table_var_aux_vars_map, memb_var_aux_vars_map);
 
 
-    (LocInt32Var+, [TempTableColVar]) temporary_vars(Table table_type, [TempTableColVar] unavailable_vars) =
-      any_available_loc_int32_vars(arity(table_type), unavailable_vars);
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(Table table_type, [TempTableColVar] unavailable_vars) =
+      reserve_any_available_loc_int32_vars(arity(table_type), unavailable_vars);
 
 
-    (LocInt32Var+, [TempTableColVar]) temporary_vars(MasterBinTable table_type, [TempTableColVar] unavailable_vars) =
-      any_available_loc_int32_vars(3, unavailable_vars);
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(MasterBinTable table_type, [TempTableColVar] unavailable_vars) =
+      reserve_any_available_loc_int32_vars(3, unavailable_vars);
 
 
-    (LocInt32Var+, [TempTableColVar]) temporary_vars(SlaveTernTable table_type, [TempTableColVar] unavailable_vars) =
-      any_available_loc_int32_vars(2, unavailable_vars);
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, [TempTableColVar] unavailable_vars) =
+      reserve_any_available_loc_int32_vars(2, unavailable_vars);
 
-    ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) temporary_vars(AnyColumn col_type, [TempTableColVar] init_unavailable_vars) {
+
+    ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) table_aux_vars(AnyColumn col_type, [TempTableColVar] init_unavailable_vars) {
       unavailable_vars = init_unavailable_vars;
       key_var = any_available_loc_int32_var(unavailable_vars);
       unavailable_vars = _insert_(unavailable_vars, key_var);
@@ -61,6 +72,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       unavailable_vars = _insert_(unavailable_vars, value_var);
       return ((key_var, value_var), unavailable_vars);
     }
+
+
+    ((LocVar, Maybe[LocBoolVar]), [TempTableColVar]) memb_var_aux_vars(Bool always_set_once, [TempTableColVar] init_unavailable_vars) {
+      value_var = any_available_loc_var(init_unavailable_vars);
+      unavailable_vars = _insert_(init_unavailable_vars, value_var);
+      if not always_set_once {
+        status_var = any_available_loc_bool_var(unavailable_vars);
+        unavailable_vars = _insert_(unavailable_vars, value_var);
+        maybe_status_var = just(status_var);
+      }
+      else
+        maybe_status_var = nothing;
+      return ((value_var, maybe_status_var), unavailable_vars);
+    }
   }
 }
 
@@ -70,45 +95,66 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 Int32Var+ cast_int32_var_seq(TempTableColVar+ vars) = if vars :: Int32Var+ then vars else undefined;
 
 
-Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
   return match (instr)
     // queue_deletes()                = undefined,
     // lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
-    queue_insert_tuple()           = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, table_var_tmp_vars_map),
-    queue_insert_master_tuple()    = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_tmp_vars_map),
-    column_insert_deferred()       = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced, table_var_tmp_vars_map),
-    _                              = rewrite_nested_one_to_many(instr, rewrite_table_operations($, table_var_tmp_vars_map), $);
+    queue_insert_tuple()            = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, table_var_aux_vars_map),
+    queue_insert_master_tuple()     = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_aux_vars_map),
+    column_insert_deferred()        = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced, table_var_aux_vars_map),
+    set_var()                       = if instr.var :: PendingStateVar
+                                        then rewrite_set_memb_var(instr.var, instr.value, memb_var_aux_vars_map(corresponding_memb_var(instr.var)))
+                                        else (instr),
+    branch()                        = if instr.cond :: <neg(is_blank(PendingStateVar))>
+                                        then instr.when_false
+                                        else rewrite_nested_one_to_many(instr, rewrite_handler_code($, table_var_aux_vars_map, memb_var_aux_vars_map), $),
+    _                               = rewrite_nested_one_to_many(instr, rewrite_handler_code($, table_var_aux_vars_map, memb_var_aux_vars_map), $);
 
 
-  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
-    assert |table_var_tmp_vars_map(table_var)| == |tuple|;
-    tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
-    return (set_ivar32(tmp_vars(i), v) : v @ i <- tuple);
-  }
-
-  Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
-    tmp_vars = cast_int32_var_seq(table_var_tmp_vars_map(table_var));
-    assert |tmp_vars| == 3;
+  Instr* rewrite_set_memb_var(PendingStateVar var, ObjExpr value_expr, (LocVar, Maybe[LocBoolVar]) aux_vars) {
+    aux_var, maybe_status_var = aux_vars;
+    set_var_instr = set_var(aux_var, value_expr);
+    if maybe_status_var == nothing
+      return (set_var_instr);
+    status_var = value(maybe_status_var);
     return (
-      set_ivar32(assoc_surr_var, get_assoc_surr(table_var, table, tuple)),
-      branch(
-        are_eq(assoc_surr_var, -1),
-        ( set_ivar32(tmp_vars(0), tuple(0)),
-          set_ivar32(tmp_vars(1), tuple(1)),
-          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var))
-        ),
-        (set_ivar32(tmp_vars(0), -1))
-      ),
-      set_ivar32(tmp_vars(2), assoc_surr_var)
+      do_if(is_true(status_var), ret_val(false)), ## TODO: ADD ERROR MESSAGE
+      set_bvar(status_var, true),
+      set_var_instr
     );
   }
 
 
-//  column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
-  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
-    tmp_vars = table_var_tmp_vars_map(table_var);
-    fail if not tmp_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
-    tmp_key_var, tmp_value_var = tmp_vars;
+  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+    assert |table_var_aux_vars_map(table_var)| == |tuple|;
+    aux_vars = cast_int32_var_seq(table_var_aux_vars_map(table_var));
+    return (set_ivar32(aux_vars(i), v) : v @ i <- tuple);
+  }
+
+
+  Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+    aux_vars = cast_int32_var_seq(table_var_aux_vars_map(table_var));
+    assert |aux_vars| == 3;
+    return (
+      set_ivar32(assoc_surr_var, get_assoc_surr(table_var, table, tuple)),
+      branch(
+        are_eq(assoc_surr_var, -1),
+        ( set_ivar32(aux_vars(0), tuple(0)),
+          set_ivar32(aux_vars(1), tuple(1)),
+          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var))
+        ),
+        (set_ivar32(aux_vars(0), -1))
+      ),
+      set_ivar32(aux_vars(2), assoc_surr_var)
+    );
+  }
+
+
+  // column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
+  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+    aux_vars = table_var_aux_vars_map(table_var);
+    fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
+    tmp_key_var, tmp_value_var = aux_vars;
     return (
       set_ivar32(tmp_key_var, key_surr),
       set_any_var(tmp_value_var, obj_expr(value))
@@ -125,7 +171,7 @@ Instr* rewrite_table_operations(Instr instr, [TableVar -> TempTableColVar+] tabl
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
     mutated_tables = insertion_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
@@ -139,7 +185,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     cols_subset_map = block.cols_subset_map;
 
     key_check_exprs = [];
-    for v vs <- table_var_tmp_vars_map {
+    for v vs <- table_var_aux_vars_map {
       table = tables(v);
       table_arity = arity(table);
 
@@ -188,12 +234,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       check_code = (check_code | do_if_not(e, ret_val(false)));
 
     for k <- insert_checked_foreign_keys {
-      check_expr = foreign_key_forward_check_expr(k, block, table_var_tmp_vars_map);
+      check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
       check_code = (check_code | do_if_not(check_expr, ret_val(false)));
     }
 
     for k <- delete_checked_foreign_keys {
-      check_expr = foreign_key_backward_check_expr(k, block, table_var_tmp_vars_map);
+      check_expr = foreign_key_backward_check_expr(k, block, table_var_aux_vars_map);
       check_code = (check_code | do_if_not(check_expr, ret_val(false)));
     }
 
@@ -202,12 +248,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return check_code;
 
 
-    BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
       origin = key.origin;
       target = key.target;
 
       target_type = block.tables(target);
-      origin_vars = table_var_tmp_vars_map(origin);
+      origin_vars = table_var_aux_vars_map(origin);
 
       args_set = match (key.type)
         unary_unary             = ((just(cast_int32_var(origin_vars(0))))),
@@ -228,8 +274,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       check_expr = and((table_contains(target, target_type, as) : as <- args_set));
 
-      if table_var_tmp_vars_map(target, _) {
-        target_vars = table_var_tmp_vars_map(target);
+      if table_var_aux_vars_map(target, _) {
+        target_vars = table_var_aux_vars_map(target);
 
         extra_check = match (key.type)
           unary_unary             = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(0))),
@@ -257,7 +303,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+    BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
@@ -290,9 +336,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> TempTableColVar+] table_var_tmp_vars_map) {
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> TempTableColVar+] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
     ord_value_stores = isort(insertion_value_stores);
-    ord_table_vars = sort_set(keys(table_var_tmp_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
+    ord_table_vars = sort_set(keys(table_var_aux_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
+    ord_memb_vars = isort(keys(memb_var_aux_vars_map));
 
     code = ();
     for vs <- ord_value_stores {
@@ -300,14 +347,23 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = (code | instr);
     }
     for v <- ord_table_vars {
-      instrs = immediate_insert_instrs(block, v, block.tables(v), table_var_tmp_vars_map(v));
+      instrs = immediate_insert_instrs(block, v, block.tables(v), table_var_aux_vars_map(v));
       code = code & instrs;
+    }
+    for v <- ord_memb_vars {
+      aux_var, maybe_status_var = memb_var_aux_vars_map(v);
+      instr = set_var(v, aux_var);
+      if maybe_status_var != nothing {
+        status_var = value(maybe_status_var);
+        instr = do_if(status_var, (instr));
+      }
+      code = (code | instr);
     }
     return code;
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ tmp_vars) {
-      main_resize_instr = immediate_insert_tuple(table_var, table, cast_int32_var_seq(tmp_vars));
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars) {
+      main_resize_instr = immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars));
 
       if arity(table) == 1 {
         masters_raw_columns = prg_data.masters_raw_columns(block.name);
@@ -330,14 +386,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ tmp_vars) =
-      (immediate_insert_tuple(table_var, table, cast_int32_var_seq(tmp_vars)));
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars) =
+      (immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars)));
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ tmp_vars) {
-      assert |tmp_vars| == 2;
-      key_var = cast_int32_var(tmp_vars(0));
-      value_var = tmp_vars(1);
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ aux_vars) {
+      assert |aux_vars| == 2;
+      key_var = cast_int32_var(aux_vars(0));
+      value_var = aux_vars(1);
       return (column_insert_immediate(table_var, is_mandatory(column), column.repr, key_var, value_var));
     }
   }
@@ -355,4 +411,17 @@ Bool is_optimizable(EffectsInfo effects_info) {
     return false if status.optional or status.multiple;
   }
   return true;
+}
+
+
+## THIS IS NOT A GOOD WAY TO DO IT. IT SHOULD BE DECIDED WHILE FIGURING OUT THE EFFECTS, BECAUSE BY DOING SO
+## WE COULD FOR EXAMPLE DEAL WITH THE CASE OF A MEMBER VARIABLES THAT IS SET IN BOTH BRANCHES OF AN IF STATEMENT
+Bool memb_var_is_always_set_once([+InstrId] instr_ids) {
+  if |instr_ids| == 1 {
+    instr_id = only(instr_ids);
+    status = instr_status(instr_id);
+    if not status.optional and not status.multiple
+      return true;
+  }
+  return false;
 }

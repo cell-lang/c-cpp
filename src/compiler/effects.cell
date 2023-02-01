@@ -100,6 +100,9 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
       queue_insert_tuple()            = table_insertion(instr.table_var, instr_id),
       queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id),
       column_insert_deferred()        = column_insertion(instr.table_var, instr_id, instr.forced),
+      set_var()                       = if instr.var :: PendingStateVar
+                                          then memb_var_assignment(corresponding_memb_var(instr.var), instr_id)
+                                          else no_effects,
       _                               = no_effects;
   }
 

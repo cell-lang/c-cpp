@@ -84,7 +84,7 @@ type VarTypesNotToDeclare = FnArg,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type TempTableColVar = LocVar, LocIntVar, LocFloatVar, Int32Var;
+type TempTableColVar = LocVar, LocIntVar, LocFloatVar, LocBoolVar, Int32Var;
 
 [TempTableColVar] temp_table_col_vars_in_use(Instr* instrs) {
   vars = select(instrs, $ :: TempTableColVar);
@@ -120,7 +120,14 @@ LocInt32Var any_available_loc_int32_var([TempTableColVar] unavailable_vars) {
   return ivar32(bare_id);
 }
 
-(LocInt32Var+, [TempTableColVar]) any_available_loc_int32_vars(NzNat count, [TempTableColVar] init_unavailable_vars) {
+LocBoolVar any_available_loc_bool_var([TempTableColVar] unavailable_vars) {
+  bare_id = 0;
+  while unavailable_vars(bvar(bare_id))
+    bare_id = nat(bare_id + 1);
+  return bvar(bare_id);
+}
+
+(LocInt32Var+, [TempTableColVar]) reserve_any_available_loc_int32_vars(NzNat count, [TempTableColVar] init_unavailable_vars) {
   unavailable_vars = init_unavailable_vars;
   vars = ();
   for i < count {
