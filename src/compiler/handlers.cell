@@ -1,8 +1,5 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
   Maybe[Instr*] native_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
-    ## BUG BUG BUG: REENABLE THIS
-    // return nothing if table_vars_with_deletions(handler_id) != [];
-
     effects_info = instrs_effects_info(body);
 
     return nothing if not is_optimizable(effects_info);
@@ -14,7 +11,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
     deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
 
-    memb_var_status_vars = [sv : _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
+    memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
     code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_aux_vars_map);
@@ -26,23 +23,24 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  (Instr*, [TableVar -> TempTableColVar+], [MembVar -> (LocVar, Maybe[LocBoolVar])])
+  (Instr*, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
   mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
     tables_types = prg_data.tables(block_name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
     table_var_aux_vars_map = [];
-    for table_var _ <- effects_info.tables {
-      // instr_id, action = only(instr);
+    for table_var table_effects_info <- effects_info.tables {
+      instr_id, action = only_pair(table_effects_info);
       aux_vars, unavailable_vars = table_aux_vars(tables_types(table_var), unavailable_vars);
-      table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, aux_vars);
+      maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not instr_is_always_exec_once(instr_id), unavailable_vars);
+      table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, (aux_vars, maybe_status_var));
     }
 
     memb_var_aux_vars_map = [];
     for memb_var instr_ids <- effects_info.memb_vars {
-      always_set_once = memb_var_is_always_set_once(instr_ids);
-      aux_vars, unavailable_vars = memb_var_aux_vars(always_set_once, unavailable_vars);
-      memb_var_aux_vars_map = _put_(memb_var_aux_vars_map, memb_var, aux_vars);
+      aux_vars, unavailable_vars = reserve_any_available_loc_var(unavailable_vars);
+      maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not memb_var_is_always_set_once(instr_ids), unavailable_vars);
+      memb_var_aux_vars_map = _put_(memb_var_aux_vars_map, memb_var, (aux_vars, maybe_status_var));
     }
 
     rw_body = join((rewrite_handler_code(i, table_var_aux_vars_map, memb_var_aux_vars_map) : i <- body));
@@ -72,20 +70,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       unavailable_vars = _insert_(unavailable_vars, value_var);
       return ((key_var, value_var), unavailable_vars);
     }
-
-
-    ((LocVar, Maybe[LocBoolVar]), [TempTableColVar]) memb_var_aux_vars(Bool always_set_once, [TempTableColVar] init_unavailable_vars) {
-      value_var = any_available_loc_var(init_unavailable_vars);
-      unavailable_vars = _insert_(init_unavailable_vars, value_var);
-      if not always_set_once {
-        status_var = any_available_loc_bool_var(unavailable_vars);
-        unavailable_vars = _insert_(unavailable_vars, value_var);
-        maybe_status_var = just(status_var);
-      }
-      else
-        maybe_status_var = nothing;
-      return ((value_var, maybe_status_var), unavailable_vars);
-    }
   }
 }
 
@@ -95,7 +79,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 Int32Var+ cast_int32_var_seq(TempTableColVar+ vars) = if vars :: Int32Var+ then vars else undefined;
 
 
-Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
   return match (instr)
     // queue_deletes()                = undefined,
     // lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
@@ -125,15 +109,23 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_va
   }
 
 
-  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
-    assert |table_var_aux_vars_map(table_var)| == |tuple|;
-    aux_vars = cast_int32_var_seq(table_var_aux_vars_map(table_var));
-    return (set_ivar32(aux_vars(i), v) : v @ i <- tuple);
+  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+    aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+    assert |aux_vars| == |tuple|;
+    aux_vars = cast_int32_var_seq(aux_vars);
+    ## MAYBE WE COULD CHECK TO SEE IF THE TABLE ALREADY CONTAINS THE TUPLE WE'RE INSERTING
+    code = (set_ivar32(aux_vars(i), v) : v @ i <- tuple);
+    if maybe_status_var != nothing {
+      status_var = value(maybe_status_var);
+      code = (code | set_bvar(status_var, true));
+    }
+    return code;
   }
 
 
-  Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
-    aux_vars = cast_int32_var_seq(table_var_aux_vars_map(table_var));
+  Instr* rewrite_queue_insert_master_tuple(Int32Var assoc_surr_var, TableVar table_var, MasterBinTable table, (Int32Var, Int32Var) tuple, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+    aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+    aux_vars = cast_int32_var_seq(aux_vars);
     assert |aux_vars| == 3;
     return (
       set_ivar32(assoc_surr_var, get_assoc_surr(table_var, table, tuple)),
@@ -141,7 +133,9 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_va
         are_eq(assoc_surr_var, -1),
         ( set_ivar32(aux_vars(0), tuple(0)),
           set_ivar32(aux_vars(1), tuple(1)),
-          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var))
+          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var)),
+          ## BAD BAD BAD: THIS IS NOT REALLY NECESSARY, THERE'S ENOUGH INFORMATION ALREADY TO DETERMINE IF THE INSERTION TOOK PLACE
+          set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
         ),
         (set_ivar32(aux_vars(0), -1))
       ),
@@ -151,13 +145,14 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_va
 
 
   // column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
-  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
-    aux_vars = table_var_aux_vars_map(table_var);
+  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value_expr, Bool forced, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+    aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
     fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
     tmp_key_var, tmp_value_var = aux_vars;
     return (
       set_ivar32(tmp_key_var, key_surr),
-      set_any_var(tmp_value_var, obj_expr(value))
+      set_any_var(tmp_value_var, obj_expr(value_expr)),
+      set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
     );
   }
 }
@@ -171,7 +166,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> TempTableColVar+] table_va
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
     mutated_tables = insertion_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
@@ -186,6 +181,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     key_check_exprs = [];
     for v vs <- table_var_aux_vars_map {
+      aux_vars, maybe_status_var = vs;
+
       table = tables(v);
       table_arity = arity(table);
 
@@ -206,7 +203,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
               }
             }
 
-            tmp_key_var = cast_int32_var(vs(idx));
+            tmp_key_var = cast_int32_var(aux_vars(idx));
 
             if col_equivs != [] {
               col_equiv = any(col_equivs);
@@ -214,6 +211,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
             }
             else
               key_check_expr = table_contains(v, table, (if i == idx then just(tmp_key_var) else nothing : i < 2));
+
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              key_check_expr = and_then(status_var, key_check_expr);
+            }
 
             key_check_exprs = _insert_(key_check_exprs, key_check_expr);
           }
@@ -231,16 +233,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     check_code = ();
 
     for e <- key_check_exprs
-      check_code = (check_code | do_if_not(e, ret_val(false)));
+      check_code = (check_code | do_if(e, ret_val(false)));
 
     for k <- insert_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
-      check_code = (check_code | do_if_not(check_expr, ret_val(false)));
+      check_code = (check_code | do_if(check_expr, ret_val(false)));
     }
 
     for k <- delete_checked_foreign_keys {
       check_expr = foreign_key_backward_check_expr(k, block, table_var_aux_vars_map);
-      check_code = (check_code | do_if_not(check_expr, ret_val(false)));
+      check_code = (check_code | do_if(check_expr, ret_val(false)));
     }
 
     check_code = () if skip_integrity_checks;
@@ -248,62 +250,75 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return check_code;
 
 
-    BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+    BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
       origin = key.origin;
       target = key.target;
 
       target_type = block.tables(target);
-      origin_vars = table_var_aux_vars_map(origin);
+      origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
 
       args_set = match (key.type)
-        unary_unary             = ((just(cast_int32_var(origin_vars(0))))),
-        unary_binary(i?)        = ((if j == i then just(cast_int32_var(origin_vars(0))) else nothing : j < 2)),
-        unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_vars(0))) else nothing : j < 3)),
+        unary_unary             = ((just(cast_int32_var(origin_aux_vars(0))))),
+        unary_binary(i?)        = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 2)),
+        unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 3)),
         binary_unary(i?)        |
-        ternary_unary(i?)       = ((just(cast_int32_var(origin_vars(i))))),
-        binary_ternary          = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))), nothing)),
-        ternary_binary          = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))))),
-        unary_sym_binary        = ((just(cast_int32_var(origin_vars(0))), nothing)),
-        unary_sym_ternary_12    = ((just(cast_int32_var(origin_vars(0))), nothing, nothing)),
-        unary_sym_ternary_3     = ((nothing, nothing, just(cast_int32_var(origin_vars(0))))),
+        ternary_unary(i?)       = ((just(cast_int32_var(origin_aux_vars(i))))),
+        binary_ternary          = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1))), nothing)),
+        ternary_binary          = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1))))),
+        unary_sym_binary        = ((just(cast_int32_var(origin_aux_vars(0))), nothing)),
+        unary_sym_ternary_12    = ((just(cast_int32_var(origin_aux_vars(0))), nothing, nothing)),
+        unary_sym_ternary_3     = ((nothing, nothing, just(cast_int32_var(origin_aux_vars(0))))),
         sym_binary_unary        |
-        sym_ternary_unary_12    = ((just(cast_int32_var(origin_vars(j)))) : j < 2),
-        sym_ternary_unary_3     = ((just(cast_int32_var(origin_vars(2))))),
-        sym_binary_sym_ternary  = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1))), nothing)),
-        sym_ternary_sym_binary  = ((just(cast_int32_var(origin_vars(0))), just(cast_int32_var(origin_vars(1)))));
+        sym_ternary_unary_12    = ((just(cast_int32_var(origin_aux_vars(j)))) : j < 2),
+        sym_ternary_unary_3     = ((just(cast_int32_var(origin_aux_vars(2))))),
+        ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
+        ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
+        sym_binary_sym_ternary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1))), nothing)),
+        sym_ternary_sym_binary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1)))));
 
-      check_expr = and((table_contains(target, target_type, as) : as <- args_set));
+      check_expr = neg(and((table_contains(target, target_type, as) : as <- args_set)));
 
       if table_var_aux_vars_map(target, _) {
-        target_vars = table_var_aux_vars_map(target);
+        target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
 
-        extra_check = match (key.type)
-          unary_unary             = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(0))),
+        neg_extra_check = match (key.type)
+          unary_unary             = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(0))),
           unary_binary(i?)        |
-          unary_ternary(i?)       = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(i))),
+          unary_ternary(i?)       = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(i))),
           binary_unary(i?)        |
-          ternary_unary(i?)       = are_eq(cast_int32_var(origin_vars(i)), cast_int32_var(target_vars(0))),
+          ternary_unary(i?)       = are_eq(cast_int32_var(origin_aux_vars(i)), cast_int32_var(target_aux_vars(0))),
           binary_ternary          |
-          ternary_binary          = and((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(j))) : j < 2)),
+          ternary_binary          = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2)),
           unary_sym_binary        |
-          unary_sym_ternary_12    = or((are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(j))) : j < 2)),
-          unary_sym_ternary_3     = are_eq(cast_int32_var(origin_vars(0)), cast_int32_var(target_vars(2))),
+          unary_sym_ternary_12    = or((are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(j))) : j < 2)),
+          unary_sym_ternary_3     = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(2))),
           sym_binary_unary        |
-          sym_ternary_unary_12    = or((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(0))) : j < 2)),
-          sym_ternary_unary_3     = are_eq(cast_int32_var(origin_vars(2)), cast_int32_var(target_vars(0))),
+          sym_ternary_unary_12    = or((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(0))) : j < 2)),
+          sym_ternary_unary_3     = are_eq(cast_int32_var(origin_aux_vars(2)), cast_int32_var(target_aux_vars(0))),
           sym_binary_sym_ternary  |
           ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
           ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
-          sym_ternary_sym_binary  = and((are_eq(cast_int32_var(origin_vars(j)), cast_int32_var(target_vars(j))) : j < 2));
+          sym_ternary_sym_binary  = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2));
+        extra_check = neg(neg_extra_check);
 
-        check_expr = or(check_expr, extra_check);
+        if maybe_target_status_var != nothing {
+          target_status_var = value(maybe_target_status_var);
+          extra_check = or_else(neg(target_status_var), extra_check);
+        }
+
+        check_expr = and(check_expr, extra_check);
+      }
+
+      if maybe_origin_status_var != nothing {
+        origin_status_var = value(maybe_origin_status_var);
+        check_expr = and_then(origin_status_var, check_expr);
       }
 
       return check_expr;
     }
 
 
-    BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> TempTableColVar+] table_var_aux_vars_map) {
+    BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
       fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
@@ -336,7 +351,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> TempTableColVar+] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
     ord_value_stores = isort(insertion_value_stores);
     ord_table_vars = sort_set(keys(table_var_aux_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
@@ -347,7 +362,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = (code | instr);
     }
     for v <- ord_table_vars {
-      instrs = immediate_insert_instrs(block, v, block.tables(v), table_var_aux_vars_map(v));
+      aux_vars, maybe_status_var = table_var_aux_vars_map(v);
+      instrs = immediate_insert_instrs(block, v, block.tables(v), aux_vars);
+      if maybe_status_var != nothing {
+        status_var = value(maybe_status_var);
+        instrs = (do_if(status_var, instrs));
+      }
       code = code & instrs;
     }
     for v <- ord_memb_vars {
@@ -408,7 +428,7 @@ Bool is_optimizable(EffectsInfo effects_info) {
     i, a = only([(i, a) : i a <- is]);
     return false if a != :insertion and a != :update;
     status = instr_status(i);
-    return false if status.optional or status.multiple;
+    return false if status.multiple;
   }
   return true;
 }
@@ -416,12 +436,10 @@ Bool is_optimizable(EffectsInfo effects_info) {
 
 ## THIS IS NOT A GOOD WAY TO DO IT. IT SHOULD BE DECIDED WHILE FIGURING OUT THE EFFECTS, BECAUSE BY DOING SO
 ## WE COULD FOR EXAMPLE DEAL WITH THE CASE OF A MEMBER VARIABLES THAT IS SET IN BOTH BRANCHES OF AN IF STATEMENT
-Bool memb_var_is_always_set_once([+InstrId] instr_ids) {
-  if |instr_ids| == 1 {
-    instr_id = only(instr_ids);
-    status = instr_status(instr_id);
-    if not status.optional and not status.multiple
-      return true;
-  }
-  return false;
+
+Bool instr_is_always_exec_once(InstrId instr_id) {
+  status = instr_status(instr_id);
+  return not status.optional and not status.multiple;
 }
+
+Bool memb_var_is_always_set_once([+InstrId] instr_ids) = |instr_ids| == 1 and instr_is_always_exec_once(only(instr_ids));

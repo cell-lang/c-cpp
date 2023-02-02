@@ -127,6 +127,20 @@ LocBoolVar any_available_loc_bool_var([TempTableColVar] unavailable_vars) {
   return bvar(bare_id);
 }
 
+(LocVar, [TempTableColVar]) reserve_any_available_loc_var([TempTableColVar] unavailable_vars) {
+  var = any_available_loc_var(unavailable_vars);
+  return (var, _insert_(unavailable_vars, var));
+}
+
+(Maybe[LocBoolVar], [TempTableColVar]) reserve_maybe_loc_bool_var(Bool needed, [TempTableColVar] unavailable_vars) {
+  if needed {
+    var = any_available_loc_bool_var(unavailable_vars);
+    return (just(var), _insert_(unavailable_vars, var));
+  }
+  else
+    return (nothing, unavailable_vars);
+}
+
 (LocInt32Var+, [TempTableColVar]) reserve_any_available_loc_int32_vars(NzNat count, [TempTableColVar] init_unavailable_vars) {
   unavailable_vars = init_unavailable_vars;
   vars = ();

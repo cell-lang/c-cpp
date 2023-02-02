@@ -222,6 +222,8 @@ implicit context : NativeContext {
 
     int_obj(upcast_int32(e?)), int_obj(<*..*> n?) = native_nary_op(" == ", (e, n), parenthesized),
 
+    int_obj(upcast_int32(e1?)), int_obj(upcast_int32(e2?)) = native_nary_op(" == ", (e1, e2), parenthesized),
+
     int_obj(e1?),       int_obj(e2?)      = native_nary_op(" == ", (e1, e2), parenthesized),
     int_obj(e1?),       column_lookup()   = if expr2.column.repr == :int
                                               then native_column_lookup_eq(expr2.var, expr2.column, expr2.key, expr2.safe, e1)
@@ -268,6 +270,8 @@ implicit context : NativeContext {
     object(false),      bool_obj(e2?)     = native_expr(e2, parenthesized),
 
     int_obj(upcast_int32(e?)), int_obj(<*..*> n?) = native_nary_op(" != ", (e, n), parenthesized),
+
+    int_obj(upcast_int32(e1?)), int_obj(upcast_int32(e2?)) = native_nary_op(" != ", (e1, e2), parenthesized),
 
     int_obj(e1?),       int_obj(e2?)      = native_nary_op(" != ", (e1, e2), parenthesized),
 
