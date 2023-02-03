@@ -14,8 +14,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
-    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_aux_vars_map);
-    code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map);
+    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_aux_vars_map, effects_info);
+    code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
 
     code = (code | ret_val(true));
 
@@ -166,7 +166,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, EffectsInfo effects_info) {
     mutated_tables = insertion_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
@@ -181,52 +181,54 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     key_check_exprs = [];
     for v vs <- table_var_aux_vars_map {
-      aux_vars, maybe_status_var = vs;
+      if not insertion_is_forced(v, effects_info) {
+        aux_vars, maybe_status_var = vs;
 
-      table = tables(v);
-      table_arity = arity(table);
+        table = tables(v);
+        table_arity = arity(table);
 
-      if table_arity == 2 {
-        if not is_symmetric(table) {
-          keys = keys(table);
-          relvar = original_rel_var(v);
+        if table_arity == 2 {
+          if not is_symmetric(table) {
+            keys = keys(table);
+            relvar = original_rel_var(v);
 
-          for idx <- [only(k) : k <- keys] {
-            col = phys_col(relvar, idx);
-            col_equivs = [];
-            for c <- cols_subset_map(col, ?) {
-              if cols_subset_map(c, col) {
-                equiv_table_var = table_var(c.relvar);
-                equiv_table = tables(equiv_table_var);
-                if arity(equiv_table) == 1
-                  col_equivs = _insert_(col_equivs, equiv_table_var);
+            for idx <- [only(k) : k <- keys] {
+              col = phys_col(relvar, idx);
+              col_equivs = [];
+              for c <- cols_subset_map(col, ?) {
+                if cols_subset_map(c, col) {
+                  equiv_table_var = table_var(c.relvar);
+                  equiv_table = tables(equiv_table_var);
+                  if arity(equiv_table) == 1
+                    col_equivs = _insert_(col_equivs, equiv_table_var);
+                }
               }
+
+              tmp_key_var = cast_int32_var(aux_vars(idx));
+
+              if col_equivs != [] {
+                col_equiv = any(col_equivs);
+                key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
+              }
+              else
+                key_check_expr = table_contains(v, table, (if i == idx then just(tmp_key_var) else nothing : i < 2));
+
+              if maybe_status_var != nothing {
+                status_var = value(maybe_status_var);
+                key_check_expr = and_then(status_var, key_check_expr);
+              }
+
+              key_check_exprs = _insert_(key_check_exprs, key_check_expr);
             }
-
-            tmp_key_var = cast_int32_var(aux_vars(idx));
-
-            if col_equivs != [] {
-              col_equiv = any(col_equivs);
-              key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
-            }
-            else
-              key_check_expr = table_contains(v, table, (if i == idx then just(tmp_key_var) else nothing : i < 2));
-
-            if maybe_status_var != nothing {
-              status_var = value(maybe_status_var);
-              key_check_expr = and_then(status_var, key_check_expr);
-            }
-
-            key_check_exprs = _insert_(key_check_exprs, key_check_expr);
+          }
+          else {
+            ## CAN SYMMETRIC TABLE HAVE KEYS?
+            fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
           }
         }
-        else {
-          ## CAN SYMMETRIC TABLE HAVE KEYS?
+        else if table_arity == 3 {
           fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
         }
-      }
-      else if table_arity == 3 {
-        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
       }
     }
 
@@ -351,7 +353,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, EffectsInfo effects_info) {
     ord_value_stores = isort(insertion_value_stores);
     ord_table_vars = sort_set(keys(table_var_aux_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
@@ -363,7 +365,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
     for v <- ord_table_vars {
       aux_vars, maybe_status_var = table_var_aux_vars_map(v);
-      instrs = immediate_insert_instrs(block, v, block.tables(v), aux_vars);
+      instr_id, action = only_pair(effects_info.tables(v));
+      instrs = immediate_insert_instrs(block, v, block.tables(v), aux_vars, action);
       if maybe_status_var != nothing {
         status_var = value(maybe_status_var);
         instrs = (do_if(status_var, instrs));
@@ -382,7 +385,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return code;
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars) {
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars, TableAction action) {
+      assert action == :insertion;
+
       main_resize_instr = immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars));
 
       if arity(table) == 1 {
@@ -406,15 +411,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars) =
-      (immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars)));
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars, TableAction action) {
+      assert action == :insertion;
+      return (immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars)));
+    }
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ aux_vars) {
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ aux_vars, TableAction action) {
+      assert action == :insertion or action == :update;
       assert |aux_vars| == 2;
       key_var = cast_int32_var(aux_vars(0));
       value_var = aux_vars(1);
-      return (column_insert_immediate(table_var, is_mandatory(column), column.repr, key_var, value_var));
+      return (column_insert_immediate(table_var, column, key_var, value_var, action == :update));
     }
   }
 }
@@ -425,7 +433,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 Bool is_optimizable(EffectsInfo effects_info) {
   for v is <- effects_info.tables {
     return false if |is| != 1;
-    i, a = only([(i, a) : i a <- is]);
+    i, a = only_pair(is);
     return false if a != :insertion and a != :update;
     status = instr_status(i);
     return false if status.multiple;
@@ -443,3 +451,9 @@ Bool instr_is_always_exec_once(InstrId instr_id) {
 }
 
 Bool memb_var_is_always_set_once([+InstrId] instr_ids) = |instr_ids| == 1 and instr_is_always_exec_once(only(instr_ids));
+
+
+Bool insertion_is_forced(TableVar var, EffectsInfo effects_info) {
+  _, action = only_pair(effects_info.tables(var));
+  return action == :update;
+}

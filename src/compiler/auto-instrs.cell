@@ -273,7 +273,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_insert_tuple() = native_immediate_insert_tuple(instr.table_var, instr.table, instr.tuple),
-    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.mandatory, instr.col_repr, instr.key_surr, instr.value),
+    column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
 
     resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
     value_store_apply()       = (native_value_store_apply_code(instr.store, instr.store_type)),
@@ -304,8 +304,17 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_column_insert_immediate_code(TableVar table_var, Bool mandatory, ColumnRepr col_repr, Int32Var key_surr, AnyTypeExpr value) {
-    return (native_call(native_column_method_prefix(col_repr, mandatory) & "_insert", (table_var, key_surr, value, :mem_pool)));
+  String* native_column_insert_immediate_code(TableVar table_var, MandatoryColumn column, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
+    method_name = native_column_method_prefix(column.repr, true) & "_" & if forced then "update" else "insert";
+    args = (column.master if forced, table_var, key_surr, value, :mem_pool);
+    return (native_call(method_name, args));
+  }
+
+
+  String* native_column_insert_immediate_code(TableVar table_var, <Column, SlaveColumn> column, Int32Var key_surr, AnyTypeExpr value, Bool forced) {
+    method_name = native_column_method_prefix(column.repr, false) & "_" & if forced then "update" else "insert";
+    args = (table_var, key_surr, value, :mem_pool);
+    return (native_call(method_name, args));
   }
 
 
