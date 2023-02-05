@@ -260,7 +260,7 @@ bool float_col_aux_check_foreign_key_master_bin_table_backward(FLOAT_COL *col, F
           found++;
       }
 
-      if (src_size > ins_count) {
+      if (src_size > found) {
         //## TODO: RECORD THE ERROR
         return false;
       }

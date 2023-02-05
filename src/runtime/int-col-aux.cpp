@@ -261,7 +261,7 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_C
           found++;
       }
 
-      if (src_size > ins_count) {
+      if (src_size > found) {
         //## TODO: RECORD THE ERROR
         return false;
       }
