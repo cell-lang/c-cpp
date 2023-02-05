@@ -1,4 +1,4 @@
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool, disable_handler_optimization: Bool {
   String* native_static_block_decl(StaticBlock block) {
     block_name = native_name(block.name);
 
@@ -1126,12 +1126,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 }
 
 
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool, disable_handler_optimization : Bool{
   String* native_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
     arg = :var(:this);
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
 
-    maybe_opt_handler_code = native_optimized_handler_code(block_name, handler_id, msg_type, body);
+    maybe_opt_handler_code = if not disable_handler_optimization
+      then native_optimized_handler_code(block_name, handler_id, msg_type, body)
+      else nothing;
 
     code = ();
 

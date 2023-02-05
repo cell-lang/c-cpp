@@ -19,7 +19,8 @@ type PrgData =  prg_data(
   [BasicTypeSymbol] generated,
   Bool debug_mode,
   Bool include_runtime,
-  Bool skip_integrity_checks
+  Bool skip_integrity_checks,
+  Bool disable_handler_optimization
 ) {
   program_symbols = program_symbols(prg);
   assert |program_symbols| <= 64 * 1024; ## IMPLEMENT PROPERLY
@@ -106,7 +107,8 @@ type PrgData =  prg_data(
       rel_vars_perm_map = rel_vars_perm_map,
       context = :core,
       debug_mode = debug_mode,
-      skip_integrity_checks = skip_integrity_checks
+      skip_integrity_checks = skip_integrity_checks,
+      disable_handler_optimization = disable_handler_optimization
     );
     gen_content = (gen_content | ("", ""), def);
   }
@@ -160,7 +162,8 @@ type PrgData =  prg_data(
       rel_vars_perm_map = rel_vars_perm_map,
       context = :core,
       debug_mode = debug_mode,
-      skip_integrity_checks = skip_integrity_checks
+      skip_integrity_checks = skip_integrity_checks,
+      disable_handler_optimization = disable_handler_optimization
     );
     gen_content = (gen_content | ("", ""), def);
   }
