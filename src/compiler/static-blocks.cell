@@ -1160,8 +1160,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       dependees_code = dependees_run_and_check_code(block.name, dependees);
 
       insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+      update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
       deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
-      check_code = updates_check_code(block, insertion_tables, deletion_tables);
+      check_code = updates_check_code(block, insertion_tables, update_tables, deletion_tables);
 
       return dependees_code & check_code;
     }
@@ -1173,6 +1174,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       dependees_handlers = [d, t : d t <- updated_dependees(handler_id, ?, ?)];
       dependees = [a : a _ <- dependees_handlers];
       insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+      update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
       deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
       table_vars = insertion_tables & deletion_tables;
       tables = [t -> block.tables(t) : t <- table_vars];
@@ -1180,7 +1182,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       dependees_apply_code = dependees_apply_code(dependees_handlers, [a -> linked_db_var_type(block, a) : a <- dependees]);
       dependees_reset_code = dependees_reset_code(dependees_handlers, [a -> linked_db_var_type(block, a) : a <- dependees]);
 
-      apply_code = updates_apply_code(dependees, memb_vars, value_stores, deletion_tables, insertion_tables);
+      apply_code = updates_apply_code(dependees, memb_vars, value_stores, deletion_tables, insertion_tables, update_tables);
       reset_code = updates_reset_code(memb_vars, value_stores, tables);
 
       args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name));
@@ -1286,7 +1288,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updates_apply_code([LinkedDBVar] dependees, [MembVar] memb_vars, [ValueStoreId] value_stores_with_insertions, [TableVar] tables_with_deletions, [TableVar] tables_with_insertions) {
+  String* updates_apply_code([LinkedDBVar] dependees, [MembVar] memb_vars, [ValueStoreId] value_stores_with_insertions, [TableVar] tables_with_deletions, [TableVar] tables_with_insertions, [TableVar] tables_with_updates) {
     code = join((var_apply_code(bare_id(v)) : v <- isort(memb_vars)));
 
     if value_stores_with_insertions != [] {
@@ -1299,19 +1301,19 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ## ord_table_vars = sort_by_key(tables_with_deletions & tables_with_insertions, arity(block.tables($)));
 
     tables = block.tables;
-    ord_table_vars = sort_by_key(tables_with_deletions & tables_with_insertions, arity(tables($)));
+    ord_table_vars = sort_by_key(tables_with_deletions & tables_with_insertions & tables_with_updates, arity(tables($)));
     for v <- ord_table_vars {
       table = tables(v);
       value_stores = table_value_stores(table);
       owned_value_stores = (maybe(vs, block.value_stores_owners(vs) == phys_col(original_rel_var(v), i)) : vs @ i <- value_stores);
-      table_code = table_updates_apply_code(v, table, tables_with_deletions(v), tables_with_insertions(v), owned_value_stores);
+      table_code = table_updates_apply_code(v, table, tables_with_deletions(v), tables_with_insertions(v) or tables_with_updates(v), owned_value_stores);
       code = code & table_code;
     }
 
     return code;
 
 
-    String* table_updates_apply_code(TableVar table_var, Table table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, Table table, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       arity = arity(table);
       method_prefix = native_table_method_prefix(table) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
@@ -1333,7 +1335,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | native_call(method_name, args));
       }
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name, :mem_pool);
         method_name = method_prefix & "_apply_insertions";
         code = (code | native_call(method_name, args));
@@ -1367,13 +1369,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return code;
     }
 
-    String* table_updates_apply_code(TableVar table_var, MasterBinTable table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, MasterBinTable table, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       method_prefix = native_table_method_prefix(table) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
 
       code = ();
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name);
         method_name = method_prefix & "_apply_surrs_acquisition";
         code = (code | native_call(method_name, args));
@@ -1385,7 +1387,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | native_call(method_name, args));
       }
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name, :mem_pool);
         method_name = method_prefix & "_apply_insertions";
         code = (code | native_call(method_name, args));
@@ -1395,7 +1397,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* table_updates_apply_code(TableVar table_var, SlaveTernTable table, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, SlaveTernTable table, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       method_prefix = native_table_method_prefix(table) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
 
@@ -1407,7 +1409,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | native_call(method_name, args));
       }
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name, :mem_pool);
         method_name = method_prefix & "_apply_insertions";
         code = (code | native_call(method_name, args));
@@ -1417,13 +1419,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* table_updates_apply_code(TableVar table_var, Column column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, Column column, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       method_prefix = native_table_method_prefix(column) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
 
       code = ();
 
-      if has_insertions and column.repr == :object {
+      if has_insertions_or_updates and column.repr == :object {
         method_name = "obj_col_aux_copy_values_into_mem_pool";
         args = (table_aux_name, :mem_pool);
         code = (code | native_call(method_name, args));
@@ -1436,7 +1438,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | native_call(method_name, args));
       }
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name, :mem_pool);
         method_name = method_prefix & "_apply_updates_and_insertions";
         code = (code | native_call(method_name, args));
@@ -1446,7 +1448,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* table_updates_apply_code(TableVar table_var, MandatoryColumn column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, MandatoryColumn column, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       method_prefix = native_table_method_prefix(column) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
       master_aux_name = pending_updates_var_ref_name(column.master);
@@ -1456,7 +1458,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    String* table_updates_apply_code(TableVar table_var, SlaveColumn column, Bool has_deletions, Bool has_insertions, Maybe[ValueStoreId]+ owned_value_stores) {
+    String* table_updates_apply_code(TableVar table_var, SlaveColumn column, Bool has_deletions, Bool has_insertions_or_updates, Maybe[ValueStoreId]+ owned_value_stores) {
       assert owned_value_stores == (nothing, nothing);
 
       method_prefix = native_table_method_prefix(column) & "_aux";
@@ -1470,7 +1472,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | native_call(method_name, args));
       }
 
-      if has_insertions {
+      if has_insertions_or_updates {
         args = (table_var, table_aux_name, :mem_pool);
         method_name = method_prefix & "_apply_updates_and_insertions";
         code = (code | native_call(method_name, args));
@@ -1579,14 +1581,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables) {
-    mutated_tables = insertion_tables & deletion_tables;
+  String* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] update_tables, [TableVar] deletion_tables) {
+    mutated_tables = insertion_tables & update_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
-    insert_checked_foreign_keys = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)];
+    insert_checked_foreign_keys = [k : k s <- block.foreign_keys, s.insertion_checked, insertion_tables(k.origin)];
     insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
 
-    delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
+    update_checked_foreign_keys = [k : k _ <- block.foreign_keys, insertion_tables(k.origin)];
+    update_checked_foreign_keys = sort_by_key(update_checked_foreign_keys, order);
+
+    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, insertion_tables(k.origin)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
     check_code = ("" if mutated_tables != ());

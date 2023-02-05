@@ -9,12 +9,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
     insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+    update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
     deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
 
     memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
-    code = code & updates_check_code(block, insertion_tables, deletion_tables, table_var_aux_vars_map, effects_info);
+    code = code & updates_check_code(block, insertion_tables, update_tables, deletion_tables, table_var_aux_vars_map, effects_info);
     code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
 
     code = (code | ret_val(true));
@@ -166,14 +167,17 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, EffectsInfo effects_info) {
+  Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] update_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, EffectsInfo effects_info) {
     mutated_tables = insertion_tables & deletion_tables;
     mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
-    insert_checked_foreign_keys = [k : k <- block.insert_checked_foreign_keys, insertion_tables(k.origin)];
+    insert_checked_foreign_keys = [k : k s <- block.foreign_keys, s.insertion_checked, insertion_tables(k.origin)];
     insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
 
-    delete_checked_foreign_keys = [k : k <- block.delete_checked_foreign_keys, insertion_tables(k.origin)];
+    update_checked_foreign_keys = [k : k _ <- block.foreign_keys, update_tables(k.origin)];
+    update_checked_foreign_keys = sort_by_key(update_checked_foreign_keys, order);
+
+    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, insertion_tables(k.origin)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
     tables = block.tables;
@@ -237,7 +241,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     for e <- key_check_exprs
       check_code = (check_code | do_if(e, ret_val(false)));
 
-    for k <- insert_checked_foreign_keys {
+    for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
       check_code = (check_code | do_if(check_expr, ret_val(false)));
     }
