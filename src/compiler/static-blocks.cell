@@ -1294,7 +1294,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     code = join((var_apply_code(bare_id(v)) : v <- isort(memb_vars)));
 
     if value_stores_with_insertions != [] {
-      value_stores_code = (native_value_store_apply_code(s, block.value_stores(s)) : s <- isort(value_stores_with_insertions));
+      value_stores_code = join((native_value_store_apply_code(s, block.value_stores(s)) : s <- isort(value_stores_with_insertions)));
       code = (code | "") if code != ();
       code = code & value_stores_code;
     }

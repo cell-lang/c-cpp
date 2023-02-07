@@ -17,6 +17,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     code = code & updates_check_code(block, insertion_tables, update_tables, deletion_tables, table_var_aux_vars_map, effects_info);
     code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
+    code = code & updates_reset_code(block, insertion_value_stores);
 
     code = (code | ret_val(true));
 
@@ -160,16 +161,12 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
   Instr* updates_check_code(StaticBlock block, [TableVar] insertion_tables, [TableVar] update_tables, [TableVar] deletion_tables, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, EffectsInfo effects_info) {
-    mutated_tables = insertion_tables & deletion_tables;
-    mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
+    // mutated_tables = insertion_tables & update_tables & deletion_tables;
+    // mutated_tables = sort_by_key(mutated_tables, arity(block.tables($)));
 
     insert_checked_foreign_keys = [k : k s <- block.foreign_keys, s.insertion_checked, insertion_tables(k.origin)];
     insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
@@ -177,7 +174,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     update_checked_foreign_keys = [k : k _ <- block.foreign_keys, update_tables(k.origin)];
     update_checked_foreign_keys = sort_by_key(update_checked_foreign_keys, order);
 
-    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, insertion_tables(k.origin)];
+    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, deletion_tables(k.target)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
     tables = block.tables;
@@ -398,15 +395,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         masters_raw_columns = prg_data.masters_raw_columns(block.name);
         if masters_raw_columns(table_var, _) {
           raw_cols = isort([v : v <- masters_raw_columns(table_var, ?)]);
-          size_var = new_unique_int32_var(:unused);
-          new_size_var = new_unique_int32_var(:unused);
-          size_expr = get_count(table_var, table, (nothing));
-          resize_instrs = (resize_mandatory_column(v, cast_mandatory_column(block.tables(v)), size_var, new_size_var) : v <- raw_cols);
+          capacity_var = new_unique_int32_var(:unused);
+          new_capacity_var = new_unique_int32_var(:unused);
+          capacity_expr = get_capacity(table_var, table);
+          resize_instrs = (resize_mandatory_column(v, cast_mandatory_column(block.tables(v)), capacity_var, new_capacity_var) : v <- raw_cols);
           return (
-            set_ivar32(size_var, size_expr),
+            set_ivar32(capacity_var, capacity_expr),
             main_resize_instr,
-            set_ivar32(new_size_var, size_expr),
-            do_if_not(are_eq(size_var, new_size_var), resize_instrs)
+            set_ivar32(new_capacity_var, capacity_expr),
+            do_if_not(are_eq(capacity_var, new_capacity_var), resize_instrs)
           );
         }
       }
@@ -429,6 +426,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return (column_insert_immediate(table_var, column, key_var, value_var, action == :update));
     }
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stores) {
+  // Nothing here for now
+  return ();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
