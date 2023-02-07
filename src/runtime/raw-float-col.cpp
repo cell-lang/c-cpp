@@ -85,7 +85,7 @@ void raw_float_col_copy_to(UNARY_TABLE *master_table, RAW_FLOAT_COL *column, OBJ
         uint32 key_surr = 64 * word_idx + bit_idx;
 
         OBJ key = surr_to_obj(store, key_surr);
-        OBJ value = make_int(array[key_surr]);
+        OBJ value = make_float(array[key_surr]);
         append(*strm_1, key);
         append(*strm_2, value);
 
