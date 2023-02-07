@@ -566,16 +566,17 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
     unused_var = GetChar();
 
   if cmd_line_opts.print_times {
+    min_len = length(_print_(ticks(8) - ticks(0)));
     Print("\n");
-    Print("Parsing:               " & left_padded(ticks(1) - ticks(0), 5, ` `) & "ms\n");
-    Print("Error checking:        " & left_padded(ticks(2) - ticks(1), 5, ` `) & "ms\n");
-    Print("Syntax removal:        " & left_padded(ticks(3) - ticks(2), 5, ` `) & "ms\n");
-    Print("Additional checks:     " & left_padded(ticks(4) - ticks(3), 5, ` `) & "ms\n");
-    Print("Type checking:         " & left_padded(ticks(5) - ticks(4), 5, ` `) & "ms\n");
-    Print("Code generation:       " & left_padded(ticks(6) - ticks(5), 5, ` `) & "ms\n");
-    Print("Code optimization:     " & left_padded(ticks(7) - ticks(6), 5, ` `) & "ms\n");
-    Print("C++ code generation:   " & left_padded(ticks(8) - ticks(7), 5, ` `) & "ms\n");
-    Print("Total time elapsed:    " & left_padded(ticks(8) - ticks(0), 5, ` `) & "ms\n");
+    Print("Parsing:              " & left_padded(ticks(1) - ticks(0), min_len, ` `) & "ms\n");
+    Print("Error checking:       " & left_padded(ticks(2) - ticks(1), min_len, ` `) & "ms\n");
+    Print("Syntax removal:       " & left_padded(ticks(3) - ticks(2), min_len, ` `) & "ms\n");
+    Print("Additional checks:    " & left_padded(ticks(4) - ticks(3), min_len, ` `) & "ms\n");
+    Print("Type checking:        " & left_padded(ticks(5) - ticks(4), min_len, ` `) & "ms\n");
+    Print("Code generation:      " & left_padded(ticks(6) - ticks(5), min_len, ` `) & "ms\n");
+    Print("Code optimization:    " & left_padded(ticks(7) - ticks(6), min_len, ` `) & "ms\n");
+    Print("C++ code generation:  " & left_padded(ticks(8) - ticks(7), min_len, ` `) & "ms\n");
+    Print("Total time elapsed:   " & left_padded(ticks(8) - ticks(0), min_len, ` `) & "ms\n");
     Print("\n");
   }
 
