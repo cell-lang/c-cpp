@@ -2103,6 +2103,11 @@ void raw_int_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_INT_COL *, INT_
 
 bool raw_int_col_aux_check_key_1(UNARY_TABLE *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
+bool raw_int_col_aux_check_foreign_key_unary_table_1_forward(RAW_INT_COL *, INT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool raw_int_col_aux_check_foreign_key_master_bin_table_forward(RAW_INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool raw_int_col_aux_check_foreign_key_unary_table_1_backward(RAW_INT_COL *, INT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
 /////////////////////////////// raw-float-col.cpp //////////////////////////////
 
 void raw_float_col_init(UNARY_TABLE *, RAW_FLOAT_COL *, STATE_MEM_POOL *);
@@ -2126,6 +2131,11 @@ void raw_float_col_aux_update(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, doub
 void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 bool raw_float_col_aux_check_key_1(UNARY_TABLE *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
+
+bool raw_float_col_aux_check_foreign_key_unary_table_1_forward(RAW_FLOAT_COL *, FLOAT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool raw_float_col_aux_check_foreign_key_master_bin_table_forward(RAW_FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool raw_float_col_aux_check_foreign_key_unary_table_1_backward(RAW_FLOAT_COL *co, FLOAT_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 //////////////////////////////// raw-obj-col.cpp ///////////////////////////////
 
@@ -2158,6 +2168,11 @@ void raw_obj_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_OBJ_COL *, OBJ_
 
 // bool raw_obj_col_aux_contains_1(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);
 // OBJ  raw_obj_col_aux_lookup(RAW_OBJ_COL *, OBJ_COL_AUX *, uint32);
+
+bool raw_obj_col_aux_check_foreign_key_unary_table_1_forward(RAW_OBJ_COL *, OBJ_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool raw_obj_col_aux_check_foreign_key_master_bin_table_forward(RAW_OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
+
+bool raw_obj_col_aux_check_foreign_key_unary_table_1_backward(RAW_OBJ_COL *, OBJ_COL_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 ////////////////////////////////// int-col.cpp /////////////////////////////////
 

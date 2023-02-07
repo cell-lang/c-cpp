@@ -1178,7 +1178,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
       update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
       deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
-      table_vars = insertion_tables & deletion_tables;
+      table_vars = insertion_tables & update_tables & deletion_tables;
       tables = [t -> block.tables(t) : t <- table_vars];
 
       dependees_apply_code = dependees_apply_code(dependees_handlers, [a -> linked_db_var_type(block, a) : a <- dependees]);
@@ -1590,10 +1590,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     insert_checked_foreign_keys = [k : k s <- block.foreign_keys, s.insertion_checked, insertion_tables(k.origin)];
     insert_checked_foreign_keys = sort_by_key(insert_checked_foreign_keys, order);
 
-    update_checked_foreign_keys = [k : k _ <- block.foreign_keys, insertion_tables(k.origin)];
+    update_checked_foreign_keys = [k : k _ <- block.foreign_keys, update_tables(k.origin)];
     update_checked_foreign_keys = sort_by_key(update_checked_foreign_keys, order);
 
-    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, insertion_tables(k.origin)];
+    delete_checked_foreign_keys = [k : k s <- block.foreign_keys, s.deletion_checked, deletion_tables(k.target)];
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
     check_code = ("" if mutated_tables != ());
@@ -1624,7 +1624,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     check_code = (check_code | "") if insert_checked_foreign_keys != () and not ends_with_empty_line(check_code);
 
-    for k <- insert_checked_foreign_keys {
+    for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block);
       check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
     }

@@ -88,3 +88,87 @@ bool raw_float_col_aux_check_key_1(UNARY_TABLE *master, RAW_FLOAT_COL *, FLOAT_C
 
   return true;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool raw_float_col_aux_check_foreign_key_unary_table_1_forward(RAW_FLOAT_COL *col, FLOAT_COL_AUX *col_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = col_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *arg1s = col_aux->insertions.u32_array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool raw_float_col_aux_check_foreign_key_master_bin_table_forward(RAW_FLOAT_COL *col, FLOAT_COL_AUX *col_aux, MASTER_BIN_TABLE *target_table, MASTER_BIN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = col_aux->insertions.count;
+  if (num_ins > 0) {
+    uint32 *surrs = col_aux->insertions.u32_array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+//## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
+bool raw_float_col_aux_check_foreign_key_unary_table_1_backward(RAW_FLOAT_COL *col, FLOAT_COL_AUX *col_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  if (col_aux->clear) {
+    uint32 ins_count = col_aux->insertions.count;
+    if (ins_count > 0) {
+      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+      if (src_size > ins_count) {
+        //## TODO: RECORD THE ERROR
+        return false;
+      }
+
+      uint32 *surrs = col_aux->insertions.u32_array;
+      uint32 found = 0;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        if (unary_table_aux_contains(src_table, src_table_aux, surrs[i]))
+          found++;
+      }
+
+      if (src_size > found) {
+        //## TODO: RECORD THE ERROR
+        return false;
+      }
+
+      return true;
+    }
+    else {
+      bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
+      if (!src_is_empty) {
+        //## RECORD THE ERROR
+      }
+      return src_is_empty;
+    }
+  }
+
+  uint32 num_dels = col_aux->deletions.count;
+  if (num_dels > 0) {
+    uint32 *surrs = col_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      uint32 surr = surrs[i];
+      if (!col_update_status_map_inserted_flag_is_set(&col_aux->status_map, surr))
+        if (unary_table_aux_contains(src_table, src_table_aux, surr)) {
+          //## RECORD THE ERROR
+          return false;
+        }
+    }
+  }
+
+  return true;
+}
