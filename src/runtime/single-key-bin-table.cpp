@@ -147,6 +147,21 @@ void single_key_bin_table_insert(SINGLE_KEY_BIN_TABLE *table, uint32 arg1, uint3
     counter_incr(&table->col_2_counter, arg2, mem_pool);
 }
 
+void single_key_bin_table_update(SINGLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2) {
+  //## BAD BAD BAD: THIS COULD BE MADE MORE EFFICIENT
+
+  uint32 curr_arg2 = single_key_bin_table_lookup_1(table, arg1);
+  if (curr_arg2 != arg2) {
+    if (curr_arg2 != 0xFFFFFFFF) {
+      single_key_bin_table_delete_1(table, arg1);
+      if (remove2 != NULL && !single_key_bin_table_contains_2(table, curr_arg2))
+        remove2(store2, curr_arg2, mem_pool);
+      assert(!single_key_bin_table_contains_1(table, arg1));
+    }
+    single_key_bin_table_insert(table, arg1, arg2, mem_pool);
+  }
+}
+
 bool single_key_bin_table_delete(SINGLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   if (arg1 < table->capacity) {
     uint32 *forward_array = table->forward_array;

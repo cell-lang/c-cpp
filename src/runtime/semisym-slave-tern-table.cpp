@@ -21,6 +21,16 @@ void semisym_slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_
 
 //////////////////////////////////////////////////////////////////////////////
 
+void semisym_slave_tern_table_update_12(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  return slave_tern_table_update_12(slave_table, surr12, arg3, mem_pool, remove3, store3);
+}
+
+void semisym_slave_tern_table_update_12_3(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  return slave_tern_table_update_12_3(slave_table, surr12, arg3, mem_pool, remove3, store3);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 uint32 semisym_slave_tern_table_size(BIN_TABLE *slave_table) {
   return bin_table_size(slave_table);
 }

@@ -11,12 +11,49 @@ bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3,
   return bin_table_insert(slave_table, surr12, arg3, mem_pool);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3) {
   return bin_table_delete(slave_table, surr12, arg3);
 }
 
 void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_pool) {
   bin_table_clear(slave_table, mem_pool);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+static void slave_tern_table_resolve_12(BIN_TABLE *slave_table, uint32 surr12, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  uint32 curr_arg3 = bin_table_lookup_1(slave_table, surr12);
+  if (curr_arg3 != 0xFFFFFFFF) {
+    bin_table_delete_1(slave_table, surr12);
+    if (!bin_table_contains_2(slave_table, curr_arg3))
+      remove3(store3, curr_arg3, mem_pool);
+    assert(!bin_table_contains_1(slave_table, surr12));
+  }
+}
+
+static void slave_tern_table_resolve_3(BIN_TABLE *slave_table, uint32 arg3) {
+  uint32 curr_arg12 = bin_table_lookup_2(slave_table, arg3);
+  if (curr_arg12 != 0xFFFFFFFF) {
+    bin_table_delete_2(slave_table, arg3);
+    assert(!bin_table_contains_2(slave_table, arg3));
+  }
+}
+
+void slave_tern_table_update_12(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  if (!bin_table_contains(slave_table, surr12, arg3)) {
+    slave_tern_table_resolve_12(slave_table, surr12, mem_pool, remove3, store3);
+    bin_table_insert(slave_table, surr12, arg3, mem_pool);
+  }
+}
+
+void slave_tern_table_update_12_3(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  if (!bin_table_contains(slave_table, surr12, arg3)) {
+    slave_tern_table_resolve_12(slave_table, surr12, mem_pool, remove3, store3);
+    slave_tern_table_resolve_3(slave_table, arg3);
+    bin_table_insert(slave_table, surr12, arg3, mem_pool);
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////

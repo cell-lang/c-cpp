@@ -127,6 +127,31 @@ void double_key_bin_table_insert(DOUBLE_KEY_BIN_TABLE *table, uint32 arg1, uint3
   table->count++;
 }
 
+void double_key_bin_table_update(DOUBLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 arg2, STATE_MEM_POOL *mem_pool, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2) {
+  //## BAD BAD BAD: THIS COULD BE MADE MORE EFFICIENT
+
+  uint32 curr_arg2 = double_key_bin_table_lookup_1(table, arg1);
+  if (curr_arg2 != arg2) {
+    if (curr_arg2 != 0xFFFFFFFF) {
+      double_key_bin_table_delete_1(table, arg1);
+      if (remove2 != NULL && !double_key_bin_table_contains_2(table, curr_arg2))
+        remove2(store2, curr_arg2, mem_pool);
+      assert(!double_key_bin_table_contains_1(table, arg1));
+    }
+
+    uint32 curr_arg1 = double_key_bin_table_lookup_2(table, arg2);
+    assert(curr_arg1 != arg1);
+    if (curr_arg1 != 0xFFFFFFFF) {
+      double_key_bin_table_delete_2(table, arg2);
+      if (remove1 != NULL && !double_key_bin_table_contains_1(table, curr_arg1))
+        remove1(store1, curr_arg1, mem_pool);
+      assert(!double_key_bin_table_contains_2(table, arg2));
+    }
+
+    double_key_bin_table_insert(table, arg1, arg2, mem_pool);
+  }
+}
+
 bool double_key_bin_table_delete(DOUBLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
   if (arg1 < table->forward_capacity) {
     uint32 *forward_array = table->forward_array;

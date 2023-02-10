@@ -1320,7 +1320,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       method_prefix = native_table_method_prefix(table) & "_aux";
       table_aux_name = pending_updates_var_ref_name(table_var);
 
-      value_stores_args = value_stores_args(owned_value_stores);
+      value_stores_args = value_stores_args(owned_value_stores, block.value_stores);
 
       // Ternary tables have a single apply method
       if arity == 3 {
@@ -1384,7 +1384,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       }
 
       if has_deletions {
-        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
+        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores, block.value_stores) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
       }
@@ -1406,7 +1406,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = ();
 
       if has_deletions {
-        args = (table_var, table_aux_name) & value_stores_args(nonempty(drop(owned_value_stores, 2))) & (:mem_pool);
+        args = (table_var, table_aux_name) & value_stores_args(nonempty(drop(owned_value_stores, 2)), block.value_stores) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
       }
@@ -1435,7 +1435,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       if has_deletions {
         remove_method_name = native_value_store_method_prefix(block.value_stores(column.value_store)) & "_remove_untyped";
-        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores) & (:mem_pool);
+        args = (table_var, table_aux_name) & value_stores_args(owned_value_stores, block.value_stores) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
       }
@@ -1469,7 +1469,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       code = ();
 
       if has_deletions {
-        args = (table_var, table_aux_name) & value_stores_args((nothing)) & (:mem_pool);
+        args = (table_var, table_aux_name) & value_stores_args((nothing), block.value_stores) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
       }
@@ -1482,25 +1482,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       return code;
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    Encodable* value_stores_args(Maybe[ValueStoreId]+ owned_value_stores) {
-      vs_args = ();
-      for maybe_vs <- owned_value_stores {
-        if maybe_vs != nothing {
-          vs = value(maybe_vs);
-          remove_method_name = native_value_store_method_prefix(block.value_stores(vs)) & "_remove_untyped";
-          vs_args = (vs_args | remove_method_name, vs);
-        }
-        else
-          vs_args = (vs_args | "NULL", "NULL");
-      }
-      return vs_args;
-    }
   }
 }
 
+////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
   String* dependees_run_and_check_code(DBSymbol block_name, [LinkedDBVar -> DBSymbol] vars) {
@@ -1788,3 +1773,32 @@ ValueStoreId+ table_value_stores(AnyTable table) =
   mandatory_column()  |
   column()            = (table.value_store),
   slave_column()      = table.value_stores;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Encodable* value_stores_args(Maybe[ValueStoreId]+ owned_value_stores, [ValueStoreId -> ValueStoreType] value_stores_types) {
+  owned_value_stores_with_types = ({
+    if maybe_vs != nothing {
+      store_id = value(maybe_vs);
+      return just((store_id, value_stores_types(store_id)));
+    }
+    else
+      return nothing;
+  } : maybe_vs <- owned_value_stores);
+  return value_stores_args(owned_value_stores_with_types);
+}
+
+
+Encodable* value_stores_args(Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+  vs_args = ();
+  for maybe_vs <- owned_value_stores {
+    if maybe_vs != nothing {
+      store_id, store_type = value(maybe_vs);
+      remove_method_name = native_value_store_method_prefix(store_type) & "_remove_untyped";
+      vs_args = (vs_args | remove_method_name, store_id);
+    }
+    else
+      vs_args = (vs_args | "NULL", "NULL");
+  }
+  return vs_args;
+}

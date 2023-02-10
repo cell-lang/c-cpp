@@ -35,8 +35,8 @@ EffectsInfo no_effects = effects_info([], [], []);
 EffectsInfo table_deletion(TableVar table_var, InstrId instr_id) =
   effects_info([table_var -> [instr_id -> :deletion]], [], []);
 
-EffectsInfo table_insertion(TableVar table_var, InstrId instr_id) =
-  effects_info([table_var -> [instr_id -> :insertion]], [], []);
+EffectsInfo table_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
+  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
 
 EffectsInfo column_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
   effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
@@ -97,8 +97,8 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
     return match (instr)
       queue_deletes()                 = table_deletion(instr.table_var, instr_id),
       lookup_or_queue_insert_value()  = value_store_maybe_insertion(instr.store, instr_id),
-      queue_insert_tuple()            = table_insertion(instr.table_var, instr_id),
-      queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id),
+      queue_insert_tuple()            = table_insertion(instr.table_var, instr_id, instr.forced),
+      queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id, false),
       column_insert_deferred()        = column_insertion(instr.table_var, instr_id, instr.forced),
       set_var()                       = if instr.var :: PendingStateVar
                                           then memb_var_assignment(corresponding_memb_var(instr.var), instr_id)

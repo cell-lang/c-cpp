@@ -1550,6 +1550,7 @@ uint32 single_key_bin_table_lookup_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
 uint32 single_key_bin_table_lookup_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
 
 void single_key_bin_table_insert(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+void single_key_bin_table_update(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 bool single_key_bin_table_delete(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
 void single_key_bin_table_delete_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
@@ -1614,6 +1615,7 @@ uint32 double_key_bin_table_lookup_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
 uint32 double_key_bin_table_lookup_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
 
 void double_key_bin_table_insert(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+void double_key_bin_table_update(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 bool double_key_bin_table_delete(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
 void double_key_bin_table_delete_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
@@ -1842,9 +1844,12 @@ void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *, SYM_MASTER_BI
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 
 bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
-bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
-bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3);
-void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *);
+bool slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
+bool slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
+void slave_tern_table_clear(BIN_TABLE *s, STATE_MEM_POOL *);
+
+void slave_tern_table_update_12(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void slave_tern_table_update_12_3(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 uint32 slave_tern_table_size(BIN_TABLE *slave_table);
 uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
@@ -1906,9 +1911,11 @@ bool slave_tern_table_aux_check_foreign_key_unary_table_3_backward(BIN_TABLE *, 
 
 bool semisym_slave_tern_table_insert(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
 bool semisym_slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
-
 bool semisym_slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
 void semisym_slave_tern_table_clear(BIN_TABLE *, STATE_MEM_POOL *);
+
+void semisym_slave_tern_table_update_12(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void semisym_slave_tern_table_update_12_3(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 uint32 semisym_slave_tern_table_size(BIN_TABLE *);
 
@@ -1954,7 +1961,13 @@ bool semisym_slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX 
 
 void tern_table_init(TERN_TABLE *, STATE_MEM_POOL *);
 
-bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+bool tern_table_insert(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+
+void tern_table_update_12(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void tern_table_update_12_3(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void tern_table_update_12_13(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void tern_table_update_12_13_23(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+
 // bool tern_table_delete(TERN_TABLE *table, uint32 surr1, uint32 surr2, uint32 arg3);
 // void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *);
 
@@ -2028,7 +2041,10 @@ bool tern_table_aux_contains_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
 
 void semisym_tern_table_init(TERN_TABLE *, STATE_MEM_POOL *);
 
-bool semisym_tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool);
+bool semisym_tern_table_insert(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+
+void semisym_tern_table_update_12(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void semisym_tern_table_update_12_3(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 uint32 semisym_tern_table_size(TERN_TABLE *table);
 

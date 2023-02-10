@@ -85,7 +85,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
   return match (instr)
     // queue_deletes()                = undefined,
     // lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
-    queue_insert_tuple()            = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, table_var_aux_vars_map),
+    queue_insert_tuple()            = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, instr.forced, table_var_aux_vars_map),
     queue_insert_master_tuple()     = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_aux_vars_map),
     column_insert_deferred()        = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced, table_var_aux_vars_map),
     set_var()                       = if instr.var :: PendingStateVar
@@ -111,7 +111,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
   }
 
 
-  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+  Instr* rewrite_queue_insert_tuple(TableVar table_var, Int32Var+ tuple, Bool forced, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
     aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
     assert |aux_vars| == |tuple|;
     aux_vars = cast_int32_var_seq(aux_vars);
@@ -386,10 +386,23 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return code;
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars, TableAction action) {
-      assert action == :insertion;
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars, TableAction action) {
+      aux_surr_vars = cast_int32_var_seq(aux_vars);
 
-      main_resize_instr = immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars));
+      if action == :update and table.keys != [] {
+        owned_value_stores = ({
+          owner = block.value_stores_owners(vs);
+          if owner == phys_col(original_rel_var(table_var), i) {
+            store_type = block.value_stores(vs);
+            return just((vs, store_type));
+          }
+          else
+            return nothing;
+        } : vs @ i <- table.value_stores);
+        instr = immediate_update_tuple(table_var, table, aux_surr_vars, owned_value_stores);
+      }
+      else
+        instr = immediate_insert_tuple(table_var, table, aux_surr_vars);
 
       if arity(table) == 1 {
         masters_raw_columns = prg_data.masters_raw_columns(block.name);
@@ -401,20 +414,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           resize_instrs = (resize_mandatory_column(v, cast_mandatory_column(block.tables(v)), capacity_var, new_capacity_var) : v <- raw_cols);
           return (
             set_ivar32(capacity_var, capacity_expr),
-            main_resize_instr,
+            instr,
             set_ivar32(new_capacity_var, capacity_expr),
             do_if_not(are_eq(capacity_var, new_capacity_var), resize_instrs)
           );
         }
       }
 
-      return (main_resize_instr);
-    }
-
-
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars, TableAction action) {
-      assert action == :insertion;
-      return (immediate_insert_tuple(table_var, table, cast_int32_var_seq(aux_vars)));
+      return (instr);
     }
 
 
