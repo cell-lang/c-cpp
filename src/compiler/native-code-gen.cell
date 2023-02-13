@@ -350,9 +350,9 @@ String* GenPushCallInfoWrappers(CompiledPrg prg) {
 
 
 String* generate_push_call_info_wrapper(Nat arity) {
-  code = ("void push_call_info_wrapper(const char *fn_name" & append((", OBJ arg" & _print_(i + 1) : i < arity)) & ") {");
+  tmp_array_arg = if arity != 0 then ", OBJ *args" else "";
+  code = ("void push_call_info_wrapper(const char *fn_name" & tmp_array_arg & append((", OBJ arg" & _print_(i + 1) : i < arity)) & ") {");
   if arity > 0 {
-    code = (code | "  OBJ *args = new_obj_array(" & _print_(arity) & ");");
     for i < arity
       code = (code | "  args[" & _print_(i) & "] = arg" & _print_(i + 1) & ";");
     code = (code | "  push_call_info(fn_name, " & _print_(arity) & ", args);");

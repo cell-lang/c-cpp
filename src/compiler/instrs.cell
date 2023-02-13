@@ -49,7 +49,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     symb_switch()         = native_symb_switch_code(instr.value, instr.cases, instr.else, block_id),
     call_proc()           = native_call_proc_code(if instr.var? then just(instr.var) else nothing, instr.name, instr.args, instr.cls_args, instr.rel_auto_args, instr.react_auto_args, block_id),
     call_cls()            = (native_cls_call_code(instr.cls_var, instr.var, instr.args)),
-    push_call_info()      = (native_push_call_info_code(instr.fn_name, instr.args) if debug_mode),
+    push_call_info()      = if debug_mode then native_push_call_info_code(instr.fn_name, instr.args) else (),
     pop_call_info         = ("pop_call_info();" if debug_mode),
     log_runtime_failure() = native_log_runtime_failure_code(instr.is_assert, instr.file, instr.line, instr.text, instr.vars),
     branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
@@ -137,10 +137,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String native_push_call_info_code(<FnId, ProcSymbol, MethodSymbol> fn_name, ObjExpr* args) {
+  String* native_push_call_info_code(<FnId, ProcSymbol, MethodSymbol> fn_name, ObjExpr* args) {
+    arity = |args|;
     fn_name_str = printed(user_repr(fn_name));
     args_strs = (native_expr(a) : a <- args);
-    return native_call("push_call_info_wrapper", (fn_name_str) & args_strs);
+    return (
+      "OBJ tracked_args[" & _print_(arity) & "];" if arity != 0,
+      native_call("push_call_info_wrapper", (fn_name_str, "tracked_args" if arity != 0) & args_strs)
+    );
   }
 
 
