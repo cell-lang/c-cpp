@@ -126,6 +126,8 @@ implicit context : NativeContext {
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
       table_contains()      = native_table_contains(expr.table_var, expr.table, expr.tuple),
 
+      master_bin_table_contains_assoc_surr() = native_call_expr(native_table_method_prefix(expr.table) & "_contains_surr", (expr.table_var, expr.assoc_surr)),
+
       is_member()           = native_fn_name(expr.pred) & "(" & native_expr(expr.obj) & ")",
       state_is_def()        = native_call_expr(state_is_def_proc_name(expr.type), (expr.auto_var)),
 
@@ -384,6 +386,7 @@ implicit context : NativeContext {
       get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surr", (expr.table_var) & expr.args),
       get_aux_assoc_surr()    = native_get_aux_assoc_surr_expr(expr.table_var, expr.table, expr.args),
       get_capacity()          = native_call_expr(native_table_method_prefix(expr.table) & "_capacity", (expr.table_var)),
+      get_first_free_assoc_surr() = native_call_expr("master_bin_table_get_next_free_surr", (expr.table_var, "0xFFFFFFFF")),
       surr_set_size           = "surr_set_size(&surr_set)";
 
       // get_unknown_arg()     = if expr.iter.arity == 1

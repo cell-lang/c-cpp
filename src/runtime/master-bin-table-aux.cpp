@@ -3,7 +3,6 @@
 
 bool is_locked(uint64 slot);
 
-uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *, uint32 last_idx);
 void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *, uint32 next_free);
 
 bool master_bin_table_lock_surr(MASTER_BIN_TABLE *, uint32 surr);

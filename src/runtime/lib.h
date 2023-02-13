@@ -1741,6 +1741,9 @@ uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *, uint32 arg2);
 
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool master_bin_table_insert(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
+void master_bin_table_insert_using_first_free_surr(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *);
+
+uint32 master_bin_table_get_next_free_surr(MASTER_BIN_TABLE *, uint32 last_idx);
 
 // bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *);
 // bool master_bin_table_col_2_is_key(MASTER_BIN_TABLE *);

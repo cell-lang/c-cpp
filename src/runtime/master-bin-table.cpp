@@ -341,6 +341,20 @@ bool master_bin_table_insert_with_surr(MASTER_BIN_TABLE *table, uint32 arg1, uin
   }
 }
 
+void master_bin_table_insert_using_first_free_surr(MASTER_BIN_TABLE *table, uint32 arg1, uint32 arg2, uint32 surr, STATE_MEM_POOL *mem_pool) {
+  if (surr == table->first_free) {
+    assert(!master_bin_table_contains(table, arg1, arg2));
+    uint32 same_surr = master_bin_table_alloc_surr(table, arg1, arg2, mem_pool);
+    assert(same_surr == surr);
+    loaded_one_way_bin_table_insert_unique(&table->table.forward, arg1, arg2, surr, mem_pool);
+    loaded_one_way_bin_table_insert_unique(&table->table.backward, arg2, arg1, surr, mem_pool);
+  }
+  else {
+    assert(master_bin_table_contains(table, arg1, arg2));
+    assert(master_bin_table_lookup_surr(table, arg1, arg2) == surr);
+  }
+}
+
 void master_bin_table_clear(MASTER_BIN_TABLE *table, uint32 highest_locked_surr, STATE_MEM_POOL *mem_pool) {
   loaded_one_way_bin_table_clear(&table->table.forward, mem_pool);
   loaded_one_way_bin_table_clear(&table->table.backward, mem_pool);

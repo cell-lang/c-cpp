@@ -131,16 +131,14 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
     assert |aux_vars| == 3;
     return (
       set_ivar32(assoc_surr_var, get_assoc_surr(table_var, table, tuple)),
-      branch(
+      do_if(
         are_eq(assoc_surr_var, -1),
-        ( set_ivar32(aux_vars(0), tuple(0)),
-          set_ivar32(aux_vars(1), tuple(1)),
-          set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var)),
-          ## BAD BAD BAD: THIS IS NOT REALLY NECESSARY, THERE'S ENOUGH INFORMATION ALREADY TO DETERMINE IF THE INSERTION TOOK PLACE
+        ( set_ivar32(assoc_surr_var, get_first_free_assoc_surr(table_var)),
           set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
-        ),
-        (set_ivar32(aux_vars(0), -1))
+        )
       ),
+      set_ivar32(aux_vars(0), tuple(0)),
+      set_ivar32(aux_vars(1), tuple(1)),
       set_ivar32(aux_vars(2), assoc_surr_var)
     );
   }
@@ -187,48 +185,42 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
         table = tables(v);
         table_arity = arity(table);
+        keys = keys(table);
+        relvar = original_rel_var(v);
 
-        if table_arity == 2 {
-          if not is_symmetric(table) {
-            keys = keys(table);
-            relvar = original_rel_var(v);
+        for key <- keys {
+          // Default expression
+          key_check_expr = table_contains(v, table, (if key(i) then just(cast_int32_var(aux_vars(i))) else nothing : i < table_arity));
 
-            for idx <- [only(k) : k <- keys] {
-              col = phys_col(relvar, idx);
-              col_equivs = [];
-              for c <- cols_subset_map(col, ?) {
-                if cols_subset_map(c, col) {
-                  equiv_table_var = table_var(c.relvar);
-                  equiv_table = tables(equiv_table_var);
-                  if arity(equiv_table) == 1
-                    col_equivs = _insert_(col_equivs, equiv_table_var);
-                }
+          // Optimization for single-column keys where the column can be replaced with an equivalent column of a unary relation
+          ## TODO: AN EQUIVALENT OPTIMIZATION COULD BE DONE FOR MULTI-COLUMN KEYS
+          if |key| == 1 {
+            idx = only(key);
+            col = phys_col(relvar, idx);
+            col_equivs = [];
+            for c <- cols_subset_map(col, ?) {
+              if cols_subset_map(c, col) {
+                equiv_table_var = table_var(c.relvar);
+                equiv_table = tables(equiv_table_var);
+                if arity(equiv_table) == 1
+                  col_equivs = _insert_(col_equivs, equiv_table_var);
               }
+            }
 
-              tmp_key_var = cast_int32_var(aux_vars(idx));
+            tmp_key_var = cast_int32_var(aux_vars(idx));
 
-              if col_equivs != [] {
-                col_equiv = any(col_equivs);
-                key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
-              }
-              else
-                key_check_expr = table_contains(v, table, (if i == idx then just(tmp_key_var) else nothing : i < 2));
-
-              if maybe_status_var != nothing {
-                status_var = value(maybe_status_var);
-                key_check_expr = and_then(status_var, key_check_expr);
-              }
-
-              key_check_exprs = _insert_(key_check_exprs, key_check_expr);
+            if col_equivs != [] {
+              col_equiv = any(col_equivs);
+              key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
             }
           }
-          else {
-            ## CAN SYMMETRIC TABLE HAVE KEYS?
-            fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+          if maybe_status_var != nothing {
+            status_var = value(maybe_status_var);
+            key_check_expr = and_then(status_var, key_check_expr);
           }
-        }
-        else if table_arity == 3 {
-          fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+          key_check_exprs = _insert_(key_check_exprs, key_check_expr);
         }
       }
     }
@@ -257,10 +249,38 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       origin = key.origin;
       target = key.target;
 
+      origin_type = block.tables(origin);
       target_type = block.tables(target);
       origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
 
-      args_set = match (key.type)
+      check_expr = base_check_expr(key.type, origin_aux_vars, target, target_type, origin_type);
+
+      if table_var_aux_vars_map(target, _) {
+        target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
+
+        extra_check = extra_check_expr(key.type, origin_aux_vars, target_aux_vars, target, target_type, origin_type);
+
+        if maybe_target_status_var != nothing {
+          target_status_var = value(maybe_target_status_var);
+          extra_check = or_else(neg(target_status_var), extra_check);
+        }
+
+        check_expr = and(check_expr, extra_check);
+      }
+
+      if maybe_origin_status_var != nothing {
+        origin_status_var = value(maybe_origin_status_var);
+        check_expr = and_then(origin_status_var, check_expr);
+      }
+
+      return check_expr;
+    }
+
+
+    BoolExpr std_base_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TableVar target, AnyTable target_type, AnyTable origin_type) {
+      assert not origin_type :: <SlaveTernTable, SlaveColumn>;
+
+      args_set = match (key_type)
         unary_unary             = ((just(cast_int32_var(origin_aux_vars(0))))),
         unary_binary(i?)        = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 2)),
         unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 3)),
@@ -279,46 +299,93 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         sym_binary_sym_ternary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1))), nothing)),
         sym_ternary_sym_binary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1)))));
 
-      check_expr = neg(and((table_contains(target, target_type, as) : as <- args_set)));
-
-      if table_var_aux_vars_map(target, _) {
-        target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
-
-        neg_extra_check = match (key.type)
-          unary_unary             = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(0))),
-          unary_binary(i?)        |
-          unary_ternary(i?)       = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(i))),
-          binary_unary(i?)        |
-          ternary_unary(i?)       = are_eq(cast_int32_var(origin_aux_vars(i)), cast_int32_var(target_aux_vars(0))),
-          binary_ternary          |
-          ternary_binary          = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2)),
-          unary_sym_binary        |
-          unary_sym_ternary_12    = or((are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(j))) : j < 2)),
-          unary_sym_ternary_3     = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(2))),
-          sym_binary_unary        |
-          sym_ternary_unary_12    = or((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(0))) : j < 2)),
-          sym_ternary_unary_3     = are_eq(cast_int32_var(origin_aux_vars(2)), cast_int32_var(target_aux_vars(0))),
-          sym_binary_sym_ternary  |
-          ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
-          ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
-          sym_ternary_sym_binary  = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2));
-        extra_check = neg(neg_extra_check);
-
-        if maybe_target_status_var != nothing {
-          target_status_var = value(maybe_target_status_var);
-          extra_check = or_else(neg(target_status_var), extra_check);
-        }
-
-        check_expr = and(check_expr, extra_check);
-      }
-
-      if maybe_origin_status_var != nothing {
-        origin_status_var = value(maybe_origin_status_var);
-        check_expr = and_then(origin_status_var, check_expr);
-      }
-
-      return check_expr;
+      return neg(and((table_contains(target, target_type, as) : as <- args_set)));
     }
+
+
+    BoolExpr std_extra_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TempTableColVar+ target_aux_vars, TableVar target, AnyTable target_type, AnyTable origin_type) {
+      neg_extra_check = match (key_type)
+        unary_unary             = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(0))),
+        unary_binary(i?)        |
+        unary_ternary(i?)       = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(i))),
+        binary_unary(i?)        |
+        ternary_unary(i?)       = are_eq(cast_int32_var(origin_aux_vars(i)), cast_int32_var(target_aux_vars(0))),
+        binary_ternary          |
+        ternary_binary          = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2)),
+        unary_sym_binary        |
+        unary_sym_ternary_12    = or((are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(j))) : j < 2)),
+        unary_sym_ternary_3     = are_eq(cast_int32_var(origin_aux_vars(0)), cast_int32_var(target_aux_vars(2))),
+        sym_binary_unary        |
+        sym_ternary_unary_12    = or((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(0))) : j < 2)),
+        sym_ternary_unary_3     = are_eq(cast_int32_var(origin_aux_vars(2)), cast_int32_var(target_aux_vars(0))),
+        sym_binary_sym_ternary  |
+        ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
+        ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
+        sym_ternary_sym_binary  = and((are_eq(cast_int32_var(origin_aux_vars(j)), cast_int32_var(target_aux_vars(j))) : j < 2));
+      return neg(neg_extra_check);
+    }
+
+
+    BoolExpr base_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TableVar target, AnyTable target_type, AnyTable origin_type) =
+      unary_unary             |
+      unary_binary()          |
+      binary_unary()          |
+      unary_sym_binary        |
+      sym_binary_unary        = std_base_check_expr(key_type, origin_aux_vars, target, target_type, origin_type),
+
+      binary_ternary          = undefined, ## IMPLEMENT IMPLEMENT IMPLEMENT
+      ternary_binary          = { match (origin_type)
+                                    table()             = std_base_check_expr(key_type, origin_aux_vars, target, target_type, origin_type),
+                                    slave_tern_table()  |
+                                    slave_column()      = { assert |origin_aux_vars| == 2;
+                                                            return neg(master_bin_table_contains_assoc_surr(target, cast_master_bin_table(target_type), cast_int32_var(origin_aux_vars(0))));
+                                                          }
+                                },
+
+      _                       = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+        // ## ASSUMING THAT THE TWO SYMMETRIC SURROGATES HAVE BEEN ORDERED. THIS IS CURRENTLY NOT TRUE
+        // ## IMPLEMENT IT AND ADD A DEBUG MODE CHECK TO VERIFY IT
+        // sym_binary_sym_ternary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1))), nothing)),
+        // sym_ternary_sym_binary  = ((just(cast_int32_var(origin_aux_vars(0))), just(cast_int32_var(origin_aux_vars(1)))));
+
+        // unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 3)),
+        // ternary_unary(i?)       = ((just(cast_int32_var(origin_aux_vars(i))))),
+
+        // unary_sym_ternary_12    = ((just(cast_int32_var(origin_aux_vars(0))), nothing, nothing)),
+        // unary_sym_ternary_3     = ((nothing, nothing, just(cast_int32_var(origin_aux_vars(0))))),
+        // sym_ternary_unary_12    = ((just(cast_int32_var(origin_aux_vars(j)))) : j < 2),
+        // sym_ternary_unary_3     = ((just(cast_int32_var(origin_aux_vars(2))))),
+
+
+
+    BoolExpr slave_ternary_to_master_extra_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TempTableColVar+ target_aux_vars, TableVar target, AnyTable target_type, <SlaveTernTable, SlaveColumn> origin_type) {
+      ## BUG BUG BUG: HERE I MUST MAKE SURE THE TARGET IS THE ACTUAL MASTER. IN THEORY A SLAVE TABLE COULD HAVE A SECOND FOREIGN KEY TO A BINARY TABLE OTHER THAN ITS MASTER
+      assert target == origin_type.master;
+      assert |origin_aux_vars| == 2 and |target_aux_vars| == 3;
+
+      origin_assoc_surr_var = cast_int32_var(origin_aux_vars(0));
+      target_assoc_surr_var = cast_int32_var(target_aux_vars(2));
+
+      return neg(are_eq(origin_assoc_surr_var, target_assoc_surr_var));
+    }
+
+
+    BoolExpr extra_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TempTableColVar+ target_aux_vars, TableVar target, AnyTable target_type, AnyTable origin_type) =
+      unary_unary             |
+      unary_binary()          |
+      binary_unary()          |
+      unary_sym_binary        |
+      sym_binary_unary        = std_extra_check_expr(key_type, origin_aux_vars, target_aux_vars, target, target_type, origin_type),
+
+      binary_ternary          = undefined, ## IMPLEMENT IMPLEMENT IMPLEMENT
+      ternary_binary          = { match (origin_type)
+                                    table()             = std_extra_check_expr(key_type, origin_aux_vars, target_aux_vars, target, target_type, origin_type),
+                                    slave_tern_table()  |
+                                    slave_column()      = slave_ternary_to_master_extra_check_expr(key_type, origin_aux_vars, target_aux_vars, target, target_type, origin_type)
+                                },
+
+      _                       = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
 
 
     BoolExpr foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {

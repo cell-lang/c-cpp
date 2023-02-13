@@ -343,8 +343,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
   String* native_immediate_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
     method_prefix = native_table_method_prefix(table);
-    method_name = method_prefix & "_insert";
-    args = (table.master if table :: SlaveTernTable, table_var) & tuple & (:mem_pool);
+    method_suffix = match (table)
+      master_bin_table()  = if |tuple| == 3 then "_insert_using_first_free_surr" else "_insert",
+      _                   = "_insert";
+    method_name = method_prefix & method_suffix;
+    args = (table.master if table :: SlaveTernTable and |tuple| == 3, table_var) & tuple & (:mem_pool);
     return (native_call(method_name, args));
   }
 
