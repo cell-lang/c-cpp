@@ -1659,7 +1659,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     String check_call(TableVar var, SlaveTernTable table, [+Nat] key) {
       method_name = slave_tern_table_key_check_method_names(key, !);
       aux_var = pending_updates_var_ref_name(var);
-      args = (table.master, var, pending_updates_var_ref_name(table.master) if key == [0, 1], aux_var);
+      args = (var, aux_var, :mem_pool);
       return native_call_expr(method_name, args);
     }
 
