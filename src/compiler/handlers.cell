@@ -115,8 +115,9 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
     aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
     assert |aux_vars| == |tuple|;
     aux_vars = cast_int32_var_seq(aux_vars);
+    code = (queue_insert_tuple_rewrite_descr(table_var, aux_vars, maybe_status_var, forced));
     ## MAYBE WE COULD CHECK TO SEE IF THE TABLE ALREADY CONTAINS THE TUPLE WE'RE INSERTING
-    code = (set_ivar32(aux_vars(i), v) : v @ i <- tuple);
+    code = code & (set_ivar32(aux_vars(i), v) : v @ i <- tuple);
     if maybe_status_var != nothing {
       status_var = value(maybe_status_var);
       code = (code | set_bvar(status_var, true));
@@ -137,6 +138,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
           set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
         )
       ),
+      queue_insert_master_tuple_rewrite_descr(table_var, aux_vars, maybe_status_var),
       set_ivar32(aux_vars(0), tuple(0)),
       set_ivar32(aux_vars(1), tuple(1)),
       set_ivar32(aux_vars(2), assoc_surr_var)
@@ -150,6 +152,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
     fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
     tmp_key_var, tmp_value_var = aux_vars;
     return (
+      column_insert_deferred_rewrite_desrc(table_var, aux_vars, maybe_status_var, forced),
       set_ivar32(tmp_key_var, key_surr),
       set_any_var(tmp_value_var, obj_expr(value_expr)),
       set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
@@ -230,17 +233,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     check_code = ();
 
-    for e <- key_check_exprs
-      check_code = (check_code | do_if(e, ret_val(false)));
-
-    for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
-      check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
-      check_code = (check_code | do_if(check_expr, ret_val(false)));
+    if key_check_exprs != () {
+      check_code = (check_code | comment("Checking keys"));
+      for e <- key_check_exprs
+        check_code = (check_code | do_if(e, ret_val(false)));
     }
 
-    for k <- delete_checked_foreign_keys {
-      check_expr = foreign_key_backward_check_expr(k, block, table_var_aux_vars_map);
-      check_code = (check_code | do_if(check_expr, ret_val(false)));
+    if insert_checked_foreign_keys != () or update_checked_foreign_keys != () {
+      check_code = (check_code | comment("Forward checking of foreign keys"));
+      for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
+        check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
+        check_code = (check_code | do_if(check_expr, ret_val(false)));
+      }
+    }
+
+    if delete_checked_foreign_keys != () {
+      check_code = (check_code | comment("Backward checking of foreign keys"));
+      for k <- delete_checked_foreign_keys {
+        check_expr = foreign_key_backward_check_expr(k, block, table_var_aux_vars_map);
+        check_code = (check_code | do_if(check_expr, ret_val(false)));
+      }
     }
 
     check_code = () if skip_integrity_checks;
@@ -451,28 +463,37 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
 
     code = ();
-    for vs <- ord_value_stores {
-      instr = value_store_apply(vs, block.value_stores(vs));
-      code = (code | instr);
-    }
-    for v <- ord_table_vars {
-      aux_vars, maybe_status_var = table_var_aux_vars_map(v);
-      instr_id, action = only_pair(effects_info.tables(v));
-      instrs = immediate_insert_instrs(block, v, block.tables(v), aux_vars, action);
-      if maybe_status_var != nothing {
-        status_var = value(maybe_status_var);
-        instrs = (do_if(status_var, instrs));
+    if ord_value_stores != () {
+      code = (code | comment("Applying value store insertions"));
+      for vs <- ord_value_stores {
+        instr = value_store_apply(vs, block.value_stores(vs));
+        code = (code | instr);
       }
-      code = code & instrs;
     }
-    for v <- ord_memb_vars {
-      aux_var, maybe_status_var = memb_var_aux_vars_map(v);
-      instr = set_var(v, aux_var);
-      if maybe_status_var != nothing {
-        status_var = value(maybe_status_var);
-        instr = do_if(status_var, (instr));
+    if ord_table_vars != () {
+      code = (code | comment("Applying table updates"));
+      for v <- ord_table_vars {
+        aux_vars, maybe_status_var = table_var_aux_vars_map(v);
+        instr_id, action = only_pair(effects_info.tables(v));
+        instrs = immediate_insert_instrs(block, v, block.tables(v), aux_vars, action);
+        if maybe_status_var != nothing {
+          status_var = value(maybe_status_var);
+          instrs = (do_if(status_var, instrs));
+        }
+        code = code & instrs;
       }
-      code = (code | instr);
+    }
+    if ord_memb_vars != () {
+      code = (code | comment("Applying member var updates"));
+      for v <- ord_memb_vars {
+        aux_var, maybe_status_var = memb_var_aux_vars_map(v);
+        instr = set_var(v, aux_var);
+        if maybe_status_var != nothing {
+          status_var = value(maybe_status_var);
+          instr = do_if(status_var, (instr));
+        }
+        code = (code | instr);
+      }
     }
     return code;
 
@@ -563,4 +584,36 @@ Bool memb_var_is_always_set_once([+InstrId] instr_ids) = |instr_ids| == 1 and in
 Bool insertion_is_forced(TableVar var, EffectsInfo effects_info) {
   _, action = only_pair(effects_info.tables(var));
   return action == :update;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+BasicInstr queue_insert_tuple_rewrite_descr(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var, Bool forced) {
+  text = user_repr(original_rel_var(table_var)) & " -> (" & append((native_var_decl_name(v, context=:core) : v <- aux_vars), ", ") & ")";
+  if maybe_status_var != nothing {
+    status_var = value(maybe_status_var);
+    text = text & " ? " & native_var_decl_name(status_var, context=:core);
+  }
+  return comment(text);
+}
+
+
+BasicInstr queue_insert_master_tuple_rewrite_descr(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var) {
+  text = user_repr(original_rel_var(table_var)) & " -> " & append((native_var_decl_name(v, context=:core) : v <- take(aux_vars, 2)), ", ") & " @ " & native_var_decl_name(aux_vars(2), context=:core);
+  if maybe_status_var != nothing {
+    status_var = value(maybe_status_var);
+    text = text & " ? " & native_var_decl_name(status_var, context=:core);
+  }
+  return comment(text);
+}
+
+
+BasicInstr column_insert_deferred_rewrite_desrc(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var, Bool forced) {
+  text = user_repr(original_rel_var(table_var)) & " -> [" & native_var_decl_name(aux_vars(0), context=:core) & "] = " & native_var_decl_name(aux_vars(1), context=:core);
+  if maybe_status_var != nothing {
+    status_var = value(maybe_status_var);
+    text = text & " ? " & native_var_decl_name(status_var, context=:core);
+  }
+  return comment(text);
 }
