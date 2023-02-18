@@ -1,10 +1,10 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
-  Maybe[Instr*] native_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
+  Maybe[Instr*] native_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body) {
     effects_info = instrs_effects_info(body);
 
     return nothing if not is_optimizable(effects_info);
 
-    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(block_name, handler_id, msg_type, body, effects_info);
+    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(handler_id, msg_type, body, effects_info);
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
@@ -26,14 +26,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
   (Instr*, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
-  mandatory_only_optimized_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
-    tables_types = prg_data.tables(block_name);
+  mandatory_only_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
+    tables_types = prg_data.tables(block.name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
     table_var_aux_vars_map = [];
     for table_var table_effects_info <- effects_info.tables {
       instr_id, action = only_pair(table_effects_info);
-      aux_vars, unavailable_vars = table_aux_vars(tables_types(table_var), unavailable_vars);
+      instr = get_instr_by_id(instr_id, body);
+      aux_vars, unavailable_vars = table_aux_vars(tables_types(table_var), instr, unavailable_vars);
       maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not instr_is_always_exec_once(instr_id), unavailable_vars);
       table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, (aux_vars, maybe_status_var));
     }
@@ -49,19 +50,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return (rw_body, table_var_aux_vars_map, memb_var_aux_vars_map);
 
 
-    (LocInt32Var+, [TempTableColVar]) table_aux_vars(Table table_type, [TempTableColVar] unavailable_vars) =
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(Table table_type, Instr instr, [TempTableColVar] unavailable_vars) =
       reserve_any_available_loc_int32_vars(arity(table_type), unavailable_vars);
 
 
-    (LocInt32Var+, [TempTableColVar]) table_aux_vars(MasterBinTable table_type, [TempTableColVar] unavailable_vars) =
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(MasterBinTable table_type, Instr instr, [TempTableColVar] unavailable_vars) =
       reserve_any_available_loc_int32_vars(3, unavailable_vars);
 
 
-    (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, [TempTableColVar] unavailable_vars) =
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, Instr instr, [TempTableColVar] unavailable_vars) =
+      ## BUG BUG BUG: IT MAY NEED 3 VARIABLES. TRY TO TRIGGER THIS BUG BEFORE FIXING IT
       reserve_any_available_loc_int32_vars(2, unavailable_vars);
 
 
-    ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) table_aux_vars(AnyColumn col_type, [TempTableColVar] init_unavailable_vars) {
+    ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) table_aux_vars(<Column, MandatoryColumn> col_type, Instr instr, [TempTableColVar] init_unavailable_vars) {
       unavailable_vars = init_unavailable_vars;
       key_var = any_available_loc_int32_var(unavailable_vars);
       unavailable_vars = _insert_(unavailable_vars, key_var);
@@ -72,14 +74,36 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       unavailable_vars = _insert_(unavailable_vars, value_var);
       return ((key_var, value_var), unavailable_vars);
     }
+
+
+    (<(LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), (LocInt32Var, LocInt32Var, <LocVar, LocIntVar, LocFloatVar>)>, [TempTableColVar])
+    table_aux_vars(SlaveColumn col_type, Instr generic_instr, [TempTableColVar] init_unavailable_vars) {
+      // column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: <Int32Var, (Int32Var, Int32Var)>, value: AnyTypeExpr, forced: Bool),
+      instr = match (generic_instr) column_insert_deferred() = generic_instr;
+      unavailable_vars = init_unavailable_vars;
+
+      value_var, unavailable_vars = match (col_type.repr)
+        object  = reserve_any_available_loc_var(unavailable_vars),
+        int     = reserve_any_available_loc_int_var(unavailable_vars),
+        float   = reserve_any_available_loc_float_var(unavailable_vars);
+
+      if instr.args_surrs == nothing {
+        key_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
+        vars = (key_var, value_var);
+      }
+      else {
+        arg1_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
+        arg2_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
+        vars = (arg1_var, arg2_var, value_var);
+      }
+
+      return (vars, unavailable_vars);
+    }
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-Int32Var+ cast_int32_var_seq(TempTableColVar+ vars) = if vars :: Int32Var+ then vars else undefined;
-
 
 Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
   return match (instr)
@@ -87,7 +111,7 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
     // lookup_or_queue_insert_value() = status, ## IMPLEMENT IMPLEMENT IMPLEMENT
     queue_insert_tuple()            = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, instr.forced, table_var_aux_vars_map),
     queue_insert_master_tuple()     = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_aux_vars_map),
-    column_insert_deferred()        = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced, table_var_aux_vars_map),
+    column_insert_deferred()        = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.args_surrs, instr.value, instr.forced, table_var_aux_vars_map),
     set_var()                       = if instr.var :: PendingStateVar
                                         then rewrite_set_memb_var(instr.var, instr.value, memb_var_aux_vars_map(corresponding_memb_var(instr.var)))
                                         else (instr),
@@ -146,17 +170,32 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (TempTableColVar+, Maybe[L
   }
 
 
-  // column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: Int32Var, value: AnyTypeExpr, forced: Bool)
-  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, AnyTypeExpr value_expr, Bool forced, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
-    aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
-    fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
-    tmp_key_var, tmp_value_var = aux_vars;
-    return (
-      column_insert_deferred_rewrite_desrc(table_var, aux_vars, maybe_status_var, forced),
-      set_ivar32(tmp_key_var, key_surr),
-      set_any_var(tmp_value_var, obj_expr(value_expr)),
-      set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
-    );
+  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, Maybe[(Int32Var, Int32Var)] args_surrs, AnyTypeExpr value_expr, Bool forced, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+    if args_surrs == nothing {
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
+      tmp_key_var, tmp_value_var = aux_vars;
+      return (
+        column_insert_deferred_rewrite_descr(table_var, aux_vars, maybe_status_var, forced),
+        set_ivar32(tmp_key_var, key_surr),
+        set_any_var(tmp_value_var, obj_expr(value_expr)),
+        set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
+      );
+    }
+    else {
+      fail if not column :: SlaveColumn;
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      fail if not aux_vars :: (Int32Var, Int32Var, <LocVar, LocIntVar, LocFloatVar>);
+      tmp_arg1_var, tmp_arg2_var, tmp_value_var = aux_vars;
+      arg1_surr, arg2_surr = value(args_surrs);
+      return (
+        column_insert_deferred_rewrite_descr(table_var, aux_vars, maybe_status_var, forced),
+        set_ivar32(tmp_arg1_var, arg1_surr),
+        set_ivar32(tmp_arg2_var, arg2_surr),
+        set_any_var(tmp_value_var, obj_expr(value_expr)),
+        set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
+      );
+    }
   }
 }
 
@@ -341,6 +380,21 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
+    BoolExpr slave_ternary_to_binary_base_check_expr(<SlaveTernTable, SlaveColumn> origin_type, TempTableColVar+ origin_aux_vars, TableVar target, AnyTable target_type) {
+      assert |origin_aux_vars| == 2 or |origin_aux_vars| == 3;
+      neg_expr = if |origin_aux_vars| == 3
+        then table_contains(target, target_type, (just(cast_int32_var(origin_aux_vars(i))) : i <- (0, 1)))
+        else master_bin_table_contains_assoc_surr(target, cast_master_bin_table(target_type), cast_int32_var(origin_aux_vars(0)));
+      return neg(neg_expr);
+    }
+
+
+    BoolExpr slave_ternary_to_unary_base_check_expr(SlaveTernTable origin_type, TempTableColVar+ origin_aux_vars, TableVar target, AnyTable target_type) {
+      assert |origin_aux_vars| == 2 or |origin_aux_vars| == 3;
+      return neg(table_contains(target, target_type, (just(cast_int32_var(last(origin_aux_vars))))));
+    }
+
+
     BoolExpr base_check_expr(ForeignKeyType key_type, AnyTable origin_type, TempTableColVar+ origin_aux_vars, TableVar target, AnyTable target_type) =
       unary_unary                               |
       unary_binary()                            |
@@ -352,15 +406,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
       ternary_binary,       table()             = std_base_check_expr(key_type, origin_aux_vars, target, target_type, origin_type),
       ternary_binary,       slave_tern_table()  |
-                            slave_column()      = { assert |origin_aux_vars| == 2;
-                                                    return neg(master_bin_table_contains_assoc_surr(target, cast_master_bin_table(target_type), cast_int32_var(origin_aux_vars(0))));
-                                                  },
-      // unary_ternary(i?)       = ((if j == i then just(cast_int32_var(origin_aux_vars(0))) else nothing : j < 3)),
+                            slave_column()      = slave_ternary_to_binary_base_check_expr(origin_type, origin_aux_vars, target, target_type),
+
+      unary_ternary(i?),    _                   = undefined, ## IMPLEMENT IMPLEMENT IMPLEMENT
 
       ternary_unary(i?),    table()             = std_base_check_expr(key_type, origin_aux_vars, target, target_type, origin_type),
-      ternary_unary(2),     slave_tern_table()  = { assert |origin_aux_vars| == 2;
-                                                    return neg(table_contains(target, target_type, (just(cast_int32_var(origin_aux_vars(1))))));
-                                                  },
+      ternary_unary(2),     slave_tern_table()  = slave_ternary_to_unary_base_check_expr(origin_type, origin_aux_vars, target, target_type),
 
       _,                    _                   = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
 
@@ -381,27 +432,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     BoolExpr slave_ternary_to_master_extra_check_expr(ForeignKeyType key_type, TempTableColVar+ origin_aux_vars, TempTableColVar+ target_aux_vars, TableVar target, AnyTable target_type, <SlaveTernTable, SlaveColumn> origin_type) {
       ## BUG BUG BUG: HERE I MUST MAKE SURE THE TARGET IS THE ACTUAL MASTER. IN THEORY A SLAVE TABLE COULD HAVE A SECOND FOREIGN KEY TO A BINARY TABLE OTHER THAN ITS MASTER
       assert target == origin_type.master;
-      assert |origin_aux_vars| == 2 and |target_aux_vars| == 3;
+      assert |origin_aux_vars| == 2 or |origin_aux_vars| == 3;
+      assert |target_aux_vars| == 3;
 
-      origin_assoc_surr_var = cast_int32_var(origin_aux_vars(0));
-      target_assoc_surr_var = cast_int32_var(target_aux_vars(2));
-
-      return neg(are_eq(origin_assoc_surr_var, target_assoc_surr_var));
+      if |origin_aux_vars| == 2 {
+        origin_assoc_surr_var = cast_int32_var(origin_aux_vars(0));
+        target_assoc_surr_var = cast_int32_var(target_aux_vars(2));
+        return neg(are_eq(origin_assoc_surr_var, target_assoc_surr_var));
+      }
+      else
+        return or((neg(are_eq(cast_int32_var(origin_aux_vars(i)), cast_int32_var(target_aux_vars(i)))) : i <- (0, 1)));
     }
 
 
     BoolExpr slave_ternary_to_unary_extra_check_expr(TempTableColVar+ origin_aux_vars, TempTableColVar+ target_aux_vars, Maybe[LocBoolVar] maybe_target_status_var, TableVar target, AnyTable target_type, SlaveTernTable origin_type) {
+      ## BUG BUG BUG: THIS FUNCTION IS PROBABLY BUGGY, BUT TRY TO TRIGGER THE BUG BEFORE TRYING TO FIX IT
       assert |origin_aux_vars| == 2 and |target_aux_vars| == 1;
 
       origin_aux_var = cast_int32_var(origin_aux_vars(1));
       target_aux_var = cast_int32_var(target_aux_vars(0));
-
-      expr = neg(are_eq(origin_aux_var, target_aux_var));
-      if maybe_target_status_var != nothing {
-        target_status_var = value(maybe_target_status_var);
-        expr = or_else(neg(target_status_var), expr);
-      }
-      return expr;
+      return neg(are_eq(origin_aux_var, target_aux_var));
     }
 
 
@@ -537,12 +587,35 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, AnyColumn column, TempTableColVar+ aux_vars, TableAction action) {
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <Column, MandatoryColumn> column, TempTableColVar+ aux_vars, TableAction action) {
       assert action == :insertion or action == :update;
       assert |aux_vars| == 2;
       key_var = cast_int32_var(aux_vars(0));
       value_var = aux_vars(1);
       return (column_insert_immediate(table_var, column, key_var, value_var, action == :update));
+    }
+
+
+    Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, SlaveColumn column, TempTableColVar+ aux_vars, TableAction action) {
+      assert action == :insertion or action == :update;
+      assert |aux_vars| == 2 or |aux_vars| == 3;
+      if |aux_vars| == 2 {
+        key_var = cast_int32_var(aux_vars(0));
+        value_var = aux_vars(1);
+        return (column_insert_immediate(table_var, column, key_var, value_var, action == :update));
+      }
+      else {
+        arg1_var = cast_int32_var(aux_vars(0));
+        arg2_var = cast_int32_var(aux_vars(1));
+        value_var = aux_vars(2);
+        assoc_surr_var = new_unique_int32_var(:unused);
+        master_type = cast_master_bin_table(prg_data.tables(block.name)(column.master));
+        return (
+          // get_assoc_surr(table_var: AnyTableVar, table_type: MasterBinTable, args: (Int32Var, Int32Var)),
+          set_ivar32(assoc_surr_var, get_assoc_surr(column.master, master_type, (arg1_var, arg2_var))),
+          column_insert_immediate(table_var, column, assoc_surr_var, value_var, action == :update)
+        );
+      }
     }
   }
 }
@@ -590,7 +663,8 @@ Bool insertion_is_forced(TableVar var, EffectsInfo effects_info) {
 ////////////////////////////////////////////////////////////////////////////////
 
 BasicInstr queue_insert_tuple_rewrite_descr(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var, Bool forced) {
-  text = user_repr(original_rel_var(table_var)) & " -> (" & append((native_var_decl_name(v, context=:core) : v <- aux_vars), ", ") & ")";
+  aux_vars_strs = (native_var_decl_name(v, context=:core) : v <- aux_vars);
+  text = user_repr(original_rel_var(table_var)) & ": (" & append(aux_vars_strs, ", ") & ")";
   if maybe_status_var != nothing {
     status_var = value(maybe_status_var);
     text = text & " ? " & native_var_decl_name(status_var, context=:core);
@@ -600,7 +674,9 @@ BasicInstr queue_insert_tuple_rewrite_descr(TableVar table_var, TempTableColVar+
 
 
 BasicInstr queue_insert_master_tuple_rewrite_descr(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var) {
-  text = user_repr(original_rel_var(table_var)) & " -> " & append((native_var_decl_name(v, context=:core) : v <- take(aux_vars, 2)), ", ") & " @ " & native_var_decl_name(aux_vars(2), context=:core);
+  aux_arg_vars_strs = (native_var_decl_name(v, context=:core) : v <- take(aux_vars, 2));
+  assoc_surr_var_str = native_var_decl_name(aux_vars(2), context=:core);
+  text = user_repr(original_rel_var(table_var)) & ": " & append(aux_arg_vars_strs, ", ") & " @ " & assoc_surr_var_str;
   if maybe_status_var != nothing {
     status_var = value(maybe_status_var);
     text = text & " ? " & native_var_decl_name(status_var, context=:core);
@@ -609,8 +685,11 @@ BasicInstr queue_insert_master_tuple_rewrite_descr(TableVar table_var, TempTable
 }
 
 
-BasicInstr column_insert_deferred_rewrite_desrc(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var, Bool forced) {
-  text = user_repr(original_rel_var(table_var)) & " -> [" & native_var_decl_name(aux_vars(0), context=:core) & "] = " & native_var_decl_name(aux_vars(1), context=:core);
+BasicInstr column_insert_deferred_rewrite_descr(TableVar table_var, TempTableColVar+ aux_vars, Maybe[LocBoolVar] maybe_status_var, Bool forced) {
+  key_vars_str = native_var_decl_name(aux_vars(0), context = :core);
+  key_vars_str = key_vars_str & ", " & native_var_decl_name(aux_vars(1), context = :core) if |aux_vars| == 3;
+  value_var_str = native_var_decl_name(last(aux_vars), context=:core);
+  text = user_repr(original_rel_var(table_var)) & ": (" & key_vars_str & " -> " & value_var_str & ")";
   if maybe_status_var != nothing {
     status_var = value(maybe_status_var);
     text = text & " ? " & native_var_decl_name(status_var, context=:core);

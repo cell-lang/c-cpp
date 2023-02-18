@@ -1132,7 +1132,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
 
     maybe_opt_handler_code = if not disable_handler_optimization
-      then native_optimized_handler_code(block_name, handler_id, msg_type, body)
+      then native_optimized_handler_code(handler_id, msg_type, body)
       else nothing;
 
     code = ();

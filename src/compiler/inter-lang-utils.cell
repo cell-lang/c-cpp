@@ -132,6 +132,21 @@ LocBoolVar any_available_loc_bool_var([TempTableColVar] unavailable_vars) {
   return (var, _insert_(unavailable_vars, var));
 }
 
+(LocIntVar, [TempTableColVar]) reserve_any_available_loc_int_var([TempTableColVar] unavailable_vars) {
+  var = any_available_loc_int_var(unavailable_vars);
+  return (var, _insert_(unavailable_vars, var));
+}
+
+(LocFloatVar, [TempTableColVar]) reserve_any_available_loc_float_var([TempTableColVar] unavailable_vars) {
+  var = any_available_loc_float_var(unavailable_vars);
+  return (var, _insert_(unavailable_vars, var));
+}
+
+(LocInt32Var, [TempTableColVar]) reserve_any_available_loc_int32_var([TempTableColVar] unavailable_vars) {
+  var = any_available_loc_int32_var(unavailable_vars);
+  return (var, _insert_(unavailable_vars, var));
+}
+
 (Maybe[LocBoolVar], [TempTableColVar]) reserve_maybe_loc_bool_var(Bool needed, [TempTableColVar] unavailable_vars) {
   if needed {
     var = any_available_loc_bool_var(unavailable_vars);

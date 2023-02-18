@@ -83,6 +83,35 @@ EffectsInfo merged_effects_info([EffectsInfo] effects_infos) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+BasicInstr get_instr_by_id(InstrId instr_id, Instr* instrs) {
+  first_step = instr_id(0);
+  other_steps = drop(instr_id, 1);
+  top_level_instr_idx = match (first_step) top_level(i?) = i;
+  top_level_instr = instrs(top_level_instr_idx);
+  return if other_steps != ()
+    then get_nested_instr_by_id(other_steps, top_level_instr)
+    else cast_basic_instr(top_level_instr);
+
+
+  BasicInstr get_nested_instr_by_id(InstrId instr_id, Instr instr) {
+    first_step = instr_id(0);
+    other_steps = drop(instr_id, 1);
+    nested_instr = match (first_step, instr)
+      then(i?),   branch()    = instr.when_true(i),
+      else(i?),   branch()    = instr.when_false(i),
+      loop(i?),   repeat(is?) = is(i);
+    return if other_steps != ()
+      then get_nested_instr_by_id(other_steps, nested_instr)
+      else cast_basic_instr(nested_instr);
+  }
+
+
+  BasicInstr cast_basic_instr(BasicInstr instr)       = instr;
+  BasicInstr cast_basic_instr(<JumpInstr, CompInstr>) = undefined;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 EffectsInfo instrs_effects_info(Instr* instrs) {
   return instrs_effects_info(instrs, (:top_level($)));
 

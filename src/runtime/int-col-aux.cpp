@@ -80,6 +80,18 @@ void int_col_aux_update(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void int_col_aux_slave_insert(INT_COL *col, INT_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, int64 value) {
+  uint32 key = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  int_col_aux_insert(col, col_aux, key, value);
+}
+
+void int_col_aux_slave_update(INT_COL *col, INT_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, int64 value) {
+  uint32 key = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  int_col_aux_update(col, col_aux, key, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void int_col_aux_apply_deletions(INT_COL *col, INT_COL_AUX *col_aux, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store, STATE_MEM_POOL *mem_pool) {
   if (col_aux->clear) {
     if (remove != NULL) {

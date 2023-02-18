@@ -76,6 +76,18 @@ void obj_col_aux_update(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 index, OBJ va
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void obj_col_aux_slave_insert(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, OBJ value) {
+  uint32 key = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  obj_col_aux_insert(col, col_aux, key, value);
+}
+
+void obj_col_aux_slave_update(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, OBJ value) {
+  uint32 key = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  obj_col_aux_update(col, col_aux, key, value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void obj_col_aux_copy_values_into_mem_pool(OBJ_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   uint32 count = col_aux->updates.count;
   if (count > 0) {

@@ -2223,6 +2223,9 @@ void int_col_aux_delete_1(INT_COL *, INT_COL_AUX *, uint32);
 void int_col_aux_insert(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
 void int_col_aux_update(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
 
+void int_col_aux_slave_insert(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, int64 value);
+void int_col_aux_slave_update(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, int64 value);
+
 void int_col_aux_apply_deletions(INT_COL *, INT_COL_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void int_col_aux_apply_updates_and_insertions(INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2270,6 +2273,9 @@ void float_col_aux_delete_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index);
 void float_col_aux_insert(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
 void float_col_aux_update(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
 
+void float_col_aux_slave_insert(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, double value);
+void float_col_aux_slave_update(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, double value);
+
 void float_col_aux_apply_deletions(FLOAT_COL *, FLOAT_COL_AUX *, void (*)(void *, uint32, STATE_MEM_POOL *), void *, STATE_MEM_POOL *);
 void float_col_aux_apply_updates_and_insertions(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2316,6 +2322,9 @@ void obj_col_aux_clear(OBJ_COL_AUX *);
 void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *, uint32 index);
 void obj_col_aux_insert(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
 void obj_col_aux_update(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
+
+void obj_col_aux_slave_insert(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, OBJ value);
+void obj_col_aux_slave_update(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, OBJ value);
 
 bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
