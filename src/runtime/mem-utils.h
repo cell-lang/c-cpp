@@ -977,7 +977,7 @@ inline bool are_eq_(OBJ obj1, OBJ obj2) {
 
 inline bool are_eq(OBJ obj1, OBJ obj2) {
   bool res = are_eq_(obj1, obj2);
-  assert(res == (intrl_cmp(obj1, obj2) == 0));
+  expensive_assert(res == (intrl_cmp(obj1, obj2) == 0));
   return res;
 }
 

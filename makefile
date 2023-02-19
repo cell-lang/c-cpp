@@ -25,7 +25,7 @@ cellcd:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
 	bin/cellc -d -nrt -t project/compiler-no-runtime.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
-	g++ -ggdb -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
+	g++ -ggdb -DNEDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 
 cellc2:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
@@ -65,7 +65,7 @@ update-cellcr-inline:
 
 runtime-dbg-objs:
 	rm -f objs/dbg/*
-	cd objs/dbg/ ; g++ -c -ggdb -I ../../src/runtime/ ../../src/runtime/*.cpp
+	cd objs/dbg/ ; g++ -c -ggdb -DNEDEBUG -I ../../src/runtime/ ../../src/runtime/*.cpp
 
 codegen.net:
 	@rm -rf tmp/codegen.net/ && mkdir -p tmp/codegen.net/
@@ -200,4 +200,4 @@ clean:
 
 %: src/runtime/%.cpp
 	rm -f objs/dbg/$@.o
-	g++ -c -ggdb -I src/runtime/ $< -o objs/dbg/$@.o
+	g++ -c -ggdb -DNEDEBUG -I src/runtime/ $< -o objs/dbg/$@.o
