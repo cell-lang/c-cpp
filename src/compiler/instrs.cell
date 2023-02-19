@@ -53,7 +53,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     pop_call_info         = ("pop_call_info();" if debug_mode),
     log_runtime_failure() = native_log_runtime_failure_code(instr.is_assert, instr.file, instr.line, instr.text, instr.vars),
     branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
-    comment()             = ("" if instr.empty_line_before, "// " & instr.text, "" if instr.empty_line_after),
+    comment()             = ("// " & instr.text),
     _                     = auto_instr_native_code(instr, block_id);
 
 
