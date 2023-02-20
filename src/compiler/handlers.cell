@@ -58,9 +58,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       reserve_any_available_loc_int32_vars(3, unavailable_vars);
 
 
-    (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, Instr instr, [TempTableColVar] unavailable_vars) =
-      ## BUG BUG BUG: IT MAY NEED 3 VARIABLES. TRY TO TRIGGER THIS BUG BEFORE FIXING IT
-      reserve_any_available_loc_int32_vars(2, unavailable_vars);
+    (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, Instr instr, [TempTableColVar] unavailable_vars) {
+      num_vars = match (instr) queue_insert_tuple() = |instr.tuple|;
+      return reserve_any_available_loc_int32_vars(num_vars, unavailable_vars);
+    }
 
 
     ((LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), [TempTableColVar]) table_aux_vars(<Column, MandatoryColumn> col_type, Instr instr, [TempTableColVar] init_unavailable_vars) {
