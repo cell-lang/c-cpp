@@ -1073,3 +1073,8 @@ implicit context : NativeContext {
   String native_assignment_code(Encodable var, Encodable value) =
     native_code(var) & " = " & native_code(value) & ";";
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+## BAD BAD BAD: NOT THE RIGHT PLACE FOR THIS CONSTANT
+[+Nat]+ ord_tern_table_keys = ([0, 1], [2], [0, 2], [1, 2]);

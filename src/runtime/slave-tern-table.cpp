@@ -1,24 +1,18 @@
 #include "lib.h"
 
 
-bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool) {
-  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
-  assert(surr12 != 0xFFFFFFFF);
-  return bin_table_insert(slave_table, surr12, arg3, mem_pool);
-}
-
-bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool) {
-  return bin_table_insert(slave_table, surr12, arg3, mem_pool);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3) {
   return bin_table_delete(slave_table, surr12, arg3);
 }
 
 void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_pool) {
   bin_table_clear(slave_table, mem_pool);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+bool slave_tern_table_insert(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3, STATE_MEM_POOL *mem_pool) {
+  return bin_table_insert(slave_table, surr12, arg3, mem_pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,6 +48,28 @@ void slave_tern_table_update_12_3(BIN_TABLE *slave_table, uint32 surr12, uint32 
     slave_tern_table_resolve_3(slave_table, arg3);
     bin_table_insert(slave_table, surr12, arg3, mem_pool);
   }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+bool slave_tern_table_slave_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool) {
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
+  assert(surr12 != 0xFFFFFFFF);
+  return bin_table_insert(slave_table, surr12, arg3, mem_pool);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void slave_tern_table_slave_update_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
+  assert(surr12 != 0xFFFFFFFF);
+  slave_tern_table_update_12(slave_table, surr12, arg3, mem_pool, remove3, store3);
+}
+
+void slave_tern_table_slave_update_12_3(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
+  uint32 surr12 = master_bin_table_lookup_surr(master_table, arg1, arg2);
+  assert(surr12 != 0xFFFFFFFF);
+  slave_tern_table_update_12_3(slave_table, surr12, arg3, mem_pool, remove3, store3);
 }
 
 //////////////////////////////////////////////////////////////////////////////

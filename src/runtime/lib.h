@@ -1846,13 +1846,18 @@ void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *, SYM_MASTER_BI
 
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 
-bool slave_tern_table_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
-bool slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
-bool slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
 void slave_tern_table_clear(BIN_TABLE *s, STATE_MEM_POOL *);
+bool slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
+
+bool slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
 
 void slave_tern_table_update_12(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 void slave_tern_table_update_12_3(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+
+bool slave_tern_table_slave_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+
+void slave_tern_table_slave_update_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
+void slave_tern_table_slave_update_12_3(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
 uint32 slave_tern_table_size(BIN_TABLE *slave_table);
 uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
@@ -1891,6 +1896,12 @@ void slave_tern_table_aux_delete_12(SLAVE_TERN_TABLE_AUX *, uint32 surr12);
 void slave_tern_table_aux_delete_3(SLAVE_TERN_TABLE_AUX *, uint32 arg3);
 
 void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
+void slave_tern_table_aux_update_12(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
+void slave_tern_table_aux_update_12_3(SLAVE_TERN_TABLE_AUX *, uint32 surr12, uint32 arg3);
+
+void slave_tern_table_aux_slave_insert(SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+void slave_tern_table_aux_slave_update_12(SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
+void slave_tern_table_aux_slave_update_12_3(SLAVE_TERN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, uint32 arg3);
 
 bool slave_tern_table_aux_check_key_12(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
 bool slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);

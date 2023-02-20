@@ -33,6 +33,34 @@ void slave_tern_table_aux_insert(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12,
   bin_table_aux_insert(&table_aux->slave_table_aux, surr12, arg3);
 }
 
+void slave_tern_table_aux_update_12(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3) {
+  slave_tern_table_aux_delete_12(table_aux, surr12);
+  slave_tern_table_aux_insert(table_aux, surr12, arg3);
+}
+
+void slave_tern_table_aux_update_12_3(SLAVE_TERN_TABLE_AUX *table_aux, uint32 surr12, uint32 arg3) {
+  slave_tern_table_aux_delete_12(table_aux, surr12);
+  slave_tern_table_aux_delete_3(table_aux, surr12);
+  slave_tern_table_aux_insert(table_aux, surr12, arg3);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void slave_tern_table_aux_slave_insert(SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
+  uint32 assoc_surr = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  slave_tern_table_aux_insert(table_aux, assoc_surr, arg3);
+}
+
+void slave_tern_table_aux_slave_update_12(SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
+  uint32 assoc_surr = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  slave_tern_table_aux_update_12(table_aux, assoc_surr, arg3);
+}
+
+void slave_tern_table_aux_slave_update_12_3(SLAVE_TERN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, uint32 arg3) {
+  uint32 assoc_surr = master_bin_table_aux_lookup_surr(master, master_aux, arg1, arg2);
+  slave_tern_table_aux_update_12_3(table_aux, assoc_surr, arg3);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void slave_tern_table_aux_apply_deletions(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_AUX *table_aux, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {

@@ -347,49 +347,75 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     (native_call(res_var, native_value_store_method_prefix(store_type) & "_lookup_or_insert", (store, value, :mem_pool)));
 
 
-  String* native_immediate_insert_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
-    method_prefix = native_table_method_prefix(table);
-    method_suffix = match (table)
-      master_bin_table()  = if |tuple| == 3 then "_insert_using_first_free_surr" else "_insert",
-      _                   = "_insert";
-    method_name = method_prefix & method_suffix;
-    args = (table.master if table :: SlaveTernTable and |tuple| == 3, table_var) & tuple & (:mem_pool);
+  String* native_immediate_insert_tuple_code(TableVar table_var, Table table, Int32Var+ tuple) {
+    method_name = native_table_method_prefix(table) & "_insert";
+    args = (table_var) & tuple & (:mem_pool);
     return (native_call(method_name, args));
   }
 
 
-  String* native_immediate_update_tuple_code(TableVar table_var, AnySurrTable table, Int32Var+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+  String* native_immediate_insert_tuple_code(TableVar table_var, MasterBinTable table, Int32Var+ tuple) {
+    method_action_descr = if |tuple| == 3 then "_insert_using_first_free_surr" else "_insert";
+    method_name = native_table_method_prefix(table) & method_action_descr;
+    args = (table_var) & tuple & (:mem_pool);
+    return (native_call(method_name, args));
+  }
+
+
+  String* native_immediate_insert_tuple_code(TableVar table_var, SlaveTernTable table, Int32Var+ tuple) {
+    is_slave_op = |tuple| == 3;
+    method_name = native_table_method_prefix(table) & if is_slave_op then "_slave_insert" else "_insert";
+    args = (table.master if is_slave_op, table_var) & tuple & (:mem_pool);
+    return (native_call(method_name, args));
+  }
+
+
+  String* native_immediate_update_tuple_code(TableVar table_var, <Table, MasterBinTable> table, Int32Var+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
     assert table.keys != [];
+
     arity = arity(table);
     keys = table.keys;
 
     method_name = native_table_method_prefix(table) & "_update";
+    base_args = (table_var) & tuple & (:mem_pool);
     vs_args = value_stores_args(owned_value_stores);
-    args = (table_var) & tuple & (:mem_pool);
+
+    assert |vs_args| == 2 * arity;
+    assert arity != 2 or (keys == [[0]] or keys == [[0], [1]]);
 
     if arity == 2 {
-      assert |vs_args| == 4;
-      assert keys == [[0]] or keys == [[0], [1]];
-      args = args & if keys == [[0]] then slice(vs_args, 2, 2) else vs_args;
+      vs_args = if keys == [[0]] then slice(vs_args, 2, 2) else vs_args;
     }
     else {
-      assert arity == 3 and |vs_args| == 6;
-      ord_keys = (k : k <- ord_tern_keys, keys(k));
+      ord_keys = (k : k <- ord_tern_table_keys, keys(k));
       assert ord_keys != ();
-      suffix = append(("_" & append((_print_(i) : i <- sort(k))) : k <- ord_keys));
+      suffix = append(("_" & append((_print_(i + 1) : i <- sort(k))) : k <- ord_keys));
       method_name = method_name & suffix;
-      args = args & match (table)
-        slave_tern_table()  = slice(vs_args, 4, 2),
-        table()             = if      keys == [[0, 1]]          then slice(vs_args, 4, 2)
-                              else if keys == [[0, 1], [0, 2]]  then slice(vs_args, 2, 4)
-                              else                                   vs_args;
+      vs_args = if      keys == [[0, 1]]          then slice(vs_args, 4, 2)
+                else if keys == [[0, 1], [0, 2]]  then slice(vs_args, 2, 4)
+                else                                   vs_args;
     }
 
+    return (native_call(method_name, base_args & vs_args));
+  }
+
+
+  String* native_immediate_update_tuple_code(TableVar table_var, SlaveTernTable table, Int32Var+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+    assert table.keys != [];
+
+    is_slave_op = |tuple| == 3;
+
+    method_action_descr = if is_slave_op then "_slave_update" else "_update";
+    ord_keys = (k : k <- ord_tern_table_keys, table.keys(k));
+    assert ord_keys != ();
+    keys_info = append(("_" & append((_print_(i + 1) : i <- sort(k))) : k <- ord_keys));
+    method_name = native_table_method_prefix(table) & method_action_descr & keys_info;
+
+    vs_args = value_stores_args(owned_value_stores);
+    assert |vs_args| == 6;
+    args = (table.master if is_slave_op, table_var) & tuple & (:mem_pool) & slice(vs_args, 4, 2);
+
     return (native_call(method_name, args));
-
-
-    ## BAD BAD BAD: NOT THE RIGHT PLACE FOR THIS CONSTANT
-    [+Nat]+ ord_tern_keys = ([0, 1], [2], [0, 2], [1, 2]);
   }
 
 
@@ -401,11 +427,11 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     else
       code = ();
 
-    updater = pending_updates_var_ref_name(table_var);
+    aux_struct = pending_updates_var_ref_name(table_var);
     arity = arity(table);
     needs_table_var_arg = arity == 1 or arity == 3 or (arity == 2 and table.keys == [[0]]);
     needs_mem_pool_arg = arity == 1 or (arity == 2 and table.keys != []);
-    args = (table_var if needs_table_var_arg, updater) & tuple & (:mem_pool if needs_mem_pool_arg);
+    args = (table_var if needs_table_var_arg, aux_struct) & tuple & (:mem_pool if needs_mem_pool_arg);
     code = (code | native_call(native_table_method_prefix(table) & "_aux_insert", args));
 
     return code;
@@ -413,24 +439,44 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String* native_queue_insert_tuple_code(TableVar table_var, SlaveTernTable table, Int32Var+ tuple, Bool forced) {
-    assert |tuple| == 2;
+    assert table.keys == [] or table.keys == [[0, 1]] or table.keys == [[0, 1], [2]];
+    assert |tuple| == 2 or |tuple| == 3;
 
-    if forced {
-      deletes_args = ((maybe(v, k(i)) : v @ i <- tuple) : k <- isort(table.keys));
-      code = (native_queue_deletes_code(table_var, table, as) : as <- deletes_args);
+    keys = table.keys;
+    method_name_prefix = native_table_method_prefix(table);
+    aux_struct = pending_updates_var_ref_name(table_var);
+
+    if |tuple| == 2 {
+      if forced {
+        method_name_action = "_aux_update";
+        method_name_action = method_name_action & "_12" if keys([0, 1]);
+        method_name_action = method_name_action & "_3" if keys([2]);
+      }
+      else
+        method_name_action = "_aux_insert";
+
+      args = (aux_struct) & tuple;
     }
-    else
-      code = ();
+    else {
+      if forced {
+        method_name_action = "_aux_slave_update";
+        method_name_action = method_name_action & "_12" if keys([0, 1]);
+        method_name_action = method_name_action & "_3" if keys([2]);
+      }
+      else
+        method_name_action = "_aux_slave_insert";
 
-    method_name = native_table_method_prefix(table) & "_aux_insert";
-    updater = pending_updates_var_ref_name(table_var);
-    return (native_call(method_name, (updater) & tuple));
+      args = (aux_struct, table.master, pending_updates_var_ref_name(table.master)) & tuple;
+    }
+
+    method_name = method_name_prefix & method_name_action;
+    return (native_call(method_name, args));
   }
 
 
   String native_queue_insert_master_tuple_code(Int32Var assoc_surr_var, TableVar table_var, AnySurrTable table, Int32Var+ tuple) {
-    updater = pending_updates_var_ref_name(table_var);
-    args = (table_var, updater) & tuple;
+    aux_struct = pending_updates_var_ref_name(table_var);
+    args = (table_var, aux_struct) & tuple;
     return native_call(assoc_surr_var, native_table_method_prefix(table) & "_aux_insert", args);
   }
 
