@@ -78,9 +78,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     (<(LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), (LocInt32Var, LocInt32Var, <LocVar, LocIntVar, LocFloatVar>)>, [TempTableColVar])
-    table_aux_vars(SlaveColumn col_type, Instr generic_instr, [TempTableColVar] init_unavailable_vars) {
-      // column_insert_deferred(table_var: TableVar, column: AnyColumn, key_surr: <Int32Var, (Int32Var, Int32Var)>, value: AnyTypeExpr, forced: Bool),
-      instr = match (generic_instr) column_insert_deferred() = generic_instr;
+    table_aux_vars(SlaveColumn col_type, Instr untyped_instr, [TempTableColVar] init_unavailable_vars) {
+      instr = match (untyped_instr) column_insert_deferred() = untyped_instr;
       unavailable_vars = init_unavailable_vars;
 
       value_var, unavailable_vars = match (col_type.repr)
