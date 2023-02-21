@@ -126,12 +126,15 @@ implicit context : NativeContext {
       rel_obj_contains()    = native_rel_obj_contains_expr(expr.rel, expr.args),
       table_contains()      = native_table_contains(expr.table_var, expr.table, expr.tuple),
 
+      is_null_surr(v?)      = parenthesize(native_var_ref_name(v) & " == 0xFFFFFFFF", parenthesized),
+
       master_bin_table_contains_assoc_surr() = native_call_expr(native_table_method_prefix(expr.table) & "_contains_surr", (expr.table_var, expr.assoc_surr)),
 
       is_member()           = native_fn_name(expr.pred) & "(" & native_expr(expr.obj) & ")",
       state_is_def()        = native_call_expr(state_is_def_proc_name(expr.type), (expr.auto_var)),
 
       neg(are_eq(e1?, e2?)) = native_neq_expr(e1, e2, parenthesized),
+      neg(is_null_surr(v?)) = parenthesize(native_var_ref_name(v) & " != 0xFFFFFFFF", parenthesized),
       neg(e?)               = parenthesize("!" & native_expr(e, true), parenthesized),
 
       and(es?)              = native_nary_op(" & ",  es, parenthesized),

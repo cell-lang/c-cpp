@@ -54,6 +54,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     log_runtime_failure() = native_log_runtime_failure_code(instr.is_assert, instr.file, instr.line, instr.text, instr.vars),
     branch()              = native_branch_code(instr.cond, instr.when_true, instr.when_false, block_id),
     comment()             = ("// " & instr.text),
+    empty_line            = (""),
     _                     = auto_instr_native_code(instr, block_id);
 
 
