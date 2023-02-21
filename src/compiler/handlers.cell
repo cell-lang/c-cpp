@@ -19,7 +19,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
     code = code & updates_reset_code(block, insertion_value_stores);
 
-    code = (code | ret_val(true));
+    code = (code | :empty_line, ret_val(true));
 
     return just(code);
   }
@@ -218,68 +218,69 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     delete_checked_foreign_keys = sort_by_key(delete_checked_foreign_keys, order);
 
     tables = block.tables;
-    cols_subset_map = block.cols_subset_map;
 
     key_check_exprs = [];
+    key_check_exprs_guards = []; // key check expr (BoolExpr) -> guard (BoolExpr)
+    exprs_extra_info_vars = [];  // key check expr (BoolExpr) -> extra info var (Int32Var)
+    extra_info_vars_values = []; // extra info var (Int32Var) -> extra info expr (Int32Expr)
+
     for v vs <- table_var_aux_vars_map {
       if not insertion_is_forced(v, effects_info) {
         aux_vars, maybe_status_var = vs;
-
         table = tables(v);
-        table_arity = arity(table);
         keys = keys(table);
-        relvar = original_rel_var(v);
-
         for key <- keys {
-          // Remapping the key for slave columns and tables
-          low_level_key = low_level_key(key, table);
-
-          // Default expression
-          key_check_expr = table_contains(v, table, (if low_level_key(i) then just(cast_int32_var(aux_vars(i))) else nothing : i < table_arity));
-
-          // Optimization for single-column keys where the column can be replaced with an equivalent column of a unary relation
-          ## TODO: AN EQUIVALENT OPTIMIZATION COULD BE DONE FOR MULTI-COLUMN KEYS
-          if |key| == 1 {
-            idx = only(key);
-            col = phys_col(relvar, idx);
-            col_equivs = [];
-            for c <- cols_subset_map(col, ?) {
-              if cols_subset_map(c, col) {
-                equiv_table_var = table_var(c.relvar);
-                equiv_table = tables(equiv_table_var);
-                if arity(equiv_table) == 1
-                  col_equivs = _insert_(col_equivs, equiv_table_var);
-              }
-            }
-
-            if col_equivs != [] {
-              col_equiv = any(col_equivs);
-              low_level_idx = only(low_level_key);
-              tmp_key_var = cast_int32_var(aux_vars(low_level_idx));
-              key_check_expr = table_contains(col_equiv, tables(col_equiv), (just(tmp_key_var)));
-            }
+          expr, maybe_extra_info = key_check_expr_info(v, table, key, aux_vars, block);
+          key_check_exprs = _insert_(key_check_exprs, expr);
+          if maybe_extra_info != nothing {
+            extra_info_expr, extra_info_var = value(maybe_extra_info);
+            exprs_extra_info_vars = _put_(exprs_extra_info_vars, expr, extra_info_var);
+            extra_info_vars_values = _put_(extra_info_vars_values, extra_info_var, extra_info_expr);
           }
-
           if maybe_status_var != nothing {
             status_var = value(maybe_status_var);
-            key_check_expr = and_then(status_var, key_check_expr);
+            curr_expr = lookup(key_check_exprs_guards, expr, false);
+            key_check_exprs_guards = _put_(key_check_exprs_guards, expr, or_else(curr_expr, status_var));
           }
-
-          key_check_exprs = _insert_(key_check_exprs, key_check_expr);
+          else
+            key_check_exprs_guards = _put_(key_check_exprs_guards, expr, true);
         }
       }
     }
 
+    ord_key_check_exprs = isort(key_check_exprs);
+
     check_code = ();
 
-    if key_check_exprs != () {
-      check_code = (check_code | comment("Checking keys"));
-      for e <- key_check_exprs
-        check_code = (check_code | do_if(e, ret_val(false)));
+    if ord_key_check_exprs != () {
+      check_code = (check_code | :empty_line, comment("Checking keys"));
+
+      // Gathering all extra pieces of information to retrieve
+      extra_info_exprs = isort([e : _ e <- extra_info_vars_values]);
+      for expr <- extra_info_exprs {
+        // For each extra piece of information, retrieving all the variables it must be stored in
+        vars = isort([v : v <- extra_info_vars_values(?, expr)]);
+        // Going from each variables that must store the current piece of information
+        // to the expressions that make use of those variables to their guard expressions
+        // extra info expr -> (1..*) extra info var -> (1 for now) key check expr -> guard
+        guards = [g : v <- vars, e <- exprs_extra_info_vars(?, v), g = key_check_exprs_guards(e)];
+        // If any of those guards evaluates to true, then the extra info must be computed
+        guard = or_else(isort(nonempty(guards)));
+        // Putting it all together
+        instrs = (set_ivar32(vars(i), if i == 0 then expr else vars(0)) : v @ i <- vars);
+        check_code = check_code & opt_do_if(guard, instrs);
+      }
+
+      // Now that all the information we need has been computed, we actually check the expressions
+      for e <- ord_key_check_exprs {
+        guard = key_check_exprs_guards(e);
+        guarded_expr = and_then(guard, e);
+        check_code = check_code & opt_do_if(guarded_expr, (ret_val(false)));
+      }
     }
 
     if insert_checked_foreign_keys != () or update_checked_foreign_keys != () {
-      check_code = (check_code | comment("Forward checking of foreign keys"));
+      check_code = (check_code | :empty_line, comment("Checking foreign keys forward"));
       for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
         check_expr = foreign_key_forward_check_expr(k, block, table_var_aux_vars_map);
         check_code = (check_code | do_if(check_expr, ret_val(false)));
@@ -287,7 +288,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
     if delete_checked_foreign_keys != () {
-      check_code = (check_code | comment("Backward checking of foreign keys"));
+      check_code = (check_code | :empty_line, comment("Checking foreign keys backward"));
       for k <- delete_checked_foreign_keys {
         check_expr = foreign_key_backward_check_expr(k, block, table_var_aux_vars_map);
         check_code = (check_code | do_if(check_expr, ret_val(false)));
@@ -297,6 +298,82 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     check_code = () if skip_integrity_checks;
 
     return check_code;
+
+
+    (BoolExpr, Maybe[(Int32Expr, Int32Var)]) key_check_expr_info(TableVar tbl_var, <Table, MasterBinTable, Column, MandatoryColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block) {
+      // Default expression
+      expr = table_contains(tbl_var, table, (if key(i) then just(cast_int32_var(aux_vars(i))) else nothing : i < arity(table)));
+
+      // Optimization for single-column keys where the column can be replaced with an equivalent column of a unary relation
+      ## TODO: AN EQUIVALENT OPTIMIZATION COULD BE DONE FOR MULTI-COLUMN KEYS
+      if |key| == 1 {
+        col_idx = only(key);
+        maybe_equiv_table_var = an_equivalent_unary_table_if_any_exists(tbl_var, col_idx, block);
+        if maybe_equiv_table_var != nothing {
+          equiv_table_var = value(maybe_equiv_table_var);
+          tmp_key_var = cast_int32_var(aux_vars(col_idx));
+          expr = table_contains(equiv_table_var, block.tables(equiv_table_var), (just(tmp_key_var)));
+        }
+      }
+
+      return (expr, nothing);
+    }
+
+
+    (BoolExpr, Maybe[(Int32Expr, Int32Var)]) key_check_expr_info(TableVar tbl_var, <SlaveTernTable, SlaveColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block) {
+      assert |aux_vars| == 2 or |aux_vars| == 3;
+
+      if key == [0, 1] {
+        if |aux_vars| == 3 {
+          ## TODO: THIS TOO COULD BE OPTIMIZED IN SOME CASES BY JUST CHECKING THE MASTER TABLE
+          assoc_surr_var = new_unique_int32_var(:unused);
+          expr = and_then(neg(is_null_surr(assoc_surr_var)), table_contains(tbl_var, table, (just(assoc_surr_var), nothing)));
+          master_type = cast_master_bin_table(block.tables(table.master));
+          args = (cast_int32_var(aux_vars(i)) : i <- (0, 1));
+          extra_info_expr = get_assoc_surr(table.master, master_type, args);
+          maybe_extra_info = just((extra_info_expr, assoc_surr_var));
+        }
+        else {
+          expr = table_contains(tbl_var, table, (just(cast_int32_var(aux_vars(0))), nothing));
+          maybe_extra_info = nothing;
+        }
+      }
+      else {
+        assert key == [2];
+
+        last_col_aux_var = cast_int32_var(last(aux_vars));
+
+        maybe_equiv_table_var = an_equivalent_unary_table_if_any_exists(tbl_var, 2, block);
+        if maybe_equiv_table_var != nothing {
+          equiv_table_var = value(maybe_equiv_table_var);
+          expr = table_contains(equiv_table_var, block.tables(equiv_table_var), (just(last_col_aux_var)));
+        }
+        else
+          expr = table_contains(tbl_var, table, (nothing, just(last_col_aux_var)));
+
+        maybe_extra_info = nothing;
+      }
+
+      return (expr, maybe_extra_info);
+    }
+
+
+    Maybe[TableVar] an_equivalent_unary_table_if_any_exists(TableVar tbl_var, Nat col_idx, StaticBlock block) {
+      tables = block.tables;
+      cols_subset_map = block.cols_subset_map;
+      relvar = original_rel_var(tbl_var);
+      col = phys_col(relvar, col_idx);
+      col_equivs = [];
+      for c <- cols_subset_map(col, ?) {
+        if cols_subset_map(c, col) {
+          equiv_table_var = table_var(c.relvar);
+          equiv_table = tables(equiv_table_var);
+          if arity(equiv_table) == 1
+            col_equivs = _insert_(col_equivs, equiv_table_var);
+        }
+      }
+      return if col_equivs != [] then just(any(col_equivs)) else nothing;
+    }
 
 
     BoolExpr foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
@@ -514,14 +591,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     code = ();
     if ord_value_stores != () {
-      code = (code | comment("Applying value store insertions"));
+      code = (code | :empty_line, comment("Applying value store insertions"));
       for vs <- ord_value_stores {
         instr = value_store_apply(vs, block.value_stores(vs));
         code = (code | instr);
       }
     }
     if ord_table_vars != () {
-      code = (code | comment("Applying table updates"));
+      code = (code | :empty_line, comment("Applying table updates"));
       for v <- ord_table_vars {
         aux_vars, maybe_status_var = table_var_aux_vars_map(v);
         instr_id, action = only_pair(effects_info.tables(v));
@@ -534,7 +611,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       }
     }
     if ord_memb_vars != () {
-      code = (code | comment("Applying member var updates"));
+      code = (code | :empty_line, comment("Applying member var updates"));
       for v <- ord_memb_vars {
         aux_var, maybe_status_var = memb_var_aux_vars_map(v);
         instr = set_var(v, aux_var);
