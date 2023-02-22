@@ -868,13 +868,13 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
     }
     else if pd.type? and |body| == 2 and body(1) == terminate(false) and match (body(0)) push_call_info() = true, _ = false {
       ret_type_name = ret_type_str(pd);
-      push_call_info_instr = only_unsafe(native_code(body(0), nothing, break_target = nothing));
+      push_call_info_instrs = native_code(body(0), nothing, break_target = nothing);
       terminate_instr = only_unsafe(native_code(terminate(false), nothing, break_target = nothing));
       pop_call_info_instr = only_unsafe(native_code(pop_call_info, nothing, break_target = nothing));
       comp_body = (
         ret_type_name & " result;",
-        "memset(&result, 0, sizeof(" & ret_type_name & "));",
-        push_call_info_instr,
+        "memset(&result, 0, sizeof(" & ret_type_name & "));"
+      ) & push_call_info_instrs & (
         terminate_instr & " // " & fn_name & "/" & _print_(arity(pd)),
         pop_call_info_instr,
         "return result;"
