@@ -124,13 +124,35 @@ bool slave_tern_table_contains_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *sla
 }
 
 bool slave_tern_table_contains_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1) {
-  //## BUG BUG BUG: THIS IS WRONG, ISN'T IT?
-  return master_bin_table_contains_1(master_table, arg1);
+  uint32 count = master_bin_table_count_1(master_table, arg1);
+  uint32 read = 0;
+  while (read < count) {
+    // BAD BAD BAD: ONLY NEED THE ASSOCIATIVE SURROGATE HERE, NOT THE SECOND ARGUMENT
+    uint32 buffer[128];
+    UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(master_table, arg1, read, buffer, 64);
+    read += array.size;
+    uint32 *assoc_surrs = array.array + array.offset;
+    for (uint32 i=0 ; i < array.size ; i++)
+      if (bin_table_contains_1(slave_table, assoc_surrs[i]))
+        return true;
+  }
+  return false;
 }
 
 bool slave_tern_table_contains_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2) {
-  //## BUG BUG BUG: THIS IS WRONG, ISN'T IT?
-  return master_bin_table_contains_2(master_table, arg2);
+  uint32 count = master_bin_table_count_2(master_table, arg2);
+  uint32 read = 0;
+  while (read < count) {
+    // BAD BAD BAD: ONLY NEED THE ASSOCIATIVE SURROGATE HERE, NOT THE SECOND ARGUMENT
+    uint32 buffer[128];
+    UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(master_table, arg2, read, buffer, 64);
+    read += array.size;
+    uint32 *assoc_surrs = array.array + array.offset;
+    for (uint32 i=0 ; i < array.size ; i++)
+      if (bin_table_contains_1(slave_table, assoc_surrs[i]))
+        return true;
+  }
+  return false;
 }
 
 bool slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3) {

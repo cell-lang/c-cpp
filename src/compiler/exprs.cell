@@ -192,9 +192,10 @@ implicit context : NativeContext {
         }
         name = name & "_" & suffix if suffix != "";
       }
-      tables_args = match (table)
-        slave_tern_table()  = (table.master, table_var),
-        _                   = (table_var);
+      tables_args = match (table, tuple)
+        slave_tern_table(),  (nothing, nothing, just())  = (table_var),
+        slave_tern_table(),  _                           = (table.master, table_var),
+        _,                   _                           = (table_var);
       return native_call_expr(name, tables_args & (native_expr(value(a)) : a <- tuple, a != nothing));
     }
   }
