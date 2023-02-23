@@ -169,6 +169,8 @@ implicit context : NativeContext {
 
 
   String native_table_contains(AnyTableVar table_var, <Table, MasterBinTable, Column, SlaveColumn> table, Maybe[Int32Var]+ tuple) {
+    assert |tuple| == 2 or not table :: SlaveColumn;
+
     if tuple :: Nothing+ {
       method_name = native_table_method_prefix(table) & "_size";
       return "(" & method_name & "(" & native_var_ref_name(table_var) & ") > 0)"; ## BAD BAD BAD: REMOVE PARENTHESIS IF THEY'RE NOT NECESSARY
