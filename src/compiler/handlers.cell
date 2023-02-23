@@ -220,9 +220,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     tables = block.tables;
 
     key_check_exprs = [];
-    key_check_exprs_guards = []; // key check expr (BoolExpr) -> guard (BoolExpr)
-    exprs_extra_info_vars = [];  // key check expr (BoolExpr) -> extra info var (Int32Var)
-    extra_info_vars_values = []; // extra info var (Int32Var) -> extra info expr (Int32Expr)
+    key_check_exprs_guards = [];        // key check expr (BoolExpr) -> guard (BoolExpr)
+    exprs_extra_info_vars = [];         // key check expr (BoolExpr) -> extra info var (Int32Var)
+    extra_info_vars_values = [];        // extra info var (Int32Var) -> extra info expr (Int32Expr)
+    extra_info_expr_aux_vars_code = []; // extra info expr (Int32Expr) -> extra info aux vars code (Instr*)
 
     for v vs <- table_var_aux_vars_map {
       if not insertion_is_forced(v, effects_info) {
@@ -230,12 +231,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         table = tables(v);
         keys = keys(table);
         for key <- keys {
-          expr, maybe_extra_info = key_check_expr_info(v, table, key, aux_vars, block);
+          expr, maybe_extra_info = key_check_expr_info(v, table, key, aux_vars, block, table_var_aux_vars_map);
           key_check_exprs = _insert_(key_check_exprs, expr);
           if maybe_extra_info != nothing {
-            extra_info_expr, extra_info_var = value(maybe_extra_info);
+            extra_info_expr, extra_info_var, extra_info_code = value(maybe_extra_info);
             exprs_extra_info_vars = _put_(exprs_extra_info_vars, expr, extra_info_var);
             extra_info_vars_values = _put_(extra_info_vars_values, extra_info_var, extra_info_expr);
+            extra_info_expr_aux_vars_code = _put_(extra_info_expr_aux_vars_code, extra_info_expr, extra_info_code);
           }
           if maybe_status_var != nothing {
             status_var = value(maybe_status_var);
@@ -267,7 +269,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         // If any of those guards evaluates to true, then the extra info must be computed
         guard = or_else(isort(nonempty(guards)));
         // Putting it all together
-        instrs = (set_ivar32(vars(i), if i == 0 then expr else vars(0)) : v @ i <- vars);
+        first_var = vars(0);
+        instrs = (set_ivar32(first_var, expr)) & extra_info_expr_aux_vars_code(expr) & (set_ivar32(v, first_var) : v @ i <- drop(vars, 1));
         check_code = check_code & opt_do_if(guard, instrs);
       }
 
@@ -300,7 +303,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return check_code;
 
 
-    (BoolExpr, Maybe[(Int32Expr, Int32Var)]) key_check_expr_info(TableVar tbl_var, <Table, MasterBinTable, Column, MandatoryColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block) {
+    (BoolExpr, Maybe[(Int32Expr, Int32Var, Instr*)]) key_check_expr_info(TableVar tbl_var, <Table, MasterBinTable, Column, MandatoryColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
       // Default expression
       expr = table_contains(tbl_var, table, (if key(i) then just(cast_int32_var(aux_vars(i))) else nothing : i < arity(table)));
 
@@ -320,18 +323,31 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
 
 
-    (BoolExpr, Maybe[(Int32Expr, Int32Var)]) key_check_expr_info(TableVar tbl_var, <SlaveTernTable, SlaveColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block) {
+    (BoolExpr, Maybe[(Int32Expr, Int32Var, Instr*)]) key_check_expr_info(TableVar tbl_var, <SlaveTernTable, SlaveColumn> table, [+Nat] key, TempTableColVar+ aux_vars, StaticBlock block, [TableVar -> (TempTableColVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
       assert |aux_vars| == 2 or |aux_vars| == 3;
 
       if key == [0, 1] {
         if |aux_vars| == 3 {
+          master = table.master;
+          master_type = cast_master_bin_table(block.tables(master));
           ## TODO: THIS TOO COULD BE OPTIMIZED IN SOME CASES BY JUST CHECKING THE MASTER TABLE
           assoc_surr_var = new_unique_int32_var(:unused);
           expr = and_then(neg(is_null_surr(assoc_surr_var)), table_contains(tbl_var, table, (just(assoc_surr_var), nothing)));
-          master_type = cast_master_bin_table(block.tables(table.master));
           args = (cast_int32_var(aux_vars(i)) : i <- (0, 1));
           extra_info_expr = get_assoc_surr(table.master, master_type, args);
-          maybe_extra_info = just((extra_info_expr, assoc_surr_var));
+          extra_info_aux_vars_code = ();
+          if table_var_aux_vars_map(master, _) {
+            master_aux_vars, master_maybe_status_var = table_var_aux_vars_map(master);
+            assert |master_aux_vars| == 3;
+            conds = (is_null_surr(assoc_surr_var));
+            if master_maybe_status_var != nothing {
+              master_status_var = value(master_maybe_status_var);
+              conds = (conds | master_status_var);
+            }
+            conds = conds & (are_eq(args(i), cast_int32_var(master_aux_vars(i))) : i <- (0, 1));
+            extra_info_aux_vars_code = (extra_info_aux_vars_code | do_if(and(conds), set_ivar32(assoc_surr_var, cast_int32_var(master_aux_vars(2)))));
+          }
+          maybe_extra_info = just((extra_info_expr, assoc_surr_var, extra_info_aux_vars_code));
         }
         else {
           expr = table_contains(tbl_var, table, (just(cast_int32_var(aux_vars(0))), nothing));
