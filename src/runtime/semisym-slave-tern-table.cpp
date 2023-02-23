@@ -84,6 +84,18 @@ bool semisym_slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3) {
   return bin_table_contains_2(slave_table, arg3);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+bool semisym_slave_tern_table_contains(BIN_TABLE *table, uint32 assoc_surr, uint32 arg3) {
+  return bin_table_contains(table, assoc_surr, arg3);
+}
+
+bool semisym_slave_tern_table_contains_12(BIN_TABLE *table, uint32 assoc_surr) {
+  return bin_table_contains_1(table, assoc_surr);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 uint32 semisym_slave_tern_table_lookup_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2) {
   uint32 surr12 = sym_master_bin_table_lookup_surr(master_table, arg1, arg2);
   if (surr12 == 0xFFFFFFFF)

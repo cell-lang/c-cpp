@@ -1854,36 +1854,39 @@ bool slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_
 void slave_tern_table_update_12(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 void slave_tern_table_update_12_3(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
-bool slave_tern_table_slave_insert(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
+bool slave_tern_table_slave_insert(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
 
 void slave_tern_table_slave_update_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 void slave_tern_table_slave_update_12_3(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *, void (*)(void *, uint32, STATE_MEM_POOL *), void *);
 
-uint32 slave_tern_table_size(BIN_TABLE *slave_table);
-uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
-uint32 slave_tern_table_count_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2);
-uint32 slave_tern_table_count_3(BIN_TABLE *slave_table, uint32 arg3);
-uint32 slave_tern_table_count_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
-uint32 slave_tern_table_count_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
-uint32 slave_tern_table_count_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+uint32 slave_tern_table_size(BIN_TABLE *);
+uint32 slave_tern_table_count_1(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1);
+uint32 slave_tern_table_count_2(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg2);
+uint32 slave_tern_table_count_3(BIN_TABLE *, uint32 arg3);
+uint32 slave_tern_table_count_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+uint32 slave_tern_table_count_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg3);
+uint32 slave_tern_table_count_23(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg2, uint32 arg3);
 
-bool slave_tern_table_contains(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2, uint32 arg3);
-bool slave_tern_table_contains_1(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1);
-bool slave_tern_table_contains_2(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2);
-bool slave_tern_table_contains_3(BIN_TABLE *slave_table, uint32 arg3);
-bool slave_tern_table_contains_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
-bool slave_tern_table_contains_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
-bool slave_tern_table_contains_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+bool slave_tern_table_contains(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3);
+bool slave_tern_table_contains_1(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1);
+bool slave_tern_table_contains_2(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg2);
+bool slave_tern_table_contains_3(BIN_TABLE *, uint32 arg3);
+bool slave_tern_table_contains_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+bool slave_tern_table_contains_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg3);
+bool slave_tern_table_contains_23(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg2, uint32 arg3);
 
-uint32 slave_tern_table_lookup_12(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg2);
-uint32 slave_tern_table_lookup_13(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg1, uint32 arg3);
-uint32 slave_tern_table_lookup_23(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, uint32 arg2, uint32 arg3);
+bool slave_tern_table_contains(BIN_TABLE *, uint32 assoc_surr, uint32 arg3);
+bool slave_tern_table_contains_12(BIN_TABLE *, uint32 assoc_surr);
 
-bool slave_tern_table_cols_12_are_key(BIN_TABLE *slave_table);
-bool slave_tern_table_col_3_is_key(BIN_TABLE *slave_table);
+uint32 slave_tern_table_lookup_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
+uint32 slave_tern_table_lookup_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg3);
+uint32 slave_tern_table_lookup_23(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg2, uint32 arg3);
 
-void slave_tern_table_copy_to(MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
-void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *master_table, BIN_TABLE *slave_table, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
+bool slave_tern_table_cols_12_are_key(BIN_TABLE *);
+bool slave_tern_table_col_3_is_key(BIN_TABLE *);
+
+void slave_tern_table_copy_to(MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, STREAM *strm_1, STREAM *strm_2, STREAM *strm_3);
+void slave_tern_table_write(WRITE_FILE_STATE *write_state, MASTER_BIN_TABLE *, BIN_TABLE *, OBJ (*surr_to_obj_1)(void *, uint32), void *store_1, OBJ (*surr_to_obj_2)(void *, uint32), void *store_2, OBJ (*surr_to_obj_3)(void *, uint32), void *store_3, uint32 idx1, uint32 idx2, uint32 idx3);
 
 /////////////////////////// slave-tern-table-aux.cpp ///////////////////////////
 
@@ -1933,11 +1936,15 @@ void semisym_slave_tern_table_update_12_3(BIN_TABLE *, uint32 surr12, uint32 arg
 
 uint32 semisym_slave_tern_table_size(BIN_TABLE *);
 
+//## BUG BUG BUG: THE SUFFIXES HERE ARE ALL WRONG
 bool semisym_slave_tern_table_contains(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3);
 bool semisym_slave_tern_table_contains_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
 bool semisym_slave_tern_table_contains_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12, uint32 arg3);
 bool semisym_slave_tern_table_contains_1(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg);
 bool semisym_slave_tern_table_contains_3(BIN_TABLE *, uint32 arg3);
+
+bool semisym_slave_tern_table_contains(BIN_TABLE *, uint32 assoc_surr, uint32 arg3);
+bool semisym_slave_tern_table_contains_12(BIN_TABLE *, uint32 assoc_surr);
 
 uint32 semisym_slave_tern_table_lookup_12(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg1, uint32 arg2);
 uint32 semisym_slave_tern_table_lookup_13(MASTER_BIN_TABLE *, BIN_TABLE *, uint32 arg12, uint32 arg3);
