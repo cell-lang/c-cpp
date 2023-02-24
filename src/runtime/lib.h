@@ -2053,6 +2053,12 @@ bool tern_table_aux_check_key_12(TERN_TABLE *, TERN_TABLE_AUX *, STATE_MEM_POOL 
 bool tern_table_aux_check_key_13(TERN_TABLE *, TERN_TABLE_AUX *);
 bool tern_table_aux_check_key_23(TERN_TABLE *, TERN_TABLE_AUX *);
 
+bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
+bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+
 bool tern_table_aux_prepare(TERN_TABLE_AUX *);
 bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
 bool tern_table_aux_contains_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
