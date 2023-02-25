@@ -272,8 +272,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.args_surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
-    immediate_insert_tuple() = native_immediate_insert_tuple_code(instr.table_var, instr.table, instr.tuple),
-    immediate_update_tuple() = native_immediate_update_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
+    immediate_delete_tuple()  = native_immediate_delete_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
+    immediate_insert_tuple()  = native_immediate_insert_tuple_code(instr.table_var, instr.table, instr.tuple),
+    immediate_update_tuple()  = native_immediate_update_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
 
     resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
@@ -366,6 +367,28 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     is_slave_op = |tuple| == 3;
     method_name = native_table_method_prefix(table) & if is_slave_op then "_slave_insert" else "_insert";
     args = (table.master if is_slave_op, table_var) & tuple & (:mem_pool);
+    return (native_call(method_name, args));
+  }
+
+
+  String* native_immediate_delete_tuple_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+    if not (a <- tuple : a != nothing) {
+      method_action_descr = "_clear";
+      args = (table_var, :mem_pool);
+    }
+    else if not (a <- tuple : a == nothing) {
+      method_action_descr = "_delete";
+      args = (table_var) & (value_unsafe(a) : a <- tuple) & (:mem_pool);
+    }
+    else {
+      method_action_descr = "_delete_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing));
+      args = (table_var) & (value(a) : a <- tuple, a != nothing) & (:mem_pool);
+    }
+
+    if (vs <- owned_value_stores : vs != nothing)
+      args = args & value_stores_args(owned_value_stores);
+
+    method_name = native_table_method_prefix(table) & method_action_descr;
     return (native_call(method_name, args));
   }
 

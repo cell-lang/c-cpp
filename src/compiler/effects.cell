@@ -1,6 +1,6 @@
 type InstrId = <top_level(Nat), then(Nat), else(Nat), loop(Nat)>+;
 
-type TableAction = insertion, update, deletion;
+type TableAction = insertion, update, deletion(Bool+);
 
 type EffectsInfo  = effects_info(
                       tables:       [TableVar     -> [+InstrId -> TableAction]],
@@ -32,8 +32,8 @@ EffectsInfo effects_info([TableVar -> [+InstrId -> TableAction]] ts, [ValueStore
 
 EffectsInfo no_effects = effects_info([], [], []);
 
-EffectsInfo table_deletion(TableVar table_var, InstrId instr_id) =
-  effects_info([table_var -> [instr_id -> :deletion]], [], []);
+EffectsInfo table_deletion(TableVar table_var, InstrId instr_id, Bool+ args) =
+  effects_info([table_var -> [instr_id -> :deletion(args)]], [], []);
 
 EffectsInfo table_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
   effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
@@ -124,7 +124,7 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
 
   EffectsInfo instr_effects_info(BasicInstr instr, InstrId instr_id) {
     return match (instr)
-      queue_deletes()                 = table_deletion(instr.table_var, instr_id),
+      queue_deletes()                 = table_deletion(instr.table_var, instr_id, (a != nothing : a <- instr.args)),
       lookup_or_queue_insert_value()  = value_store_maybe_insertion(instr.store, instr_id),
       queue_insert_tuple()            = table_insertion(instr.table_var, instr_id, instr.forced),
       queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id, false),
