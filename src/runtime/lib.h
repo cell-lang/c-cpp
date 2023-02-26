@@ -2422,6 +2422,11 @@ void obj_store_aux_apply_insertions(OBJ_STORE *, OBJ_STORE_AUX *, STATE_MEM_POOL
 
 uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, STATE_MEM_POOL *);
 
+//////////////////////////////// releasing.cpp /////////////////////////////////
+
+void bin_table_release_2_before_delete_1(BIN_TABLE *, uint32 arg1, DEALLOC);
+void bin_table_release_1_before_delete_2(BIN_TABLE *, uint32 arg2, DEALLOC);
+
 //////////////////////////////// hashtables.cpp ////////////////////////////////
 
 void map_surr_u32_init(MAP_SURR_U32 *);

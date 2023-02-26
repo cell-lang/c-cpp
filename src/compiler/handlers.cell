@@ -721,36 +721,100 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
 
+    (Instr*, Instr*) unary_table_delete_value_store_code(TableVar table_var, Table table, Maybe[LocInt32Var]+ args, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+      value_store_info = only_unsafe(owned_value_stores);
+      if value_store_info != nothing {
+        store, store_type = value(value_store_info);
+        arg = only_unsafe(args);
+        release_instr = if arg != nothing
+          then value_store_release(store, store_type, value(arg))
+          else value_store_clear(store, store_type);
+        return ((), (release_instr));
+      }
+      else
+        return ((), ());
+    }
+
+
+    (Instr*, Instr*) binary_table_delete_value_store_code(TableVar table_var, Table table, Maybe[LocInt32Var]+ args, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+      value_store_1_info = owned_value_stores(0);
+      value_store_2_info = owned_value_stores(1);
+
+      arg1 = args(0);
+      arg2 = args(1);
+
+      pre_del_code = ();
+      post_del_code = ();
+
+      if arg1 != nothing {
+        if arg2 != nothing {
+          for vs_info @ i <- owned_value_stores
+            if vs_info != nothing {
+              arg = args(i);
+              assert arg != nothing;
+              store, store_type = value(vs_info);
+              retain_cond = table_contains(table_var, table, (if j == i then arg else nothing : j < 2));
+              release_instr = value_store_release(store, store_type, value_unsafe(arg));
+              post_del_code = (post_del_code | do_if_not(retain_cond, (release_instr)));
+            }
+        }
+        else {
+          if value_store_2_info != nothing {
+            store, store_type = value(value_store_2_info);
+            pre_del_code = (release_before_delete(table_var, table, args, 1, store, store_type));
+          }
+          if value_store_1_info != nothing {
+            store, store_type = value(value_store_1_info);
+            post_del_code = (value_store_release(store, store_type, value(arg1)));
+          }
+        }
+      }
+      else {
+        if arg2 != nothing {
+          if value_store_1_info != nothing {
+            store, store_type = value(value_store_1_info);
+            pre_del_code = (release_before_delete(table_var, table, args, 0, store, store_type));
+          }
+          if value_store_2_info != nothing {
+            store, store_type = value(value_store_2_info);
+            post_del_code = (value_store_release(store, store_type, value(arg2)));
+          }
+        }
+        else {
+          for vs_info @ i <- owned_value_stores
+            if vs_info != nothing {
+              store, store_type = value(vs_info);
+              post_del_code = (post_del_code | value_store_clear(store, store_type));
+            }
+        }
+      }
+
+      return (pre_del_code, post_del_code);
+    }
+
+
+    (Instr*, Instr*) ternary_table_delete_value_store_code(TableVar table_var, Table table, Maybe[LocInt32Var]+ args, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    }
+
+
     Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars, Bool+ known_args) {
+      fail if not aux_vars :: LocInt32Var+;
+
       arity = arity(table);
+      assert |known_args| == arity;
 
       owned_value_stores = owned_value_stores(table_var, table, block);
       assert |owned_value_stores| == arity;
-      args = (if a then just(cast_int32_var(aux_vars(i))) else nothing : a @ i <- known_args);
-      code = (immediate_delete_tuple(table_var, table, args));
+      args = (maybe(aux_vars(i), is_known) : is_known @ i <- known_args);
+      del_code = (immediate_delete_tuple(table_var, table, args));
 
-      if arity == 1 {
-        value_store_info = owned_value_stores(0);
-        if value_store_info != nothing {
-          store, store_type = value(value_store_info);
-          arg = args(0);
-          release_instr = if arg != nothing
-            then value_store_release(store, store_type, value(arg))
-            else value_store_clear(store, store_type);
-          code = (code | release_instr);
-        }
-      }
-      else if arity == 2 {
-        value_store_1_info = owned_value_stores(0);
-        value_store_2_info = owned_value_stores(1);
-        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-      }
-      else {
-        assert arity == 3;
-        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-      }
+      pre_del_code, post_del_code = match (arity)
+        1 = unary_table_delete_value_store_code(table_var, table, args, owned_value_stores),
+        2 = binary_table_delete_value_store_code(table_var, table, args, owned_value_stores),
+        3 = ternary_table_delete_value_store_code(table_var, table, args, owned_value_stores);
 
-      return code;
+      return pre_del_code & del_code & post_del_code;
     }
 
 

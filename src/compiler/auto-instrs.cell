@@ -277,6 +277,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     immediate_update_tuple()  = native_immediate_update_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
 
+    release_before_delete()   = native_release_before_delete_code(instr.table_var, instr.table, instr.args, instr.col_idx, instr.store, instr.store_type),
+
     value_store_release()     = native_value_store_release_code(instr.store, instr.store_type, instr.surr),
     value_store_clear()       = native_value_store_clear_code(instr.store, instr.store_type),
     value_store_apply()       = native_value_store_apply_code(instr.store, instr.store_type),
@@ -377,18 +379,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_immediate_delete_tuple_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple) {
     if not (a <- tuple : a != nothing) {
       method_action_descr = "_clear";
-      args = (table_var);
-    }
-    else if not (a <- tuple : a == nothing) {
-      method_action_descr = "_delete";
-      args = (table_var) & (value_unsafe(a) : a <- tuple);
+      args = (table_var, :mem_pool);
     }
     else {
-      method_action_descr = "_delete_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing));
+      method_action_descr = if (a <- tuple : a == nothing)
+        then "_delete_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing))
+        else "_delete";
       args = (table_var) & (value(a) : a <- tuple, a != nothing);
+      args = (args | :mem_pool) if needs_mem_pool_arg(table);
     }
     method_name = native_table_method_prefix(table) & method_action_descr;
-    args = (args | :mem_pool) if needs_mem_pool_arg(table);
     return (native_call(method_name, args));
 
 
@@ -718,6 +718,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit context : NativeContext {
+  String* native_release_before_delete_code(TableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args, Nat col_idx, ValueStoreId store, ValueStoreType store_type) {
+    delete_cols_str = append((_print_(i + 1) : a @ i <- args, a != nothing));
+    method_name = native_table_method_prefix(table) & "_release_" & _print_(col_idx + 1) & "_before_delete_" & delete_cols_str;
+    remove_method_name = native_value_store_method_prefix(store_type) & "_remove_untyped";
+    call_args = (table_var) & values(args) & (remove_method_name, store);
+    return (native_call(method_name, call_args));
+  }
+
+
   String* native_value_store_release_code(ValueStoreId store, ValueStoreType store_type, Int32Var surr) {
     method_name = native_value_store_method_prefix(store_type) & "_remove";
     needs_mem_pool_arg = match (store_type)
