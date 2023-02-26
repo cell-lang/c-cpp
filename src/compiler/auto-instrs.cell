@@ -272,13 +272,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.args_surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
-    immediate_delete_tuple()  = native_immediate_delete_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
+    immediate_delete_tuple()  = native_immediate_delete_tuple_code(instr.table_var, instr.table, instr.tuple),
     immediate_insert_tuple()  = native_immediate_insert_tuple_code(instr.table_var, instr.table, instr.tuple),
     immediate_update_tuple()  = native_immediate_update_tuple_code(instr.table_var, instr.table, instr.tuple, instr.owned_value_stores),
     column_insert_immediate() = native_column_insert_immediate_code(instr.table_var, instr.column, instr.key_surr, instr.value, instr.forced),
 
-    resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
+    value_store_release()     = native_value_store_release_code(instr.store, instr.store_type, instr.surr),
+    value_store_clear()       = native_value_store_clear_code(instr.store, instr.store_type),
     value_store_apply()       = native_value_store_apply_code(instr.store, instr.store_type),
+
+    resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
     raise_load_error()        = ("return false;"),
     surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
     surr_set_clear            = (native_call("surr_set_clear", ("&surr_set")));
@@ -371,25 +374,30 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_immediate_delete_tuple_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+  String* native_immediate_delete_tuple_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple) {
     if not (a <- tuple : a != nothing) {
       method_action_descr = "_clear";
-      args = (table_var, :mem_pool);
+      args = (table_var);
     }
     else if not (a <- tuple : a == nothing) {
       method_action_descr = "_delete";
-      args = (table_var) & (value_unsafe(a) : a <- tuple) & (:mem_pool);
+      args = (table_var) & (value_unsafe(a) : a <- tuple);
     }
     else {
       method_action_descr = "_delete_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing));
-      args = (table_var) & (value(a) : a <- tuple, a != nothing) & (:mem_pool);
+      args = (table_var) & (value(a) : a <- tuple, a != nothing);
     }
-
-    if (vs <- owned_value_stores : vs != nothing)
-      args = args & value_stores_args(owned_value_stores);
-
     method_name = native_table_method_prefix(table) & method_action_descr;
+    args = (args | :mem_pool) if needs_mem_pool_arg(table);
     return (native_call(method_name, args));
+
+
+    Bool needs_mem_pool_arg(AnySurrTable) = false;
+
+    Bool needs_mem_pool_arg(AnyColumn column) =
+      match (column.repr)
+        object        = true,
+        int | float   = false;
   }
 
 
@@ -710,6 +718,24 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit context : NativeContext {
+  String* native_value_store_release_code(ValueStoreId store, ValueStoreType store_type, Int32Var surr) {
+    method_name = native_value_store_method_prefix(store_type) & "_remove";
+    needs_mem_pool_arg = match (store_type)
+      object                          = true,
+      integer | mono_tagged_integer() = false;
+    return (native_call(method_name, (store, surr, :mem_pool if needs_mem_pool_arg)));
+  }
+
+
+  String* native_value_store_clear_code(ValueStoreId store, ValueStoreType store_type) {
+    method_name = native_value_store_method_prefix(store_type) & "_clear";
+    needs_mem_pool_arg = match (store_type)
+      object                          = true,
+      integer | mono_tagged_integer() = false;
+    return (native_call(method_name, (store, :mem_pool if needs_mem_pool_arg)));
+  }
+
+
   String* native_value_store_apply_code(ValueStoreId store_id, ValueStoreType store_type) {
     method_prefix = native_value_store_method_prefix(store_type);
     apply_method_name = method_prefix & "_aux_apply_insertions";

@@ -114,7 +114,7 @@ void float_col_aux_apply_deletions(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, void 
       uint32 *idxs = col_aux->deletions.array;
       for (uint32 i=0 ; i < count ; i++) {
         uint32 idx = idxs[i];
-        if (float_col_delete(col, idx, mem_pool))
+        if (float_col_delete(col, idx))
           if (remove != NULL && col_update_status_map_inserted_flag_is_set(&col_aux->status_map, idx))
               remove(store, idx, mem_pool);
       }

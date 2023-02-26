@@ -2232,7 +2232,7 @@ int64 int_col_lookup(INT_COL *, uint32 idx);
 
 void int_col_insert(INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
 void int_col_update(INT_COL *, uint32 idx, int64 value, STATE_MEM_POOL *);
-bool int_col_delete(INT_COL *, uint32 idx, STATE_MEM_POOL *);
+bool int_col_delete(INT_COL *, uint32 idx);
 void int_col_clear(INT_COL *, STATE_MEM_POOL *);
 
 void int_col_copy_to(INT_COL *col, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
@@ -2282,7 +2282,7 @@ double float_col_lookup(FLOAT_COL *, uint32 idx);
 
 void float_col_insert(FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
 void float_col_update(FLOAT_COL *, uint32 idx, double value, STATE_MEM_POOL *);
-bool float_col_delete(FLOAT_COL *, uint32 idx, STATE_MEM_POOL *);
+bool float_col_delete(FLOAT_COL *, uint32 idx);
 void float_col_clear(FLOAT_COL *, STATE_MEM_POOL *);
 
 void float_col_copy_to(FLOAT_COL *, OBJ (*surr_to_obj)(void *, uint32), void *store, STREAM *strm_1, STREAM *strm_2);
@@ -2383,6 +2383,9 @@ uint32 int_store_lookup_or_insert(INT_STORE *, int64, STATE_MEM_POOL *);
 
 OBJ int_store_surr_to_obj(void *, uint32);
 
+void int_store_clear(INT_STORE *);
+void int_store_remove(INT_STORE *, uint32);
+
 void int_store_remove_untyped(void *store, uint32 surr, STATE_MEM_POOL *);
 
 ////////////////////////////// int-store-aux.cpp ///////////////////////////////
@@ -2405,7 +2408,10 @@ uint32 obj_store_lookup_or_insert(OBJ_STORE *, OBJ, STATE_MEM_POOL *);
 
 OBJ obj_store_surr_to_obj(void *, uint32);
 
-void obj_store_remove_untyped(void *store, uint32 surr, STATE_MEM_POOL *);
+void obj_store_clear(OBJ_STORE *, STATE_MEM_POOL *);
+void obj_store_remove(OBJ_STORE *, uint32, STATE_MEM_POOL *);
+
+void obj_store_remove_untyped(void *, uint32, STATE_MEM_POOL *);
 
 ////////////////////////////// obj-store-aux.cpp ///////////////////////////////
 

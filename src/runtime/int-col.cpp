@@ -113,7 +113,7 @@ void int_col_update(INT_COL *column, uint32 idx, int64 value, STATE_MEM_POOL *me
   }
 }
 
-bool int_col_delete(INT_COL *column, uint32 idx, STATE_MEM_POOL *mem_pool) {
+bool int_col_delete(INT_COL *column, uint32 idx) {
   if (idx < column->capacity) {
     int64 *array = column->array;
     int64 value = array[idx];

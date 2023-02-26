@@ -721,10 +721,41 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
 
-    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable> table, TempTableColVar+ aux_vars, Bool+ known_args) {
+    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, Table table, TempTableColVar+ aux_vars, Bool+ known_args) {
+      arity = arity(table);
+
       owned_value_stores = owned_value_stores(table_var, table, block);
+      assert |owned_value_stores| == arity;
       args = (if a then just(cast_int32_var(aux_vars(i))) else nothing : a @ i <- known_args);
-      return (immediate_delete_tuple(table_var, table, args, owned_value_stores));
+      code = (immediate_delete_tuple(table_var, table, args));
+
+      if arity == 1 {
+        value_store_info = owned_value_stores(0);
+        if value_store_info != nothing {
+          store, store_type = value(value_store_info);
+          arg = args(0);
+          release_instr = if arg != nothing
+            then value_store_release(store, store_type, value(arg))
+            else value_store_clear(store, store_type);
+          code = (code | release_instr);
+        }
+      }
+      else if arity == 2 {
+        value_store_1_info = owned_value_stores(0);
+        value_store_2_info = owned_value_stores(1);
+        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      }
+      else {
+        assert arity == 3;
+        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      }
+
+      return code;
+    }
+
+
+    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, MasterBinTable table, TempTableColVar+ aux_vars, Bool+ known_args) {
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
     }
 
 
