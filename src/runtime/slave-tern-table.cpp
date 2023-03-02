@@ -5,6 +5,14 @@ bool slave_tern_table_delete(BIN_TABLE *slave_table, uint32 surr12, uint32 arg3)
   return bin_table_delete(slave_table, surr12, arg3);
 }
 
+void slave_tern_table_delete_12(BIN_TABLE *table, uint32 surr12) {
+  bin_table_delete_1(table, surr12);
+}
+
+void slave_tern_table_delete_3(BIN_TABLE *table, uint32 arg3) {
+  bin_table_delete_2(table, arg3);
+}
+
 void slave_tern_table_clear(BIN_TABLE *slave_table, STATE_MEM_POOL *mem_pool) {
   bin_table_clear(slave_table, mem_pool);
 }

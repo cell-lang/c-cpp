@@ -15,7 +15,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
-    code = code & updates_check_code(block, insertion_tables, update_tables, deletion_tables, table_var_aux_vars_map, effects_info);
+    // code = code & updates_check_code(block, insertion_tables, update_tables, deletion_tables, table_var_aux_vars_map, effects_info);
     code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
     code = code & updates_reset_code(block, insertion_value_stores);
 
@@ -59,7 +59,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     (LocInt32Var+, [TempTableColVar]) table_aux_vars(SlaveTernTable table_type, Instr instr, [TempTableColVar] unavailable_vars) {
-      num_vars = match (instr) queue_insert_tuple() = |instr.tuple|;
+      assert match(instr) queue_deletes() = |instr.args| == 2, _ = true;
+
+      num_vars = match (instr)
+        queue_insert_tuple() = |instr.tuple|,
+        queue_deletes()      = |instr.args|;
       return reserve_any_available_loc_int32_vars(num_vars, unavailable_vars);
     }
 
@@ -78,23 +82,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     (<(LocInt32Var, <LocVar, LocIntVar, LocFloatVar>), (LocInt32Var, LocInt32Var, <LocVar, LocIntVar, LocFloatVar>)>, [TempTableColVar])
-    table_aux_vars(SlaveColumn col_type, Instr untyped_instr, [TempTableColVar] init_unavailable_vars) {
-      instr = match (untyped_instr) column_insert_deferred() = untyped_instr;
+    table_aux_vars(SlaveColumn col_type, Instr instr, [TempTableColVar] init_unavailable_vars) {
       unavailable_vars = init_unavailable_vars;
+
+      is_slave_insert = match (instr)
+        column_insert_deferred()  = instr.args_surrs != nothing,
+        queue_deletes()           = false;
 
       value_var, unavailable_vars = match (col_type.repr)
         object  = reserve_any_available_loc_var(unavailable_vars),
         int     = reserve_any_available_loc_int_var(unavailable_vars),
         float   = reserve_any_available_loc_float_var(unavailable_vars);
 
-      if instr.args_surrs == nothing {
-        key_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
-        vars = (key_var, value_var);
-      }
-      else {
+      if is_slave_insert {
         arg1_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
         arg2_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
         vars = (arg1_var, arg2_var, value_var);
+      }
+      else {
+        key_var, unavailable_vars = reserve_any_available_loc_int32_var(unavailable_vars);
+        vars = (key_var, value_var);
       }
 
       return (vars, unavailable_vars);
@@ -721,6 +728,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     );
 
 
+    Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores(TableVar table_var, Column column, StaticBlock block) {
+      store = column.value_store;
+      store_type = block.value_stores(store);
+      owner = block.value_stores_owners(store);
+      first_col = phys_col(original_rel_var(table_var), 0);
+      return (maybe((store, store_type), owner == first_col), nothing);
+    }
+
+
     Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable> table, TempTableColVar+ aux_vars, Bool+ known_args) {
       fail if not aux_vars :: LocInt32Var+;
 
@@ -775,24 +791,66 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
 
     Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, SlaveTernTable table, TempTableColVar+ aux_vars, Bool+ known_args) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      assert owned_value_stores(table_var, table, block) :: (Nothing, Nothing, Maybe[(ValueStoreId, ValueStoreType)]);
+      assert in(known_args, [(true, false), (false, true), (false, false)]); ## WHAT ABOUT (true, true)?
+
+      args = (maybe(cast_int32_var(aux_vars(i)), is_known) : is_known @ i <- known_args);
+      code = (immediate_delete_tuple(table_var, table, args));
+
+      value_store_3_info = owned_value_stores(table_var, table, block)(2);
+      if value_store_3_info != nothing {
+        store, store_type = value(value_store_3_info);
+        if known_args == (true, false) {
+          release_instr = release_before_delete(table_var, table, args, 2, store, store_type);
+          code = (release_instr) & code;
+        }
+        else if known_args == (false, true) {
+          arg3 = cast_int32_var(aux_vars(1));
+          code = (code | value_store_release(store, store_type, arg3));
+        }
+        else {
+          assert known_args == (false, false);
+          code = (code | value_store_clear(store, store_type));
+        }
+      }
+
+      return code;
     }
 
 
     Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, Column column, TempTableColVar+ aux_vars, Bool+ known_args) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      assert owned_value_stores(table_var, column, block) :: (Maybe[(ValueStoreId, ValueStoreType)], Nothing);
+      assert known_args == (true, false) or known_args == (false, false);
+
+      args = (if is_known then just(cast_int32_var(aux_vars(i))) else nothing : is_known @ i <- known_args);
+      code = (immediate_delete_tuple(table_var, column, args));
+
+      value_store_1_info = owned_value_stores(table_var, column, block)(0);
+      if value_store_1_info != nothing {
+        store, store_type = value(value_store_1_info);
+        if known_args == (true, false) {
+          arg1 = cast_int32_var(aux_vars(0));
+          code = (code | value_store_release(store, store_type, arg1));
+        }
+        else {
+          assert known_args == (false, false);
+          code = (code | value_store_clear(store, store_type));
+        }
+      }
+
+      return code;
     }
 
 
-    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, SlaveColumn column, TempTableColVar+ aux_vars, Bool+ known_args) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, <MandatoryColumn, SlaveColumn> column, TempTableColVar+ aux_vars, Bool+ known_args) {
+      assert known_args == (true, true) or known_args == (true, false) or known_args == (false, false);
+
+      args = (if is_known then just(cast_int32_var(aux_vars(i))) else nothing : is_known @ i <- known_args);
+      return (immediate_delete_tuple(table_var, column, args));
     }
 
-
-    Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, MandatoryColumn column, TempTableColVar+ aux_vars, Bool+ known_args) {
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
-    }
-
+    ////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
 
     ## BUG BUG BUG: TEST THIS BETTER WITH SLAVE TERNARY TABLES, WITH BOTH TWO AND THREE ARGUMENTS
     Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, TempTableColVar+ aux_vars, Bool is_forced) {

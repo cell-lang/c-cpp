@@ -382,9 +382,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       args = (table_var, :mem_pool);
     }
     else {
-      method_action_descr = if (a <- tuple : a == nothing)
-        then "_delete_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing))
-        else "_delete";
+      method_action_descr = "_delete";
+      if (a <- tuple : a == nothing) {
+        col_code_suffix = match (table, tuple)
+          column()                                |
+          slave_column(),     (just(), nothing)   = "",
+          slave_tern_table(), (just(), nothing)   = "_12",
+          _,                  _                   = "_" & append((_print_(i + 1) : a @ i <- tuple, a != nothing));
+        method_action_descr = method_action_descr & col_code_suffix;
+      }
       args = (table_var) & (value(a) : a <- tuple, a != nothing);
       args = (args | :mem_pool) if needs_mem_pool_arg(table);
     }
@@ -398,6 +404,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       match (column.repr)
         object        = true,
         int | float   = false;
+
   }
 
 
@@ -620,14 +627,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 
   String native_queue_deletes_code(TableVar table_var, SlaveTernTable table, Maybe[Int32Var]+ args) {
-    assert |args| == 2;
-
     set_args = (a != nothing : a <- args);
     base_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
     prefix = native_table_method_prefix(table);
     method_name = prefix & "_aux_" & base_names(set_args);
     auxiliary = pending_updates_var_ref_name(table_var);
-    call_args = (table_var if set_args == (true, true), auxiliary) & (native_expr(value(a)) : a <- args, a != nothing);
+    call_args = (table_var if set_args == (true, true), auxiliary, table.master if |args| == 3) & (native_expr(value(a)) : a <- args, a != nothing);
     return native_call(method_name, call_args);
 
     [Bool+ -> String] fn_names_by_args = [
@@ -639,8 +644,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     [Bool+ -> String] sym_fn_names_by_args = [
       (true,  true)           -> "delete",
-      (true,  false)          -> "delete_1",
-      // (false, true)           -> undefined,
+      (true,  false)          -> "delete_12",
+      (false, true)           -> "delete_3",
       (false, false)          -> "clear"
     ];
   }
@@ -719,7 +724,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
 implicit context : NativeContext {
   String* native_release_before_delete_code(TableVar table_var, AnySurrTable table, Maybe[Int32Var]+ args, Nat col_idx, ValueStoreId store, ValueStoreType store_type) {
-    delete_cols_str = append((_print_(i + 1) : a @ i <- args, a != nothing));
+    delete_cols_str = match (table, args)
+      slave_tern_table(), (just(), nothing) = "12",
+      _,                  _                 = append((_print_(i + 1) : a @ i <- args, a != nothing));
     method_name = native_table_method_prefix(table) & "_release_" & _print_(col_idx + 1) & "_before_delete_" & delete_cols_str;
     remove_method_name = native_value_store_method_prefix(store_type) & "_remove_untyped";
     call_args = (table_var) & values(args) & (remove_method_name, store);

@@ -1852,6 +1852,8 @@ void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *, SYM_MASTER_BI
 
 void slave_tern_table_clear(BIN_TABLE *s, STATE_MEM_POOL *);
 bool slave_tern_table_delete(BIN_TABLE *, uint32 surr12, uint32 arg3);
+void slave_tern_table_delete_12(BIN_TABLE *, uint32 surr12);
+void slave_tern_table_delete_3(BIN_TABLE *, uint32 arg3);
 
 bool slave_tern_table_insert(BIN_TABLE *, uint32 surr12, uint32 arg3, STATE_MEM_POOL *);
 
@@ -2426,6 +2428,8 @@ uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, S
 
 void bin_table_release_2_before_delete_1(BIN_TABLE *, uint32 arg1, DEALLOC);
 void bin_table_release_1_before_delete_2(BIN_TABLE *, uint32 arg2, DEALLOC);
+
+void slave_tern_table_release_3_before_delete_12(BIN_TABLE *, uint32 surr12, DEALLOC);
 
 //////////////////////////////// hashtables.cpp ////////////////////////////////
 

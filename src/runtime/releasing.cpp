@@ -33,3 +33,9 @@ void bin_table_release_1_before_delete_2(BIN_TABLE *table, uint32 arg2, void (*r
     }
   }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+void slave_tern_table_release_3_before_delete_12(BIN_TABLE *table, uint32 surr12, void (*remove)(void *, uint32, STATE_MEM_POOL *), void *store) {
+  bin_table_release_2_before_delete_1(table, surr12, remove, store);
+}
