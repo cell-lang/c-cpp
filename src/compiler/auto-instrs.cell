@@ -379,7 +379,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   String* native_immediate_delete_tuple_code(TableVar table_var, AnyTable table, Maybe[Int32Var]+ tuple) {
     if not (a <- tuple : a != nothing) {
       method_action_descr = "_clear";
-      args = (table_var, :mem_pool);
+      args = (table_var, :mem_pool if arity(table) != 1);
     }
     else {
       method_action_descr = "_delete";
@@ -392,15 +392,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         method_action_descr = method_action_descr & col_code_suffix;
       }
       args = (table_var) & (value(a) : a <- tuple, a != nothing);
-      args = (args | :mem_pool) if needs_mem_pool_arg(table);
+      args = (args | :mem_pool) if delete_needs_mem_pool_arg(table);
     }
     method_name = native_table_method_prefix(table) & method_action_descr;
     return (native_call(method_name, args));
 
 
-    Bool needs_mem_pool_arg(AnySurrTable) = false;
+    Bool delete_needs_mem_pool_arg(AnySurrTable) = false;
 
-    Bool needs_mem_pool_arg(AnyColumn column) =
+    Bool delete_needs_mem_pool_arg(AnyColumn column) =
       match (column.repr)
         object        = true,
         int | float   = false;
