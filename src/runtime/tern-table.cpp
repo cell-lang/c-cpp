@@ -16,6 +16,146 @@ bool tern_table_insert(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3,
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void tern_table_clear(TERN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  //## BUG BUG BUG: I SHOULD AT LEAST ASSERT THAT THERE ARE NO LOCKED SURROGATES
+  //## HOW SHOULD I GO ABOUT DOING THAT?
+  master_bin_table_clear(&table->master, 0xFFFFFFFF, mem_pool);
+  bin_table_clear(&table->slave, mem_pool);
+}
+
+void tern_table_delete(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3) {
+  int32 assoc_surr = master_bin_table_lookup_surr(&table->master, arg1, arg2);
+  if (assoc_surr != 0xFFFFFFFF) {
+    bin_table_delete(&table->slave, assoc_surr, arg3);
+    if (!bin_table_contains_1(&table->slave, assoc_surr))
+      master_bin_table_delete_by_surr(&table->master, assoc_surr);
+  }
+}
+
+void tern_table_delete_12(TERN_TABLE *table, uint32 arg1, uint32 arg2) {
+  int32 assoc_surr = master_bin_table_lookup_surr(&table->master, arg1, arg2);
+  if (assoc_surr != 0xFFFFFFFF) {
+    master_bin_table_delete_by_surr(&table->master, assoc_surr);
+    bin_table_delete_1(&table->slave, assoc_surr);
+  }
+}
+
+void tern_table_delete_13(TERN_TABLE *table, uint32 arg1, uint32 arg3) {
+  //## BAD BAD BAD: IMPLEMENT THE OTHER EXECUTION PLAN
+  uint32 count = bin_table_count_2(&table->slave, arg3);
+  if (count > 0) {
+    uint32 inline_array[256];
+    //## BUG BUG BUG: RELEASE THE EXTRA MEMORY USED
+    uint32 *surrs = count <= 256 ? inline_array : new_uint32_array(count);
+    uint32 surr_count = 0;
+
+    uint32 read = 0;
+    while (read < count) {
+      uint32 buffer[64];
+      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read, buffer, 64);
+      read += array.size;
+      for (uint32 i=0 ; i < array.size ; i++) {
+        uint32 surr = array.array[i];
+        if (master_bin_table_get_arg_1(&table->master, surr) == arg1)
+          surrs[surr_count++] = surr;
+      }
+    }
+
+    for (uint32 i=0 ; i < surr_count ; i++) {
+      uint32 surr = surrs[i];
+      bin_table_delete(&table->slave, surr, arg3);
+      if (!bin_table_contains_1(&table->slave, surr))
+        master_bin_table_delete_by_surr(&table->master, surr);
+    }
+  }
+}
+
+void tern_table_delete_23(TERN_TABLE *table, uint32 arg2, uint32 arg3) {
+  //## BAD BAD BAD: IMPLEMENT THE OTHER EXECUTION PLAN
+  uint32 count = bin_table_count_2(&table->slave, arg3);
+  if (count > 0) {
+    uint32 inline_array[256];
+    //## BUG BUG BUG: RELEASE THE EXTRA MEMORY USED
+    uint32 *surrs = count <= 256 ? inline_array : new_uint32_array(count);
+    uint32 surr_count = 0;
+
+    uint32 read = 0;
+    while (read < count) {
+      uint32 buffer[64];
+      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read, buffer, 64);
+      read += array.size;
+      for (uint32 i=0 ; i < array.size ; i++) {
+        uint32 surr = array.array[i];
+        if (master_bin_table_get_arg_2(&table->master, surr) == arg2)
+          surrs[surr_count++] = surr;
+      }
+    }
+
+    for (uint32 i=0 ; i < surr_count ; i++) {
+      uint32 surr = surrs[i];
+      bin_table_delete(&table->slave, surr, arg3);
+      if (!bin_table_contains_1(&table->slave, surr))
+        master_bin_table_delete_by_surr(&table->master, surr);
+    }
+  }
+}
+
+void tern_table_delete_1(TERN_TABLE *table, uint32 arg1) {
+  uint32 count = master_bin_table_count_1(&table->master, arg1);
+  if (count > 0) {
+    uint32 read = 0;
+    while (read < count) {
+      uint32 buffer[128];
+      UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(&table->master, arg1, read, buffer, 64); //## BAD BAD BAD: ONLY NEED THE SURROGATE HERE
+      read += array.size;
+      uint32 *surrs = array.array + array.offset;
+      for (uint32 i=0 ; i < array.size ; i++) {
+        uint32 surr = surrs[i];
+        bin_table_delete_1(&table->slave, surr);
+      }
+    }
+    master_bin_table_delete_1(&table->master, arg1);
+  }
+}
+
+void tern_table_delete_2(TERN_TABLE *table, uint32 arg2) {
+  uint32 count = master_bin_table_count_2(&table->master, arg2);
+  if (count > 0) {
+    uint32 read = 0;
+    while (read < count) {
+      uint32 buffer[128];
+      UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(&table->master, arg2, read, buffer, 64); //## BAD BAD BAD: ONLY NEED THE SURROGATE HERE
+      read += array.size;
+      uint32 *surrs = array.array + array.offset;
+      for (uint32 i=0 ; i < array.size ; i++) {
+        uint32 surr = surrs[i];
+        bin_table_delete_1(&table->slave, surr);
+      }
+    }
+    master_bin_table_delete_2(&table->master, arg2);
+  }
+}
+
+void tern_table_delete_3(TERN_TABLE *table, uint32 arg3) {
+  uint32 count = bin_table_count_2(&table->slave, arg3);
+  if (count > 0) {
+    uint32 read = 0;
+    while (read < count) {
+      uint32 buffer[64];
+      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read, buffer, 64);
+      read += array.size;
+      for (uint32 i=0 ; i < array.size ; i++) {
+        uint32 surr = array.array[i];
+        if (bin_table_count_1(&table->slave, surr) == 1)
+          master_bin_table_delete_by_surr(&table->master, surr);
+      }
+    }
+    bin_table_delete_2(&table->slave, arg3);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static void tern_table_resolve_12(TERN_TABLE *table, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *mem_pool, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3) {
   int32 surr12 = master_bin_table_lookup_surr(&table->master, arg1, arg2);
   if (surr12 != 0xFFFFFFFF) {

@@ -465,6 +465,15 @@ uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
   return count;
 }
 
+bool master_bin_table_delete_by_surr(MASTER_BIN_TABLE *table, uint32 assoc_surr) {
+  assert(assoc_surr < table->capacity);
+  uint64 slot = table->slots[assoc_surr];
+  uint32 arg1 = unpack_arg1(slot);
+  uint32 arg2 = unpack_arg2(slot);
+  assert(master_bin_table_lookup_surr(table, unpack_arg1(slot), unpack_arg2(slot)) == assoc_surr);
+  return master_bin_table_delete(table, arg1, arg2);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool master_bin_table_col_1_is_key(MASTER_BIN_TABLE *table) {

@@ -1742,6 +1742,7 @@ void master_bin_table_clear(MASTER_BIN_TABLE *, uint32 highest_locked_surr, STAT
 bool master_bin_table_delete(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2);
 uint32 master_bin_table_delete_1(MASTER_BIN_TABLE *, uint32 arg1);
 uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *, uint32 arg2);
+bool master_bin_table_delete_by_surr(MASTER_BIN_TABLE *, uint32 assoc_surr);
 
 int32 master_bin_table_insert_ex(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool master_bin_table_insert(MASTER_BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
@@ -1987,6 +1988,15 @@ bool semisym_slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX 
 //////////////////////////////// tern-table.cpp ////////////////////////////////
 
 void tern_table_init(TERN_TABLE *, STATE_MEM_POOL *);
+
+void tern_table_clear(TERN_TABLE *, STATE_MEM_POOL *);
+void tern_table_delete(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3);
+void tern_table_delete_12(TERN_TABLE *, uint32 arg1, uint32 arg2);
+void tern_table_delete_13(TERN_TABLE *, uint32 arg1, uint32 arg3);
+void tern_table_delete_23(TERN_TABLE *, uint32 arg2, uint32 arg3);
+void tern_table_delete_1(TERN_TABLE *, uint32 arg1);
+void tern_table_delete_2(TERN_TABLE *, uint32 arg2);
+void tern_table_delete_3(TERN_TABLE *, uint32 arg3);
 
 bool tern_table_insert(TERN_TABLE *, uint32 arg1, uint32 arg2, uint32 arg3, STATE_MEM_POOL *);
 
@@ -2429,7 +2439,23 @@ uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, S
 void bin_table_release_2_before_delete_1(BIN_TABLE *, uint32 arg1, DEALLOC);
 void bin_table_release_1_before_delete_2(BIN_TABLE *, uint32 arg2, DEALLOC);
 
+void master_bin_table_release_2_before_delete_1(MASTER_BIN_TABLE *, uint32 arg1, DEALLOC);
+void master_bin_table_release_1_before_delete_2(MASTER_BIN_TABLE *, uint32 arg2, DEALLOC);
+
 void slave_tern_table_release_3_before_delete_12(BIN_TABLE *, uint32 surr12, DEALLOC);
+
+void tern_table_release_2_before_delete_1(TERN_TABLE *, uint32 arg1, DEALLOC);
+void tern_table_release_3_before_delete_1(TERN_TABLE *, uint32 arg1, DEALLOC);
+
+void tern_table_release_1_before_delete_2(TERN_TABLE *, uint32 arg2, DEALLOC);
+void tern_table_release_3_before_delete_2(TERN_TABLE *, uint32 arg2, DEALLOC);
+
+void tern_table_release_1_before_delete_3(TERN_TABLE *, uint32 arg3, DEALLOC);
+void tern_table_release_2_before_delete_3(TERN_TABLE *, uint32 arg3, DEALLOC);
+
+void tern_table_release_3_before_delete_12(TERN_TABLE *, uint32 arg1, uint32 arg2, DEALLOC);
+void tern_table_release_2_before_delete_13(TERN_TABLE *, uint32 arg1, uint32 arg3, DEALLOC);
+void tern_table_release_1_before_delete_23(TERN_TABLE *, uint32 arg2, uint32 arg3, DEALLOC);
 
 //////////////////////////////// hashtables.cpp ////////////////////////////////
 
