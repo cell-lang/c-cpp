@@ -18,7 +18,7 @@ implicit prg_data : PrgData, context : <core>, debug_mode : Bool {
 
     ## THERE MIGHT BE A BUG HERE
     all_loc_vars = vars_to_declare(block.apply_code) & union([vars_to_declare(c) : id c <- block.nodes_update_code]);
-    aux_vars = [v : v <- all_loc_vars, v :: AuxVar] & [curr_time if has_time_rules];
+    aux_vars = [v : v <- all_loc_vars, v :: AuxReactAutoVar] & [curr_time if has_time_rules];
     aux_vars_decls = (var_decl(v) : v <- isort(aux_vars));
 
     const_data = (gen_const_data(block.name, c) : c <- isort(block.const_data));
