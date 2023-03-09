@@ -431,7 +431,9 @@ implicit context : NativeContext {
       get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, parenthesized),
       table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
-      add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
+      add32(e1?, e2?)         = native_nary_op(" + ", flatten_add32_exprs(expr), parenthesized),
+      minus32(e?)             = parenthesize("-" & native_expr(e, true), parenthesized),
+      or_0_32(c?, v?)         = parenthesize(native_expr(c, true) & " ? " & native_expr(v, true) & " : 0", parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_arg_by_assoc_surr() = native_get_arg_by_assoc_surr_expr(expr.table_var, expr.table_type, expr.arg, expr.surr),
       get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surr", (expr.table_var) & expr.args),
@@ -448,6 +450,11 @@ implicit context : NativeContext {
       method_name = native_table_method_prefix(table) & "_get_arg_" & _print_(arg + 1);
       return native_call_expr(method_name, (table_var, surr));
     }
+
+
+    Int32Expr+ flatten_add32_exprs(Int32Expr expr) =
+      add32(e1?, e2?)     = nonempty(flatten_add32_exprs(e1) & flatten_add32_exprs(e2)),
+      _                   = (expr);
   }
 
 
