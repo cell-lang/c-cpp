@@ -83,122 +83,25 @@ implicit
     target_del_args, maybe_target_status_var = table_var_aux_vars_map(target);
     target_del_arg = cast_opt_loc_int32_var(only_unsafe(target_del_args));
 
-    args = (if i == origin_col_idx and target_del_arg != :none then just(target_del_arg) else nothing : i < 2);
-    check_expr = table_contains(origin, origin_type, args);
+    match_args = (if i == origin_col_idx and target_del_arg != :none then just(target_del_arg) else nothing : i < 2);
 
     if effects_info.tables(origin, _) {
       instr_id, action = only_pair(effects_info.tables(origin));
       origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
       assert |origin_aux_vars| == 2;
 
-      if action == :insertion or action == :update {
-        if target_del_arg != :none {
-          // insert origin(x, y); delete target(x')
-          // origin(x, _) -> target(x) | origin(_, y) -> target(y)
-          origin_aux_var = cast_int32_var(origin_aux_vars(origin_col_idx));
-          extra_check_expr = are_eq(origin_aux_var, target_del_arg);
-        }
-        else
-          extra_check_expr = true;
+      fail if not origin_type :: Table;
 
-        if action == :update {
-          if target_del_arg != :none {
-            // insert origin(x, y); delete target(x')
-            // origin(x, _) -> target(x) | origin(_, y) -> target(y)
-            origin_aux_var = cast_int32_var(origin_aux_vars(origin_col_idx));
-            extra_check_expr = are_eq(origin_aux_var, target_del_arg);
-          }
-          else
-            extra_check_expr = true;
+      aux_count_expr = bin_table_aux_count(origin, origin_type, match_args, action, origin_aux_vars);
+      check_expr = are_eq(aux_count_expr, 0);
 
-          origin_other_col_idx = if origin_col_idx == 0 then 1 else 0;
-          if keys(origin_type)([origin_other_col_idx]) {
-            // This is for counting the total number of foreign-key constrained values that are present and need to be deleted
-            total_count_args = (
-                if i != origin_col_idx
-                  then just(cast_int32_var(origin_aux_vars(i)))
-                  else if target_del_arg != :none then just(target_del_arg) else nothing
-              : i < 2
-            );
-            // This is for counting the number of foreign-key contrained values that are actually deleted
-            delete_count_args = (if i == origin_col_idx then a else nothing : a @ i <- total_count_args);
-            deletion_check_expr = are_eq(
-              get_count(origin, origin_type, delete_count_args),
-              get_count(origin, origin_type, total_count_args)
-            );
-            check_expr = and_then(check_expr, neg(deletion_check_expr));
-          }
-        }
-
-        if maybe_origin_status_var != nothing {
-          origin_status_var = value(maybe_origin_status_var);
-          extra_check_expr = and_then(origin_status_var, extra_check_expr);
-        }
-
-        check_expr = or_else(check_expr, extra_check_expr);
-      }
-      else {
-        // origin_del_args = match (action) deletion(as?) = as;
-        if target_del_arg != :none {
-          checked_origin_del_arg = cast_opt_loc_int32_var(origin_aux_vars(origin_col_idx));
-          unchecked_origin_del_arg = cast_opt_loc_int32_var(origin_aux_vars(if origin_col_idx == 0 then 1 else 0));
-
-          if checked_origin_del_arg != :none {
-            if unchecked_origin_del_arg != :none {
-              // delete origin(x, y), delete target(x') : origin(x, _) -> target(x)
-              // delete origin(x, y), delete target(y') : origin(_, y) -> target(y)
-
-              args = (maybe(checked_origin_del_arg, i == origin_col_idx) : i < 2);
-              get_count_expr = get_count(origin, origin_type, args);
-
-              extra_check_expr = neg(are_eq(get_count_expr, 1));
-            }
-            else {
-              // delete origin(x, *), delete target(x') : origin(x, _) -> target(x)
-              // delete origin(*, y), delete target(y') : origin(_, y) -> target(y)
-
-              extra_check_expr = are_eq(checked_origin_del_arg, target_del_arg);
-            }
-          }
-          else {
-            if unchecked_origin_del_arg != :none {
-              // delete origin(*, y), delete target(x') : origin(x, _) -> target(x);
-              // delete origin(x, *), delete target(y') : origin(_, y) -> target(y);
-
-              // |origin(x', y)| == |origin(x', *)|
-              // |origin(x, y')| == |origin(*, y')|
-              args1 = (just(if i == origin_col_idx then target_del_arg else unchecked_origin_del_arg) : i < 2);
-              args2 = (maybe(target_del_arg, i == origin_col_idx) : i < 2);
-              count_expr_1 = get_count(origin, origin_type, args1);
-              count_expr_2 = get_count(origin, origin_type, args2);
-              extra_check_expr = neg(are_eq(count_expr_1, count_expr_2));
-            }
-            else {
-              // delete origin(*, *), delete target(x') : origin(x, _) -> target(x);
-              // delete origin(*, *), delete target(y') : origin(_, y) -> target(y);
-
-              extra_check_expr = false;
-            }
-          }
-        }
-        else {
-          // delete origin(_, _), delete target(*) : origin(x, _)
-
-          args = (if a != :none then just(cast_loc_int32_var(a)) else nothing : a <- origin_aux_vars);
-          extra_check_expr = are_eq(
-            get_count(origin, origin_type, args),
-            get_count(origin, origin_type, (nothing, nothing))
-          );
-        }
-
-        if maybe_origin_status_var != nothing {
-          origin_status_var = value(maybe_origin_status_var);
-          extra_check_expr = and_then(origin_status_var, extra_check_expr);
-        }
-
-        check_expr = and_then(check_expr, extra_check_expr);
+      if maybe_origin_status_var != nothing {
+        origin_status_var = value(maybe_origin_status_var);
+        check_expr = and_then(origin_status_var, check_expr);
       }
     }
+    else
+      check_expr = table_contains(origin, origin_type, match_args);
 
     if maybe_target_status_var != nothing {
       target_status_var = value(maybe_target_status_var);
@@ -214,23 +117,27 @@ implicit
     assert |match_args| == 2 and |action_args| == 2;
 
     base_count_expr = get_count(table_var, table, match_args);
+
     delta_count_expr = match (action)
       insertion   = bin_table_insertion_delta_count(table_var, table, match_args, cast_loc_int32_vars(action_args)),
       update      = bin_table_update_delta_count(table_var, table, match_args, cast_loc_int32_vars(action_args)),
       deletion(_) = bin_table_deletion_delta_count(table_var, table, match_args, cast_opt_loc_int32_vars(action_args));
-    return add32(base_count_expr, delta_count_expr);
 
+    return add32(base_count_expr, delta_count_expr);
   }
 
 
   Int32Expr bin_table_insertion_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
+    already_contains_expr = table_contains(table_var, table, match_args);
+
     ins_match_expr = true;
     for match_arg @ i <- match_args
       if match_arg != nothing {
         arg_match_expr = are_eq(value(match_arg), insertion_args(i));
         ins_match_expr = and_then(ins_match_expr, arg_match_expr);
       }
-    return bool_to_bit(ins_match_expr);
+
+    return bool_to_bit(or_else(already_contains_expr, ins_match_expr));
   }
 
 
@@ -283,6 +190,6 @@ implicit
       then bool_to_bit(and_then(ins_match_conds))
       else 1;
 
-    return add32(minus32(del_count_expr), ins_count_expr);
+    return add32(del_count_expr, ins_count_expr);
   }
 }
