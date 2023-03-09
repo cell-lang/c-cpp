@@ -535,10 +535,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           exprs = ({
             prev_table_var = ord_table_vars(k);
             prev_table = block.tables(prev_table_var);
-            get_count_expr = native_get_count_expr(prev_table_var, prev_table, (nothing : _ < arity(prev_table)));
+            get_count_expr = native_get_count_expr(prev_table_var, prev_table, (nothing : _ < arity(prev_table)), false);
             return get_count_expr & " > 0";
           } : k < j);
-          get_count_expr = native_get_count_expr(tv, table, (nothing : _ < arity(table)));
+          get_count_expr = native_get_count_expr(tv, table, (nothing : _ < arity(table)), false);
           sep = if comma_sep then "," else ";";
           code = (code |
             "  if (" & get_count_expr & " > 0) {",

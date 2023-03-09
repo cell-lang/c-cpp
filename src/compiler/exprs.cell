@@ -428,7 +428,7 @@ implicit context : NativeContext {
     return match (expr)
       bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
       get_size(e?)            = "get_size(" & native_expr(e) & ")",
-      get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args),
+      get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, parenthesized),
       table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_nary_op(" + ", (e1, e2), parenthesized),
@@ -476,14 +476,23 @@ implicit context : NativeContext {
   }
 
 
-  String native_get_count_expr(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ args) =
-    native_call_expr("unary_table_size", (column.master));
+  String native_get_count_expr(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ args, Bool parenthesized) =
+    if (a <- args : a == nothing)
+      then native_call_expr("unary_table_size", (column.master))
+      else parenthesize(native_table_contains(table_var, column, args) & " ? 1 : 0", parenthesized);
 
-  String native_get_count_expr(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ args) {
-    fn_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
-    fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
-    call_args = (table_var) & values(args);
-    return native_call_expr(fn_name, call_args);
+  String native_get_count_expr(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ args, Bool parenthesized) {
+    if (a <- args : a == nothing) {
+      fn_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
+      fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
+      call_args = (table_var) & values(args);
+      return native_call_expr(fn_name, call_args);
+    }
+    else {
+      expr = native_table_contains(table_var, table, args) & " ? 1 : 0";
+      return parenthesize(expr, parenthesized);
+    }
+
 
     [Bool+ -> String] fn_names_by_args = [
       (false)               -> "size",
