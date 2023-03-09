@@ -12,6 +12,13 @@ type InstrStatus = instr_status(optional: Bool, multiple: Bool);
 
 ////////////////////////////////////////////////////////////////////////////////
 
+Bool is_deletion(TableAction) =
+  insertion   |
+  update      = false,
+  deletion()  = true;
+
+////////////////////////////////////////////////////////////////////////////////
+
 InstrStatus instr_status(InstrId instr_id) {
   optional = false;
   multiple = false;

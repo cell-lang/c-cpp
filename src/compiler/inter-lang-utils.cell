@@ -84,6 +84,32 @@ type VarTypesNotToDeclare = FnArg,
 
 ////////////////////////////////////////////////////////////////////////////////
 
+## BUG BUG BUG: DOESN'T TAKE INTO ACCOUNT THE FACT THAT THE COLUMNS MAY HAVE BEEN PERMUTATED
+String block_foreign_key_user_repr(BlockForeignKey key) {
+  args_names = ("a", "b", "c");
+
+  src_args_list, tgt_args_list = match (key.type)
+    unary_unary               = ("a", "a"),
+    unary_binary(i?)          = (args_names(i), append((if j == i then args_names(i) else "_" : j < 2), ", ")),
+    unary_ternary(i?)         = (args_names(i), append((if j == i then args_names(i) else "_" : j < 3), ", ")),
+    binary_unary(i?)          = (append((if j == i then args_names(i) else "_" : j < 2), ", "), args_names(i)),
+    ternary_unary(i?)         = (append((if j == i then args_names(i) else "_" : j < 3), ", "), args_names(i)),
+    binary_ternary            = ("a, b", "a, b, _"),
+    ternary_binary            = ("a, b, _", "a, b"),
+    unary_sym_binary          = ("a", "a | _"),
+    unary_sym_ternary_12      = ("a", "a | _, _"),
+    unary_sym_ternary_3       = ("c", "_ | _, c"),
+    sym_binary_unary          = ("a | _", "a"),
+    sym_ternary_unary_12      = ("a | _, _", "a"),
+    sym_ternary_unary_3       = ("_ | _, c", "c"),
+    sym_binary_sym_ternary    = ("a | b", "a | b, _"),
+    sym_ternary_sym_binary    = ("a | b, _", "a | b");
+
+  return user_repr(original_rel_var(key.origin)) & "(" & src_args_list & ") -> " & user_repr(original_rel_var(key.target)) & "(" & tgt_args_list & ")";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 type AuxTableVar    = LocVar, LocIntVar, LocFloatVar, LocBoolVar, Int32Var;
 type OptAuxTableVar = none, AuxTableVar;
 
@@ -96,6 +122,12 @@ type OptLocColValueAuxVar = none, LocColValueAuxVar;
 Int32Var+ cast_int32_var_seq(OptAuxTableVar+ vars) = if vars :: Int32Var+ then vars else undefined;
 AuxTableVar cast_aux_table_var(OptAuxTableVar v) = if v != :none then v else undefined;
 Int32Var cast_int32_var(<none>) = undefined;
+
+LocInt32Var cast_loc_int32_var(AuxTableVar var) = if var :: LocInt32Var then var else undefined;
+OptLocInt32Var cast_opt_loc_int32_var(OptAuxTableVar var) = if var :: OptLocInt32Var then var else undefined;
+
+LocInt32Var+ cast_loc_int32_vars(OptAuxTableVar+ vars) = if vars :: LocInt32Var+ then vars else undefined;
+OptLocInt32Var+ cast_opt_loc_int32_vars(OptAuxTableVar+ vars) = if vars :: OptLocInt32Var+ then vars else undefined;
 
 
 [AuxTableVar] temp_table_col_vars_in_use(Instr* instrs) {

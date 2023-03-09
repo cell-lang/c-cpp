@@ -170,11 +170,13 @@ src/compiler/inter-lang-utils.cell
 src/compiler/name-mangling.cell
 src/compiler/native-code-gen.cell
 src/compiler/opt-types.cell
+src/compiler/react-blocks.cell
 src/compiler/table-iters.cell
 src/compiler/static-blocks.cell
 src/compiler/handlers.cell
 src/compiler/effects.cell
-src/compiler/react-blocks.cell
+src/compiler/integrity-checks.cell
+src/compiler/foreign-key-checks/binary-unary.cell
 
 src/compiler/wrappers/interface-types.cell
 src/compiler/wrappers/native-types.cell
