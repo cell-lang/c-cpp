@@ -1450,6 +1450,10 @@ bool unary_table_aux_check_foreign_key_tern_table_3_forward(UNARY_TABLE_AUX *, T
 bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool unary_table_aux_check_foreign_key_bin_table_1_backward(UNARY_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
 bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_single_key_bin_table_1_backward(UNARY_TABLE_AUX *, SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_single_key_bin_table_2_backward(UNARY_TABLE_AUX *, SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_double_key_bin_table_1_backward(UNARY_TABLE_AUX *, DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *);
+bool unary_table_aux_check_foreign_key_double_key_bin_table_2_backward(UNARY_TABLE_AUX *, DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *);
 bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool unary_table_aux_check_foreign_key_master_bin_table_2_backward(UNARY_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 bool unary_table_aux_check_foreign_key_obj_col_1_backward(UNARY_TABLE_AUX *, OBJ_COL *, OBJ_COL_AUX *);

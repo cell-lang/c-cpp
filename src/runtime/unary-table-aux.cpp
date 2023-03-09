@@ -233,6 +233,21 @@ bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *tab
   return true;
 }
 
+bool unary_table_aux_check_foreign_key_single_key_bin_table_1_backward(UNARY_TABLE_AUX *, SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool unary_table_aux_check_foreign_key_single_key_bin_table_2_backward(UNARY_TABLE_AUX *, SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool unary_table_aux_check_foreign_key_double_key_bin_table_1_backward(UNARY_TABLE_AUX *, DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
+
+bool unary_table_aux_check_foreign_key_double_key_bin_table_2_backward(UNARY_TABLE_AUX *, DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *) {
+  internal_fail(); //## IMPLEMENT IMPLEMENT IMPLEMENT
+}
 
 bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
   uint32 num_dels = table_aux->deletions.count;
