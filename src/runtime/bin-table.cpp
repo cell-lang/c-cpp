@@ -53,6 +53,10 @@ uint32 bin_table_count_2(BIN_TABLE *table, uint32 arg2) {
     return counter_read(&table->col_2_counter, arg2);
 }
 
+uint32 bin_table_count_12(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  return bin_table_contains(table, arg1, arg2) ? 1 : 0;
+}
+
 uint32 bin_table_restrict_1(BIN_TABLE *table, uint32 arg1, uint32 *arg2s) {
   return one_way_bin_table_restrict(&table->forward, arg1, arg2s);
 }

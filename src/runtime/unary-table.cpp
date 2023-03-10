@@ -25,6 +25,10 @@ uint64 unary_table_size(UNARY_TABLE *table) {
   return table->count;
 }
 
+uint32 unary_table_count(UNARY_TABLE *table, uint32 value) {
+  return unary_table_contains(table, value) ? 1 : 0;
+}
+
 uint32 unary_table_capacity(UNARY_TABLE *table) {
   return table->capacity;
 }

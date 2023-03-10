@@ -1416,7 +1416,9 @@ bool col_update_status_map_inserted_flag_is_set(COL_UPDATE_STATUS_MAP *, uint32 
 void unary_table_init(UNARY_TABLE *, STATE_MEM_POOL *);
 
 bool unary_table_contains(UNARY_TABLE *, uint32);
+
 uint64 unary_table_size(UNARY_TABLE *); //## WHY IS THIS A uint64
+uint32 unary_table_count(UNARY_TABLE *, uint32);
 
 uint32 unary_table_capacity(UNARY_TABLE *);
 
@@ -1471,6 +1473,7 @@ void bin_table_init(BIN_TABLE *, STATE_MEM_POOL *);
 uint32 bin_table_size(BIN_TABLE *);
 uint32 bin_table_count_1(BIN_TABLE *, uint32 arg1);
 uint32 bin_table_count_2(BIN_TABLE *, uint32 arg2);
+uint32 bin_table_count_12(BIN_TABLE *, uint32 arg1, uint32 arg2);
 
 bool bin_table_contains(BIN_TABLE *, uint32 arg1, uint32 arg2);
 bool bin_table_contains_1(BIN_TABLE *, uint32 arg1);
@@ -1547,6 +1550,7 @@ bool single_key_bin_table_contains_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
 
 uint32 single_key_bin_table_count_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1);
 uint32 single_key_bin_table_count_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2);
+uint32 single_key_bin_table_count_12(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
 
 uint32 single_key_bin_table_restrict_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1, uint32 *arg2s);
 uint32 single_key_bin_table_restrict_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2, uint32 *arg1s);
@@ -1615,6 +1619,7 @@ bool double_key_bin_table_contains_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
 bool double_key_bin_table_contains_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
 uint32 double_key_bin_table_count_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1);
 uint32 double_key_bin_table_count_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2);
+uint32 double_key_bin_table_count_12(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 arg2);
 uint32 double_key_bin_table_restrict_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 *arg2s);
 uint32 double_key_bin_table_restrict_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2, uint32 *arg1s);
 UINT32_ARRAY double_key_bin_table_range_restrict_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, uint32 first, uint32 *arg2s, uint32 capacity);

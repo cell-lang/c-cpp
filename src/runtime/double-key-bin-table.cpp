@@ -39,6 +39,10 @@ uint32 double_key_bin_table_count_2(DOUBLE_KEY_BIN_TABLE *table, uint32 arg2) {
   return double_key_bin_table_contains_2(table, arg2) ? 1 : 0;
 }
 
+uint32 double_key_bin_table_count_12(DOUBLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  return double_key_bin_table_contains(table, arg1, arg2) ? 1 : 0;
+}
+
 uint32 double_key_bin_table_restrict_1(DOUBLE_KEY_BIN_TABLE *table, uint32 arg1, uint32 *arg2s) {
   if (arg1 < table->forward_capacity) {
     uint32 arg2 = table->forward_array[arg1];
