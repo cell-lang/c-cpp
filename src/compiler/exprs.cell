@@ -431,9 +431,9 @@ implicit context : NativeContext {
       get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, parenthesized),
       table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
-      add32(e1?, e2?)         = native_nary_op(" + ", flatten_add32_exprs(expr), parenthesized),
+      add32(e1?, e2?)         = native_add32_expr(expr, parenthesized),
       minus32(e?)             = parenthesize("-" & native_expr(e, true), parenthesized),
-      or_0_32(c?, v?)         = parenthesize(native_expr(c, true) & " ? " & native_expr(v, true) & " : 0", parenthesized),
+      or_0_32(c?, v?)         = native_or_0_32_expr(c, v, parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_arg_by_assoc_surr() = native_get_arg_by_assoc_surr_expr(expr.table_var, expr.table_type, expr.arg, expr.surr),
       get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surr", (expr.table_var) & expr.args),
@@ -450,6 +450,51 @@ implicit context : NativeContext {
       method_name = native_table_method_prefix(table) & "_get_arg_" & _print_(arg + 1);
       return native_call_expr(method_name, (table_var, surr));
     }
+
+
+    String native_add32_expr(Int32NatOp add32_expr, Bool parenthesized) {
+      addends = flatten_add32_exprs(add32_expr);
+      negated = (is_best_represented_negated(a) : a <- addends);
+
+      first_addend = addends(0);
+      if not is_best_represented_negated(first_addend) {
+        str = native_expr(first_addend, true);
+        for a <- drop(addends, 1)
+          str = str & if not is_best_represented_negated(a)
+            then " + " & native_expr(a, true)
+            else " - " & native_expr(minus32(a), true);
+        return parenthesize(str, parenthesized);
+      }
+
+      non_neg_addends = (e : e <- addends, not is_best_represented_negated(e));
+      neg_addends = (minus32(e) : e <- addends, is_best_represented_negated(e));
+
+      if non_neg_addends != () {
+        str = native_nary_op(" + ", non_neg_addends, false);
+        if neg_addends != ()
+          str = str & " - " & native_nary_op(" - ", neg_addends, false);
+        return parenthesize(str, parenthesized);
+      }
+      else
+        ## BUG BUG BUG: DO I NEED TO PARENTHESIZE THIS? IS THERE ANY OPERATOR THAT HAS HIGHER PRECEDENCE THAT NUMERIC NEGATION?
+        return "-(" & native_nary_op(" + ", nonempty(neg_addends), false) & ")";
+    }
+
+
+    String native_or_0_32_expr(BoolExpr cond, Int32Expr value, Bool parenthesized) {
+      cond_needs_parentheses = match (cond)
+        are_eq()  = false,
+        _         = true;
+      cond_str = native_expr(cond, cond_needs_parentheses);
+      value_str = native_expr(value, true);
+      return parenthesize(cond_str & " ? " & value_str & " : 0", parenthesized);
+    }
+
+
+    Bool is_best_represented_negated(Int32Expr) =
+      minus32()       = true,
+      or_0_32(_, e?)  = is_best_represented_negated(e),
+      _               = false;
 
 
     Int32Expr+ flatten_add32_exprs(Int32Expr expr) =
@@ -484,48 +529,49 @@ implicit context : NativeContext {
 
 
   String native_get_count_expr(AnyTableVar table_var, MandatoryColumn column, Maybe[Int32Var]+ args, Bool parenthesized) =
-    if (a <- args : a == nothing)
-      then native_call_expr("unary_table_size", (column.master))
-      else parenthesize(native_table_contains(table_var, column, args) & " ? 1 : 0", parenthesized);
+    match (args)
+      (nothing,   nothing)  = native_call_expr("unary_table_size", (column.master)),
+      (just(a1?), nothing)  = native_call_expr("unary_table_count", (column.master, a1)),
+      _                     = undefined;
+
 
   String native_get_count_expr(AnyTableVar table_var, <AnySurrTable, Column, SlaveColumn> table, Maybe[Int32Var]+ args, Bool parenthesized) {
-    if (a <- args : a == nothing) {
-      fn_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
-      fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
-      call_args = (table_var) & values(args);
-      return native_call_expr(fn_name, call_args);
-    }
-    else {
-      expr = native_table_contains(table_var, table, args) & " ? 1 : 0";
-      return parenthesize(expr, parenthesized);
-    }
+    fn_names = if is_symmetric(table) then sym_fn_names_by_args else fn_names_by_args;
+    fn_name = native_table_method_prefix(table) & "_" & fn_names((a != nothing : a <- args));
+    call_args = (table_var) & values(args);
+    return native_call_expr(fn_name, call_args);
 
 
     [Bool+ -> String] fn_names_by_args = [
       (false)               -> "size",
+      (true)                -> "count",
       (false, false)        -> "size",
       (true,  false)        -> "count_1",
       (false, true)         -> "count_2",
+      (true,  true)         -> "count_12",
       (false, false, false) -> "size",
       (true,  false, false) -> "count_1",
       (false, true,  false) -> "count_2",
       (false, false, true)  -> "count_3",
       (true,  true,  false) -> "count_12",
       (true,  false, true)  -> "count_13",
-      (false, true,  true)  -> "count_23"
+      (false, true,  true)  -> "count_23",
+      (true,  true,  true)  -> "count_123"
     ];
 
     [Bool+ -> String] sym_fn_names_by_args = [
       (false, false)        -> "size",
       (true,  false)        -> "count",
       (false, true)         -> "count",
+      (true,  true)         -> "count_12",
       (false, false, false) -> "size",
       (true,  false, false) -> "count_1_2",
       (false, true,  false) -> "count_1_2",
       (false, false, true)  -> "count_3",
       (true,  true,  false) -> "count_12",
       (true,  false, true)  -> "count_13_23",
-      (false, true,  true)  -> "count_13_23"
+      (false, true,  true)  -> "count_13_23",
+      (true,  true,  true)  -> "count_123"
     ];
   }
 
