@@ -113,6 +113,70 @@ implicit
 
   //////////////////////////////////////////////////////////////////////////////
 
+  Int32Expr simplify_post_update_count_expr(Int32Expr expr) {
+    addends = flatten_add32_exprs(expr);
+    if |addends| > 1 {
+      conds = [c : a <- addends, if32(c?, _, 0) ?= a];
+      if |conds| == 1 {
+        cond = only(conds);
+        then_exprs = (match (a) if32(_, v?, 0) = v, _ = a : a <- addends);
+        else_exprs = join((match (a) if32() = (),  _ = (a) : a <- addends));
+        if then_exprs != () {
+          then_expr = add32(then_exprs);
+          if else_exprs != () {
+            else_expr = add32(else_exprs);
+
+            maybe_eq_vars = match (cond)
+              are_eq(int_obj(upcast_int32(ivar32() v1?)), int_obj(upcast_int32(ivar32() v2?))) = just((v1, v2)),
+              _                                                                                = nothing;
+            if maybe_eq_vars != nothing {
+              var1, var2 = value(maybe_eq_vars);
+              then_exprs = (cast_int32_expr(replace_loc_int32_var(e, var1, var2)) : e <- then_exprs);
+              then_exprs = remove_expr_pairs_that_cancel_out(then_exprs);
+              then_expr = if then_exprs != () then add32(then_exprs) else 0;
+            }
+
+            return if32(cond, then_expr, else_expr);
+          }
+          else
+            return if32(cond, then_expr, 0);
+        }
+        else {
+          else_expr = add32(nonempty(else_exprs));
+          return if32(neg(cond), else_expr, 0);
+        }
+      }
+    }
+
+    return expr;
+
+
+    Int32Expr+ flatten_add32_exprs(Int32Expr expr) =
+    add32(e1?, e2?)     = nonempty(flatten_add32_exprs(e1) & flatten_add32_exprs(e2)),
+    _                   = (expr);
+
+
+    AnyTypeExpr replace_loc_int32_var(AnyTypeExpr expr, LocInt32Var var_to_replace, LocInt32Var replacement_var) =
+      ivar32()  = if expr == var_to_replace then replacement_var else expr,
+      _         = rewrite_nested(expr, replace_loc_int32_var($, var_to_replace, replacement_var));
+
+
+    Int32Expr* remove_expr_pairs_that_cancel_out(Int32Expr* exprs) {
+      for expr @ i <- exprs {
+        neg_expr = minus32(expr);
+        for j = i + 1 .. |exprs|
+          if exprs(j) == neg_expr {
+            reduced_exprs = (e : e @ k <- exprs, k != i and k != j);
+            return remove_expr_pairs_that_cancel_out(reduced_exprs);
+          }
+      }
+      return exprs;
+    }
+  }
+
+
+  //////////////////////////////////////////////////////////////////////////////
+
   Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, TableAction action, OptAuxTableVar+ action_args) {
     assert |match_args| == 2 and |action_args| == 2;
 
@@ -123,7 +187,7 @@ implicit
       update      = bin_table_update_delta_count(table_var, table, match_args, cast_loc_int32_vars(action_args)),
       deletion(_) = bin_table_deletion_delta_count(table_var, table, match_args, cast_opt_loc_int32_vars(action_args));
 
-    return add32(base_count_expr, delta_count_expr);
+    return simplify_post_update_count_expr(add32(base_count_expr, delta_count_expr));
   }
 
 
@@ -137,7 +201,7 @@ implicit
         ins_match_expr = and_then(ins_match_expr, arg_match_expr);
       }
 
-    return bool_to_bit(or_else(already_contains_expr, ins_match_expr));
+    return if32(or_else(already_contains_expr, ins_match_expr), 1, 0);
   }
 
 
@@ -152,7 +216,7 @@ implicit
         conds = (conds | are_eq(del_arg, value(match_arg)));
     }
     if conds != ()
-      count_expr = or_0_32(and_then(conds), count_expr);
+      count_expr = if32(and_then(conds), count_expr, 0);
 
     return minus32(count_expr);
   }
@@ -187,7 +251,7 @@ implicit
         ins_match_conds = (ins_match_conds | are_eq(ins_arg, value(match_arg)));
     }
     ins_count_expr = if ins_match_conds != ()
-      then bool_to_bit(and_then(ins_match_conds))
+      then if32(and_then(ins_match_conds), 1, 0)
       else 1;
 
     return add32(del_count_expr, ins_count_expr);

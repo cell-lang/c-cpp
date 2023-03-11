@@ -426,14 +426,15 @@ implicit context : NativeContext {
 
   String native_expr(Int32NatOp expr, Bool parenthesized) {
     return match (expr)
-      bool_to_bit(e?)         = "(" & native_expr(e, false) & " ? 1 : 0)",
       get_size(e?)            = "get_size(" & native_expr(e) & ")",
       get_count()             = native_get_count_expr(expr.table_var, expr.table, expr.args, parenthesized),
       table_lookup()          = native_table_lookup_expr(expr.table_var, expr.table, expr.args),
       cast_int32(e?)          = "cast_int32(" & native_expr(e, false) & ")",
       add32(e1?, e2?)         = native_add32_expr(expr, parenthesized),
       minus32(e?)             = parenthesize("-" & native_expr(e, true), parenthesized),
-      or_0_32(c?, v?)         = native_or_0_32_expr(c, v, parenthesized),
+      if32(c?, t?, e?)        = if t :: Int32 and not e :: Int32
+                                  then native_if32_expr(neg(c), e, t, parenthesized)
+                                  else native_if32_expr(c, t, e, parenthesized),
       value_to_surr()         = native_call_expr(native_value_store_method_prefix(expr.store_type) & "_value_to_surr", (expr.store, expr.value)),
       get_arg_by_assoc_surr() = native_get_arg_by_assoc_surr_expr(expr.table_var, expr.table_type, expr.arg, expr.surr),
       get_assoc_surr()        = native_call_expr(native_table_method_prefix(expr.table_type) & "_lookup_surr", (expr.table_var) & expr.args),
@@ -481,20 +482,22 @@ implicit context : NativeContext {
     }
 
 
-    String native_or_0_32_expr(BoolExpr cond, Int32Expr value, Bool parenthesized) {
+    String native_if32_expr(BoolExpr cond, Int32Expr then_value, Int32Expr else_value, Bool parenthesized) {
       cond_needs_parentheses = match (cond)
-        are_eq()  = false,
-        _         = true;
+        are_eq()      |
+        neg(are_eq()) = false,
+        _             = true;
       cond_str = native_expr(cond, cond_needs_parentheses);
-      value_str = native_expr(value, true);
-      return parenthesize(cond_str & " ? " & value_str & " : 0", parenthesized);
+      then_value_str = native_expr(then_value, true);
+      else_value_str = native_expr(else_value, true);
+      return parenthesize(cond_str & " ? " & then_value_str & " : " & else_value_str, parenthesized);
     }
 
 
     Bool is_best_represented_negated(Int32Expr) =
-      minus32()       = true,
-      or_0_32(_, e?)  = is_best_represented_negated(e),
-      _               = false;
+      minus32()           = true,
+      if32(_, te?, ee?)   = is_best_represented_negated(te) and (ee == 0 or is_best_represented_negated(ee)),
+      _                   = false;
 
 
     Int32Expr+ flatten_add32_exprs(Int32Expr expr) =
