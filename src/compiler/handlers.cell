@@ -15,7 +15,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
-    code = code & updates_check_code(insertion_tables, update_tables, deletion_tables, block = block, table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info);
+    if not skip_integrity_checks {
+      mutated_tables = insertion_tables & update_tables & deletion_tables;
+      let block = block, table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info
+        code = code & keys_checking_code & foreign_keys_checking_code(mutated_tables);
+    }
+
     code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
     code = code & updates_reset_code(block, insertion_value_stores);
 
