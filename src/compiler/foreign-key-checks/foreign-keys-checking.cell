@@ -27,11 +27,13 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
 
     return code;
   }
+}
 
-
+implicit block : StaticBlock {
   Bool foreign_key_checking_can_be_optimized(BlockForeignKey key) {
-    info = block.foreign_keys(key);
-    return foreign_key_check_code(key, info.insertion_checked, info.deletion_checked) != nothing;
+    return match (key.type)
+      binary_unary()    = true,
+      _                 = false;
   }
 }
 

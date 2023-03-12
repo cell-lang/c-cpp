@@ -1131,19 +1131,12 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     arg = :var(:this);
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
 
-    maybe_opt_handler_code = if not disable_handler_optimization
-      then native_optimized_handler_code(handler_id, msg_type, body)
-      else nothing;
+    opt_handler_code = native_optimized_handler_code(handler_id, msg_type, body);
 
-    code = ();
-
-    if maybe_opt_handler_code != nothing {
-      opt_handler_code = value(maybe_opt_handler_code);
-      method_name = native_opt_handler_name(block.name, handler_id, msg_type);
-      vars_decls = gen_vars_decls(opt_handler_code, [arg]);
-      body_text = vars_decls & ("" if vars_decls != ()) & native_code(opt_handler_code, nothing, break_target = nothing);
-      code = ("", "bool " & method_name & "(" & append(args_decls, ", ") & ") {") & indent_lines(body_text) & ("}");
-    }
+    method_name = native_opt_handler_name(block.name, handler_id, msg_type);
+    vars_decls = gen_vars_decls(opt_handler_code, [arg]);
+    body_text = vars_decls & ("" if vars_decls != ()) & native_code(opt_handler_code, nothing, break_target = nothing);
+    code = ("", "bool " & method_name & "(" & append(args_decls, ", ") & ") {") & indent_lines(body_text) & ("}");
 
     vars_decls = gen_vars_decls(body, [arg]);
     body_text = vars_decls & ("" if vars_decls != ()) & native_code(body, nothing, break_target = nothing);
@@ -1152,7 +1145,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     code = code & ("", sgn) & indent_lines(body_text) & ("}");
 
     code = code & handler_apply_and_reset_methods(handler_id, msg_type);
-    code = code & handler_entry_point_method(handler_id, msg_type, maybe_opt_handler_code != nothing);
+    code = code & handler_entry_point_method(handler_id, msg_type, not disable_handler_optimization);
 
     return code;
 

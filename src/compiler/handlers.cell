@@ -1,13 +1,11 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
-  Maybe[Instr*] native_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body) {
+  Instr* native_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body) {
     effects_info = instrs_effects_info(body);
+    opt_table_vars = optimizable_table_vars(effects_info);
 
-    return nothing if not is_optimizable(effects_info);
-
-    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(handler_id, msg_type, body, effects_info);
+    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(handler_id, msg_type, body, effects_info, opt_table_vars);
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
-
     insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
     update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
     deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
@@ -26,17 +24,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     code = (code | :empty_line, ret_val(true));
 
-    return just(code);
+    return code;
   }
 
 
   (Instr*, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
-  mandatory_only_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info) {
+  mandatory_only_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info, [TableVar] opt_table_vars) {
     tables_types = prg_data.tables(block.name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
     table_var_aux_vars_map = [];
-    for table_var table_effects_info <- effects_info.tables {
+    for table_var <- opt_table_vars {
+      table_effects_info = effects_info.tables(table_var);
       instr_id, action = only_pair(table_effects_info);
       instr = get_instr_by_id(instr_id, body);
       table_type = tables_types(table_var);
@@ -127,6 +126,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 ////////////////////////////////////////////////////////////////////////////////
 
 Instr* rewrite_handler_code(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+  skip_optimization = match (instr)
+    queue_deletes()                 |
+    queue_insert_tuple()            |
+    queue_insert_master_tuple()     |
+    column_insert_deferred()        = not table_var_aux_vars_map(instr.table_var, _),
+    _                               = false;
+
+  return (instr) if skip_optimization;
+
   return match (instr)
     // lookup_or_queue_insert_value() = undefined, ## IMPLEMENT IMPLEMENT IMPLEMENT
     queue_deletes()                 = rewrite_queue_deletes(instr.table_var, instr.table, instr.args, table_var_aux_vars_map),
@@ -491,17 +499,39 @@ Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stor
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-Bool is_optimizable(EffectsInfo effects_info) {
-  for v is <- effects_info.tables {
-    return false if |is| != 1;
-    i, a = only_pair(is);
-    // return false if a != :insertion and a != :update;
-    status = instr_status(i);
-    return false if status.multiple;
+implicit block : StaticBlock {
+  [TableVar] optimizable_table_vars(EffectsInfo effects_info) {
+    opt_tables = [t : t es <- effects_info.tables, is_optimizable(es)];
+    loop {
+      excluded_tables = [];
+      for key info <- block.foreign_keys {
+        if not foreign_key_checking_can_be_optimized(key) {
+          excluded_tables = _insert_(excluded_tables, key.origin) if opt_tables(key.origin);
+          excluded_tables = _insert_(excluded_tables, key.target) if opt_tables(key.target);
+        }
+        if opt_tables(key.origin) and not opt_tables(key.target)
+          excluded_tables = _insert_(excluded_tables, key.origin);
+        if opt_tables(key.target) and not opt_tables(key.origin)
+          excluded_tables = _insert_(excluded_tables, key.target);
+      }
+      assert disjoint(opt_tables, excluded_tables);
+      break if excluded_tables == [];
+      opt_tables = opt_tables - excluded_tables;
+    }
+    return opt_tables;
+
+
+    Bool is_optimizable([+InstrId -> TableAction] instrs_info) {
+      return false if |instrs_info| != 1;
+      instr_id, action = only_pair(instrs_info);
+      status = instr_status(instr_id);
+      return not status.multiple;
+    }
   }
-  return true;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 ## THIS IS NOT A GOOD WAY TO DO IT. IT SHOULD BE DECIDED WHILE FIGURING OUT THE EFFECTS, BECAUSE BY DOING SO
 ## WE COULD FOR EXAMPLE DEAL WITH THE CASE OF A MEMBER VARIABLES THAT IS SET IN BOTH BRANCHES OF AN IF STATEMENT
