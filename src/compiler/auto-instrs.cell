@@ -286,6 +286,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     table_apply()             = native_table_apply_code(instr.table_var, instr.table, instr.owned_value_stores, instr.has_deletions, instr.has_updates, instr.has_insertions),
     table_reset()             = native_table_reset_code(instr.table_var, instr.table),
 
+    check_keys()              = native_check_keys_code(instr.table_var, instr.table),
+    check_foreign_key()       = native_check_foreign_key_code(instr.key, instr.origin_type, instr.target_type, instr.direction),
+
     resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
     raise_load_error()        = ("return false;"),
     surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
@@ -771,6 +774,112 @@ implicit context : NativeContext {
     method_name = native_table_method_prefix(table) & "_aux_reset";
     table_aux_name = pending_updates_var_ref_name(table_var);
     return (native_call(method_name, (table_aux_name)));
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* native_check_keys_code(TableVar table_var, AnyTable table) {
+    arity = arity(table);
+    keys = keys(table);
+
+    if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
+      fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (table_var, pending_updates_var_ref_name(table_var), :mem_pool));
+      check_code = ("if (!" & fn_call & ")", "  return false;");
+    }
+    else {
+      check_code = ();
+      for key <- keys {
+        fn_call = key_check_expr(table_var, table, key);
+        check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+      }
+    }
+
+    return check_code;
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    String key_check_expr(TableVar var, Table table, [+Nat] key) {
+      assert table.keys(key);
+
+      arity = arity(table);
+      method_name = if      table.symmetric                    then semisym_table_key_check_method_names(arity, key, !)
+                    else if arity == 2 and table.keys == [[0]] then "single_key_bin_table_aux_check_key_1"
+                                                               else table_key_check_method_names(arity, key, !);
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool if arity == 2 or (arity == 3 and (key == [0, 1] or key == [2])));
+      return native_call_expr(method_name, args);
+    }
+
+    String key_check_expr(TableVar var, MasterBinTable table, [+Nat] key) = undefined;
+
+    String key_check_expr(TableVar var, SlaveTernTable table, [+Nat] key) {
+      method_name = slave_tern_table_key_check_method_names(key, !);
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    String key_check_expr(TableVar var, MandatoryColumn column, [+Nat] key) {
+      method_name = native_table_method_prefix(column) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (column.master, var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    String key_check_expr(TableVar var, Column column, [+Nat] key) {
+      method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    String key_check_expr(TableVar var, SlaveColumn column, [+Nat] key) {
+      method_name = native_column_method_prefix(column.repr) & "_aux_check_key_1";
+      aux_var = pending_updates_var_ref_name(var);
+      args = (var, aux_var, :mem_pool);
+      return native_call_expr(method_name, args);
+    }
+
+    [NzNat, [+Nat], String] table_key_check_method_names = [
+      2,  [0],    "bin_table_aux_check_key_1";
+      2,  [1],    "bin_table_aux_check_key_2";
+      3,  [2],    "tern_table_aux_check_key_3";
+      3,  [0, 1], "tern_table_aux_check_key_12";
+      3,  [1, 2], "tern_table_aux_check_key_23";
+      3,  [0, 2], "tern_table_aux_check_key_13"
+    ];
+
+
+    [NzNat, [+Nat], String] semisym_table_key_check_method_names = [
+      3,  [2],    "semisym_tern_table_aux_check_key_3";
+      3,  [0, 1], "semisym_tern_table_aux_check_key_12"
+    ];
+
+
+    [[+Nat] -> String] slave_tern_table_key_check_method_names = [
+      [0, 1]  -> "slave_tern_table_aux_check_key_12",
+      [2]     -> "slave_tern_table_aux_check_key_3"
+    ];
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String* native_check_foreign_key_code(BlockForeignKey key, AnyTable origin_type, AnyTable target_type, <forward, backward> direction) {
+    if direction == :forward {
+      method_name = foreign_key_forward_checker_name(key.type, origin_type, target_type);
+      args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
+
+    }
+    else {
+      method_name = foreign_key_backward_checker_name(key.type, origin_type, target_type);
+      needs_origin_ref = match (target_type)
+        table() t?  = arity(t) != 1,
+        _           = true;
+      args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
+    }
+
+    check_expr = native_call_expr(method_name, args);
+    return ("if (!" & check_expr & ")", "  return false;");
   }
 
   //////////////////////////////////////////////////////////////////////////////
