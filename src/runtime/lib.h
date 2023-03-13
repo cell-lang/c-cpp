@@ -1590,7 +1590,7 @@ void single_key_bin_table_aux_delete_2(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TA
 
 void single_key_bin_table_aux_insert(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 
-void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, void (*remove1)(void *, uint32, STATE_MEM_POOL *), void *store1, void (*remove2)(void *, uint32, STATE_MEM_POOL *), void *store2, STATE_MEM_POOL *);
+void single_key_bin_table_aux_apply_deletions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, DEALLOC, DEALLOC, STATE_MEM_POOL *);
 void single_key_bin_table_aux_apply_insertions(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
 bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
