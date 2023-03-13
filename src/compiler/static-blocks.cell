@@ -1429,7 +1429,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       }
 
       if has_deletions {
-        remove_method_name = native_value_store_method_prefix(block.value_stores(column.value_store)) & "_remove_untyped";
         args = (table_var, table_aux_name) & value_stores_args(owned_value_stores, block.value_stores) & (:mem_pool);
         method_name = method_prefix & "_apply_deletions";
         code = (code | native_call(method_name, args));
