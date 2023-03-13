@@ -1687,7 +1687,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     String foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block) {
       method_name = foreign_key_backward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
       needs_origin_ref = match (block.tables(key.target))
-        table() t?  = arity(t) != 1 ,
+        table() t?  = arity(t) != 1,
         _           = true;
       args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
       return native_call_expr(method_name, args);
