@@ -2,25 +2,32 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   Instr* native_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body) {
     effects_info = instrs_effects_info(body);
     opt_table_vars = optimizable_table_vars(effects_info);
+    non_opt_table_vars = keys(effects_info.tables) - opt_table_vars;
 
     code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(handler_id, msg_type, body, effects_info, opt_table_vars);
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
-    insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
-    update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
-    deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
+
+    assert {
+      insertion_tables = [t : t <- table_vars_with_insertions(handler_id, ?)];
+      update_tables = [t : t <- table_vars_with_updates(handler_id, ?)];
+      deletion_tables = [t : t <- table_vars_with_deletions(handler_id, ?)];
+      mutated_tables = insertion_tables & update_tables & deletion_tables;
+      return union(opt_table_vars, non_opt_table_vars) == mutated_tables;
+    };
 
     memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
     code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
 
     if not skip_integrity_checks {
-      mutated_tables = insertion_tables & update_tables & deletion_tables;
-      let block = block, table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info
-        code = code & keys_checking_code & foreign_keys_checking_code(mutated_tables);
+      let block = block, table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info {
+        code = code & keys_checking_code(opt_table_vars, non_opt_table_vars);
+        code = code & foreign_keys_checking_code(opt_table_vars, non_opt_table_vars);
+      }
     }
 
-    code = code & updates_apply_code(block, insertion_value_stores, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
-    code = code & updates_reset_code(block, insertion_value_stores);
+    code = code & updates_apply_code(block, insertion_value_stores, opt_table_vars, non_opt_table_vars, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
+    code = code & updates_reset_code(block, insertion_value_stores, non_opt_table_vars);
 
     code = (code | :empty_line, ret_val(true));
 
@@ -246,9 +253,9 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[Lo
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, EffectsInfo effects_info) {
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar] opt_table_vars, [TableVar] non_opt_table_vars, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, EffectsInfo effects_info) {
     ord_value_stores = isort(insertion_value_stores);
-    ord_table_vars = sort_set(keys(table_var_aux_vars_map), arity(block.tables($a)) < arity(block.tables($b)));
+    ord_table_vars = sort_set(opt_table_vars & non_opt_table_vars, arity(block.tables($a)) < arity(block.tables($b)));
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
 
     code = ();
@@ -262,15 +269,30 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     if ord_table_vars != () {
       code = (code | :empty_line, comment("Applying table updates"));
       for v <- ord_table_vars {
-        aux_vars, maybe_status_var = table_var_aux_vars_map(v);
-        instr_id, action = only_pair(effects_info.tables(v));
-        instrs = match (action)
-          insertion     = immediate_insert_instrs(block, v, block.tables(v), aux_vars, false),
-          update        = immediate_insert_instrs(block, v, block.tables(v), aux_vars, true),
-          deletion(as?) = immediate_delete_instrs(block, v, block.tables(v), aux_vars, as);
-        if maybe_status_var != nothing {
-          status_var = value(maybe_status_var);
-          instrs = (do_if(status_var, instrs));
+        effects = effects_info.tables(v);
+        if opt_table_vars(v) {
+          aux_vars, maybe_status_var = table_var_aux_vars_map(v);
+          instr_id, action = only_pair(effects);
+          instrs = match (action)
+            insertion     = immediate_insert_instrs(block, v, block.tables(v), aux_vars, false),
+            update        = immediate_insert_instrs(block, v, block.tables(v), aux_vars, true),
+            deletion(as?) = immediate_delete_instrs(block, v, block.tables(v), aux_vars, as);
+          if maybe_status_var != nothing {
+            status_var = value(maybe_status_var);
+            instrs = (do_if(status_var, instrs));
+          }
+        }
+        else {
+          table_type = block.tables(v);
+          value_stores = owned_value_stores(v, table_type, block);
+          actions = [
+              match (a)
+                insertion     = :insertion,
+                update        = :update,
+                deletion()    = :deletion
+            : _ a <- effects
+          ];
+          instrs = (table_apply(v, block.tables(v), value_stores, nonempty(actions)));
         }
         code = code & instrs;
       }
@@ -309,6 +331,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       first_col = phys_col(original_rel_var(table_var), 0);
       return (maybe((store, store_type), owner == first_col), nothing);
     }
+
+
+    Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores(TableVar, <MandatoryColumn, SlaveColumn> column, StaticBlock) =
+      (nothing : _ < arity(column));
 
 
     Instr* immediate_delete_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable> table, OptAuxTableVar+ aux_vars, Bool+ known_args) {
@@ -491,9 +517,33 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stores) {
-  // Nothing here for now
-  return ();
+Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar] non_opt_table_vars) {
+  code = ();
+
+  if insertion_value_stores != [] {
+    code = (code | :empty_line, comment("Resetting auxiliary structures of value stores"));
+    for vs <- insertion_value_stores
+      code = (code | value_store_reset(vs, block.value_stores(vs)));
+  }
+
+  if non_opt_table_vars != [] {
+    code = (code | :empty_line, comment("Resetting auxiliary structures of non-optimized tables"));
+    for v <- isort(non_opt_table_vars)
+      code = (code | table_reset(v, block.tables(v)));
+  }
+
+  ## BUG BUG BUG: DO I NEED TO RESET MEMBER VARIABLES HERE?
+  // memb_vars_code = (
+  //   native_var_ref_name(pending_state_var(bare_id(v))) & " = make_blank_obj();"
+  //   : v <- isort(memb_vars)
+  // );
+
+  ## BUG BUG BUG: DO I NEED TO RESET THE MASTERS? I THINK SO
+  // ## BAD BAD BAD AND MAYBE ALSO BUGGY
+  // masters_to_partially_reset = isort([t.master : _ t <- tables, t :: <SlaveTernTable, SlaveColumn>, not tables(t.master, _)]);
+  // masters_partial_reset_code = (native_call("master_bin_table_aux_partial_reset", (pending_updates_var_ref_name(t))) : t <- masters_to_partially_reset);
+
+  return code;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -514,7 +564,7 @@ implicit block : StaticBlock {
         if opt_tables(key.target) and not opt_tables(key.origin)
           excluded_tables = _insert_(excluded_tables, key.target);
       }
-      assert disjoint(opt_tables, excluded_tables);
+      assert subset(excluded_tables, opt_tables);
       break if excluded_tables == [];
       opt_tables = opt_tables - excluded_tables;
     }

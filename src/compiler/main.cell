@@ -26,6 +26,7 @@ Int Main(String* args) {
       "Cell to C/C++ compiler version " & version & "\n" &
       "Usage: cellc <options> <project file> <output directory>\n" &
       "Options:\n" &
+      "  -o             optimize message handlers (experimental)" &
       "  -d             debug mode\n" &
       "  -ia            ignore assertions\n" &
       "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
@@ -39,7 +40,7 @@ Int Main(String* args) {
 
   include_runtime = core_runtime != ();
   ignore_assertions = false;
-  disable_handler_optimization = false;
+  enable_handler_optimization = false;
   skip_integrity_checks = false;
   debug_mode = false;
 
@@ -89,8 +90,8 @@ Int Main(String* args) {
     else if o == "-ia" {
       ignore_assertions = true;
     }
-    else if o == "-dho" {
-      disable_handler_optimization = true;
+    else if o == "-o" {
+      enable_handler_optimization = true;
     }
     else if o == "-sic" {
       skip_integrity_checks = true;
@@ -158,7 +159,7 @@ Int Main(String* args) {
   options = (
     debug_mode:                   debug_mode,
     ignore_assertions:            ignore_assertions,
-    disable_handler_optimization: disable_handler_optimization,
+    enable_handler_optimization: enable_handler_optimization,
     skip_integrity_checks:        skip_integrity_checks,
     include_runtime:              include_runtime,
     developer_mode:               developer_mode,
@@ -195,7 +196,7 @@ Bool looks_like_an_option(String str) {
 type CmdLineOpts = (
   debug_mode:                     Bool,
   ignore_assertions:              Bool,
-  disable_handler_optimization:   Bool,
+  enable_handler_optimization:   Bool,
   skip_integrity_checks:          Bool,
   include_runtime:                Bool,
   developer_mode:                 Bool,
@@ -551,7 +552,7 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
     cmd_line_opts.debug_mode,
     cmd_line_opts.include_runtime,
     cmd_line_opts.skip_integrity_checks,
-    cmd_line_opts.disable_handler_optimization
+    cmd_line_opts.enable_handler_optimization
   );
 
   t8 = _ticks_(:unused);

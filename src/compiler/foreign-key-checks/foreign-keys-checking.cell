@@ -1,15 +1,69 @@
 implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
-  Instr* foreign_keys_checking_code([TableVar] mutated_tables) {
-    code = ();
-    if block.foreign_keys != [] {
-      code = (code | :empty_line, comment("Checking foreign keys"));
-      for key info <- block.foreign_keys
-        if mutated_tables(key.origin) or mutated_tables(key.target) {
-          maybe_foreign_key_check_code = foreign_key_check_code(key, info.insertion_checked, info.deletion_checked);
-          code = (code | :empty_line, comment(block_foreign_key_user_repr(key)));
-          code = code & value_unsafe(maybe_foreign_key_check_code);
-        }
+  Instr* foreign_keys_checking_code([TableVar] opt_table_vars, [TableVar] non_opt_table_vars) {
+    assert disjoint(opt_table_vars, non_opt_table_vars);
+
+    opt_foreign_keys = [];
+    non_opt_foreign_keys = [];
+    for key _ <- block.foreign_keys {
+      origin = key.origin;
+      target = key.target;
+
+      // If one of the two tables is optimized, the other must be either optimized or left untouched
+      assert not (in(origin, opt_foreign_keys) and in(target, non_opt_foreign_keys));
+      assert not (in(origin, non_opt_foreign_keys) and in(target, opt_foreign_keys));
+
+      if in(origin, opt_foreign_keys) or in(target, opt_foreign_keys)
+        opt_foreign_keys = _insert_(opt_foreign_keys, key);
+
+      if in(origin, non_opt_foreign_keys) or in(target, non_opt_foreign_keys)
+        non_opt_foreign_keys = _insert_(non_opt_foreign_keys, key);
     }
+
+    code = ();
+
+    if opt_foreign_keys != [] {
+      code = (code | :empty_line, comment("Checking foreign keys (optimized)"));
+      for key <- opt_foreign_keys {
+        info = block.foreign_keys(key);
+        maybe_foreign_key_check_code = foreign_key_check_code(key, info.insertion_checked, info.deletion_checked);
+        code = (code | :empty_line, comment(block_foreign_key_user_repr(key)));
+        code = code & value_unsafe(maybe_foreign_key_check_code);
+      }
+    }
+
+    if non_opt_foreign_keys != [] {
+      code = (code | :empty_line, comment("Checking foreign keys (non-optimized)"));
+
+      for key <- non_opt_foreign_keys {
+        origin = key.origin;
+        target = key.target;
+
+        origin_type = block.tables(origin);
+        target_type = block.tables(target);
+
+        needs_comment = true;
+        comment = comment(block_foreign_key_user_repr(key));
+
+        if effects_info.tables(origin, _) {
+          origin_instr_id, origin_action = only_pair(effects_info.tables(origin));
+          if origin_action == :insertion or origin_action == :update {
+            check_instr = check_foreign_key(key, origin_type, target_type, :forward);
+            code = (code | :empty_line, comment, check_instr);
+            needs_comment = false;
+          }
+        }
+
+        if effects_info.tables(target, _) {
+          target_instr_id, target_action = only_pair(effects_info.tables(target));
+          if target_action == :update or is_deletion(target_action) {
+            code = (code | :empty_line, comment) if needs_comment;
+            check_instr = check_foreign_key(key, origin_type, target_type, :backward);
+            code = (code | check_instr);
+          }
+        }
+      }
+    }
+
     return code;
   }
 

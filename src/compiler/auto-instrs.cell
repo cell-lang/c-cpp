@@ -282,8 +282,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     value_store_release()     = native_value_store_release_code(instr.store, instr.store_type, instr.surr),
     value_store_clear()       = native_value_store_clear_code(instr.store, instr.store_type),
     value_store_apply()       = native_value_store_apply_code(instr.store, instr.store_type),
+    value_store_reset()       = native_value_store_reset_code(instr.store, instr.store_type),
 
-    table_apply()             = native_table_apply_code(instr.table_var, instr.table, instr.owned_value_stores, instr.has_deletions, instr.has_updates, instr.has_insertions),
+    table_apply()             = native_table_apply_code(instr.table_var, instr.table, instr.owned_value_stores, instr.actions),
     table_reset()             = native_table_reset_code(instr.table_var, instr.table),
 
     check_keys()              = native_check_keys_code(instr.table_var, instr.table),
@@ -759,19 +760,24 @@ implicit context : NativeContext {
 
 
   String* native_value_store_apply_code(ValueStoreId store_id, ValueStoreType store_type) {
-    method_prefix = native_value_store_method_prefix(store_type);
-    apply_method_name = method_prefix & "_aux_apply_insertions";
-    reset_method_name = method_prefix & "_aux_reset";
+    method_name = native_value_store_method_prefix(store_type) & "_aux_apply_insertions";
     aux_struct_id = updater_var_ref_name(store_id);
-    return (
-      native_call(apply_method_name, (store_id, aux_struct_id, :mem_pool)),
-      native_call(reset_method_name, (aux_struct_id))
-    );
+    return (native_call(method_name, (store_id, aux_struct_id, :mem_pool)));
+  }
+
+
+  String* native_value_store_reset_code(ValueStoreId store_id, ValueStoreType store_type) {
+    method_name = native_value_store_method_prefix(store_type) & "_aux_reset";
+    aux_struct_id = updater_var_ref_name(store_id);
+    return (native_call(method_name, (aux_struct_id)));
   }
 
 
   String* native_table_reset_code(TableVar table_var, AnyTable table) {
-    method_name = native_table_method_prefix(table) & "_aux_reset";
+    method_name_prefix = match (table)
+      mandatory_column()  = native_column_method_prefix(table.repr),
+      _                   = native_table_method_prefix(table);
+    method_name = method_name_prefix & "_aux_reset";
     table_aux_name = pending_updates_var_ref_name(table_var);
     return (native_call(method_name, (table_aux_name)));
   }
@@ -884,7 +890,7 @@ implicit context : NativeContext {
 
   //////////////////////////////////////////////////////////////////////////////
 
-  String* native_table_apply_code(TableVar table_var, Table table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, Table table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
     method_prefix = native_table_method_prefix(table) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
     vs_args = value_stores_args(owned_value_stores);
@@ -896,38 +902,40 @@ implicit context : NativeContext {
       return (native_call(method_prefix & "apply", full_args));
 
     return (
-      native_call(method_prefix & "apply_deletions", full_args) if has_deletions,
-      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if has_updates or has_insertions
+      native_call(method_prefix & "apply_deletions", full_args) if actions(:deletion),
+      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if actions(:insertion) or actions(:update)
     );
   }
 
 
-  String* native_table_apply_code(TableVar table_var, MasterBinTable table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, MasterBinTable table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
     method_prefix = native_table_method_prefix(table) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
     vs_args = value_stores_args(owned_value_stores);
 
     return (
-      native_call(method_prefix & "apply_surrs_acquisition", (table_var, table_aux_name)) if has_insertions or has_updates,
-      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if has_deletions,
-      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if has_insertions or has_updates
+      native_call(method_prefix & "apply_surrs_acquisition", (table_var, table_aux_name)) if actions(:insertion) or actions(:update),
+      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if actions(:deletion),
+      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if actions(:insertion) or actions(:update)
     );
   }
 
 
-  String* native_table_apply_code(TableVar table_var, SlaveTernTable table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, SlaveTernTable table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
     method_prefix = native_table_method_prefix(table) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
     vs_args = value_stores_args(nonempty(drop(owned_value_stores, 2)));
 
     return (
-      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if has_deletions,
-      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if has_updates or has_insertions
+      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if actions(:deletion),
+      native_call(method_prefix & "apply_insertions", (table_var, table_aux_name, :mem_pool)) if actions(:insertion) or actions(:update)
     );
   }
 
 
-  String* native_table_apply_code(TableVar table_var, MandatoryColumn column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, MandatoryColumn column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
+    assert |owned_value_stores| == 2;
+
     table_aux_name = pending_updates_var_ref_name(table_var);
     master_aux_name = pending_updates_var_ref_name(column.master);
     args = (column.master, master_aux_name, table_var, table_aux_name, :mem_pool);
@@ -936,20 +944,22 @@ implicit context : NativeContext {
   }
 
 
-  String* native_table_apply_code(TableVar table_var, Column column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, Column column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
+    assert |owned_value_stores| == 2;
+
     method_prefix = native_table_method_prefix(column) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
-    vs_args = value_stores_args(nonempty(drop(owned_value_stores, 2)));
+    vs_args = value_stores_args((owned_value_stores(1)));
 
     return (
-      native_call("obj_col_aux_copy_values_into_mem_pool", (table_aux_name, :mem_pool)) if (has_updates or has_insertions) and column.repr == :object,
-      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if has_deletions,
-      native_call(method_prefix & "apply_updates_and_insertions", (table_var, table_aux_name, :mem_pool)) if has_updates or has_insertions
+      native_call("obj_col_aux_copy_values_into_mem_pool", (table_aux_name, :mem_pool)) if (actions(:insertion) or actions(:update)) and column.repr == :object,
+      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if actions(:deletion),
+      native_call(method_prefix & "apply_updates_and_insertions", (table_var, table_aux_name, :mem_pool)) if actions(:insertion) or actions(:update)
     );
   }
 
 
-  String* native_table_apply_code(TableVar table_var, SlaveColumn column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, Bool has_deletions, Bool has_updates, Bool has_insertions) {
+  String* native_table_apply_code(TableVar table_var, SlaveColumn column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
     assert owned_value_stores == (nothing, nothing);
 
     method_prefix = native_table_method_prefix(column) & "_aux";
@@ -957,8 +967,8 @@ implicit context : NativeContext {
     vs_args = value_stores_args((nothing));
 
     return (
-      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if has_deletions,
-      native_call(method_prefix & "apply_updates_and_insertions", (table_var, table_aux_name, :mem_pool)) if has_updates or has_insertions
+      native_call(method_prefix & "apply_deletions", (table_var, table_aux_name) & vs_args & (:mem_pool)) if actions(:deletion),
+      native_call(method_prefix & "apply_updates_and_insertions", (table_var, table_aux_name, :mem_pool)) if actions(:insertion) or actions(:update)
     );
   }
 }

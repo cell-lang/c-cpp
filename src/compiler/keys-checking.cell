@@ -1,5 +1,5 @@
 implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
-  Instr* keys_checking_code {
+  Instr* keys_checking_code([TableVar] opt_table_vars, [TableVar] non_opt_table_vars) {
     tables = block.tables;
 
     key_check_exprs = [];
@@ -8,9 +8,9 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
     extra_info_vars_values = [];        // extra info var (Int32Var) -> extra info expr (Int32Expr)
     extra_info_expr_aux_vars_code = []; // extra info expr (Int32Expr) -> extra info aux vars code (Instr*)
 
-    for v vs <- table_var_aux_vars_map {
+    for v <- opt_table_vars {
       if not insertion_is_forced(v, effects_info) {
-        aux_vars, maybe_status_var = vs;
+        aux_vars, maybe_status_var = table_var_aux_vars_map(v);
         table = tables(v);
         keys = keys(table);
         for key <- keys {
@@ -38,7 +38,7 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
     code = ();
 
     if ord_key_check_exprs != () {
-      code = (code | :empty_line, comment("Checking keys"));
+      code = (code | :empty_line, comment("Checking keys (optimized)"));
 
       // Gathering all extra pieces of information to retrieve
       extra_info_exprs = isort([e : _ e <- extra_info_vars_values]);
@@ -63,6 +63,13 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
         guarded_expr = and_then(guard, e);
         code = code & opt_do_if(guarded_expr, (ret_val(false)));
       }
+    }
+
+    // Checking keys for tables whose operations were not optimized
+    if non_opt_table_vars != [] {
+      code = (code | :empty_line, comment("Checking keys (non-optimized)"));
+      for v <- isort(non_opt_table_vars)
+        code = (code | check_keys(v, block.tables(v)));
     }
 
     return code;

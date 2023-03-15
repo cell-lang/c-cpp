@@ -1,4 +1,4 @@
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool, disable_handler_optimization: Bool {
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool, enable_handler_optimization: Bool {
   String* native_static_block_decl(StaticBlock block) {
     block_name = native_name(block.name);
 
@@ -1126,7 +1126,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 }
 
 
-implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool, disable_handler_optimization : Bool{
+implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool, enable_handler_optimization : Bool{
   String* native_handler_code(DBSymbol block_name, HandlerId handler_id, NeType msg_type, Instr* body) {
     arg = :var(:this);
     args_decls = (target_arg_decl(block_name), auxiliary_arg_decl(block_name), obj_type_name & " " & native_var_decl_name(arg), "ENV &env");
@@ -1145,7 +1145,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     code = code & ("", sgn) & indent_lines(body_text) & ("}");
 
     code = code & handler_apply_and_reset_methods(handler_id, msg_type);
-    code = code & handler_entry_point_method(handler_id, msg_type, not disable_handler_optimization);
+    code = code & handler_entry_point_method(handler_id, msg_type, enable_handler_optimization);
 
     return code;
 
