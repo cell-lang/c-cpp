@@ -259,6 +259,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
 
     code = ();
+
     if ord_value_stores != () {
       code = (code | :empty_line, comment("Applying value store insertions"));
       for vs <- ord_value_stores {
@@ -266,9 +267,11 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | instr);
       }
     }
+
     if ord_table_vars != () {
       code = (code | :empty_line, comment("Applying table updates"));
       for v <- ord_table_vars {
+        table_type = block.tables(v);
         effects = effects_info.tables(v);
         if opt_table_vars(v) {
           aux_vars, maybe_status_var = table_var_aux_vars_map(v);
@@ -283,7 +286,6 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           }
         }
         else {
-          table_type = block.tables(v);
           value_stores = owned_value_stores(v, table_type, block);
           actions = [
               match (a)
@@ -292,11 +294,32 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
                 deletion()    = :deletion
             : _ a <- effects
           ];
-          instrs = (table_apply(v, block.tables(v), value_stores, nonempty(actions)));
+          apply_instr = table_apply(v, block.tables(v), value_stores, nonempty(actions));
+          instrs = (apply_instr);
+
+          if arity(table_type) == 1 {
+            masters_raw_columns = prg_data.masters_raw_columns(block.name);
+            if masters_raw_columns(v, _) {
+              capacity_var = new_unique_int32_var(:unused);
+              new_capacity_var = new_unique_int32_var(:unused);
+              capacity_expr = get_capacity(v, table_type);
+              resize_instrs = (
+                resize_mandatory_column(c, cast_mandatory_column(block.tables(c)), capacity_var, new_capacity_var)
+                : c <- isort([c : c <- masters_raw_columns(v, ?)])
+              );
+              instrs = (
+                set_ivar32(capacity_var, capacity_expr),
+                apply_instr,
+                set_ivar32(new_capacity_var, capacity_expr),
+                do_if_not(are_eq(capacity_var, new_capacity_var), resize_instrs)
+              );
+            }
+          }
         }
         code = code & instrs;
       }
     }
+
     if ord_memb_vars != () {
       code = (code | :empty_line, comment("Applying member var updates"));
       for v <- ord_memb_vars {
@@ -309,6 +332,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = (code | instr);
       }
     }
+
     return code;
 
 
