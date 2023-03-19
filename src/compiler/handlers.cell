@@ -575,6 +575,7 @@ Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stor
 
 implicit block : StaticBlock {
   [TableVar] optimizable_table_vars(EffectsInfo effects_info) {
+    updated_tables = keys(effects_info.tables);
     opt_tables = [t : t es <- effects_info.tables, is_optimizable(es)];
     loop {
       excluded_tables = [];
@@ -583,9 +584,9 @@ implicit block : StaticBlock {
           excluded_tables = _insert_(excluded_tables, key.origin) if opt_tables(key.origin);
           excluded_tables = _insert_(excluded_tables, key.target) if opt_tables(key.target);
         }
-        if opt_tables(key.origin) and not opt_tables(key.target)
+        if opt_tables(key.origin) and updated_tables(key.target) and not opt_tables(key.target)
           excluded_tables = _insert_(excluded_tables, key.origin);
-        if opt_tables(key.target) and not opt_tables(key.origin)
+        if opt_tables(key.target) and updated_tables(key.origin) and not opt_tables(key.origin)
           excluded_tables = _insert_(excluded_tables, key.target);
       }
       assert subset(excluded_tables, opt_tables);
