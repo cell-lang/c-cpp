@@ -12,10 +12,10 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
       assert not (in(origin, opt_foreign_keys) and in(target, non_opt_foreign_keys));
       assert not (in(origin, non_opt_foreign_keys) and in(target, opt_foreign_keys));
 
-      if in(origin, opt_foreign_keys) or in(target, opt_foreign_keys)
+      if in(origin, opt_table_vars) or in(target, opt_table_vars)
         opt_foreign_keys = _insert_(opt_foreign_keys, key);
 
-      if in(origin, non_opt_foreign_keys) or in(target, non_opt_foreign_keys)
+      if in(origin, non_opt_table_vars) or in(target, non_opt_table_vars)
         non_opt_foreign_keys = _insert_(non_opt_foreign_keys, key);
     }
 
