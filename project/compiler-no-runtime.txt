@@ -177,6 +177,7 @@ src/compiler/handlers.cell
 src/compiler/effects.cell
 src/compiler/keys-checking.cell
 src/compiler/foreign-key-checks/foreign-keys-checking.cell
+src/compiler/foreign-key-checks/unary-binary.cell
 src/compiler/foreign-key-checks/binary-unary.cell
 
 src/compiler/wrappers/interface-types.cell

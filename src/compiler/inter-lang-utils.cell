@@ -123,7 +123,7 @@ Int32Var+ cast_int32_var_seq(OptAuxTableVar+ vars) = if vars :: Int32Var+ then v
 AuxTableVar cast_aux_table_var(OptAuxTableVar v) = if v != :none then v else undefined;
 Int32Var cast_int32_var(<none>) = undefined;
 
-LocInt32Var cast_loc_int32_var(AuxTableVar var) = if var :: LocInt32Var then var else undefined;
+LocInt32Var cast_loc_int32_var(OptAuxTableVar var) = if var :: LocInt32Var then var else undefined;
 OptLocInt32Var cast_opt_loc_int32_var(OptAuxTableVar var) = if var :: OptLocInt32Var then var else undefined;
 
 LocInt32Var+ cast_loc_int32_vars(OptAuxTableVar+ vars) = if vars :: LocInt32Var+ then vars else undefined;

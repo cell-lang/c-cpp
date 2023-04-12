@@ -76,6 +76,7 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
     target_type = block.tables(target);
 
     code = match (key.type)
+      unary_binary(i?)      = unary_binary_foreign_key_check_code(i, origin, target, origin_type, target_type, insertion_checked, deletion_checked),
       binary_unary(i?)      = binary_unary_foreign_key_check_code(i, origin, target, origin_type, target_type, insertion_checked, deletion_checked),
       _                     = nothing;
 
@@ -86,6 +87,7 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
 implicit block : StaticBlock {
   Bool foreign_key_checking_can_be_optimized(BlockForeignKey key) {
     return match (key.type)
+      unary_binary()    |
       binary_unary()    = true,
       _                 = false;
   }

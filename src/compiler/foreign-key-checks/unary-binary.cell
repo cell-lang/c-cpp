@@ -1,0 +1,89 @@
+implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
+  Maybe[Instr*] unary_binary_foreign_key_check_code(Nat target_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
+    assert target_col_idx == 0 or target_col_idx == 1;
+
+    other_col_idx = if target_col_idx == 0 then 1 else 0;
+    tables = effects_info.tables;
+
+    code = ();
+
+    // Checking the new value that is inserted in the origin, if any
+    if tables(origin, _) {
+      origin_instr_id, origin_action = only_pair(tables(origin));
+      assert origin_action != :update; // The origin is a unary table, so it's only insertions or deletions
+      if origin_action == :insertion {
+        origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
+        origin_aux_var = cast_loc_int32_var(only_unsafe(origin_aux_vars));
+        cond_args = (if i == target_col_idx then just(origin_aux_var) else nothing : i < 2);
+        violation_cond = neg(bin_table_aux_contains(target, target_type, cond_args));
+        violation_cond = and_then(value(maybe_origin_status_var), violation_cond) if maybe_origin_status_var != :nothing;
+        code = (code | do_if(violation_cond, ret_val(false)));
+      }
+    }
+
+    // Figure out the set of values in the target column that need to be checked for deletion
+    if tables(target, _) {
+      target_instr_id, target_action = only_pair(tables(target));
+      target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
+      assert |target_aux_vars| == 2;
+      target_aux_var = cast_opt_loc_int32_var(target_aux_vars(target_col_idx));
+      other_aux_var = target_aux_vars(other_col_idx);
+
+      if is_deletion(target_action) {
+        if target_aux_var != :none {
+          violation_cond = neg(unary_table_aux_contains(origin, origin_type, target_aux_var));
+          if other_aux_var != :none and not is_key(target_type, target_col_idx)
+            // The value is not necessarily being deleted from the target column, there may be other tuples that contain it
+            violation_cond = and_then(bin_table_aux_contains(target, target_type, (just(target_aux_var))), violation_cond);
+        }
+        else {
+          if other_aux_var != :none {
+            if is_key(target_type, other_col_idx) {
+              // The deletion is being done specifying only the other argument, so the table cannot be a column
+              // and the other auxiliary variable must be a surrogate-containing variable
+              refined_target_type = cast_any_surr_table(target_type);
+              other_aux_var = cast_loc_int32_var(other_aux_var);
+
+              tmp_var = new_unique_int32_var(:unused);
+              lookup_expr = table_lookup(target, refined_target_type, (maybe(other_aux_var, i == other_col_idx) : i < 2));
+              code = (code | set_ivar32(tmp_var, lookup_expr));
+              violation_cond = neg(unary_table_aux_contains(origin, origin_type, tmp_var));
+            }
+            else
+              return nothing;
+          }
+          else
+            // Everything is being deleted, so the origin must be empty
+            violation_cond = neg(unary_table_aux_is_empty(origin, origin_type));
+        }
+
+        violation_cond = and_then(value(maybe_target_status_var), violation_cond) if maybe_target_status_var != nothing;
+        code = (code | do_if(violation_cond, ret_val(false)));
+      }
+      else if target_action == :update {
+        fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      }
+    }
+
+    return just(code);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] {
+  BoolExpr bin_table_aux_contains(TableVar table_var, AnyTable table_type, Maybe[Int32Var]+ match_args) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  BoolExpr unary_table_aux_contains(TableVar, AnyTable table, Int32Var arg) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+
+
+  BoolExpr unary_table_aux_is_empty(TableVar, AnyTable) {
+    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+  }
+}
