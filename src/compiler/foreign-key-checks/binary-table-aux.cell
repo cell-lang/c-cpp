@@ -1,0 +1,265 @@
+implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
+  BoolExpr bin_table_aux_contains(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args) {
+    tables = effects_info.tables;
+
+    expr = table_contains(table_var, table, match_args);
+
+    if tables(table_var, _) {
+      instr_id, action = only_pair(tables(table_var));
+      expr = match (action)
+        insertion     = contains_after_insertion(table_var, table, match_args, expr),
+        update        = contains_after_update(table_var, table, match_args, expr),
+        deletion(_)   = contains_after_deletion(table_var, table, match_args, action, expr);
+    }
+
+    return expr;
+
+
+    BoolExpr contains_after_insertion(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, BoolExpr no_update_expr) {
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+
+      args_eq_exprs = (are_eq(cast_loc_int32_var(aux_vars(i)), value(a)) : a @ i <- match_args, a != nothing);
+      aux_expr = if args_eq_exprs != () then and_then(args_eq_exprs) else true;
+      aux_expr = and_then(value(maybe_status_var), aux_expr) if maybe_status_var != nothing;
+
+      return or_else(aux_expr, no_update_expr);
+    }
+
+
+    BoolExpr contains_after_update(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, BoolExpr no_update_expr) {
+      keys = keys(table);
+      return contains_after_insertion(table_var, table, match_args, no_update_expr) if keys == [];
+
+      arg1, arg2 = cast_pair(match_args);
+
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      aux_var_1, aux_var_2 = cast_pair(aux_vars);
+
+      assert keys([0]);
+      aux_var_1 = cast_loc_int32_var(aux_var_1);
+
+      // update bin_rel(x, y) if c;
+
+      if keys == [[0]] {
+        // update bin_rel(x, y) -> delete bin_rel(x, *), insert bin_rel(x, y)
+
+        if arg1 != nothing {
+          arg1 = value(arg1);
+          if arg2 != nothing {
+            // @bin_rel(x', y') -> (c and x' == x and y' == y) or (bin_rel(x', y') and (not c or x' != x))
+            arg2 = value(arg2);
+            aux_expr = and_then(
+              are_eq(arg1, aux_var_1),
+              are_eq(arg2, cast_loc_int32_var(aux_var_2))
+            );
+            neg_aux_expr = neg(are_eq(arg1, aux_var_1));
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              aux_expr = and_then(status_var, aux_expr);
+              neg_aux_expr = or_else(neg(status_var), neg_aux_expr);
+            }
+            expr = or_else(aux_expr, and_then(no_update_expr, neg_aux_expr));
+          }
+          else {
+            // @bin_rel(x', _) -> (c and x' == x) or bin_rel(x', _)
+            aux_expr = are_eq(arg1, aux_var_1);
+            aux_expr = and_then(value(maybe_status_var), aux_expr) if maybe_status_var != nothing;
+            expr = or_else(aux_expr, no_update_expr);
+          }
+        }
+        else {
+          if arg2 != nothing {
+            // @bin_rel(_, y') -> (c and y' == y) or (bin_rel(_, y') and (not c or not bin_rel(x, y') or |bin_rel(_, y')| > 1))
+            arg2 = value(arg2);
+            aux_expr = are_eq(arg2, cast_loc_int32_var(aux_var_2));
+            neg_aux_expr = or_else(
+              neg(table_contains(table_var, table, (just(aux_var_1), just(arg2)))),
+              is_gt(get_count(table_var, table, (nothing, just(arg2))), 1)
+            );
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              aux_expr = and_then(status_var, aux_expr);
+              neg_aux_expr = or_else(neg(status_var), neg_aux_expr);
+            }
+            expr = or_else(aux_expr, and_then(no_update_expr, neg_aux_expr));
+          }
+          else {
+            // @bin_rel(_, _) -> c or bin_rel(_, _)
+            expr = no_update_expr;
+            expr = or_else(value(maybe_status_var), expr) if maybe_status_var != nothing;
+          }
+        }
+      }
+      else {
+        // update bin_rel(x, y) -> delete bin_rel(x, *), delete bin_rel(*, y), insert bin_rel(x, y);
+
+        assert keys == [[0], [1]];
+
+        aux_var_2 = cast_loc_int32_var(aux_var_2);
+
+        if arg1 != nothing {
+          arg1 = value(arg1);
+          if arg2 != nothing {
+            // @bin_rel(x', y') -> (c and x' == x and y' == y) or (bin_rel(x', y') and (not c or (x' != x and y' != y))
+            //                  -> c ? (bin_rel(x', y') and x' != x and y' != y) or (x' == x and y' == y) : bin_rel(x', y')
+            arg2 = value(arg2);
+            aux_expr = and_then(
+              are_eq(arg1, aux_var_1),
+              are_eq(arg2, aux_var_2)
+            );
+            neg_aux_expr = and_then(neg(are_eq(arg1, aux_var_1)), neg(are_eq(arg2, aux_var_2)));
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              aux_expr = and_then(status_var, aux_expr);
+              neg_aux_expr = or_else(neg(status_var), neg_aux_expr);
+            }
+            expr = or_else(aux_expr, and_then(no_update_expr, neg_aux_expr));
+          }
+          else {
+            // There can only be one tuple of the form (x', _), that's why the expression
+            // that checks whether the tuple has been deleted has this simplified form
+            // @bin_rel(x', _) -> (c and x' == x) or (bin_rel(x', _) and (not c or (x' != x and not bin_rel(x', y))))
+            aux_expr = are_eq(arg1, aux_var_1);
+            neg_aux_expr = and_then(
+              neg(are_eq(arg1, aux_var_1)),
+              neg(table_contains(table_var, table, (just(arg1), just(aux_var_2))))
+            );
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              aux_expr = and_then(status_var, aux_expr);
+              neg_aux_expr = or_else(neg(status_var), neg_aux_expr);
+            }
+            expr = or_else(aux_expr, and_then(no_update_expr, neg_aux_expr));
+          }
+        }
+        else {
+          if arg2 != nothing {
+            // There can only be one tuple of the form (_, y'), that's why the expression
+            // that checks whether the tuple has been deleted has this simplified form
+            // @bin_rel(_, y') -> (c and y' == y) or (bin_rel(_, y') and (not c or (y' != y and not bin_rel(x, y'))))
+            arg2 = value(arg2);
+            aux_expr = are_eq(arg2, aux_var_2);
+            neg_aux_expr = and_then(
+              neg(are_eq(arg2, aux_var_2)),
+              neg(table_contains(table_var, table, (just(aux_var_1), just(arg2))))
+            );
+            if maybe_status_var != nothing {
+              status_var = value(maybe_status_var);
+              aux_expr = and_then(status_var, aux_expr);
+              neg_aux_expr = or_else(neg(status_var), neg_aux_expr);
+            }
+            expr = or_else(aux_expr, and_then(no_update_expr, neg_aux_expr));
+          }
+          else {
+            // @bin_rel(_, _) -> c or bin_rel(_, _)
+            expr = no_update_expr;
+            expr = or_else(value(maybe_status_var), expr) if maybe_status_var != nothing;
+          }
+        }
+      }
+
+      return expr;
+    }
+
+
+    BoolExpr contains_after_deletion(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, TableAction action, BoolExpr no_update_expr) {
+      fail if not table :: Table; ## BUG BUG BUG: NOT ALWAYS TRUE, FIX THIS
+
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+
+      aux_count_expr = bin_table_aux_count(table_var, table, match_args, action, aux_vars);
+      expr = neg(are_eq(aux_count_expr, 0));
+
+      if maybe_status_var != nothing {
+        status_var = value(maybe_status_var);
+        expr = iif(status_var, expr, no_update_expr);
+      }
+
+      return expr;
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, TableAction action, OptAuxTableVar+ action_args) {
+  assert |match_args| == 2 and |action_args| == 2;
+
+  base_count_expr = get_count(table_var, table, match_args);
+
+  delta_count_expr = match (action)
+    insertion   = bin_table_insertion_delta_count(table_var, table, match_args, cast_loc_int32_vars(action_args)),
+    update      = bin_table_update_delta_count(table_var, table, match_args, cast_loc_int32_vars(action_args)),
+    deletion(_) = bin_table_deletion_delta_count(table_var, table, match_args, cast_opt_loc_int32_vars(action_args));
+
+  return simplify_post_update_count_expr(add32(base_count_expr, delta_count_expr));
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  Int32Expr bin_table_insertion_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
+    already_contains_expr = table_contains(table_var, table, match_args);
+
+    ins_match_expr = true;
+    for match_arg @ i <- match_args
+      if match_arg != nothing {
+        arg_match_expr = are_eq(value(match_arg), insertion_args(i));
+        ins_match_expr = and_then(ins_match_expr, arg_match_expr);
+      }
+
+    return if32(or_else(already_contains_expr, ins_match_expr), 1, 0);
+  }
+
+
+  Int32Expr bin_table_deletion_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, OptLocInt32Var+ deletion_args) {
+    count_args = (if del_arg != :none then just(del_arg) else match_args(i) : del_arg @ i <- deletion_args);
+    count_expr = get_count(table_var, table, count_args);
+
+    conds = ();
+    for del_arg @ i <- deletion_args {
+      match_arg = match_args(i);
+      if del_arg != :none and match_arg != nothing
+        conds = (conds | are_eq(del_arg, value(match_arg)));
+    }
+    if conds != ()
+      count_expr = if32(and_then(conds), count_expr, 0);
+
+    return minus32(count_expr);
+  }
+
+
+  Int32Expr bin_table_update_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
+    keys = table.keys;
+
+    if keys == []
+      return bin_table_insertion_delta_count(table_var, table, match_args, insertion_args);
+
+    assert keys == [[0]] or keys == [[0], [1]];
+
+    if keys == [[0]] {
+      del_args = (insertion_args(0), :none);
+      del_count_expr = bin_table_deletion_delta_count(table_var, table, match_args, del_args);
+    }
+    else {
+      assert keys == [[0], [1]];
+
+      del_count_expr_1 = bin_table_deletion_delta_count(table_var, table, match_args, (insertion_args(0), :none));
+      del_count_expr_2 = bin_table_deletion_delta_count(table_var, table, match_args, (:none, insertion_args(1)));
+      del_count_expr_12 = bin_table_deletion_delta_count(table_var, table, match_args, insertion_args);
+
+      del_count_expr = add32(add32(del_count_expr_1, del_count_expr_2), minus32(del_count_expr_12));
+    }
+
+    ins_match_conds = ();
+    for ins_arg @ i <- insertion_args {
+      match_arg = match_args(i);
+      if match_arg != nothing
+        ins_match_conds = (ins_match_conds | are_eq(ins_arg, value(match_arg)));
+    }
+    ins_count_expr = if ins_match_conds != ()
+      then if32(and_then(ins_match_conds), 1, 0)
+      else 1;
+
+    return add32(del_count_expr, ins_count_expr);
+  }
+}

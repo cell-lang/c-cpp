@@ -1,0 +1,98 @@
+implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
+  Maybe[(LocInt32Var, Maybe[LocBoolVar])*] unary_table_insertion_aux_vars(TableVar table_var, Table table) {
+    assert arity(table) == 1;
+
+    tables = effects_info.tables;
+
+    if tables(table_var, _) {
+      instr_id, action = only_pair(tables(table_var));
+      assert action != :update; // It's a unary table, so it's either an insertion or a deletion
+      if action == :insertion {
+        aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+        aux_var = cast_loc_int32_var(only_unsafe(aux_vars));
+        return just(((aux_var, maybe_status_var)));
+      }
+    }
+
+    return just(());
+  }
+
+
+  BoolExpr unary_table_aux_contains(TableVar table_var, AnyTable table, Int32Var arg) {
+    assert arity(table) == 1;
+
+    tables = effects_info.tables;
+
+    expr = table_contains(table_var, table, (just(arg)));
+
+    if tables(table_var, _) {
+      instr_id, action = only_pair(tables(table_var));
+      assert action != :update; // It's a unary table, so it's either an insertion or a deletion
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      aux_var = only_unsafe(aux_vars);
+      if action == :insertion {
+        // insert unary_table(x) if c
+        // @unary_table(x') -> (c and x' == x) or unary_table(x')
+        aux_expr = are_eq(arg, cast_loc_int32_var(aux_var));
+        aux_expr = and_then(value(maybe_status_var), aux_expr) if maybe_status_var != nothing;
+        expr = or_else(aux_expr, expr);
+      }
+      else {
+        assert is_deletion(action);
+        if aux_var != :none {
+          // delete unary_table(x) if c
+          // @unary_table(x') -> unary_table(x') and (not c or x' != x)
+          aux_expr = neg(are_eq(arg, cast_loc_int32_var(aux_var)));
+          aux_expr = or_else(neg(value(maybe_status_var)), aux_expr) if maybe_status_var != nothing;
+          expr = and_then(expr, aux_expr);
+        }
+        else {
+          // delete unary_table(*) if c
+          // @unary_table(_) -> unary_table(_) and not c
+          expr = and_then(neg(value(maybe_status_var)), expr) if maybe_status_var != nothing;
+        }
+      }
+    }
+
+    return expr;
+  }
+
+
+  BoolExpr unary_table_aux_is_empty(TableVar table_var, AnyTable table) {
+    assert arity(table) == 1;
+
+    tables = effects_info.tables;
+
+    expr = table_contains(table_var, table, (nothing));
+
+    if tables(table_var, _) {
+      instr_id, action = only_pair(tables(table_var));
+      assert action != :update; // It's a unary table, so it's either an insertion or a deletion
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      aux_var = only_unsafe(aux_vars);
+      if action == :insertion {
+        // insert unary_table(x) if c
+        // not @unary_table(_) -> not (unary_table(_) or c)
+        expr = neg(or_else(value(maybe_status_var), expr)) if maybe_status_var != nothing;
+      }
+      else {
+        assert is_deletion(action);
+        if aux_var != :none {
+          // delete unary_table(x) if c
+          // not @unary_table(_) -> |unary_table| - (c and unary_table(x) ? 1 : 0) == 0
+          del_cond = table_contains(table_var, table, (just(cast_loc_int32_var(aux_var))));
+          del_cond = and_then(value(maybe_status_var), del_cond) if maybe_status_var != nothing;
+          del_count_expr = if32(del_cond, 1, 0);
+          expr = are_eq(sub32(get_count(table_var, table, (nothing)), del_count_expr), 0);
+        }
+        else {
+          // delete unary_table(*) if c
+          // not @unary_table(_) -> true
+          expr = true;
+        }
+      }
+    }
+
+    return expr;
+  }
+}
