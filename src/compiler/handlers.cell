@@ -1,10 +1,14 @@
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, block : StaticBlock, debug_mode : Bool, skip_integrity_checks : Bool {
   Instr* native_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body) {
     effects_info = instrs_effects_info(body);
-    opt_table_vars = optimizable_table_vars(effects_info);
-    non_opt_table_vars = keys(effects_info.tables) - opt_table_vars;
+    mutated_table_vars = keys(effects_info.tables);
 
-    code, table_var_aux_vars_map, memb_var_aux_vars_map = mandatory_only_optimized_handler_code(handler_id, msg_type, body, effects_info, opt_table_vars);
+    table_var_aux_vars_map, memb_var_aux_vars_map = reserve_aux_vars(handler_id, msg_type, body, effects_info, mutated_table_vars);
+
+    opt_table_vars = optimizable_table_vars(effects_info, table_var_aux_vars_map);
+    non_opt_table_vars = mutated_table_vars - opt_table_vars;
+
+    code = join((rewrite_handler_code(instr, table_var_aux_vars_map, memb_var_aux_vars_map) : instr <- body));
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
@@ -35,13 +39,13 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  (Instr*, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
-  mandatory_only_optimized_handler_code(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info, [TableVar] opt_table_vars) {
+  ([TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
+  reserve_aux_vars(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info, [TableVar] table_vars) {
     tables_types = prg_data.tables(block.name);
     unavailable_vars = temp_table_col_vars_in_use(body);
 
     table_var_aux_vars_map = [];
-    for table_var <- opt_table_vars {
+    for table_var <- table_vars {
       table_effects_info = effects_info.tables(table_var);
       instr_id, action = only_pair(table_effects_info);
       instr = get_instr_by_id(instr_id, body);
@@ -61,8 +65,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       memb_var_aux_vars_map = _put_(memb_var_aux_vars_map, memb_var, (aux_vars, maybe_status_var));
     }
 
-    rw_body = join((rewrite_handler_code(i, table_var_aux_vars_map, memb_var_aux_vars_map) : i <- body));
-    return (rw_body, table_var_aux_vars_map, memb_var_aux_vars_map);
+    return (table_var_aux_vars_map, memb_var_aux_vars_map);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -574,13 +577,17 @@ Instr* updates_reset_code(StaticBlock block, [ValueStoreId] insertion_value_stor
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit block : StaticBlock {
-  [TableVar] optimizable_table_vars(EffectsInfo effects_info) {
+  [TableVar] optimizable_table_vars(EffectsInfo effects_info, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
     updated_tables = keys(effects_info.tables);
     opt_tables = [t : t es <- effects_info.tables, is_optimizable(es)];
+    let table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info
+      optimizable_foreign_keys = [
+        key : key info <- block.foreign_keys, foreign_key_checking_can_be_optimized(key, info.insertion_checked, info.deletion_checked)
+      ];
     loop {
       excluded_tables = [];
       for key info <- block.foreign_keys {
-        if not foreign_key_checking_can_be_optimized(key) {
+        if not optimizable_foreign_keys(key) {
           excluded_tables = _insert_(excluded_tables, key.origin) if opt_tables(key.origin);
           excluded_tables = _insert_(excluded_tables, key.target) if opt_tables(key.target);
         }
