@@ -106,7 +106,8 @@ BasicInstr get_instr_by_id(InstrId instr_id, Instr* instrs) {
     nested_instr = match (first_step, instr)
       then(i?),   branch()    = instr.when_true(i),
       else(i?),   branch()    = instr.when_false(i),
-      loop(i?),   repeat(is?) = is(i);
+      loop(i?),   repeat(is?) = is(i),
+      loop(i?),   foreach()   = instr.body(i);
     return if other_steps != ()
       then get_nested_instr_by_id(other_steps, nested_instr)
       else cast_basic_instr(nested_instr);

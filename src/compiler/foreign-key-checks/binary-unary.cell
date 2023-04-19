@@ -1,7 +1,5 @@
 implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
   Maybe[Instr*] binary_unary_foreign_key_check_code(Nat origin_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
-    assert deletion_checked;
-
     tables = effects_info.tables;
 
     // First we check if there's a deletion from the target, which is the most complicated case
@@ -9,7 +7,6 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       target_instr_id, target_action = only_pair(tables(target));
       assert target_action != :update; // The target is a unary table, so it's only insertions or deletions
       if is_deletion(target_action) {
-        assert deletion_checked;
         ## IS THERE ANYTHING THAT SHOULD BE DONE IF THE FOREIGN KEY IS NOT DELETE-CHECKED?
         if deletion_checked {
           check_expr = binary_unary_foreign_key_target_deletion_check_expr(origin_col_idx, origin, target, origin_type, target_type);
@@ -84,24 +81,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
     target_del_arg = cast_opt_loc_int32_var(only_unsafe(target_del_args));
 
     match_args = (if i == origin_col_idx and target_del_arg != :none then just(target_del_arg) else nothing : i < 2);
-
-    if effects_info.tables(origin, _) {
-      instr_id, action = only_pair(effects_info.tables(origin));
-      origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
-      assert |origin_aux_vars| == 2;
-
-      fail if not origin_type :: Table;
-
-      aux_count_expr = bin_table_aux_count(origin, origin_type, match_args, action, origin_aux_vars);
-      check_expr = are_eq(aux_count_expr, 0);
-
-      if maybe_origin_status_var != nothing {
-        origin_status_var = value(maybe_origin_status_var);
-        check_expr = and_then(origin_status_var, check_expr);
-      }
-    }
-    else
-      check_expr = table_contains(origin, origin_type, match_args);
+    check_expr = neg(bin_table_aux_contains(origin, origin_type, match_args));
 
     if maybe_target_status_var != nothing {
       target_status_var = value(maybe_target_status_var);

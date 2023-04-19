@@ -163,8 +163,6 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
 
     BoolExpr contains_after_deletion(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, TableAction action, BoolExpr no_update_expr) {
-      fail if not table :: Table; ## BUG BUG BUG: NOT ALWAYS TRUE, FIX THIS
-
       aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
 
       aux_count_expr = bin_table_aux_count(table_var, table, match_args, action, aux_vars);
@@ -183,7 +181,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, TableAction action, OptAuxTableVar+ action_args) {
+Int32Expr bin_table_aux_count(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, TableAction action, OptAuxTableVar+ action_args) {
   assert |match_args| == 2 and |action_args| == 2;
 
   base_count_expr = get_count(table_var, table, match_args);
@@ -197,7 +195,7 @@ Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ 
 
   //////////////////////////////////////////////////////////////////////////////
 
-  Int32Expr bin_table_insertion_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
+  Int32Expr bin_table_insertion_delta_count(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
     already_contains_expr = table_contains(table_var, table, match_args);
 
     ins_match_expr = true;
@@ -211,7 +209,7 @@ Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ 
   }
 
 
-  Int32Expr bin_table_deletion_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, OptLocInt32Var+ deletion_args) {
+  Int32Expr bin_table_deletion_delta_count(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, OptLocInt32Var+ deletion_args) {
     count_args = (if del_arg != :none then just(del_arg) else match_args(i) : del_arg @ i <- deletion_args);
     count_expr = get_count(table_var, table, count_args);
 
@@ -228,8 +226,8 @@ Int32Expr bin_table_aux_count(TableVar table_var, Table table, Maybe[Int32Var]+ 
   }
 
 
-  Int32Expr bin_table_update_delta_count(TableVar table_var, Table table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
-    keys = table.keys;
+  Int32Expr bin_table_update_delta_count(TableVar table_var, AnyTable table, Maybe[Int32Var]+ match_args, LocInt32Var+ insertion_args) {
+    keys = keys(table);
 
     if keys == []
       return bin_table_insertion_delta_count(table_var, table, match_args, insertion_args);
