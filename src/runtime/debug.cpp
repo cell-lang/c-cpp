@@ -164,6 +164,15 @@ void print_fail_reached_msg(const char *file, uint32 line) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void print_msg_handler_internal_check_failed_msg(const char *rel_auto_name, OBJ msg, bool ref_ok, bool ok) {
+  fprintf(stderr, "\nInternal error during the execution of a message handler of relational automaton %s\n", rel_auto_name);
+  fprintf(stderr, "Please notify the developer of the compiler");
+  fprintf(stderr, "Message that caused the internal error:");
+  print_indented_to_stderr(msg);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 static bool inside_transaction = false;
 
 void entering_transaction() {

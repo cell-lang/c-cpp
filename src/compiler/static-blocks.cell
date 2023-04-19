@@ -1200,60 +1200,100 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       method_name = msg_handler_entry_point_name(block.name, handler_id, msg_type);
       formal_args = (target_arg_decl(block.name), auxiliary_arg_decl(block.name), obj_type_name & " msg", env_arg_decl);
 
-      if not use_opt_method {
-        run_and_check_method_name = native_handler_name(block.name, handler_id, msg_type);
-        apply_method_name = native_apply_method_name(block.name, handler_id, msg_type);
-        reset_method_name = native_reset_method_name(block.name, handler_id, msg_type);
+      run_and_check_method_name = native_handler_name(block.name, handler_id, msg_type);
+      apply_method_name = native_apply_method_name(block.name, handler_id, msg_type);
+      reset_method_name = native_reset_method_name(block.name, handler_id, msg_type);
 
-        return (
-          "",
-          "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
-          "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
-          "  try {",
-          "    OBJ tracked_args[1];" if debug_mode,
-          "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", tracked_args, msg);" if debug_mode,
-          "    entering_transaction();",
-          "    bool ok = " & run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
-          "    exiting_transaction();",
-          "    pop_call_info();" if debug_mode,
-          "    if (ok)",
-          "      " & apply_method_name & "(" & target_name & ", " & aux_name & ");",
-          "    " & reset_method_name & "(" & aux_name & ");",
-          "    return ok;",
-          "  }",
-          "  catch (...) {",
-          "    " & reset_method_name & "(" & aux_name & ");",
-          "    exiting_transaction();",
-          "    pop_call_infos(bookmark);" if debug_mode,
-          "    return false;",
-          "  }",
+      run_and_check_method_call = run_and_check_method_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");";
+      apply_method_call = apply_method_name & "(" & target_name & ", " & aux_name & ");";
+      reset_method_call = reset_method_name & "(" & aux_name & ");";
+
+      if not use_opt_method {
+        body = (
+          "uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
+          "try {",
+          "  OBJ tracked_arg;" if debug_mode,
+          "  push_call_info_wrapper(\"" & auto_type_name & " message handler\", &tracked_arg, msg);" if debug_mode,
+          "  entering_transaction();",
+          "  bool ok = " & run_and_check_method_call,
+          "  exiting_transaction();",
+          "  pop_call_info();" if debug_mode,
+          "  if (ok)",
+          "    " & apply_method_call,
+          "  " & reset_method_call,
+          "  return ok;",
+          "}",
+          "catch (...) {",
+          "  " & reset_method_call,
+          "  exiting_transaction();",
+          "  pop_call_infos(bookmark);" if debug_mode,
+          "  return false;",
           "}"
         );
       }
       else {
         handler_name = native_opt_handler_name(block.name, handler_id, msg_type);
-        return (
-          "",
-          "bool " & method_name & "(" & append(formal_args, ", ") & ") {",
-          "  uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
-          "  try {",
-          "    OBJ tracked_args[1];" if debug_mode,
-          "    push_call_info_wrapper(\"" & auto_type_name & " message handler\", tracked_args, msg);" if debug_mode,
-          "    entering_transaction();",
-          "    bool ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
-          "    exiting_transaction();",
-          "    pop_call_info();" if debug_mode,
-          "    return ok;",
-          "  }",
-          "  catch (...) {",
-          ## TODO: IS THERE ANYTHING TO RESET HERE?
-          "    exiting_transaction();",
-          "    pop_call_infos(bookmark);" if debug_mode,
-          "    return false;",
-          "  }",
-          "}"
-        );
+        if debug_mode {
+          body = (
+            "bool ref_ok, ok;",
+            "OBJ tracked_arg;",
+            "",
+            "uint32 bookmark = get_call_stack_bookmark();",
+            "",
+            "entering_transaction();",
+            "push_call_info_wrapper(\"" & auto_type_name & " message handler\", &tracked_arg, msg);",
+            "try {",
+            "  ref_ok = " & run_and_check_method_call,
+            "  pop_call_info();",
+            "}",
+            "catch (...) {",
+            "  ref_ok = false;",
+            "  pop_call_infos(bookmark);",
+            "}",
+            reset_method_call,
+            "exiting_transaction();",
+            "",
+            "entering_transaction();",
+            "push_call_info_wrapper(\"" & auto_type_name & " message handler\", &tracked_arg, msg);",
+            "try {",
+            "  ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+            "  pop_call_info();",
+            "}",
+            "catch (...) {",
+            ## BUG BUG BUG: IS THERE ANYTHING TO RESET HERE?
+            "  ok = false;",
+            "  pop_call_infos(bookmark);",
+            "}",
+            "exiting_transaction();",
+            "",
+            "if (ok != ref_ok) {",
+            "  print_msg_handler_internal_check_failed_msg(\"" & auto_type_name & "\", msg, ref_ok, ok);",
+            "  internal_fail();",
+            "}",
+            "",
+            "return ok;"
+          );
+        }
+        else {
+          return (
+            "bool ok;",
+            "",
+            "entering_transaction();",
+            "try {",
+            "  ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
+            ## BUG BUG BUG: IS THERE ANYTHING TO RESET HERE?
+            "}",
+            "catch (...) {",
+            "  ok = false;",
+            "  " & reset_method_call,
+            "}",
+            "exiting_transaction();",
+            "return ok;"
+          );
+        }
       }
+
+      return ("", "bool " & method_name & "(" & append(formal_args, ", ") & ") {") & indent_lines(body) & ("}");
     }
   }
 

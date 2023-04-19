@@ -633,6 +633,11 @@ void stdout_print(void *, const char *text, uint32 len) {
   fflush(stdout);
 }
 
+void stderr_print(void *, const char *text, uint32 len) {
+  fwrite(text, 1, len, stderr);
+  fflush(stderr);
+}
+
 void print(OBJ obj) {
   PRINT_BUFFER pb;
 
@@ -641,6 +646,19 @@ void print(OBJ obj) {
   fputs("\n", stdout);
   emit_known(&pb, stdout_print, NULL);
   fputs("\n", stdout);
+  cleanup(&pb);
+}
+
+void print_indented_to_stderr(OBJ obj) {
+  PRINT_BUFFER pb;
+
+  //## BUG BUG BUG: DOES NOT INDENT THE PRINTED VALUE
+
+  init(&pb);
+  print_obj(obj, emit_store, &pb);
+  fputs("\n", stderr);
+  emit_known(&pb, stderr_print, NULL);
+  fputs("\n", stderr);
   cleanup(&pb);
 }
 

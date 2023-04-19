@@ -1097,6 +1097,7 @@ void print_call_stack();
 void dump_var(const char* name, OBJ value);
 void print_assertion_failed_msg(const char* file, uint32 line, const char* text);
 void print_fail_reached_msg(const char *filename, uint32 line);
+void print_msg_handler_internal_check_failed_msg(const char *rel_auto_name, OBJ msg, bool ref_ok, bool ok);
 
 void entering_transaction();
 void exiting_transaction();
@@ -1193,6 +1194,7 @@ typedef enum {TEXT, SUB_START, SUB_END} EMIT_ACTION;
 void print_obj(OBJ obj, void (*emit)(void *, const void *, EMIT_ACTION), void *data);
 
 void print(OBJ);
+void print_indented_to_stderr(OBJ);
 void print_to_buffer_or_file(OBJ obj, char* buffer, uint32 max_size, const char* fname);
 uint32 printed_obj(OBJ obj, char* buffer, uint32 max_size);
 char *printed_obj(OBJ obj, char *alloc(void *, uint32), void *data);
