@@ -8,7 +8,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     opt_table_vars = optimizable_table_vars(effects_info, table_var_aux_vars_map);
     non_opt_table_vars = mutated_table_vars - opt_table_vars;
 
-    code = join((rewrite_handler_code(instr, table_var_aux_vars_map, memb_var_aux_vars_map) : instr <- body));
+    table_var_aux_vars_map = [v -> vs : v vs <- table_var_aux_vars_map, opt_table_vars(v)];
+
+    code = join((rewrite_handler_instr(instr, table_var_aux_vars_map, memb_var_aux_vars_map) : instr <- body));
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
@@ -135,7 +137,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-Instr* rewrite_handler_code(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
   skip_optimization = match (instr)
     queue_deletes()                 |
     queue_insert_tuple()            |
@@ -156,8 +158,8 @@ Instr* rewrite_handler_code(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[Lo
                                         else (instr),
     branch()                        = if instr.cond :: <neg(is_blank(PendingStateVar))>
                                         then instr.when_false
-                                        else rewrite_nested_one_to_many(instr, rewrite_handler_code($, table_var_aux_vars_map, memb_var_aux_vars_map), $),
-    _                               = rewrite_nested_one_to_many(instr, rewrite_handler_code($, table_var_aux_vars_map, memb_var_aux_vars_map), $);
+                                        else rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map), $),
+    _                               = rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map), $);
 
 
   // queue_deletes(table_var: TableVar, table: AnyTable, args: Maybe[Int32Var]+)
