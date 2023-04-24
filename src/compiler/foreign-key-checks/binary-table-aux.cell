@@ -176,6 +176,55 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       return expr;
     }
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  BoolExpr bin_table_aux_contains_surr(TableVar table_var, MasterBinTable table, Int32Var assoc_surr_var) {
+    tables = effects_info.tables;
+
+    expr = master_bin_table_contains_assoc_surr(table_var, table, assoc_surr_var);
+
+    if tables(table_var, _) {
+      instr_id, action = only_pair(tables(table_var));
+      expr = match (action)
+        insertion     = contains_after_insertion(table_var, table, assoc_surr_var, expr),
+        update        = {assert keys(table) == []; return contains_after_insertion(table_var, table, assoc_surr_var, expr);},
+        deletion(_)   = contains_after_deletion(table_var, table, assoc_surr_var, action, expr);
+    }
+
+    return expr;
+
+
+    BoolExpr contains_after_insertion(TableVar table_var, AnyTable table, Int32Var assoc_surr_var, BoolExpr no_update_expr) {
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      assert |aux_vars| == 3;
+      assoc_surr_aux_var = cast_loc_int32_var(aux_vars(2));
+      aux_expr = are_eq(assoc_surr_var, assoc_surr_aux_var);
+      aux_expr = and_then(value(maybe_status_var), aux_expr) if maybe_status_var != nothing;
+      return or_else(aux_expr, no_update_expr);
+    }
+
+
+    BoolExpr contains_after_deletion(TableVar table_var, AnyTable table, Int32Var assoc_surr_var, TableAction action, BoolExpr no_update_expr) {
+      // aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      // assert |aux_vars| == 3;
+      // assoc_surr_aux_var = cast_loc_int32_var(aux_vars(2));
+
+
+      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+
+      // aux_count_expr = bin_table_aux_count(table_var, table, match_args, action, aux_vars);
+      // expr = neg(are_eq(aux_count_expr, 0));
+
+      // if maybe_status_var != nothing {
+      //   status_var = value(maybe_status_var);
+      //   expr = iif(status_var, expr, no_update_expr);
+      // }
+
+      // return expr;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

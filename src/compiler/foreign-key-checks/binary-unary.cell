@@ -45,30 +45,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
   BoolExpr binary_unary_foreign_key_origin_insertion_check_expr(Nat origin_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type) {
     origin_aux_vars, maybe_origin_status_var = table_var_aux_vars_map(origin);
-
-    origin_aux_var = cast_int32_var(origin_aux_vars(origin_col_idx));
-    check_expr = neg(table_contains(target, target_type, (just(origin_aux_var))));
-
-    if table_var_aux_vars_map(target, _) {
-      target_instr_id, target_action = only_pair(effects_info.tables(target));
-      // The case where the operation on the target is a delete is already been handled elsewhere
-      // and since the target is a unary table an update is equivalent to an insertion
-      ## TODO: ACTUALLY CHECK THAT YOU CANNOT DO A update unary(x), OR EQUIVALENTLY THAT THAT'S REWRITTEN INTO AN insert unary(x)
-      assert target_action == :insertion;
-
-      target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
-      target_aux_var = cast_int32_var(only_unsafe(target_aux_vars));
-
-      extra_check_expr = neg(are_eq(origin_aux_var, target_aux_var));
-
-      if maybe_target_status_var != nothing {
-        target_status_var = value(maybe_target_status_var);
-        extra_check_expr = or_else(neg(target_status_var), extra_check_expr);
-      }
-
-      check_expr = and(check_expr, extra_check_expr);
-    }
-
+    origin_aux_var = cast_loc_int32_var(origin_aux_vars(origin_col_idx));
+    check_expr = neg(unary_table_aux_contains(target, target_type, origin_aux_var));
+    check_expr = and_then(value(maybe_origin_status_var), check_expr) if maybe_origin_status_var != nothing;
     return check_expr;
   }
 
