@@ -84,6 +84,7 @@ implicit block : StaticBlock, table_var_aux_vars_map : [TableVar -> (OptAuxTable
       unary_binary(i?)      = unary_binary_foreign_key_check_code(i, origin, target, origin_type, target_type, insertion_checked, deletion_checked),
       binary_unary(i?)      = binary_unary_foreign_key_check_code(i, origin, target, origin_type, target_type, insertion_checked, deletion_checked),
       ternary_binary        = ternary_binary_foreign_key_check_code(origin, target, origin_type, target_type, insertion_checked, deletion_checked),
+      binary_ternary        = binary_ternary_foreign_key_check_code(origin, target, origin_type, target_type, insertion_checked, deletion_checked),
       _                     = nothing;
 
     return code;

@@ -751,11 +751,18 @@ String* create_error_msg(ParserError err, String filename) =
 
 Nat new_unique_id(<unused>) = _counter_(:unused);
 
-## BAD BAD BAD: UGLY HACK HERE
 LocInt32Var new_unique_int32_var(<unused>) {
+  ## BAD BAD BAD: UGLY HACK HERE
   id = new_unique_id(:unused);
   hacked_id = nat(9223372036854775807 - id);
   return ivar32(hacked_id);
+}
+
+LocBoolVar new_unique_bool_var(<unused>) {
+  ## BAD BAD BAD: UGLY HACK HERE
+  id = new_unique_id(:unused);
+  hacked_id = nat(9223372036854775807 - id);
+  return bvar(hacked_id);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

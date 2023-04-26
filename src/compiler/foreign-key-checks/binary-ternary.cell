@@ -1,0 +1,57 @@
+implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
+  Maybe[Instr*] binary_ternary_foreign_key_check_code(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
+    assert origin_type :: MasterBinTable; ## THIS IS PROBABLY WRONG, TRY TO FALSIFY IT
+
+    tables = effects_info.tables;
+
+    if tables(target, _) {
+      target_instr_id, target_action = only_pair(tables(target));
+
+      if target_action == :update {
+        target_keys = keys(target_type);
+        return nothing if target_keys != [] and target_keys != [[0, 1]]; ## CAN WE DO ANY BETTER HERE?
+      }
+      else if is_deletion(target_action) {
+        if deletion_checked {
+          check_expr, code = ternary_binary_foreign_key_target_deletion_check_expr(origin, target, origin_type, target_type);
+          return just((code | do_if(check_expr, ret_val(false))));
+        }
+      }
+    }
+
+    // No deletion from the (ternary) target, either implicit or explicit
+
+    if tables(origin, _) {
+      origin_instr_id, origin_action = only_pair(tables(origin));
+      return nothing if (origin_action == :insertion and insertion_checked) or origin_action == :update;
+    }
+
+    return just(());
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  (BoolExpr, Instr*) ternary_binary_foreign_key_target_deletion_check_expr(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type) {
+    target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
+
+    if |target_aux_vars| == 3 {
+      arg1_aux_var = cast_loc_int32_var(target_aux_vars(0));
+      arg2_aux_var = cast_loc_int32_var(target_aux_vars(1));
+      check_expr = bin_table_aux_contains(origin, origin_type, (just(arg1_aux_var), just(arg2_aux_var)));
+      check_expr = and_then(value(maybe_target_status_var), check_expr) if maybe_target_status_var != nothing;
+      code = ();
+    }
+    else {
+      assert |target_aux_vars| == 2;
+      assoc_surr_aux_var = cast_loc_int32_var(target_aux_vars(0));
+      check_expr, code = bin_table_aux_contains_surr(origin, cast_master_bin_table(origin_type), assoc_surr_aux_var);
+      if maybe_target_status_var != nothing {
+        target_status_var = value(maybe_target_status_var);
+        code = (do_if(target_status_var, code));
+        check_expr = and_then(target_status_var, check_expr);
+      }
+    }
+
+    return (check_expr, code);
+  }
+}

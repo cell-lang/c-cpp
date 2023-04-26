@@ -180,6 +180,7 @@ src/compiler/foreign-key-checks/foreign-keys-checking.cell
 src/compiler/foreign-key-checks/unary-binary.cell
 src/compiler/foreign-key-checks/binary-unary.cell
 src/compiler/foreign-key-checks/ternary-binary.cell
+src/compiler/foreign-key-checks/binary-ternary.cell
 src/compiler/foreign-key-checks/unary-table-aux.cell
 src/compiler/foreign-key-checks/binary-table-aux.cell
 

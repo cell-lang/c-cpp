@@ -179,23 +179,31 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
   //////////////////////////////////////////////////////////////////////////////
 
-  BoolExpr bin_table_aux_contains_surr(TableVar table_var, MasterBinTable table, Int32Var assoc_surr_var) {
+  (BoolExpr, Instr*) bin_table_aux_contains_surr(TableVar table_var, MasterBinTable table, Int32Var assoc_surr_var) {
     tables = effects_info.tables;
 
+    code = ();
     expr = master_bin_table_contains_assoc_surr(table_var, table, assoc_surr_var);
 
     if tables(table_var, _) {
       instr_id, action = only_pair(tables(table_var));
-      expr = match (action)
-        insertion     = contains_after_insertion(table_var, table, assoc_surr_var, expr),
-        update        = {assert keys(table) == []; return contains_after_insertion(table_var, table, assoc_surr_var, expr);},
-        deletion(_)   = contains_after_deletion(table_var, table, assoc_surr_var, action, expr);
+      if action == :insertion {
+        expr = contains_after_insertion(table_var, table, assoc_surr_var, expr);
+      }
+      else if action == :update {
+        assert keys(table) == []; ## BUG BUG BUG: THIS MAY NOT BE ALWAYS TRUE
+        expr = contains_after_insertion(table_var, table, assoc_surr_var, expr);
+      }
+      else {
+        assert is_deletion(action);
+        expr, code = contains_after_deletion(table_var, table, assoc_surr_var, action, expr);
+      }
     }
 
-    return expr;
+    return (expr, code);
 
 
-    BoolExpr contains_after_insertion(TableVar table_var, AnyTable table, Int32Var assoc_surr_var, BoolExpr no_update_expr) {
+    BoolExpr contains_after_insertion(TableVar table_var, MasterBinTable table, Int32Var assoc_surr_var, BoolExpr no_update_expr) {
       aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
       assert |aux_vars| == 3;
       assoc_surr_aux_var = cast_loc_int32_var(aux_vars(2));
@@ -205,24 +213,35 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
     }
 
 
-    BoolExpr contains_after_deletion(TableVar table_var, AnyTable table, Int32Var assoc_surr_var, TableAction action, BoolExpr no_update_expr) {
-      // aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
-      // assert |aux_vars| == 3;
-      // assoc_surr_aux_var = cast_loc_int32_var(aux_vars(2));
+    (BoolExpr, Instr*) contains_after_deletion(TableVar table_var, MasterBinTable table, Int32Var assoc_surr_var, TableAction action, BoolExpr no_update_expr) {
+      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      assert |aux_vars| == 2;
 
+      res_var = new_unique_bool_var(:unused);
+      arg1_var = new_unique_int32_var(:unused);
+      arg2_var = new_unique_int32_var(:unused);
 
-      fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      args_vars = (just(arg1_var), just(arg2_var));
+      count_expr = bin_table_aux_count(table_var, table, args_vars, action, aux_vars);
+      still_contains_expr = neg(are_eq(count_expr, 0));
 
+      if maybe_status_var != nothing {
+        status_var = value(maybe_status_var);
+        still_contains_expr = or_else(neg(status_var), still_contains_expr);
+      }
 
-      // aux_count_expr = bin_table_aux_count(table_var, table, match_args, action, aux_vars);
-      // expr = neg(are_eq(aux_count_expr, 0));
+      code = (
+        set_bvar(res_var, no_update_expr),
+        do_if(
+          res_var,
+          ( set_ivar32(arg1_var, get_arg_by_assoc_surr(table_var, table, 0, assoc_surr_var)),
+            set_ivar32(arg2_var, get_arg_by_assoc_surr(table_var, table, 1, assoc_surr_var)),
+            set_bvar(res_var, still_contains_expr)
+          )
+        )
+      );
 
-      // if maybe_status_var != nothing {
-      //   status_var = value(maybe_status_var);
-      //   expr = iif(status_var, expr, no_update_expr);
-      // }
-
-      // return expr;
+      return (res_var, code);
     }
   }
 }

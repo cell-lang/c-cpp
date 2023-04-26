@@ -187,7 +187,9 @@ implicit context : NativeContext {
                                                           just(n?)  = "hb" & _print_(n),
                                                           nothing   = printed(s) & "_Vb"
                                                       },
-      bvar(<*..*> n?)                               = "b" & printed(n),
+      bvar(<*..*> n?)                               = if n < 4611686018427387904
+                                                        then "b" & printed(n)
+                                                        else "bu" & printed(9223372036854775807 - n),
       bool_arg(n?)                                  = "a" & printed(n),
       cond_value_var(n?)                            = prefix & "cond_" & printed(n),
       cond_is_def_var(n?)                           = prefix & "cond_def_" & printed(n),
