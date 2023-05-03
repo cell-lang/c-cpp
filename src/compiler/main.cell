@@ -80,6 +80,7 @@ Int Main(String* args) {
           "Invalid syntax after -g option\n" &
           "Usage: cellc <options> <project file> <output directory>\n" &
           "Options:\n" &
+          "  -o             optimize message handlers (experimental)" &
           "  -d             debug mode\n" &
           "  -ia            ignore assertions\n" &
           "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
@@ -119,6 +120,7 @@ Int Main(String* args) {
       Print(
         "Invalid option: " & o & "\n" &
         "Valid options:\n" &
+        "  -o             optimize message handlers (experimental)" &
         "  -d             debug mode\n" &
         "  -ia            ignore assertions\n" &
         "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
