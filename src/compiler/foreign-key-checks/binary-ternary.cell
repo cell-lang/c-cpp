@@ -5,7 +5,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
     tables = effects_info.tables;
 
     if tables(target, _) {
-      target_instr_id, target_action = only_pair(tables(target));
+      target_effects_info = tables(target);
+      return nothing if |target_effects_info| != 1;
+      target_instr_id, target_action = only_pair(target_effects_info);
 
       if target_action == :update {
         target_keys = keys(target_type);
@@ -22,7 +24,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
     // No deletion from the (ternary) target, either implicit or explicit
 
     if tables(origin, _) {
-      origin_instr_id, origin_action = only_pair(tables(origin));
+      origin_effects_info = tables(origin);
+      return nothing if |origin_effects_info| != 1;
+      origin_instr_id, origin_action = only_pair(origin_effects_info);
       return nothing if (origin_action == :insertion and insertion_checked) or origin_action == :update;
     }
 

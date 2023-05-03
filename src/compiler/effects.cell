@@ -1,4 +1,4 @@
-type InstrId = <top_level(Nat), then(Nat), else(Nat), loop(Nat)>+;
+type InstrId = <top_level(Nat), then(Nat), else(Nat), loop(Nat), block(Nat), case([+SymbObj], Nat), default(Nat)>+;
 
 type TableAction = insertion, update, deletion(Bool+);
 
@@ -27,7 +27,10 @@ InstrStatus instr_status(InstrId instr_id) {
       top_level() = (optional, multiple),
       then()      |
       else()      = (true, multiple),
-      loop()      = (true, true);
+      loop()      = (true, true),
+      block()     = (true, multiple), ## IT'S NOT NECESSARILY OPTIONAL
+      case()      |
+      default()   = (true, multiple);
   return instr_status(optional: optional, multiple: multiple);
 }
 
@@ -104,10 +107,13 @@ BasicInstr get_instr_by_id(InstrId instr_id, Instr* instrs) {
     first_step = instr_id(0);
     other_steps = drop(instr_id, 1);
     nested_instr = match (first_step, instr)
-      then(i?),   branch()    = instr.when_true(i),
-      else(i?),   branch()    = instr.when_false(i),
-      loop(i?),   repeat(is?) = is(i),
-      loop(i?),   foreach()   = instr.body(i);
+      then(i?),       branch()            = instr.when_true(i),
+      else(i?),       branch()            = instr.when_false(i),
+      loop(i?),       repeat(is?)         = is(i),
+      loop(i?),       foreach()           = instr.body(i),
+      block(i?),      execute_block(is?)  = is(i),
+      case(ls?, i?),  symb_switch()       = only([is : c <- instr.cases, (cls?, is?) ?= c, cls == ls])(i),
+      default(i?),    symb_switch()       = instr.else(i);
     return if other_steps != ()
       then get_nested_instr_by_id(other_steps, nested_instr)
       else cast_basic_instr(nested_instr);
@@ -167,7 +173,10 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
 
 
   EffectsInfo symb_switch_effect_info(ObjExpr value, [+([+SymbObj], Instr+)] cases, Instr* else, InstrId instr_id) {
-    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    cases_effects_info = [instrs_effects_info(is, (instr_id | :case(ls, $))) : c <- cases, (ls?, is?) ?= c];
+    else_effects_info = instrs_effects_info(else, (instr_id | :default($)));
+    effects_infos = _insert_(cases_effects_info, else_effects_info);
+    return merged_effects_info(effects_infos);
   }
 
 
@@ -177,7 +186,7 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
 
 
   EffectsInfo execute_block_effect_info(Instr+ instrs, InstrId instr_id) {
-    fail; ## IMPLEMENT IMPLEMENT IMPLEMENT
+    return instrs_effects_info(instrs, (instr_id | :block($)));
   }
 
 

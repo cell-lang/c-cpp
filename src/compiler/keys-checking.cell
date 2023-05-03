@@ -9,7 +9,8 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
     extra_info_expr_aux_vars_code = []; // extra info expr (Int32Expr) -> extra info aux vars code (Instr*)
 
     for v <- opt_table_vars {
-      if not insertion_is_forced(v, effects_info) {
+      _, action = only_pair(effects_info.tables(v));
+      if action == :insertion {
         aux_vars, maybe_status_var = table_var_aux_vars_map(v);
         table = tables(v);
         keys = keys(table);

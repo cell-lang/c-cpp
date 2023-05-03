@@ -47,8 +47,8 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
         comment = comment(block_foreign_key_user_repr(key));
 
         if effects_info.tables(origin, _) {
-          origin_instr_id, origin_action = only_pair(effects_info.tables(origin));
-          if (origin_action == :insertion and info.insertion_checked) or origin_action == :update {
+          origin_actions = [a : _ a <- effects_info.tables(origin)];
+          if (origin_actions(:insertion) and info.insertion_checked) or origin_actions(:update) {
             check_instr = check_foreign_key(key, origin_type, target_type, :forward);
             code = (code | :empty_line, comment, check_instr);
             needs_comment = false;
@@ -56,8 +56,8 @@ implicit block : StaticBlock, table_var_aux_vars_map  : [TableVar -> (OptAuxTabl
         }
 
         if effects_info.tables(target, _) {
-          target_instr_id, target_action = only_pair(effects_info.tables(target));
-          if target_action == :update or (is_deletion(target_action) and info.deletion_checked) {
+          target_actions = [a : _ a <- effects_info.tables(target)];
+          if target_actions(:update) or ((a <- target_actions : is_deletion(a)) and info.deletion_checked) {
             code = (code | :empty_line, comment) if needs_comment;
             check_instr = check_foreign_key(key, origin_type, target_type, :backward);
             code = (code | check_instr);

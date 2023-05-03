@@ -4,7 +4,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
     // First we check if there's a deletion from the target, which is the most complicated case
     if tables(target, _) {
-      target_instr_id, target_action = only_pair(tables(target));
+      target_effects_info = tables(target);
+      return nothing if |target_effects_info| != 1;
+      target_instr_id, target_action = only_pair(target_effects_info);
       assert target_action != :update; // The target is a unary table, so it's only insertions or deletions
       if is_deletion(target_action) {
         ## IS THERE ANYTHING THAT SHOULD BE DONE IF THE FOREIGN KEY IS NOT DELETE-CHECKED?
@@ -17,7 +19,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
     // No deletion from the target
     if tables(origin, _) {
-      origin_instr_id, origin_action = only_pair(tables(origin));
+      origin_effects_info = tables(origin);
+      return nothing if |origin_effects_info| != 1;
+      origin_instr_id, origin_action = only_pair(origin_effects_info);
       if origin_action == :insertion {
         if insertion_checked {
           check_expr = binary_unary_foreign_key_origin_insertion_check_expr(origin_col_idx, origin, target, origin_type, target_type);

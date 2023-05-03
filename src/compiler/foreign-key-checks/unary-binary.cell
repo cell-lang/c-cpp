@@ -22,7 +22,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
     // Figure out the set of values in the target column that need to be checked for deletion
     if tables(target, _) {
-      target_instr_id, target_action = only_pair(tables(target));
+      target_effects_info = tables(target);
+      return nothing if |target_effects_info| != 1;
+      target_instr_id, target_action = only_pair(target_effects_info);
       target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
       assert |target_aux_vars| == 2;
       target_aux_var = cast_opt_loc_int32_var(target_aux_vars(target_col_idx));

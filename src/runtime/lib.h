@@ -2450,6 +2450,12 @@ uint32 obj_store_aux_lookup_or_insert_value(OBJ_STORE *, OBJ_STORE_AUX *, OBJ, S
 void bin_table_release_2_before_delete_1(BIN_TABLE *, uint32 arg1, DEALLOC);
 void bin_table_release_1_before_delete_2(BIN_TABLE *, uint32 arg2, DEALLOC);
 
+void single_key_bin_table_release_2_before_delete_1(SINGLE_KEY_BIN_TABLE *, uint32 arg1, DEALLOC);
+void single_key_bin_table_release_1_before_delete_2(SINGLE_KEY_BIN_TABLE *, uint32 arg2, DEALLOC);
+
+void double_key_bin_table_release_2_before_delete_1(DOUBLE_KEY_BIN_TABLE *, uint32 arg1, DEALLOC);
+void double_key_bin_table_release_1_before_delete_2(DOUBLE_KEY_BIN_TABLE *, uint32 arg2, DEALLOC);
+
 void master_bin_table_release_2_before_delete_1(MASTER_BIN_TABLE *, uint32 arg1, DEALLOC);
 void master_bin_table_release_1_before_delete_2(MASTER_BIN_TABLE *, uint32 arg2, DEALLOC);
 

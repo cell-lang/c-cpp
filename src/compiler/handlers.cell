@@ -49,15 +49,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     table_var_aux_vars_map = [];
     for table_var <- table_vars {
       table_effects_info = effects_info.tables(table_var);
-      instr_id, action = only_pair(table_effects_info);
-      instr = get_instr_by_id(instr_id, body);
-      table_type = tables_types(table_var);
-      aux_vars, unavailable_vars = match (action)
-        insertion     |
-        update        = reserve_insertion_aux_vars(table_type, instr, unavailable_vars),
-        deletion(as?) = reserve_deletion_aux_vars(as, table_type, unavailable_vars);
-      maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not instr_is_always_exec_once(instr_id), unavailable_vars);
-      table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, (aux_vars, maybe_status_var));
+      if |table_effects_info| == 1 {
+        instr_id, action = only_pair(table_effects_info);
+        instr = get_instr_by_id(instr_id, body);
+        table_type = tables_types(table_var);
+        aux_vars, unavailable_vars = match (action)
+          insertion     |
+          update        = reserve_insertion_aux_vars(table_type, instr, unavailable_vars),
+          deletion(as?) = reserve_deletion_aux_vars(as, table_type, unavailable_vars);
+        maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not instr_is_always_exec_once(instr_id), unavailable_vars);
+        table_var_aux_vars_map = _put_(table_var_aux_vars_map, table_var, (aux_vars, maybe_status_var));
+      }
     }
 
     memb_var_aux_vars_map = [];
@@ -625,13 +627,8 @@ Bool instr_is_always_exec_once(InstrId instr_id) {
   return not status.optional and not status.multiple;
 }
 
+
 Bool memb_var_is_always_set_once([+InstrId] instr_ids) = |instr_ids| == 1 and instr_is_always_exec_once(only(instr_ids));
-
-
-Bool insertion_is_forced(TableVar var, EffectsInfo effects_info) {
-  _, action = only_pair(effects_info.tables(var));
-  return action == :update;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
