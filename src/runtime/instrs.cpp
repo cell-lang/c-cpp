@@ -205,8 +205,60 @@ OBJ internal_sort(OBJ set) {
     return make_empty_seq();
 
   uint32 size = read_size_field(set);
-  OBJ *elts = rearrange_if_needed_and_get_set_elts_ptr(set);
-  return build_seq(elts, size);
+  OBJ *src = rearrange_if_needed_and_get_set_elts_ptr(set);
+
+  if (is_int(src[0]) & is_int(src[size-1])) {
+    int64 min = 0;
+    int64 max = 0;
+    for (int i=0 ; i < size ; i++) {
+      int64 elt = get_int(src[i]);
+      if (elt < min)
+        min = elt;
+      if (elt > max)
+        max = elt;
+    }
+
+    if (min == 0 & max < 256) {
+      if (size <= 8) {
+        uint64 data = 0;
+        for (int i=0 ; i < size ; i++)
+          data = inline_uint8_init_at(data, i, (uint8) get_int(src[i]));
+        return make_seq_uint8_inline(data, size);
+      }
+      else {
+        uint32 capacity = ((((uint64) size) + 7) / 8) * 8;
+        assert(capacity >= size & capacity < size + 8);
+        SEQ_OBJ *seq_ptr = new_uint8_seq(size, capacity);
+        uint8 *elts = seq_ptr->buffer.uint8_;
+        for (int i=0 ; i < size ; i++)
+          elts[i] = get_int(src[i]);
+        return make_seq_uint8(seq_ptr, size);
+      }
+    }
+
+    if (min >= -32768 & max < 32768) {
+      if (size <= 4) {
+        uint64 data = 0;
+        for (int i=0 ; i < size ; i++)
+          data = inline_int16_init_at(data, i, (int16) get_int(src[i]));
+        return make_seq_int16_inline(data, size);
+      }
+      else {
+        uint32 capacity = ((((uint64) size) + 3) / 4) * 4;
+        assert(capacity >= size & capacity < size + 4);
+        SEQ_OBJ *seq_ptr = new_int16_seq(size, capacity);
+        int16 *elts = seq_ptr->buffer.int16_;
+        for (int i=0 ; i < size ; i++)
+          elts[i] = get_int(src[i]);
+        return make_seq_int16(seq_ptr, size);
+      }
+    }
+  }
+
+  SEQ_OBJ *seq = new_obj_seq(size);
+  OBJ *dest = seq->buffer.obj;
+  memcpy(dest, src, size * sizeof(OBJ));
+  return make_seq(seq, size);
 }
 
 OBJ parse_value(OBJ str_obj) {
