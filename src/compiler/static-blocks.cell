@@ -1343,7 +1343,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       table = tables(v);
       value_stores = table_value_stores(table);
       owned_value_stores = (maybe(vs, block.value_stores_owners(vs) == phys_col(original_rel_var(v), i)) : vs @ i <- value_stores);
-      table_code = table_updates_apply_code(v, table, tables_with_deletions(v), tables_with_insertions(v) or tables_with_updates(v), owned_value_stores);
+      table_code = table_updates_apply_code(v, table, tables_with_deletions(v) or tables_with_updates(v), tables_with_insertions(v) or tables_with_updates(v), owned_value_stores);
       code = code & table_code;
     }
 
