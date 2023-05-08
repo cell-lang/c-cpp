@@ -3,14 +3,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     effects_info = instrs_effects_info(body);
     mutated_table_vars = keys(effects_info.tables);
 
-    table_var_aux_vars_map, memb_var_aux_vars_map = reserve_aux_vars(handler_id, msg_type, body, effects_info, mutated_table_vars);
+    table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map = reserve_aux_vars(handler_id, msg_type, body, effects_info, mutated_table_vars);
 
     opt_table_vars = optimizable_table_vars(effects_info, table_var_aux_vars_map);
     non_opt_table_vars = mutated_table_vars - opt_table_vars;
 
     table_var_aux_vars_map = [v -> vs : v vs <- table_var_aux_vars_map, opt_table_vars(v)];
 
-    code = join((rewrite_handler_instr(instr, table_var_aux_vars_map, memb_var_aux_vars_map) : instr <- body));
+    code = join((rewrite_handler_instr(instr, table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map) : instr <- body));
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
@@ -22,8 +22,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       return union(opt_table_vars, non_opt_table_vars) == mutated_tables;
     };
 
-    memb_var_status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map, (_, just(sv?)) ?= vs];
-    code = (set_bvar(v, false) : v <- isort(memb_var_status_vars)) & code;
+    status_vars = [sv : _ vs <- table_var_aux_vars_map | _ vs <- memb_var_aux_vars_map | _ vs <- dependee_aux_vars_map, (_, just(sv?)) ?= vs];
+    code = (set_bvar(v, false) : v <- isort(status_vars)) & code;
 
     if not skip_integrity_checks {
       let block = block, table_var_aux_vars_map = table_var_aux_vars_map, effects_info = effects_info {
@@ -31,6 +31,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         code = code & foreign_keys_checking_code(opt_table_vars, non_opt_table_vars);
       }
     }
+
+    code = code & send_internal_msgs_code(block, body, dependee_aux_vars_map, effects_info);
 
     code = code & updates_apply_code(block, insertion_value_stores, opt_table_vars, non_opt_table_vars, table_var_aux_vars_map, memb_var_aux_vars_map, effects_info);
     code = code & updates_reset_code(block, insertion_value_stores, non_opt_table_vars);
@@ -41,7 +43,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
   }
 
 
-  ([TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])])
+  ([TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], [MembVar -> (LocVar, Maybe[LocBoolVar])], [LinkedDBVar -> (LocVar, Maybe[LocBoolVar])])
   reserve_aux_vars(HandlerId handler_id, NeType msg_type, Instr* body, EffectsInfo effects_info, [TableVar] table_vars) {
     tables_types = prg_data.tables(block.name);
     unavailable_vars = temp_table_col_vars_in_use(body);
@@ -69,7 +71,14 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       memb_var_aux_vars_map = _put_(memb_var_aux_vars_map, memb_var, (aux_vars, maybe_status_var));
     }
 
-    return (table_var_aux_vars_map, memb_var_aux_vars_map);
+    dependee_aux_vars_map = [];
+    for auto_var instr_ids <- effects_info.dependees {
+      aux_vars, unavailable_vars = reserve_any_available_loc_var(unavailable_vars);
+      maybe_status_var, unavailable_vars = reserve_maybe_loc_bool_var(not msg_is_always_sent_once(instr_ids), unavailable_vars);
+      dependee_aux_vars_map = _put_(dependee_aux_vars_map, auto_var, (aux_vars, maybe_status_var));
+    }
+
+    return (table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map);
 
     ////////////////////////////////////////////////////////////////////////////
 
@@ -139,7 +148,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map) {
+Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map,
+                             [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, [LinkedDBVar -> (LocVar, Maybe[LocBoolVar])] dependee_aux_vars_map) {
   skip_optimization = match (instr)
     queue_deletes()                 |
     queue_insert_tuple()            |
@@ -158,10 +168,27 @@ Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[L
     set_var()                       = if instr.var :: PendingStateVar
                                         then rewrite_set_memb_var(instr.var, instr.value, memb_var_aux_vars_map(corresponding_memb_var(instr.var)))
                                         else (instr),
+    send_internal_msg()             = rewrite_send_internal_msg(instr.db_var, instr.type, instr.msg, instr.handler_id, dependee_aux_vars_map(instr.db_var)),
     branch()                        = if instr.cond :: <neg(is_blank(PendingStateVar))>
                                         then instr.when_false
-                                        else rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map), $),
-    _                               = rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map), $);
+                                        else rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map), $),
+    _                               = rewrite_nested_one_to_many(instr, rewrite_handler_instr($, table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map), $);
+
+
+  // send_internal_msg(db_var: LinkedDBVar, type: DBSymbol, msg: AtomicExpr, handler_id: Maybe[HandlerId]),
+  Instr* rewrite_send_internal_msg(LinkedDBVar auto_var, DBSymbol type, AtomicExpr msg, Maybe[HandlerId] handler_id, (LocVar, Maybe[LocBoolVar]) aux_vars) {
+    msg_aux_var, maybe_status_var = aux_vars;
+    comment = send_internal_msg_rewrite_descr(type, maybe_status_var);
+    set_var_instr = set_var(msg_aux_var, msg);
+    return (comment, set_var_instr) if maybe_status_var == nothing;
+    status_var = value(maybe_status_var);
+    return (
+      comment,
+      do_if(is_true(status_var), ret_val(false)), ## TODO: ADD ERROR MESSAGE
+      set_bvar(status_var, true),
+      set_var_instr
+    );
+  }
 
 
   // queue_deletes(table_var: TableVar, table: AnyTable, args: Maybe[Int32Var]+)
@@ -260,7 +287,52 @@ Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[L
 ////////////////////////////////////////////////////////////////////////////////
 
 implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -> Nat]]], context : <core>, debug_mode : Bool, skip_integrity_checks : Bool {
-  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar] opt_table_vars, [TableVar] non_opt_table_vars, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map, [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, EffectsInfo effects_info) {
+  Instr* send_internal_msgs_code(StaticBlock block, Instr* body, [LinkedDBVar -> (LocVar, Maybe[LocBoolVar])] dependee_aux_vars_map, EffectsInfo effects_info) {
+    dependees = effects_info.dependees;
+    return () if dependees == [];
+
+    if |dependees| == 1 {
+      auto_var, instr_ids = only_pair(dependees);
+      msg_var, maybe_status_var = dependee_aux_vars_map(auto_var);
+      instrs = [get_instr_by_id(iid, body) : iid <- instr_ids];
+      instrs = [match (i) send_internal_msg() = i : i <- instrs];
+      assert not (i <- instrs : i.db_var != auto_var);
+      auto_type = only([i.type : i <- instrs]);
+      handler_ids = [i.handler_id : i <- instrs];
+      rewritten_handler_id = nothing;
+      if |handler_ids| == 1 {
+        handler_id = only(handler_ids);
+        rewritten_handler_id = handler_id if handler_id != nothing;
+      }
+      apply_instr = internal_msg_apply(auto_var, auto_type, msg_var, rewritten_handler_id);
+      apply_instr = do_if(value(maybe_status_var), apply_instr) if maybe_status_var != nothing;
+    }
+    else {
+      msgs_infos = [{
+        msg_var, maybe_status_var = dependee_aux_vars_map(auto_var);
+        instrs = [get_instr_by_id(iid, body) : iid <- instr_ids];
+        instrs = [match (i) send_internal_msg() = i : i <- instrs];
+        assert not (i <- instrs : i.db_var != auto_var);
+        auto_type = only([i.type : i <- instrs]);
+        handler_ids = [i.handler_id : i <- instrs];
+        rewritten_handler_id = nothing;
+        if |handler_ids| == 1 {
+          handler_id = only(handler_ids);
+          rewritten_handler_id = handler_id if handler_id != nothing;
+        }
+        return (auto_var: auto_var, auto_type: auto_type, msg_var: msg_var, handler_id: rewritten_handler_id, maybe_status_var: maybe_status_var);
+      } : auto_var instr_ids <- dependees];
+
+      apply_instr = internal_msgs_apply(nonempty(msgs_infos));
+    }
+
+    return (:empty_line, comment("Sending messages to dependees"), apply_instr);
+  }
+
+
+  Instr* updates_apply_code(StaticBlock block, [ValueStoreId] insertion_value_stores, [TableVar] opt_table_vars, [TableVar] non_opt_table_vars,
+                            [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map,
+                            [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, EffectsInfo effects_info) {
     ord_value_stores = isort(insertion_value_stores);
     ord_table_vars = sort_set(opt_table_vars & non_opt_table_vars, arity(block.tables($a)) < arity(block.tables($b)));
     ord_memb_vars = isort(keys(memb_var_aux_vars_map));
@@ -629,6 +701,7 @@ Bool instr_is_always_exec_once(InstrId instr_id) {
 
 
 Bool memb_var_is_always_set_once([+InstrId] instr_ids) = |instr_ids| == 1 and instr_is_always_exec_once(only(instr_ids));
+Bool msg_is_always_sent_once([+InstrId] instr_ids)     = |instr_ids| == 1 and instr_is_always_exec_once(only(instr_ids));
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -679,6 +752,17 @@ BasicInstr column_insert_deferred_rewrite_descr(TableVar table_var, OptAuxTableV
   value_var_str = native_var_decl_name(cast_aux_table_var(last(aux_vars)), context=:core);
   text = if forced then "update" else "insert";
   text = text & " " & user_repr(original_rel_var(table_var)) & "(" & key_vars_str & " -> " & value_var_str & ")";
+  if maybe_status_var != nothing {
+    status_var = value(maybe_status_var);
+    text = text & " ? " & native_var_decl_name(status_var, context=:core);
+  }
+  return comment(text);
+}
+
+
+BasicInstr send_internal_msg_rewrite_descr(DBSymbol auto_type, Maybe[LocBoolVar] maybe_status_var) {
+  type_str = user_repr(auto_type);
+  text = user_repr(auto_type) & " <- ...";
   if maybe_status_var != nothing {
     status_var = value(maybe_status_var);
     text = text & " ? " & native_var_decl_name(status_var, context=:core);

@@ -287,6 +287,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     table_apply()             = native_table_apply_code(instr.table_var, instr.table, instr.owned_value_stores, instr.actions),
     table_reset()             = native_table_reset_code(instr.table_var, instr.table),
 
+    internal_msg_apply()      = native_internal_msg_apply_code(instr.auto_var, instr.auto_type, instr.msg_var, instr.handler_id),
+    internal_msgs_apply(ms?)  = native_internal_msgs_apply_code(ms),
+
     check_keys()              = native_check_keys_code(instr.table_var, instr.table),
     check_foreign_key()       = native_check_foreign_key_code(instr.key, instr.origin_type, instr.target_type, instr.direction),
 
@@ -696,6 +699,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     args = (db_var_name, aux_var_name, msg, "env");
     call_expr = native_call_expr(handler_name_or_method_pointer_lookup_expr, args);
+
     return (
       "// HERE HERE HERE",
       "if (!is_blank(" & msg_var & "))",
@@ -705,9 +709,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       "  return false;"
     );
 
-
-
-
     // method_name = update_name(db_type, main_handler);
     // aux_db_var_name = updater_var_ref_name(db_var);
     // msg_var_name = dependee_msg_var_ref_name(db_var);
@@ -716,6 +717,111 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     //   "  soft_fail(NULL);",
     //   msg_var_name & " = " & native_expr(msg) & ";"
     // );
+  }
+
+
+  String* native_internal_msg_apply_code(LinkedDBVar auto_var, DBSymbol auto_type, LocVar msg_var, Maybe[HandlerId] maybe_handler_id) {
+    if maybe_handler_id == nothing {
+      methods_array_name = msg_handler_array(auto_type);
+      reset_methods_array_name = msg_handler_reset_array(auto_type);
+      resolver_name = handler_dispatch_resolver_name(auto_type);
+      handler_name_or_method_pointer_lookup_expr = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
+      reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+    }
+    else {
+      handler_id = value(maybe_handler_id);
+      msg_type = prg_data.handlers_msg_type(auto_type)(handler_id);
+      handler_name_or_method_pointer_lookup_expr = native_opt_handler_name(auto_type, handler_id, msg_type);
+      reset_method_name_or_method_pointer_lookup_expr = native_reset_method_name(auto_type, handler_id, msg_type);
+    }
+
+    db_var_name = native_var_ref_name(auto_var);
+    auto_aux_var_name = pending_updates_var_ref_name(auto_var);
+    aux_msg_var = dependee_msg_var_ref_name(auto_var);
+
+    args = (db_var_name, auto_aux_var_name, msg_var, "env");
+    call_expr = native_call_expr(handler_name_or_method_pointer_lookup_expr, args);
+
+    reset_args = (auto_aux_var_name);
+    reset_call = native_call(reset_method_name_or_method_pointer_lookup_expr, reset_args);
+
+    return (
+      "if (!" & call_expr & ") {",
+      "  " & reset_call,
+      "  return false;",
+      "}"
+    );
+  }
+
+
+  String* native_internal_msgs_apply_code([+(auto_var: LinkedDBVar, auto_type: DBSymbol, msg_var: LocVar, handler_id: Maybe[HandlerId], maybe_status_var: Maybe[LocBoolVar])] msgs_info) {
+    ord_msgs_info = isort(msgs_info);
+
+    code = ();
+
+    for msg_info @ i <- reverse(ord_msgs_info) {
+      auto_var = msg_info.auto_var;
+      auto_type = msg_info.auto_type;
+      msg_var = msg_info.msg_var;
+      maybe_handler_id = msg_info.handler_id;
+      maybe_status_var = msg_info.maybe_status_var;
+
+      if maybe_handler_id == nothing {
+        methods_array_name = msg_handler_array(auto_type);
+        apply_method_array_name = msg_handler_apply_array(auto_type);
+        reset_methods_array_name = msg_handler_reset_array(auto_type);
+        resolver_name = handler_dispatch_resolver_name(auto_type);
+        handler_name_or_method_pointer_lookup_expr = methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+        apply_method_name_or_method_pointer_lookup_expr = apply_method_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+        reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+      }
+      else {
+        handler_id = value(maybe_handler_id);
+        msg_type = prg_data.handlers_msg_type(auto_type)(handler_id);
+        handler_name_or_method_pointer_lookup_expr = native_handler_name(auto_type, handler_id, msg_type);
+        apply_method_name_or_method_pointer_lookup_expr = native_apply_method_name(auto_type, handler_id, msg_type);
+        reset_method_name_or_method_pointer_lookup_expr = native_reset_method_name(auto_type, handler_id, msg_type);
+      }
+
+      db_var_name = native_var_ref_name(auto_var);
+      aux_var_name = pending_updates_var_ref_name(auto_var);
+
+      args = (db_var_name, aux_var_name, msg_var, "env");
+      call_expr = native_call_expr(handler_name_or_method_pointer_lookup_expr, args);
+
+      apply_args = (db_var_name, aux_var_name);
+      apply_call = native_call(apply_method_name_or_method_pointer_lookup_expr, apply_args);
+
+      reset_args = (aux_var_name);
+      reset_call = native_call(reset_method_name_or_method_pointer_lookup_expr, reset_args);
+
+      if maybe_status_var != nothing {
+        status_var_name = native_var_ref_name(value(maybe_status_var));
+        code = (
+          "if (" & status_var_name & ")",
+          "  ok &= " & call_expr & ";"
+        ) & indent_lines(code) & (
+          "if (" & status_var_name & ") {",
+          "  if (ok)",
+          "    " & apply_call,
+          "  " & reset_call,
+          "}"
+        );
+      }
+      else {
+        code = (
+          "ok &= " & call_expr & ";",
+        ) & code & (
+          "if (ok)",
+          "  " & apply_call,
+          reset_call
+        );
+      }
+
+      code = ("if (ok) {") & indent_lines(code) & ("}");
+    }
+
+    return ("bool ok = true;") & code & ("if (!ok)", "  return false;");
   }
 
 

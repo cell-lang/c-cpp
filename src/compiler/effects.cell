@@ -5,7 +5,8 @@ type TableAction = insertion, update, deletion(Bool+);
 type EffectsInfo  = effects_info(
                       tables:       [TableVar     -> [+InstrId -> TableAction]],
                       value_stores: [ValueStoreId -> [+InstrId]],
-                      memb_vars:    [MembVar      -> [+InstrId]]
+                      memb_vars:    [MembVar      -> [+InstrId]],
+                      dependees:    [LinkedDBVar  -> [+InstrId]]
                     );
 
 type InstrStatus = instr_status(optional: Bool, multiple: Bool);
@@ -36,38 +37,42 @@ InstrStatus instr_status(InstrId instr_id) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-EffectsInfo effects_info([TableVar -> [+InstrId -> TableAction]] ts, [ValueStoreId -> [+InstrId]] vs, [MembVar -> [+InstrId]] ms) =
-  effects_info(tables: ts, value_stores: vs, memb_vars: ms);
+EffectsInfo effects_info([TableVar -> [+InstrId -> TableAction]] ts, [ValueStoreId -> [+InstrId]] vs, [MembVar -> [+InstrId]] ms, [LinkedDBVar -> [+InstrId]] ds) =
+  effects_info(tables: ts, value_stores: vs, memb_vars: ms, dependees: ds);
 
 
-EffectsInfo no_effects = effects_info([], [], []);
+EffectsInfo no_effects = effects_info([], [], [], []);
 
 EffectsInfo table_deletion(TableVar table_var, InstrId instr_id, Bool+ args) =
-  effects_info([table_var -> [instr_id -> :deletion(args)]], [], []);
+  effects_info([table_var -> [instr_id -> :deletion(args)]], [], [], []);
 
 EffectsInfo table_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
-  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
+  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], [], []);
 
 EffectsInfo column_insertion(TableVar table_var, InstrId instr_id, Bool forced) =
-  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], []);
+  effects_info([table_var -> [instr_id -> if forced then :update else :insertion]], [], [], []);
 
 EffectsInfo value_store_maybe_insertion(ValueStoreId value_store_id, InstrId instr_id) =
-  effects_info([], [value_store_id -> [instr_id]], []);
+  effects_info([], [value_store_id -> [instr_id]], [], []);
 
 EffectsInfo memb_var_assignment(MembVar memb_var, InstrId instr_id) =
-  effects_info([], [], [memb_var -> [instr_id]]);
+  effects_info([], [], [memb_var -> [instr_id]], []);
+
+EffectsInfo dependee_msg(LinkedDBVar db_var, InstrId instr_id) =
+  effects_info([], [], [], [db_var -> [instr_id]]);
 
 
-Bool is_null(EffectsInfo effects_info) =
-  effects_info.tables == [] and effects_info.value_stores == [] and effects_info.memb_vars == [];
+Bool is_null(EffectsInfo effects_info) = effects_info == no_effects;
 
 
 EffectsInfo merged_effects_info([EffectsInfo] effects_infos) {
   table : [InstrId -> TableAction];
 
-  tables = [];
+  tables       = [];
   value_stores = [];
-  memb_vars = [];
+  memb_vars    = [];
+  dependees    = [];
+
   for effects_info <- effects_infos {
     for table_var instrs <- effects_info.tables {
       table = lookup(tables, table_var, []);
@@ -87,8 +92,13 @@ EffectsInfo merged_effects_info([EffectsInfo] effects_infos) {
       memb_var_instr_ids = memb_var_instr_ids & instr_ids;
       memb_vars = _put_(memb_vars, memb_var, memb_var_instr_ids);
     }
+    for db_var instr_ids <- effects_info.dependees {
+      dependee_instr_ids = lookup(dependees, db_var, []);
+      dependee_instr_ids = dependee_instr_ids & instr_ids;
+      dependees = _put_(dependees, db_var, dependee_instr_ids);
+    }
   }
-  return effects_info(tables, value_stores, memb_vars);
+  return effects_info(tables, value_stores, memb_vars, dependees);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,6 +153,7 @@ EffectsInfo instrs_effects_info(Instr* instrs) {
       queue_insert_tuple()            = table_insertion(instr.table_var, instr_id, instr.forced),
       queue_insert_master_tuple()     = table_insertion(instr.table_var, instr_id, false),
       column_insert_deferred()        = column_insertion(instr.table_var, instr_id, instr.forced),
+      send_internal_msg()             = dependee_msg(instr.db_var, instr_id),
       set_var()                       = if instr.var :: PendingStateVar
                                           then memb_var_assignment(corresponding_memb_var(instr.var), instr_id)
                                           else no_effects,

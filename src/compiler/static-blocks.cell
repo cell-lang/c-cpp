@@ -1076,6 +1076,15 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     }
     defs = (defs | "};", "");
 
+    array_name = msg_opt_handler_array(block.name);
+    defs = (defs | "", "bool (*" & array_name & "[" & array_size_str & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
+    for i < num_msg_handlers {
+      line = native_opt_handler_name(block.name, handler_id(i), msg_types(i));
+      line = line & "," if i != num_msg_handlers - 1;
+      defs = (defs | "  " & line);
+    }
+    defs = (defs | "};");
+
     array_name = msg_handler_array(block.name);
     defs = (defs | "", "bool (*" & array_name & "[" & array_size_str & "])(" & rel_auto_type & " *, " & rel_auto_aux_type & " *, OBJ, ENV &) = {");
     for i < num_msg_handlers {
@@ -1271,23 +1280,26 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
             "  internal_fail();",
             "}",
             "",
+            "if (!ok)",
+            "  " & reset_method_call,
+            "",
             "return ok;"
           );
         }
         else {
-          return (
+          body = (
             "bool ok;",
             "",
             "entering_transaction();",
             "try {",
             "  ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",
-            ## BUG BUG BUG: IS THERE ANYTHING TO RESET HERE?
             "}",
             "catch (...) {",
             "  ok = false;",
-            "  " & reset_method_call,
             "}",
             "exiting_transaction();",
+            "if (!ok)",
+            "  " & reset_method_call,
             "return ok;"
           );
         }
