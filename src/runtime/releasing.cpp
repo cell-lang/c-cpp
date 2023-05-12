@@ -272,7 +272,7 @@ void tern_table_release_1_before_delete_3(TERN_TABLE *table, uint32 arg3, void (
     uint32 read3 = 0;
     while (read3 < count3) {
       uint32 buffer[64];
-      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, count3, buffer, 64);
+      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read3, buffer, 64);
       read3 += array.size;
       for (uint32 i=0 ; i < array.size ; i++) {
         uint32 surr = array.array[i];
@@ -300,7 +300,7 @@ void tern_table_release_2_before_delete_3(TERN_TABLE *table, uint32 arg3, void (
     uint32 read3 = 0;
     while (read3 < count3) {
       uint32 buffer[64];
-      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, count3, buffer, 64);
+      UINT32_ARRAY array = bin_table_range_restrict_2(&table->slave, arg3, read3, buffer, 64);
       read3 += array.size;
       for (uint32 i=0 ; i < array.size ; i++) {
         uint32 surr = array.array[i];
