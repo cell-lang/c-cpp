@@ -291,8 +291,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     dependees = effects_info.dependees;
     return () if dependees == [];
 
-    if |dependees| == 1 {
-      auto_var, instr_ids = only_pair(dependees);
+    msgs_infos = [{
       msg_var, maybe_status_var = dependee_aux_vars_map(auto_var);
       instrs = [get_instr_by_id(iid, body) : iid <- instr_ids];
       instrs = [match (i) send_internal_msg() = i : i <- instrs];
@@ -304,28 +303,10 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         handler_id = only(handler_ids);
         rewritten_handler_id = handler_id if handler_id != nothing;
       }
-      apply_instr = internal_msg_apply(auto_var, auto_type, msg_var, rewritten_handler_id);
-      apply_instr = do_if(value(maybe_status_var), apply_instr) if maybe_status_var != nothing;
-    }
-    else {
-      msgs_infos = [{
-        msg_var, maybe_status_var = dependee_aux_vars_map(auto_var);
-        instrs = [get_instr_by_id(iid, body) : iid <- instr_ids];
-        instrs = [match (i) send_internal_msg() = i : i <- instrs];
-        assert not (i <- instrs : i.db_var != auto_var);
-        auto_type = only([i.type : i <- instrs]);
-        handler_ids = [i.handler_id : i <- instrs];
-        rewritten_handler_id = nothing;
-        if |handler_ids| == 1 {
-          handler_id = only(handler_ids);
-          rewritten_handler_id = handler_id if handler_id != nothing;
-        }
-        return (auto_var: auto_var, auto_type: auto_type, msg_var: msg_var, handler_id: rewritten_handler_id, maybe_status_var: maybe_status_var);
-      } : auto_var instr_ids <- dependees];
+      return (auto_var: auto_var, auto_type: auto_type, msg_var: msg_var, handler_id: rewritten_handler_id, maybe_status_var: maybe_status_var);
+    } : auto_var instr_ids <- dependees];
 
-      apply_instr = internal_msgs_apply(nonempty(msgs_infos));
-    }
-
+    apply_instr = internal_msgs_apply(nonempty(msgs_infos));
     return (:empty_line, comment("Sending messages to dependees"), apply_instr);
   }
 

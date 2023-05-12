@@ -287,7 +287,6 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     table_apply()             = native_table_apply_code(instr.table_var, instr.table, instr.owned_value_stores, instr.actions),
     table_reset()             = native_table_reset_code(instr.table_var, instr.table),
 
-    internal_msg_apply()      = native_internal_msg_apply_code(instr.auto_var, instr.auto_type, instr.msg_var, instr.handler_id),
     internal_msgs_apply(ms?)  = native_internal_msgs_apply_code(ms),
 
     check_keys()              = native_check_keys_code(instr.table_var, instr.table),
@@ -720,46 +719,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_internal_msg_apply_code(LinkedDBVar auto_var, DBSymbol auto_type, LocVar msg_var, Maybe[HandlerId] maybe_handler_id) {
-    if maybe_handler_id == nothing {
-      methods_array_name = msg_handler_array(auto_type);
-      reset_methods_array_name = msg_handler_reset_array(auto_type);
-      resolver_name = handler_dispatch_resolver_name(auto_type);
-      handler_name_or_method_pointer_lookup_expr = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
-      reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
-    }
-    else {
-      handler_id = value(maybe_handler_id);
-      msg_type = prg_data.handlers_msg_type(auto_type)(handler_id);
-      handler_name_or_method_pointer_lookup_expr = native_opt_handler_name(auto_type, handler_id, msg_type);
-      reset_method_name_or_method_pointer_lookup_expr = native_reset_method_name(auto_type, handler_id, msg_type);
-    }
-
-    db_var_name = native_var_ref_name(auto_var);
-    auto_aux_var_name = pending_updates_var_ref_name(auto_var);
-    aux_msg_var = dependee_msg_var_ref_name(auto_var);
-
-    args = (db_var_name, auto_aux_var_name, msg_var, "env");
-    call_expr = native_call_expr(handler_name_or_method_pointer_lookup_expr, args);
-
-    reset_args = (auto_aux_var_name);
-    reset_call = native_call(reset_method_name_or_method_pointer_lookup_expr, reset_args);
-
-    return (
-      "if (!" & call_expr & ") {",
-      "  " & reset_call,
-      "  return false;",
-      "}"
-    );
-  }
-
-
   String* native_internal_msgs_apply_code([+(auto_var: LinkedDBVar, auto_type: DBSymbol, msg_var: LocVar, handler_id: Maybe[HandlerId], maybe_status_var: Maybe[LocBoolVar])] msgs_info) {
     ord_msgs_info = isort(msgs_info);
 
-    code = ();
+    info = last(ord_msgs_info);
+    code = opt_single_msg_run_check_and_apply_code(info.auto_var, info.auto_type, info.msg_var, info.handler_id, info.maybe_status_var);
+    code = ("if (ok)") & indent_lines(code) if |msgs_info| != 1;
 
-    for msg_info @ i <- reverse(ord_msgs_info) {
+    for msg_info @ i <- drop(reverse(ord_msgs_info), 1) {
       auto_var = msg_info.auto_var;
       auto_type = msg_info.auto_type;
       msg_var = msg_info.msg_var;
@@ -795,12 +762,15 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       reset_args = (aux_var_name);
       reset_call = native_call(reset_method_name_or_method_pointer_lookup_expr, reset_args);
 
+      is_last = i == |ord_msgs_info| - 2;
+
       if maybe_status_var != nothing {
         status_var_name = native_var_ref_name(value(maybe_status_var));
-        code = (
-          "if (" & status_var_name & ")",
-          "  ok &= " & call_expr & ";"
-        ) & indent_lines(code) & (
+        code = if is_last
+          then ("bool ok = " & status_var_name & " ? " & call_expr & " : true;")
+          else ("if (" & status_var_name & ")", "  ok = " & call_expr & ";");
+        code = code & indent_lines(code);
+        code = code & (
           "if (" & status_var_name & ") {",
           "  if (ok)",
           "    " & apply_call,
@@ -809,19 +779,62 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
         );
       }
       else {
+        decl_type = if is_last then "bool " else "";
         code = (
-          "ok &= " & call_expr & ";",
+          decl_type & "ok = " & call_expr & ";",
         ) & code & (
           "if (ok)",
           "  " & apply_call,
           reset_call
         );
       }
-
-      code = ("if (ok) {") & indent_lines(code) & ("}");
+      code = ("if (ok) {") & indent_lines(code) & ("}") if not is_last;
     }
 
-    return ("bool ok = true;") & code & ("if (!ok)", "  return false;");
+    code = (code | "if (!ok)", "  return false;") if |msgs_info| != 1;
+
+    return code;
+
+
+    String* opt_single_msg_run_check_and_apply_code(LinkedDBVar auto_var, DBSymbol auto_type, LocVar msg_var, Maybe[HandlerId] maybe_handler_id, Maybe[LocBoolVar] maybe_status_var) {
+      if maybe_handler_id == nothing {
+        methods_array_name = msg_handler_array(auto_type);
+        reset_methods_array_name = msg_handler_reset_array(auto_type);
+        resolver_name = handler_dispatch_resolver_name(auto_type);
+        handler_name_or_method_pointer_lookup_expr = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
+        reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+      }
+      else {
+        handler_id = value(maybe_handler_id);
+        msg_type = prg_data.handlers_msg_type(auto_type)(handler_id);
+        handler_name_or_method_pointer_lookup_expr = native_opt_handler_name(auto_type, handler_id, msg_type);
+        reset_method_name_or_method_pointer_lookup_expr = native_reset_method_name(auto_type, handler_id, msg_type);
+      }
+
+      db_var_name = native_var_ref_name(auto_var);
+      auto_aux_var_name = pending_updates_var_ref_name(auto_var);
+      aux_msg_var = dependee_msg_var_ref_name(auto_var);
+
+      args = (db_var_name, auto_aux_var_name, msg_var, "env");
+      call_expr = native_call_expr(handler_name_or_method_pointer_lookup_expr, args);
+
+      reset_args = (auto_aux_var_name);
+      reset_call = native_call(reset_method_name_or_method_pointer_lookup_expr, reset_args);
+
+      code = (
+        "if (!" & call_expr & ") {",
+        "  " & reset_call,
+        "  return false;",
+        "}"
+      );
+
+      if maybe_status_var != nothing {
+       status_var_name = native_var_ref_name(value(maybe_status_var));
+        code = ("if (" & status_var_name & ")",) & indent_lines(code);
+      }
+
+      return code;
+    }
   }
 
 
