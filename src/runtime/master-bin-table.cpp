@@ -168,8 +168,8 @@ void master_bin_table_set_next_free_surr(MASTER_BIN_TABLE *table, uint32 next_fr
 const uint32 MASTER_BIN_TABLE_INIT_SIZE = 256;
 
 void master_bin_table_init(MASTER_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  loaded_one_way_bin_table_init(&table->table.forward, mem_pool);
-  loaded_one_way_bin_table_init(&table->table.backward, mem_pool);
+  void bin_table_loaded_init(BIN_TABLE *, STATE_MEM_POOL *);
+  bin_table_loaded_init(&table->table, mem_pool);
 
   uint64 *slots = alloc_state_mem_uint64_array(mem_pool, MASTER_BIN_TABLE_INIT_SIZE);
   for (uint32 i=0 ; i < MASTER_BIN_TABLE_INIT_SIZE ; i++)

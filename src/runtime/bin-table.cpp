@@ -23,6 +23,15 @@ void bin_table_init(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   assert(bin_table_mem_pool(table) == mem_pool);
 }
 
+void bin_table_loaded_init(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
+  loaded_one_way_bin_table_init(&table->forward, mem_pool);
+  loaded_one_way_bin_table_init(&table->backward, mem_pool);
+  counter_init(&table->col_2_counter, mem_pool);
+  table->mem_pool_offset = ((uint8 *) table) - ((uint8 *) mem_pool);
+
+  assert(bin_table_mem_pool(table) == mem_pool);
+}
+
 uint32 bin_table_size(BIN_TABLE *table) {
   return table->forward.count;
 }
