@@ -169,4 +169,5 @@ UINT32_ARRAY loaded_one_way_bin_table_range_restrict(ONE_WAY_BIN_TABLE *, uint32
 void loaded_one_way_bin_table_insert_unique(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2, uint32 data, STATE_MEM_POOL *);
 
 uint32 loaded_one_way_bin_table_delete(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
+void loaded_one_way_bin_table_delete_existing(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 surr2);
 void loaded_one_way_bin_table_delete_by_key(ONE_WAY_BIN_TABLE *, uint32 surr1, uint32 *surrs2, uint32 *data);

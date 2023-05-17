@@ -434,8 +434,8 @@ uint32 master_bin_table_delete_1(MASTER_BIN_TABLE *table, uint32 arg1) {
     loaded_one_way_bin_table_delete_by_key(&table->table.forward, arg1, arg2s, surrs);
 
     for (uint32 i=0 ; i < count ; i++) {
-      loaded_one_way_bin_table_delete(&table->table.backward, arg2s[i], arg1);
       master_bin_table_release_surr(table, surrs[i]);
+      loaded_one_way_bin_table_delete_existing(&table->table.backward, arg2s[i], arg1);
     }
   }
   return count;
@@ -450,8 +450,8 @@ uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
     loaded_one_way_bin_table_delete_by_key(&table->table.backward, arg2, arg1s, surrs);
 
     for (uint32 i=0 ; i < count ; i++) {
-      uint32 surr = loaded_one_way_bin_table_delete(&table->table.forward, arg1s[i], arg2);
 #ifndef NDEBUG
+      uint32 surr = surrs[i];
       assert(surr != 0xFFFFFFFF && surr < table->capacity);
       uint64 slot = table->slots[surr];
       if (is_locked(slot))
@@ -459,7 +459,8 @@ uint32 master_bin_table_delete_2(MASTER_BIN_TABLE *table, uint32 arg2) {
       assert(unpack_arg1(slot) == arg1s[i]);
       assert(unpack_arg2(slot) == arg2);
 #endif
-      master_bin_table_release_surr(table, surr);
+      master_bin_table_release_surr(table, surrs[i]);
+      loaded_one_way_bin_table_delete_existing(&table->table.forward, arg1s[i], arg2);
     }
   }
   return count;
