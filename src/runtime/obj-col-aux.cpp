@@ -74,6 +74,20 @@ void obj_col_aux_update(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 index, OBJ va
   }
 }
 
+void obj_col_aux_update_unchecked(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  if (obj_col_contains_1(col, index))
+    queue_u32_obj_insert(&col_aux->updates, index, value);
+  else
+    queue_u32_obj_insert(&col_aux->insertions, index, value);
+}
+
+void obj_col_aux_update_existing_unchecked(OBJ_COL *col, OBJ_COL_AUX *col_aux, uint32 index, OBJ value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  assert(obj_col_contains_1(col, index));
+  queue_u32_obj_insert(&col_aux->updates, index, value);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void obj_col_aux_slave_insert(OBJ_COL *col, OBJ_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, OBJ value) {

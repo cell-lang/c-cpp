@@ -523,7 +523,12 @@ GenOptCmpCode([String -> Byte*] src_files, [String -> Byte*] types_gen_files, Cm
   if cmd_line_opts.print_intermediate
     ok = FileWrite("dump-opt-code-7.txt", _untag_(_print_(opt_code_7)));
 
-  opt_code = remove_dead_code(opt_code_7);
+  opt_code_8 = optimize_by_tracking_uniqueness(opt_code_7);
+
+  if cmd_line_opts.print_intermediate
+    ok = FileWrite("dump-opt-code-8.txt", _untag_(_print_(opt_code_8)));
+
+  opt_code = remove_dead_code(opt_code_8);
 
   t7 = _ticks_(:unused);
   if cmd_line_opts.developer_mode

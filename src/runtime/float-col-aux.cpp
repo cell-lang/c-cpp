@@ -79,6 +79,20 @@ void float_col_aux_update(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 index, 
   }
 }
 
+void float_col_aux_update_unchecked(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  if (float_col_contains_1(col, index))
+    queue_u32_double_insert(&col_aux->updates, index, value);
+  else
+    queue_u32_double_insert(&col_aux->insertions, index, value);
+}
+
+void float_col_aux_update_existing_unchecked(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  assert(float_col_contains_1(col, index));
+  queue_u32_double_insert(&col_aux->updates, index, value);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void float_col_aux_slave_insert(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, double value) {

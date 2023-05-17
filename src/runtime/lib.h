@@ -2168,6 +2168,8 @@ void raw_int_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_INT_COL *, OBJ (*s
 void raw_int_col_aux_delete_1(UNARY_TABLE *, INT_COL_AUX *, uint32);
 void raw_int_col_aux_insert(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
 void raw_int_col_aux_update(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
+void raw_int_col_aux_update_unchecked(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
+void raw_int_col_aux_update_existing_unchecked(UNARY_TABLE *, INT_COL_AUX *, uint32 index, int64 value);
 
 void raw_int_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_INT_COL *, INT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2197,6 +2199,8 @@ void raw_float_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_FLOAT_COL *, OBJ
 void raw_float_col_aux_delete_1(UNARY_TABLE *, FLOAT_COL_AUX *, uint32);
 void raw_float_col_aux_insert(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
 void raw_float_col_aux_update(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
+void raw_float_col_aux_update_unchecked(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
+void raw_float_col_aux_update_existing_unchecked(UNARY_TABLE *, FLOAT_COL_AUX *, uint32 index, double value);
 
 void raw_float_col_aux_apply(UNARY_TABLE *, UNARY_TABLE_AUX *, RAW_FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2231,6 +2235,8 @@ void raw_obj_col_write(WRITE_FILE_STATE *, UNARY_TABLE *, RAW_OBJ_COL *, OBJ (*)
 void raw_obj_col_aux_delete_1(UNARY_TABLE *, OBJ_COL_AUX *, uint32);
 void raw_obj_col_aux_insert(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
 void raw_obj_col_aux_update(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
+void raw_obj_col_aux_update_unchecked(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
+void raw_obj_col_aux_update_existing_unchecked(UNARY_TABLE *, OBJ_COL_AUX *, uint32, OBJ);
 
 bool raw_obj_col_aux_check_key_1(UNARY_TABLE *, RAW_OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 
@@ -2273,6 +2279,8 @@ void int_col_aux_clear(INT_COL_AUX *);
 void int_col_aux_delete_1(INT_COL *, INT_COL_AUX *, uint32);
 void int_col_aux_insert(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
 void int_col_aux_update(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
+void int_col_aux_update_unchecked(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
+void int_col_aux_update_existing_unchecked(INT_COL *, INT_COL_AUX *, uint32 index, int64 value);
 
 void int_col_aux_slave_insert(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, int64 value);
 void int_col_aux_slave_update(INT_COL *, INT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, int64 value);
@@ -2323,6 +2331,8 @@ void float_col_aux_clear(FLOAT_COL_AUX *);
 void float_col_aux_delete_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index);
 void float_col_aux_insert(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
 void float_col_aux_update(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
+void float_col_aux_update_unchecked(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
+void float_col_aux_update_existing_unchecked(FLOAT_COL *, FLOAT_COL_AUX *, uint32 index, double value);
 
 void float_col_aux_slave_insert(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, double value);
 void float_col_aux_slave_update(FLOAT_COL *, FLOAT_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, double value);
@@ -2373,6 +2383,8 @@ void obj_col_aux_clear(OBJ_COL_AUX *);
 void obj_col_aux_delete_1(OBJ_COL *, OBJ_COL_AUX *, uint32 index);
 void obj_col_aux_insert(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
 void obj_col_aux_update(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
+void obj_col_aux_update_unchecked(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
+void obj_col_aux_update_existing_unchecked(OBJ_COL *, OBJ_COL_AUX *, uint32 index, OBJ value);
 
 void obj_col_aux_slave_insert(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, OBJ value);
 void obj_col_aux_slave_update(OBJ_COL *, OBJ_COL_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2, OBJ value);

@@ -78,6 +78,20 @@ void int_col_aux_update(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 
   }
 }
 
+void int_col_aux_update_unchecked(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  if (int_col_contains_1(col, index))
+    queue_u32_i64_insert(&col_aux->updates, index, value);
+  else
+    queue_u32_i64_insert(&col_aux->insertions, index, value);
+}
+
+void int_col_aux_update_existing_unchecked(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
+  //## THERE OUGHT TO BE SOME EXTRA CHECKS HERE IN DEBUG MODE
+  assert(int_col_contains_1(col, index));
+  queue_u32_i64_insert(&col_aux->updates, index, value);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void int_col_aux_slave_insert(INT_COL *col, INT_COL_AUX *col_aux, MASTER_BIN_TABLE *master, MASTER_BIN_TABLE_AUX *master_aux, uint32 arg1, uint32 arg2, int64 value) {

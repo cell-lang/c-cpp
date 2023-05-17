@@ -10,7 +10,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     table_var_aux_vars_map = [v -> vs : v vs <- table_var_aux_vars_map, opt_table_vars(v)];
 
-    code = join((rewrite_handler_instr(instr, table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map) : instr <- body));
+    code = optimize_column_updates(body, effects_info, non_opt_table_vars);
+
+    code = join((rewrite_handler_instr(instr, table_var_aux_vars_map, memb_var_aux_vars_map, dependee_aux_vars_map) : instr <- code));
 
     insertion_value_stores = value_stores_with_insertions(block.handlers(handler_id));
 
@@ -148,8 +150,40 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+Instr* optimize_column_updates(Instr* code, EffectsInfo effects_info, [TableVar] non_opt_table_vars) {
+  opt_tables = [v : v <- non_opt_table_vars, |effects_info.tables(v)| == 1];
+  return (optimize(instr, opt_tables) : instr <- code);
+
+
+  Instr optimize(Instr instr, [TableVar] opt_tables) =
+    column_insert_deferred()  = if opt_tables(instr.table_var) then rewrite_column_insert_deferred(instr) else instr,
+    _                         = rewrite_nested(instr, optimize($, opt_tables), $);
+
+
+  Instr rewrite_column_insert_deferred(Instr instr_untyped) {
+    instr = match (instr_untyped) column_insert_deferred() = instr_untyped;
+
+    key_surr_info = instr.key_surr_info;
+    if key_surr_info.unique and not key_surr_info.safe
+      instr = column_insert_deferred(
+        instr.table_var,
+        instr.column,
+        instr.key_surr,
+        (exists: key_surr_info.exists, unique: true, safe: true),
+        instr.args_surrs,
+        instr.value,
+        instr.forced
+      );
+    return instr;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map,
-                             [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map, [LinkedDBVar -> (LocVar, Maybe[LocBoolVar])] dependee_aux_vars_map) {
+                             [MembVar -> (LocVar, Maybe[LocBoolVar])] memb_var_aux_vars_map,
+                             [LinkedDBVar -> (LocVar, Maybe[LocBoolVar])] dependee_aux_vars_map) {
   skip_optimization = match (instr)
     queue_deletes()                 |
     queue_insert_tuple()            |
@@ -164,7 +198,7 @@ Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[L
     queue_deletes()                 = rewrite_queue_deletes(instr.table_var, instr.table, instr.args, table_var_aux_vars_map),
     queue_insert_tuple()            = rewrite_queue_insert_tuple(instr.table_var, instr.tuple, instr.forced, table_var_aux_vars_map),
     queue_insert_master_tuple()     = rewrite_queue_insert_master_tuple(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple, table_var_aux_vars_map),
-    column_insert_deferred()        = rewrite_column_insert_deferred(instr.table_var, instr.column, instr.key_surr, instr.args_surrs, instr.value, instr.forced, table_var_aux_vars_map),
+    column_insert_deferred()        = rewrite_column_insert_deferred(instr, table_var_aux_vars_map),
     set_var()                       = if instr.var :: PendingStateVar
                                         then rewrite_set_memb_var(instr.var, instr.value, memb_var_aux_vars_map(corresponding_memb_var(instr.var)))
                                         else (instr),
@@ -253,29 +287,31 @@ Instr* rewrite_handler_instr(Instr instr, [TableVar -> (OptAuxTableVar+, Maybe[L
   }
 
 
-  Instr* rewrite_column_insert_deferred(TableVar table_var, AnyColumn column, Int32Var key_surr, Maybe[(Int32Var, Int32Var)] args_surrs, AnyTypeExpr value_expr, Bool forced, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
-    if args_surrs == nothing {
-      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+  Instr* rewrite_column_insert_deferred(BasicInstr instr_untyped, [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])] table_var_aux_vars_map) {
+    instr = match (instr_untyped) column_insert_deferred() = instr_untyped;
+
+    if instr.args_surrs == nothing {
+      aux_vars, maybe_status_var = table_var_aux_vars_map(instr.table_var);
       fail if not aux_vars :: (Int32Var, <LocVar, LocIntVar, LocFloatVar>);
       tmp_key_var, tmp_value_var = aux_vars;
       return (
-        column_insert_deferred_rewrite_descr(table_var, aux_vars, maybe_status_var, forced),
-        set_ivar32(tmp_key_var, key_surr),
-        set_any_var(tmp_value_var, obj_expr(value_expr)),
+        column_insert_deferred_rewrite_descr(instr.table_var, aux_vars, maybe_status_var, instr.forced),
+        set_ivar32(tmp_key_var, instr.key_surr),
+        set_any_var(tmp_value_var, obj_expr(instr.value)),
         set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
       );
     }
     else {
-      fail if not column :: SlaveColumn;
-      aux_vars, maybe_status_var = table_var_aux_vars_map(table_var);
+      fail if not instr.column :: SlaveColumn;
+      aux_vars, maybe_status_var = table_var_aux_vars_map(instr.table_var);
       fail if not aux_vars :: (Int32Var, Int32Var, <LocVar, LocIntVar, LocFloatVar>);
       tmp_arg1_var, tmp_arg2_var, tmp_value_var = aux_vars;
-      arg1_surr, arg2_surr = value(args_surrs);
+      arg1_surr, arg2_surr = value(instr.args_surrs);
       return (
-        column_insert_deferred_rewrite_descr(table_var, aux_vars, maybe_status_var, forced),
+        column_insert_deferred_rewrite_descr(instr.table_var, aux_vars, maybe_status_var, instr.forced),
         set_ivar32(tmp_arg1_var, arg1_surr),
         set_ivar32(tmp_arg2_var, arg2_surr),
-        set_any_var(tmp_value_var, obj_expr(value_expr)),
+        set_any_var(tmp_value_var, obj_expr(instr.value)),
         set_bvar(value(maybe_status_var), true) if maybe_status_var != nothing
       );
     }

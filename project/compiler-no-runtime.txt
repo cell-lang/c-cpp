@@ -156,6 +156,7 @@
 ../compiler/src/I-code-optimization/code-optimization.cell
 ../compiler/src/I-code-optimization/array-optimization.cell
 ../compiler/src/I-code-optimization/surrs-memb-tracking.cell
+../compiler/src/I-code-optimization/uniqueness-tracking.cell
 
 ../compiler/src/J-shared-extern-code-gen/utils.cell
 ../compiler/src/J-shared-extern-code-gen/key-checks-skip-logic.cell

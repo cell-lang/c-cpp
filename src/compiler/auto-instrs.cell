@@ -269,7 +269,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     queue_insert_tuple()  = native_queue_insert_tuple_code(instr.table_var, instr.table, instr.tuple, instr.forced),
     queue_insert_master_tuple() = (native_queue_insert_master_tuple_code(instr.assoc_surr_var, instr.table_var, instr.table, instr.tuple)),
 
-    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.args_surrs, instr.value, instr.forced),
+    column_insert_deferred() = native_column_insert_deferred_code(instr.table_var, instr.column, instr.key_surr, instr.key_surr_info, instr.args_surrs, instr.value, instr.forced),
 
     immediate_insert_or_add_ref() = native_immediate_insert_or_add_ref(instr.res_var, instr.store, instr.store_type, instr.value),
     immediate_delete_tuple()  = native_immediate_delete_tuple_code(instr.table_var, instr.table, instr.tuple),
@@ -334,12 +334,16 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_column_insert_deferred_code(TableVar table_var, AnyColumn column, Int32Var key_surr, Maybe[(Int32Var, Int32Var)] args_surrs, AnyTypeExpr value_expr, Bool forced) {
+  String* native_column_insert_deferred_code(TableVar table_var, AnyColumn column, Int32Var key_surr, (exists: Bool, unique: Bool, safe: Bool) key_surr_info, Maybe[(Int32Var, Int32Var)] args_surrs, AnyTypeExpr value_expr, Bool forced) {
     aux_struct = pending_updates_var_ref_name(table_var);
     method_name_prefix = native_table_method_prefix(column);
 
     if args_surrs == nothing {
-      method_name = method_name_prefix & if forced then "_aux_update" else "_aux_insert";
+      method_name_action = if      not forced               then "_aux_insert"
+                           else if not key_surr_info.safe   then "_aux_update"
+                           else if not key_surr_info.exists then "_aux_update_unchecked"
+                           else                                  "_aux_update_existing_unchecked";
+      method_name = method_name_prefix & method_name_action;
       args = match (column)
         mandatory_column()  = (column.master),
         column()            |
