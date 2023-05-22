@@ -64,6 +64,10 @@
 ../compiler/src/stage-2-reactive-layer/unsafe-accessors.cell
 
 
+// State 2 - core logic
+../compiler/src/stage-2-core-logic/relvars-impl.cell
+
+
 // Stage 3
 
 ../compiler/src/stage-3/utils.cell
