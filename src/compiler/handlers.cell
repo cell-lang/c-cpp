@@ -575,9 +575,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     Instr* immediate_insert_instrs(StaticBlock block, TableVar table_var, <Table, MasterBinTable, SlaveTernTable> table, OptAuxTableVar+ aux_vars, Bool is_forced) {
       aux_surr_vars = cast_int32_var_seq(aux_vars);
 
-      if is_forced and table.keys != [] {
+      if is_forced and keys(table) != [] {
         owned_value_stores = owned_value_stores(table_var, table, block);
-        instr = immediate_update_tuple(table_var, table, aux_surr_vars, owned_value_stores);
+        instr = immediate_update_tuple(table_var, cast_table_or_slave_ternary_table(table), aux_surr_vars, owned_value_stores);
       }
       else
         instr = immediate_insert_tuple(table_var, table, aux_surr_vars);

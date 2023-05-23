@@ -421,7 +421,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
   }
 
 
-  String* native_immediate_update_tuple_code(TableVar table_var, <Table, MasterBinTable> table, Int32Var+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
+  String* native_immediate_update_tuple_code(TableVar table_var, Table table, Int32Var+ tuple, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores) {
     assert table.keys != [];
 
     arity = arity(table);
