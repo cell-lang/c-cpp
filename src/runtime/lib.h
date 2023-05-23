@@ -2084,6 +2084,9 @@ bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *, TERN_T
 bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
+bool tern_table_aux_check_foreign_key_single_key_bin_table_forward(TERN_TABLE *, TERN_TABLE_AUX *, SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *);
+bool tern_table_aux_check_foreign_key_double_key_bin_table_forward(TERN_TABLE *, TERN_TABLE_AUX *, DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *);
+
 bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 bool tern_table_aux_prepare(TERN_TABLE_AUX *);

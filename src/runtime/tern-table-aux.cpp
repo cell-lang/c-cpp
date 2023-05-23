@@ -438,6 +438,38 @@ bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *table, T
   return bin_table_aux_check_foreign_key_unary_table_2_forward(&table->slave, &table_aux->slave, target_table, target_table_aux);
 }
 
+bool tern_table_aux_check_foreign_key_single_key_bin_table_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, SINGLE_KEY_BIN_TABLE *target_table, SINGLE_KEY_BIN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->master.insertions.count;
+  if (num_ins > 0) {
+    TUPLE_3U32 *insertions = table_aux->master.insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg1 = insertions[i].x;
+      uint32 arg2 = insertions[i].y;
+      if (!single_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool tern_table_aux_check_foreign_key_double_key_bin_table_forward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, DOUBLE_KEY_BIN_TABLE *target_table, DOUBLE_KEY_BIN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->master.insertions.count;
+  if (num_ins > 0) {
+    TUPLE_3U32 *insertions = table_aux->master.insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg1 = insertions[i].x;
+      uint32 arg2 = insertions[i].y;
+      if (!double_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2)) {
+        //## RECORD THE ERROR
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {

@@ -1,7 +1,5 @@
 implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
   Maybe[Instr*] ternary_binary_foreign_key_check_code(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
-    assert target_type :: MasterBinTable; ## THIS IS PROBABLY WRONG, TRY TO FALSIFY IT
-
     tables = effects_info.tables;
 
     // First we check if there's a deletion (including an implicit one caused by an update
