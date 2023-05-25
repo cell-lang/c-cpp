@@ -2,6 +2,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
   Maybe[Instr*] binary_ternary_foreign_key_check_code(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
     tables = effects_info.tables;
 
+    foreign_key = foreign_key(origin, target, :binary_ternary);
+    err_rec_instr = record_foreign_key_violation(foreign_key, origin_type, target_type);
+
     if tables(target, _) {
       target_effects_info = tables(target);
       return nothing if |target_effects_info| != 1;
@@ -14,7 +17,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       else if is_deletion(target_action) {
         if deletion_checked {
           check_expr, code = ternary_binary_foreign_key_target_deletion_check_expr(origin, target, origin_type, target_type);
-          return just((code | do_if(check_expr, ret_val(false))));
+          return just((code | do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
       }
     }

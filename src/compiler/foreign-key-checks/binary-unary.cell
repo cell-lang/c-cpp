@@ -1,6 +1,9 @@
 implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
-  Maybe[Instr*] binary_unary_foreign_key_check_code(Nat origin_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
+  Maybe[Instr*] binary_unary_foreign_key_check_code(<0..1> origin_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
     tables = effects_info.tables;
+
+    foreign_key = foreign_key(origin, target, :binary_unary(origin_col_idx));
+    err_rec_instr = record_foreign_key_violation(foreign_key, origin_type, target_type);
 
     // First we check if there's a deletion from the target, which is the most complicated case
     if tables(target, _) {
@@ -12,7 +15,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
         ## IS THERE ANYTHING THAT SHOULD BE DONE IF THE FOREIGN KEY IS NOT DELETE-CHECKED?
         if deletion_checked {
           check_expr = binary_unary_foreign_key_target_deletion_check_expr(origin_col_idx, origin, target, origin_type, target_type);
-          return just((do_if(check_expr, ret_val(false))));
+          return just((do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
       }
     }
@@ -25,12 +28,12 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       if origin_action == :insertion {
         if insertion_checked {
           check_expr = binary_unary_foreign_key_origin_insertion_check_expr(origin_col_idx, origin, target, origin_type, target_type);
-          return just((do_if(check_expr, ret_val(false))));
+          return just((do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
       }
       else if origin_action == :update {
         check_expr = binary_unary_foreign_key_origin_update_check_expr(origin_col_idx, origin, target, origin_type, target_type);
-        return just((do_if(check_expr, ret_val(false))));
+        return just((do_if(check_expr, (err_rec_instr, ret_val(false)))));
       }
     }
 

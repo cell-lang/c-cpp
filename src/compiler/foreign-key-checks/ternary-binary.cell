@@ -2,6 +2,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
   Maybe[Instr*] ternary_binary_foreign_key_check_code(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
     tables = effects_info.tables;
 
+    foreign_key = foreign_key(origin, target, :ternary_binary);
+    err_rec_instr = record_foreign_key_violation(foreign_key, origin_type, target_type);
+
     // First we check if there's a deletion (including an implicit one caused by an update
     // statement) from the target, which is the most complicated case
     if tables(target, _) {
@@ -27,14 +30,14 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       if origin_action == :insertion {
         if insertion_checked {
           check_expr, code = ternary_binary_foreign_key_origin_insertion_check_expr(origin, target, origin_type, target_type);
-          return just((code | do_if(check_expr, ret_val(false))));
+          return just((code | do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
       }
       else if origin_action == :update {
         origin_keys = keys(origin_type);
         if origin_keys == [] or origin_keys == [[0, 1]] {
           check_expr, code = ternary_binary_foreign_key_origin_insertion_check_expr(origin, target, origin_type, target_type);
-          return just((code | do_if(check_expr, ret_val(false))));
+          return just((code | do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
         return nothing;
       }

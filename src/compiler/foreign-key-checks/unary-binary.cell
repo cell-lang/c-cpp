@@ -1,9 +1,12 @@
 implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVar])], effects_info : EffectsInfo {
-  Maybe[Instr*] unary_binary_foreign_key_check_code(Nat target_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
+  Maybe[Instr*] unary_binary_foreign_key_check_code(<0..1> target_col_idx, TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type, Bool insertion_checked, Bool deletion_checked) {
     assert target_col_idx == 0 or target_col_idx == 1;
 
     other_col_idx = if target_col_idx == 0 then 1 else 0;
     tables = effects_info.tables;
+
+    foreign_key = foreign_key(origin, target, :unary_binary(target_col_idx));
+    err_rec_instr = record_foreign_key_violation(foreign_key, origin_type, target_type);
 
     code = ();
 
@@ -16,7 +19,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
         cond_args = (if i == target_col_idx then just(origin_elt_aux_var) else nothing : i < 2);
         violation_cond = neg(bin_table_aux_contains(target, target_type, cond_args));
         violation_cond = and_then(value(maybe_status_var), violation_cond) if maybe_status_var != :nothing;
-        code = (code | do_if(violation_cond, ret_val(false)));
+        code = (code | do_if(violation_cond, (err_rec_instr, ret_val(false))));
       }
     }
 
@@ -60,7 +63,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
           }
 
           violation_cond = and_then(value(maybe_target_status_var), violation_cond) if maybe_target_status_var != nothing;
-          code = (code | do_if(violation_cond, ret_val(false)));
+          code = (code | do_if(violation_cond, (err_rec_instr, ret_val(false))));
         }
       }
       else if target_action == :update {
@@ -79,7 +82,7 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
           check_instr = do_if(
             table_contains(target, target_type, lookup_args),
             ( set_ivar32(tmp_var, table_lookup(target, cast_any_surr_table(target_type), lookup_args)),
-              do_if(violation_cond, ret_val(false))
+              do_if(violation_cond, (err_rec_instr, ret_val(false)))
             )
           );
           code = (code | check_instr);
