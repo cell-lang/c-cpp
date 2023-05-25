@@ -5,4 +5,4 @@ OBJ Now_P();
 OBJ Ticks_P();
 void Print_P(OBJ);
 void Exit_P(OBJ);
-OBJ Error_P(void *, void *);
+OBJ Error_P(const char *);

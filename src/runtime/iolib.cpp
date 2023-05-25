@@ -61,6 +61,6 @@ void Exit_P(OBJ exit_code) {
   exit(get_int(exit_code));
 }
 
-OBJ Error_P(void *, void *) {
-  return make_tag_obj(symb_id_string, make_empty_seq());
+OBJ Error_P(const char *last_error_msg) {
+  return str_to_obj(last_error_msg);
 }

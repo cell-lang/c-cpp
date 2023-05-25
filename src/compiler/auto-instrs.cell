@@ -292,6 +292,8 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     check_keys()              = native_check_keys_code(instr.table_var, instr.table),
     check_foreign_key()       = native_check_foreign_key_code(instr.key, instr.origin_type, instr.target_type, instr.direction),
 
+    record_key_violation()    = (native_record_key_violation_code(instr.table_var, instr.table, instr.key)),
+
     resize_mandatory_column() = native_resize_mandatory_column_code(instr.table_var, instr.column, instr.curr_capacity, instr.new_capacity),
     raise_load_error()        = ("return false;"),
     surr_set_try_insert()     = (native_call(instr.was_new, "surr_set_try_insert", ("&surr_set", instr.surr))),
@@ -912,14 +914,19 @@ implicit context : NativeContext {
     keys = keys(table);
 
     if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
-      fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (table_var, pending_updates_var_ref_name(table_var), :mem_pool));
-      check_code = ("if (!" & fn_call & ")", "  return false;");
+      table_aux_name = pending_updates_var_ref_name(table_var);
+      check_expr = native_call_expr("double_key_bin_table_aux_check_keys", (table_var, table_aux_name, :mem_pool));
+      table_display_name = user_repr(original_rel_var(table_var));
+      args = (table_var, table_aux_name, db_auxiliary_arg_name & "->last_error_msg", _print_(table_display_name));
+      err_rec_instr = native_call("double_key_bin_table_aux_record_key_violation", args);
+      check_code = ("if (!" & check_expr & ") {", "  " & err_rec_instr, "  return false;", "}");
     }
     else {
       check_code = ();
       for key <- keys {
-        fn_call = key_check_expr(table_var, table, key);
-        check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+        check_expr = key_check_expr(table_var, table, key);
+        err_rec_instr = native_record_key_violation_code(table_var, table, key);
+        check_code = (check_code | "if (!" & check_expr & ") {", "  " & err_rec_instr, " return false;", "}");
       }
     }
 
@@ -1009,6 +1016,16 @@ implicit context : NativeContext {
 
     check_expr = native_call_expr(method_name, args);
     return ("if (!" & check_expr & ")", "  return false;");
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  String native_record_key_violation_code(TableVar table_var, AnyTable table, [+Nat] key) {
+    key_suffix = append((_print_(i + 1) : i <- sort_set(key, $a < $b)));
+    method_name = native_table_method_prefix(table) & "_aux_record_key_violation_" & key_suffix;
+    table_display_name = user_repr(original_rel_var(table_var));
+    table_aux_name = pending_updates_var_ref_name(table_var);
+    return native_call(method_name, (table_var, table_aux_name, db_auxiliary_arg_name & "->last_error_msg", _print_(table_display_name)));
   }
 
   //////////////////////////////////////////////////////////////////////////////

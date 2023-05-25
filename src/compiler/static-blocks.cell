@@ -326,6 +326,8 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       body_aux = body_aux & ("") & code;
     }
 
+    body_aux = (body_aux | "", aux_name & "->last_error_msg[0] = '\\0';");
+
     // Putting it all together
     init_sgn = "void " & init_method_name(name) & "(" & target_arg & append(dependees_args) & ", ENV &" & env_arg_name & ") {";
     init_aux_sgn = "void " & aux_init_method_name(name) & "(" & target_arg & ", " & aux_arg & append(dependees_aux_args) & ") {";
@@ -937,7 +939,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     membs_decls = linked_updaters_decls & dep_msg_vars_decls & vars_decls & stores_decls & tables_decls;
 
-    return ("struct " & native_auxiliary_name(block.name) & " {",) & indent_lines(membs_decls) & ("};");
+    return ("struct " & native_auxiliary_name(block.name) & " {",) & indent_lines(membs_decls) & ("  char last_error_msg[256];", "};");
   }
 
 
@@ -1220,6 +1222,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
       if not use_opt_method {
         body = (
           "uint32 bookmark = get_call_stack_bookmark();" if debug_mode,
+          "auxiliary->last_error_msg[0] = '\\0';",
           "try {",
           "  OBJ tracked_arg;" if debug_mode,
           "  push_call_info_wrapper(\"" & auto_type_name & " message handler\", &tracked_arg, msg);" if debug_mode,
@@ -1262,6 +1265,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
             reset_method_call,
             "exiting_transaction();",
             "",
+            "auxiliary->last_error_msg[0] = '\\0';",
             "entering_transaction();",
             "push_call_info_wrapper(\"" & auto_type_name & " message handler\", &tracked_arg, msg);",
             "try {",
@@ -1290,6 +1294,7 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
           body = (
             "bool ok;",
             "",
+            "auxiliary->last_error_msg[0] = '\\0';",
             "entering_transaction();",
             "try {",
             "  ok = " & handler_name & "(" & target_name & ", " & aux_name & ", msg, " & env_arg_name & ");",

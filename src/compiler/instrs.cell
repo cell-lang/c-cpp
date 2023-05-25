@@ -459,6 +459,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       return (native_call(value_unsafe(var), native_fn_name, native_args));
     }
 
+    if name == proc_symbol(:error) {
+      assert var != nothing and args == () and cls_args == () and react_auto_args == ();
+      rel_auto_var, rel_auto_type = only_unsafe(rel_auto_args);
+      return (native_call(value_unsafe(var), native_fn_name(name), (updater_var_ref_name(rel_auto_var) & "->last_error_msg")));
+    }
+
     cls_setup_code, cls_args_refs = unzip((gen_cls_info(c) : c <- cls_args));
     rel_args = join(((native_var_ref_name(v), updater_var_ref_name(v)) : v, _ <- rel_auto_args));
     react_args = (native_var_ref_name(v) : v <- react_auto_args);
