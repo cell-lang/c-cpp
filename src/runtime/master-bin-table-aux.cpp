@@ -598,12 +598,6 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *table_aux) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool master_bin_table_aux_was_batch_deleted_1(MASTER_BIN_TABLE_AUX *table_aux, uint32 arg1) {
   uint32 count = table_aux->deletions_1.count;
   if (count == 0)

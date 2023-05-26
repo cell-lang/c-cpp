@@ -206,12 +206,6 @@ bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void int_col_aux_prepare(INT_COL_AUX *col_aux) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 uint32 int_col_aux_size(INT_COL *col, INT_COL_AUX *col_aux) {
   assert(!col_aux->has_conflicts && col_aux->undeleted_inserts == 0);
 

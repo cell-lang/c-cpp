@@ -159,12 +159,6 @@ bool semisym_tern_table_aux_check_key_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AU
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void semisym_tern_table_aux_prepare(SEMISYM_TERN_TABLE_AUX *) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *) {
   return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
 }

@@ -1527,7 +1527,6 @@ void bin_table_aux_apply_insertions(BIN_TABLE *, BIN_TABLE_AUX *, STATE_MEM_POOL
 bool bin_table_aux_has_deletions(BIN_TABLE_AUX *);
 bool bin_table_aux_was_deleted(BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 
-void bin_table_aux_prepare(BIN_TABLE_AUX *);
 uint32 bin_table_aux_size(BIN_TABLE *, BIN_TABLE_AUX *);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
@@ -1597,8 +1596,6 @@ void single_key_bin_table_aux_apply_insertions(SINGLE_KEY_BIN_TABLE *, SINGLE_KE
 
 bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
-void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *);
-
 bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 bool single_key_bin_table_aux_contains_1(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
 bool single_key_bin_table_aux_contains_2(SINGLE_KEY_BIN_TABLE *, SINGLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
@@ -1664,8 +1661,6 @@ void double_key_bin_table_aux_apply_insertions(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KE
 
 bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
-void double_key_bin_table_aux_prepare(DOUBLE_KEY_BIN_TABLE_AUX *);
-
 bool double_key_bin_table_aux_contains(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 bool double_key_bin_table_aux_contains_1(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg1);
 bool double_key_bin_table_aux_contains_2(DOUBLE_KEY_BIN_TABLE *, DOUBLE_KEY_BIN_TABLE_AUX *, uint32 arg2);
@@ -1712,8 +1707,6 @@ void sym_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
 
 void sym_bin_table_aux_apply_deletions(BIN_TABLE *, SYM_BIN_TABLE_AUX *, DEALLOC, STATE_MEM_POOL *);
 void sym_bin_table_aux_apply_insertions(BIN_TABLE *, SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
-
-void sym_bin_table_aux_prepare(SYM_BIN_TABLE_AUX *);
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 
@@ -1789,8 +1782,6 @@ void master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_
 
 void master_bin_table_aux_reset(MASTER_BIN_TABLE_AUX *);
 void master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *);
-
-void master_bin_table_aux_prepare(MASTER_BIN_TABLE_AUX *);
 
 bool master_bin_table_aux_was_batch_deleted_1(MASTER_BIN_TABLE_AUX *, uint32 arg1);
 bool master_bin_table_aux_was_batch_deleted_2(MASTER_BIN_TABLE_AUX *, uint32 arg2);
@@ -1929,8 +1920,6 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE
 
 void slave_tern_table_aux_apply_deletions(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, DEALLOC, STATE_MEM_POOL *);
 void slave_tern_table_aux_apply_insertions(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *, STATE_MEM_POOL *);
-
-void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *);
 
 uint32 slave_tern_table_aux_size(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
 bool slave_tern_table_aux_is_empty(BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
@@ -2089,7 +2078,6 @@ bool tern_table_aux_check_foreign_key_double_key_bin_table_forward(TERN_TABLE *,
 
 bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
-bool tern_table_aux_prepare(TERN_TABLE_AUX *);
 bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
 bool tern_table_aux_contains_2(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
 bool tern_table_aux_contains_3(TERN_TABLE *, TERN_TABLE_AUX *, uint32);
@@ -2143,8 +2131,6 @@ void semisym_tern_table_aux_apply(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, DEALLO
 
 bool semisym_tern_table_aux_check_key_12(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, STATE_MEM_POOL *);
 bool semisym_tern_table_aux_check_key_3(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, STATE_MEM_POOL *);
-
-void semisym_tern_table_aux_prepare(SEMISYM_TERN_TABLE_AUX *);
 
 bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *);
 bool semisym_tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
@@ -2293,8 +2279,6 @@ void int_col_aux_apply_updates_and_insertions(INT_COL *, INT_COL_AUX *, STATE_ME
 
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *, STATE_MEM_POOL *);
 
-void int_col_aux_prepare(INT_COL_AUX *);
-
 uint32 int_col_aux_size(INT_COL *, INT_COL_AUX *);
 bool int_col_aux_contains_1(INT_COL *, INT_COL_AUX *, uint32);
 bool int_col_aux_is_empty(INT_COL *, INT_COL_AUX *);
@@ -2344,8 +2328,6 @@ void float_col_aux_apply_deletions(FLOAT_COL *, FLOAT_COL_AUX *, DEALLOC, STATE_
 void float_col_aux_apply_updates_and_insertions(FLOAT_COL *, FLOAT_COL_AUX *, STATE_MEM_POOL *);
 
 bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *, STATE_MEM_POOL *);
-
-void float_col_aux_prepare(FLOAT_COL_AUX *);
 
 uint32 float_col_aux_size(FLOAT_COL *, FLOAT_COL_AUX *);
 bool float_col_aux_contains_1(FLOAT_COL *, FLOAT_COL_AUX *, uint32);
@@ -2397,8 +2379,6 @@ bool obj_col_aux_check_key_1(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
 void obj_col_aux_copy_values_into_mem_pool(OBJ_COL_AUX *, STATE_MEM_POOL *);
 void obj_col_aux_apply_deletions(OBJ_COL *, OBJ_COL_AUX *, DEALLOC, STATE_MEM_POOL *);
 void obj_col_aux_apply_updates_and_insertions(OBJ_COL *, OBJ_COL_AUX *, STATE_MEM_POOL *);
-
-void obj_col_aux_prepare(OBJ_COL_AUX *);
 
 uint32 obj_col_aux_size(OBJ_COL *, OBJ_COL_AUX *);
 bool obj_col_aux_contains_1(OBJ_COL *, OBJ_COL_AUX *, uint32);

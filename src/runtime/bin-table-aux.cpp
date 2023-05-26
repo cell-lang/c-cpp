@@ -753,10 +753,6 @@ static bool bin_table_aux_was_inserted_2(BIN_TABLE *table, BIN_TABLE_AUX *table_
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void bin_table_aux_prepare(BIN_TABLE_AUX *table_aux) {
-
-}
-
 uint32 bin_table_aux_size(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   uint32 size = table_aux->clear ? 0 : bin_table_size(table);
 

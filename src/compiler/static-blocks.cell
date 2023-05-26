@@ -1634,9 +1634,9 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     check_code = ("" if mutated_tables != ());
 
-    //## BAD BAD BAD: *_prepare(...) ENDS UP BEING CALLED EVEN WHEN ALL FOREIGN KEYS ARE STATICALLY CHECKED
-    for t <- mutated_tables
-      check_code = check_code & aux_prepare_code(t, block);
+    // //## BAD BAD BAD: *_prepare(...) ENDS UP BEING CALLED EVEN WHEN ALL FOREIGN KEYS ARE STATICALLY CHECKED
+    // for t <- mutated_tables
+    //   check_code = check_code & aux_prepare_code(t, block);
 
     insertion_tables_with_keys = isort([v : v <- insertion_tables, keys(block.tables(v)) != []]);
     if insertion_tables_with_keys != () {
@@ -1678,17 +1678,17 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
     return check_code;
 
 
-    String* aux_prepare_code(TableVar var, StaticBlock block) {
-      table_type = block.tables(var);
-      needs_preparation = match (table_type)
-        table()             = arity(table_type) != 1,
-        mandatory_column()  = false,
-        _                   = true;
-      return () if not needs_preparation;
-      method_name = native_table_method_prefix(table_type) & "_aux_prepare";
-      args = (pending_updates_var_ref_name(var));
-      return (native_call(method_name, args));
-    }
+    // String* aux_prepare_code(TableVar var, StaticBlock block) {
+    //   table_type = block.tables(var);
+    //   needs_preparation = match (table_type)
+    //     table()             = arity(table_type) != 1,
+    //     mandatory_column()  = false,
+    //     _                   = true;
+    //   return () if not needs_preparation;
+    //   method_name = native_table_method_prefix(table_type) & "_aux_prepare";
+    //   args = (pending_updates_var_ref_name(var));
+    //   return (native_call(method_name, args));
+    // }
 
 
     String check_call(TableVar var, Table table, [+Nat] key) {

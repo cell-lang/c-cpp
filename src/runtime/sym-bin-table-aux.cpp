@@ -178,9 +178,3 @@ void sym_bin_table_aux_apply_insertions(BIN_TABLE *table, SYM_BIN_TABLE_AUX *tab
     }
   }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-void sym_bin_table_aux_prepare(SYM_BIN_TABLE_AUX *table_aux) {
-
-}

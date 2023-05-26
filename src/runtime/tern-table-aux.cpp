@@ -331,12 +331,6 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
 // }
 
 ////////////////////////////////////////////////////////////////////////////////
-  //   tern_table_aux_swap_insertions_23(table_aux);
-
-bool tern_table_aux_prepare(TERN_TABLE_AUX *table_aux) {
-  master_bin_table_aux_prepare(&table_aux->master);
-  bin_table_aux_prepare(&table_aux->slave);
-}
 
 bool tern_table_aux_contains_1(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, uint32 arg1) {
   assert(table_aux->master.clear == table_aux->slave.clear);

@@ -264,10 +264,6 @@ bool single_key_bin_table_aux_check_key_1(SINGLE_KEY_BIN_TABLE *table, SINGLE_KE
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void single_key_bin_table_aux_prepare(SINGLE_KEY_BIN_TABLE_AUX *table_aux) {
-
-}
-
 bool single_key_bin_table_aux_contains(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   if (col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
     if (queue_u64_contains(&table_aux->insertions, pack_args(arg1, arg2)))

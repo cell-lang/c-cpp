@@ -85,12 +85,6 @@ bool slave_tern_table_aux_check_key_3(BIN_TABLE *slave_table, SLAVE_TERN_TABLE_A
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void slave_tern_table_aux_prepare(SLAVE_TERN_TABLE_AUX *table_aux) {
-  bin_table_aux_prepare(&table_aux->slave_table_aux);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 uint32 slave_tern_table_aux_size(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux) {
   return bin_table_aux_size(table, &table_aux->slave_table_aux);
 }

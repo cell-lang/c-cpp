@@ -206,10 +206,6 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void double_key_bin_table_aux_prepare(DOUBLE_KEY_BIN_TABLE_AUX *table_aux) {
-
-}
-
 bool double_key_bin_table_aux_contains(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
   uint64 args = pack_args(arg1, arg2);
 

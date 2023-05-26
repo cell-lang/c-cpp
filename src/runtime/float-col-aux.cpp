@@ -207,12 +207,6 @@ bool float_col_aux_check_key_1(FLOAT_COL *col, FLOAT_COL_AUX *col_aux, STATE_MEM
 
 //////////////////////////////////////////////////////////////////////////////
 
-void float_col_aux_prepare(FLOAT_COL_AUX *col_aux) {
-
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
 uint32 float_col_aux_size(FLOAT_COL *col, FLOAT_COL_AUX *col_aux) {
   assert(!col_aux->has_conflicts && col_aux->undeleted_inserts == 0);
 
