@@ -15,7 +15,6 @@ void raw_float_col_aux_delete_1(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uin
 
 void raw_float_col_aux_insert(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
   if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
-    //## TODO: RECORD THE ERROR
     col_aux->has_conflicts = true;
     return;
   }
@@ -30,7 +29,6 @@ void raw_float_col_aux_insert(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint3
 void raw_float_col_aux_update(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint32 index, double value) {
   if (unary_table_contains(master, index)) {
     if (col_update_status_map_check_and_mark_update_return_previous_inserted_flag(&col_aux->status_map, index, col_aux->mem_pool)) {
-      //## TODO: RECORD THE ERROR
       col_aux->has_conflicts = true;
       return;
     }
@@ -39,7 +37,6 @@ void raw_float_col_aux_update(UNARY_TABLE *master, FLOAT_COL_AUX *col_aux, uint3
   }
   else {
     if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
-      //## TODO: RECORD THE ERROR
       col_aux->has_conflicts = true;
       return;
     }
@@ -84,21 +81,13 @@ void raw_float_col_aux_apply(UNARY_TABLE *master_table, UNARY_TABLE_AUX *master_
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void raw_float_col_aux_record_col_1_key_violation(RAW_FLOAT_COL *col, FLOAT_COL_AUX *col_aux, uint32 idx, double value, bool between_new) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 //## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND INT VERSIONS
 bool raw_float_col_aux_check_key_1(UNARY_TABLE *master, RAW_FLOAT_COL *, FLOAT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->has_conflicts)
     return false;
 
-  if (col_aux->undeleted_inserts > 0 && !col_aux->clear) {
-    //## TODO: RECORD THE ERROR
+  if (col_aux->undeleted_inserts > 0 && !col_aux->clear)
     return false;
-  }
 
   return true;
 }
@@ -111,10 +100,8 @@ bool raw_float_col_aux_check_foreign_key_unary_table_1_forward(RAW_FLOAT_COL *co
   if (num_ins > 0) {
     uint32 *arg1s = col_aux->insertions.u32_array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i]))
         return false;
-      }
     }
   }
   return true;
@@ -126,10 +113,8 @@ bool raw_float_col_aux_check_foreign_key_master_bin_table_forward(RAW_FLOAT_COL 
   if (num_ins > 0) {
     uint32 *surrs = col_aux->insertions.u32_array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
-        //## RECORD THE ERROR
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i]))
         return false;
-      }
     }
   }
   return true;
@@ -143,10 +128,8 @@ bool raw_float_col_aux_check_foreign_key_unary_table_1_backward(RAW_FLOAT_COL *c
     uint32 ins_count = col_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count) {
-        //## TODO: RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       uint32 *surrs = col_aux->insertions.u32_array;
       uint32 found = 0;
@@ -155,18 +138,13 @@ bool raw_float_col_aux_check_foreign_key_unary_table_1_backward(RAW_FLOAT_COL *c
           found++;
       }
 
-      if (src_size > found) {
-        //## TODO: RECORD THE ERROR
+      if (src_size > found)
         return false;
-      }
 
       return true;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -177,10 +155,8 @@ bool raw_float_col_aux_check_foreign_key_unary_table_1_backward(RAW_FLOAT_COL *c
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 surr = surrs[i];
       if (!col_update_status_map_inserted_flag_is_set(&col_aux->status_map, surr))
-        if (unary_table_aux_contains(src_table, src_table_aux, surr)) {
-          //## RECORD THE ERROR
+        if (unary_table_aux_contains(src_table, src_table_aux, surr))
           return false;
-        }
     }
   }
 

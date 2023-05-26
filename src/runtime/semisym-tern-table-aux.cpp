@@ -137,23 +137,11 @@ void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *tab
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void semisym_tern_table_aux_record_cols_13_key_violation(SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3, uint32 arg2, uint32 other_arg2, bool between_new) {
-
-}
-
-static void semisym_tern_table_aux_record_cols_23_key_violation(SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg2, uint32 arg3, uint32 arg1, uint32 other_arg1, bool between_new) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool semisym_tern_table_aux_check_key_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
-  // THE VIOLATION OF THE KEY IS DETECTED CORRECTLY, BUT THE ERROR MESSAGE MAY BE WRONG/UNHELPFUL
   return bin_table_aux_check_key_1(&table->slave, &table_aux->slave, mem_pool);
 }
 
 bool semisym_tern_table_aux_check_key_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
-  // THE VIOLATION OF THE KEY IS DETECTED CORRECTLY, BUT THE ERROR MESSAGE MAY BE WRONG/UNHELPFUL
   return bin_table_aux_check_key_2(&table->slave, &table_aux->slave, mem_pool);
 }
 

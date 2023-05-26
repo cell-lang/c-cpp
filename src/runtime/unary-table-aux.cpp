@@ -149,10 +149,8 @@ bool unary_table_aux_check_foreign_key_unary_table_forward(UNARY_TABLE_AUX *tabl
   if (num_ins > 0) {
     uint32 *new_elts = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++)
-      if (!unary_table_aux_contains(target_table, target_table_aux, new_elts[i])) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, new_elts[i]))
         return false;
-      }
   }
   return true;
 }
@@ -162,10 +160,8 @@ bool unary_table_aux_check_foreign_key_slave_tern_table_3_forward(UNARY_TABLE_AU
   if (num_ins > 0) {
     uint32 *new_elts = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++)
-      if (!bin_table_aux_contains_2(target_table, &target_table_aux->slave_table_aux, new_elts[i])) {
-        //## RECORD THE ERROR
+      if (!bin_table_aux_contains_2(target_table, &target_table_aux->slave_table_aux, new_elts[i]))
         return false;
-      }
   }
   return true;
 }
@@ -175,10 +171,8 @@ bool unary_table_aux_check_foreign_key_tern_table_3_forward(UNARY_TABLE_AUX *tab
   if (num_ins > 0) {
     uint32 *new_elts = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++)
-      if (!tern_table_aux_contains_3(target_table, target_table_aux, new_elts[i])) {
-        //## RECORD THE ERROR
+      if (!tern_table_aux_contains_3(target_table, target_table_aux, new_elts[i]))
         return false;
-      }
   }
   return true;
 }
@@ -192,10 +186,8 @@ bool unary_table_aux_check_foreign_key_unary_table_backward(UNARY_TABLE_AUX *tab
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (unary_table_aux_contains(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (unary_table_aux_contains(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -208,10 +200,8 @@ bool unary_table_aux_check_foreign_key_bin_table_1_backward(UNARY_TABLE_AUX *tab
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (bin_table_aux_contains_1(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (bin_table_aux_contains_1(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -224,10 +214,8 @@ bool unary_table_aux_check_foreign_key_bin_table_2_backward(UNARY_TABLE_AUX *tab
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (bin_table_aux_contains_2(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (bin_table_aux_contains_2(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -256,10 +244,8 @@ bool unary_table_aux_check_foreign_key_master_bin_table_1_backward(UNARY_TABLE_A
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (master_bin_table_aux_contains_1(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (master_bin_table_aux_contains_1(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -272,10 +258,8 @@ bool unary_table_aux_check_foreign_key_master_bin_table_2_backward(UNARY_TABLE_A
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (master_bin_table_aux_contains_2(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (master_bin_table_aux_contains_2(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -288,10 +272,8 @@ bool unary_table_aux_check_foreign_key_obj_col_1_backward(UNARY_TABLE_AUX *table
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (obj_col_aux_contains_1(src_col, src_col_aux, elt)) {
-          //## RECORD THE ERROR
+        if (obj_col_aux_contains_1(src_col, src_col_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -304,10 +286,8 @@ bool unary_table_aux_check_foreign_key_int_col_1_backward(UNARY_TABLE_AUX *table
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (int_col_aux_contains_1(src_col, src_col_aux, elt)) {
-          //## RECORD THE ERROR
+        if (int_col_aux_contains_1(src_col, src_col_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -320,10 +300,8 @@ bool unary_table_aux_check_foreign_key_float_col_1_backward(UNARY_TABLE_AUX *tab
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (float_col_aux_contains_1(src_col, src_col_aux, elt)) {
-          //## RECORD THE ERROR
+        if (float_col_aux_contains_1(src_col, src_col_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -336,10 +314,8 @@ bool unary_table_aux_check_foreign_key_slave_tern_table_3_backward(UNARY_TABLE_A
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (bin_table_aux_contains_2(src_table, &src_table_aux->slave_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (bin_table_aux_contains_2(src_table, &src_table_aux->slave_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -352,10 +328,8 @@ bool unary_table_aux_check_foreign_key_tern_table_1_backward(UNARY_TABLE_AUX *ta
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (tern_table_aux_contains_1(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (tern_table_aux_contains_1(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -368,10 +342,8 @@ bool unary_table_aux_check_foreign_key_tern_table_2_backward(UNARY_TABLE_AUX *ta
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (tern_table_aux_contains_2(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (tern_table_aux_contains_2(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;
@@ -384,10 +356,8 @@ bool unary_table_aux_check_foreign_key_tern_table_3_backward(UNARY_TABLE_AUX *ta
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 elt = del_elts[i];
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->status_map, elt))
-        if (tern_table_aux_contains_3(src_table, src_table_aux, elt)) {
-          //## RECORD THE ERROR
+        if (tern_table_aux_contains_3(src_table, src_table_aux, elt))
           return false;
-        }
     }
   }
   return true;

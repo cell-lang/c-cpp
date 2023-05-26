@@ -38,9 +38,8 @@ void sym_master_bin_table_aux_reset(SYM_MASTER_BIN_TABLE_AUX *table_aux) {
 
 //## BUG BUG BUG: SHOULDN'T WE HAVE A sym_master_bin_table_aux_partial_reset(..) HERE?
 //## MAYBE IT'S NOT EVEN GENERATED IN THE CODE. TEST THIS
-
 // void sym_master_bin_table_aux_partial_reset(MASTER_BIN_TABLE_AUX *table_aux) {
-//   throw 0; //## IMPLEMENT IMPLEMENT IMPLEMENT
+//   throw 0;
 // }
 
 ////////////////////////////////////////////////////////////////////////////////

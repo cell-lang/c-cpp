@@ -105,10 +105,8 @@ bool slave_tern_table_aux_check_foreign_key_master_bin_table_forward(BIN_TABLE *
     uint64 *args = table_aux->slave_table_aux.insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 surr = unpack_arg1(args[i]);
-      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surr)) {
-        //## RECORD THE ERROR
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surr))
         return false;
-      }
     }
   }
   return true;

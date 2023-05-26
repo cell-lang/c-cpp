@@ -183,16 +183,6 @@ void tern_table_aux_apply(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, void (*r
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void tern_table_aux_record_cols_13_key_violation(TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg3, uint32 arg2, uint32 other_arg2, bool between_new) {
-
-}
-
-static void tern_table_aux_record_cols_23_key_violation(TERN_TABLE_AUX *table_aux, uint32 arg2, uint32 arg3, uint32 arg1, uint32 other_arg1, bool between_new) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 static void tern_table_aux_sort_insertions_by_13(TERN_TABLE_AUX *table_aux) {
   sort_3u32_by_13(table_aux->insertions.array, table_aux->insertions.count);
 }
@@ -234,7 +224,7 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
       if (arg1 == prev_arg1 & arg3 == prev_arg3) {
         uint32 arg2 = array[i].y;
         uint32 prev_arg2 = array[i-1].y;
-        tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, prev_arg2, true);
+        // tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, prev_arg2, true);
         return false;
       }
       prev_arg1 = arg1;
@@ -258,7 +248,7 @@ bool tern_table_aux_check_key_13(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
         //## THIS COULD BE MADE MORE EFFICIENT, MAYBE USING AN INDEX
         uint32 other_surr12 = master_bin_table_lookup_surr(&table->master, arg1, existing_arg2);
         if (!bin_table_aux_was_deleted(&table_aux->slave, other_surr12, arg3)) {
-          tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, existing_arg2, false);
+          // tern_table_aux_record_cols_13_key_violation(table_aux, arg1, arg3, arg2, existing_arg2, false);
           return false;
         }
       }
@@ -289,7 +279,7 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
       if (arg2 == prev_arg2 & arg3 == prev_arg3) {
         uint32 arg1 = array[i].x;
         uint32 prev_arg1 = array[i-1].x;
-        tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, prev_arg1, true);
+        // tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, prev_arg1, true);
         return false;
       }
       prev_arg2 = arg2;
@@ -313,7 +303,7 @@ bool tern_table_aux_check_key_23(TERN_TABLE *table, TERN_TABLE_AUX *table_aux) {
         //## THIS COULD BE MADE MORE EFFICIENT, MAYBE USING AN INDEX
         uint32 existing_surr12 = master_bin_table_lookup_surr(&table->master, existing_arg1, arg2);
         if (!bin_table_aux_was_deleted(&table_aux->slave, existing_surr12, arg3)) {
-          tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, existing_arg1, false);
+          // tern_table_aux_record_cols_23_key_violation(table_aux, arg2, arg3, arg1, existing_arg1, false);
           return false;
         }
       }
@@ -439,10 +429,8 @@ bool tern_table_aux_check_foreign_key_single_key_bin_table_forward(TERN_TABLE *t
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg1 = insertions[i].x;
       uint32 arg2 = insertions[i].y;
-      if (!single_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2)) {
-        //## RECORD THE ERROR
+      if (!single_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2))
         return false;
-      }
     }
   }
   return true;
@@ -455,10 +443,8 @@ bool tern_table_aux_check_foreign_key_double_key_bin_table_forward(TERN_TABLE *t
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg1 = insertions[i].x;
       uint32 arg2 = insertions[i].y;
-      if (!double_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2)) {
-        //## RECORD THE ERROR
+      if (!double_key_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2))
         return false;
-      }
     }
   }
   return true;

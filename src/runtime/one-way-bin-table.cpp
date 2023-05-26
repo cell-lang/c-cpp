@@ -50,7 +50,7 @@ void one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) 
 }
 
 void one_way_bin_table_release(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  impl_fail(NULL); //## IS THIS AT ALL NEEDED?
 }
 
 void one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {

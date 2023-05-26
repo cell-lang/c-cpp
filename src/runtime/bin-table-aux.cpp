@@ -263,16 +263,6 @@ void bin_table_aux_apply_insertions(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void record_col_1_key_violation(BIN_TABLE *col, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-static void record_col_2_key_violation(BIN_TABLE *col, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 inline void bin_table_aux_build_col_1_del_bitmap(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
 
@@ -381,7 +371,6 @@ bool bin_table_aux_check_key_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
         uint32 arg1 = unpack_arg1(args);
         if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool)) {
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
-          //## RECORD THE ERROR
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
         }
@@ -403,7 +392,6 @@ bool bin_table_aux_check_key_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
           }
 
           if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
-            //## RECORD THE ERROR
             col_update_bit_map_clear(&table_aux->bit_map);
             return false;
           }
@@ -430,7 +418,6 @@ bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
         uint32 arg2 = unpack_arg2(args);
         if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool)) {
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE FIRST ARGUMENT
-          //## RECORD THE ERROR
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
         }
@@ -452,7 +439,6 @@ bool bin_table_aux_check_key_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, STATE
           }
 
           if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
-            //## RECORD THE ERROR
             col_update_bit_map_clear(&table_aux->bit_map);
             return false;
           }
@@ -890,10 +876,8 @@ bool bin_table_aux_check_foreign_key_unary_table_1_forward(BIN_TABLE *table, BIN
     uint64 *args = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg1 = unpack_arg1(args[i]);
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1))
         return false;
-      }
     }
   }
   return true;
@@ -905,10 +889,8 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *table, BIN
     uint64 *args = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg2 = unpack_arg2(args[i]);
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg2))
         return false;
-      }
     }
   }
   return true;
@@ -934,16 +916,10 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
       col_update_bit_map_clear(&table_aux->bit_map);
       assert(found <= unary_table_aux_size(src_table, src_table_aux));
       bool ok = found == unary_table_aux_size(src_table, src_table_aux);
-      if (!ok) {
-        //## TODO: RECORD THE ERROR
-      }
       return ok;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -954,10 +930,8 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!bin_table_aux_was_inserted_1(table, table_aux, arg1)) {
-          //## RECORD THE ERROR
+        if (!bin_table_aux_was_inserted_1(table, table_aux, arg1))
           return false;
-        }
       }
     }
   }
@@ -968,10 +942,8 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 arg1 = unpack_arg1(args_array[i]);
       if (unary_table_aux_contains(src_table, src_table_aux, arg1))
-        if (!bin_table_aux_contains_1(table, table_aux, arg1)) {
-          //## TODO: RECORD THE ERROR
+        if (!bin_table_aux_contains_1(table, table_aux, arg1))
           return false;
-        }
     }
   }
 
@@ -989,10 +961,8 @@ bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *table, BI
         for (uint32 i2=0 ; i2 < array2.size ; i2++) {
           uint32 arg1 = array2.array[i2];
           if (unary_table_aux_contains(src_table, src_table_aux, arg1))
-            if (!bin_table_aux_contains_1(table, table_aux, arg1)) {
-              //## TODO: RECORD THE ERROR
+            if (!bin_table_aux_contains_1(table, table_aux, arg1))
               return false;
-            }
         }
       }
     }
@@ -1019,16 +989,10 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
       col_update_bit_map_clear(&table_aux->bit_map);
       assert(found <= master_bin_table_aux_size(src_table, src_table_aux));
       bool ok = found == master_bin_table_aux_size(src_table, src_table_aux);
-      if (!ok) {
-        //## TODO: RECORD THE ERROR
-      }
       return ok;
     }
     else {
       bool src_is_empty = master_bin_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1039,10 +1003,8 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1)) {
-        if (!bin_table_aux_was_inserted_1(table, table_aux, arg1)) {
-          //## RECORD THE ERROR
+        if (!bin_table_aux_was_inserted_1(table, table_aux, arg1))
           return false;
-        }
       }
     }
   }
@@ -1053,10 +1015,8 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 arg1 = unpack_arg1(args_array[i]);
       if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
-        if (!bin_table_aux_contains_1(table, table_aux, arg1)) {
-          //## TODO: RECORD THE ERROR
+        if (!bin_table_aux_contains_1(table, table_aux, arg1))
           return false;
-        }
     }
   }
 
@@ -1074,10 +1034,8 @@ bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *table,
         for (uint32 i2=0 ; i2 < array2.size ; i2++) {
           uint32 arg1 = array2.array[i2];
           if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
-            if (!bin_table_aux_contains_1(table, table_aux, arg1)) {
-              //## TODO: RECORD THE ERROR
+            if (!bin_table_aux_contains_1(table, table_aux, arg1))
               return false;
-            }
         }
       }
     }
@@ -1104,16 +1062,10 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
       col_update_bit_map_clear(&table_aux->bit_map);
       assert(found <= unary_table_aux_size(src_table, src_table_aux));
       bool ok = found == unary_table_aux_size(src_table, src_table_aux);
-      if (!ok) {
-        //## TODO: RECORD THE ERROR
-      }
       return ok;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1124,10 +1076,8 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!bin_table_aux_was_inserted_2(table, table_aux, arg2)) {
-          //## RECORD THE ERROR
+        if (!bin_table_aux_was_inserted_2(table, table_aux, arg2))
           return false;
-        }
       }
     }
   }
@@ -1138,10 +1088,8 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 arg2 = unpack_arg2(args_array[i]);
       if (unary_table_aux_contains(src_table, src_table_aux, arg2))
-        if (!bin_table_aux_contains_2(table, table_aux, arg2)) {
-          //## TODO: RECORD THE ERROR
+        if (!bin_table_aux_contains_2(table, table_aux, arg2))
           return false;
-        }
     }
   }
 
@@ -1159,10 +1107,8 @@ bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *table, BI
         for (uint32 i1=0 ; i1 < array.size ; i1++) {
           uint32 arg2 = array.array[i1];
           if (unary_table_aux_contains(src_table, src_table_aux, arg2))
-            if (!bin_table_aux_contains_2(table, table_aux, arg2)) {
-              //## TODO: RECORD THE ERROR
+            if (!bin_table_aux_contains_2(table, table_aux, arg2))
               return false;
-            }
         }
       }
     }

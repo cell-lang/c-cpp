@@ -129,16 +129,6 @@ void double_key_bin_table_aux_apply_insertions(DOUBLE_KEY_BIN_TABLE *table, DOUB
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void double_key_bin_table_aux_record_col_1_key_violation(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-static void double_key_bin_table_aux_record_col_2_key_violation(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2, bool between_new) {
-  //## IMPLEMENT IMPLEMENT IMPLEMENT
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY_BIN_TABLE_AUX *table_aux, STATE_MEM_POOL *mem_pool) {
   uint32 ins_count = table_aux->insertions.count;
   if (ins_count != 0) {
@@ -154,7 +144,7 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE SECOND ARGUMENT
           //## AND IN THAT CASE MAKE SURE TO REMOVE THE DUPLICATE INSERTION SO THAT THE OTHER PARTS OF THE CODE
           //## (LIKE THAT WHICH CHECKS BACKWARD FOREING KEYS) CAN QUICKLY DETERMINE THE NUMBER OF UNIQUE INSERTIONS
-          double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, unpack_arg2(args), true);
+          // double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, unpack_arg2(args), true);
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
         }
@@ -169,7 +159,7 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
           //## CHECK FIRST THAT THE CONFLICTING INSERTION DOES NOT HAVE THE SAME VALUE FOR THE FIRST ARGUMENT
           //## AND IN THAT CASE MAKE SURE TO REMOVE THE DUPLICATE INSERTION SO THAT THE OTHER PARTS OF THE CODE
           //## (LIKE THAT WHICH CHECKS BACKWARD FOREING KEYS) CAN QUICKLY DETERMINE THE NUMBER OF UNIQUE INSERTIONS
-          double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, unpack_arg1(args), arg2, true);
+          // double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, unpack_arg1(args), arg2, true);
           col_update_bit_map_clear(&table_aux->bit_map);
           return false;
         }
@@ -186,14 +176,14 @@ bool double_key_bin_table_aux_check_keys(DOUBLE_KEY_BIN_TABLE *table, DOUBLE_KEY
 
         if (double_key_bin_table_contains_1(table, arg1)) {
           if (!col_update_status_map_deleted_flag_is_set(&table_aux->col_1_status_map, arg1)) {
-            double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, arg2, false);
+            // double_key_bin_table_aux_record_col_1_key_violation(table, table_aux, arg1, arg2, false);
             return false;
           }
         }
 
         if (double_key_bin_table_contains_2(table, arg2)) {
           if (!col_update_status_map_deleted_flag_is_set(&table_aux->col_2_status_map, arg2)) {
-            double_key_bin_table_aux_record_col_2_key_violation(table, table_aux, arg1, arg2, false);
+            // double_key_bin_table_aux_record_col_2_key_violation(table, table_aux, arg1, arg2, false);
             return false;
           }
         }
@@ -288,10 +278,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_forward(DOUBLE_KEY
     uint64 *args = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg1 = unpack_arg1(args[i]);
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1))
         return false;
-      }
     }
   }
   return true;
@@ -303,10 +291,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_forward(DOUBLE_KEY
     uint64 *args = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg2 = unpack_arg2(args[i]);
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg2))
         return false;
-      }
     }
   }
   return true;
@@ -322,10 +308,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KE
 
     if (count > 0) {
       uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > count) {
-        //## RECORD THE ERROR
+      if (src_size > count)
         return false;
-      }
 
       uint32 found = 0;
       uint64 *array = table_aux->insertions.array;
@@ -335,15 +319,11 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KE
           found++;
       }
 
-      if (src_size > found) {
-        //## RECORD THE ERROR
+      if (src_size > found)
         return false;
-      }
     }
-    else if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-      //## RECORD THE ERROR
+    else if (!unary_table_aux_is_empty(src_table, src_table_aux))
       return false;
-    }
   }
   else {
     uint32 num_dels = table_aux->deletions.count;
@@ -352,10 +332,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_1_backward(DOUBLE_KE
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint32 arg1 = unpack_arg1(args_array[i]);
         if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
-          if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-            //## RECORD THE ERROR
+          if (unary_table_aux_contains(src_table, src_table_aux, arg1))
             return false;
-          }
       }
     }
   }
@@ -371,10 +349,8 @@ bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE
 
     if (count > 0) {
       uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
-      if (src_size > count) {
-        //## RECORD THE ERROR
+      if (src_size > count)
         return false;
-      }
 
       uint32 found = 0;
       uint64 *array = table_aux->insertions.array;
@@ -384,16 +360,12 @@ bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE
           found++;
       }
 
-      if (src_size > found) {
-        //## RECORD THE ERROR
+      if (src_size > found)
         return false;
-      }
     }
     else {
-      if (!master_bin_table_aux_is_empty(src_table, src_table_aux)) {
-        //## RECORD THE ERROR
+      if (!master_bin_table_aux_is_empty(src_table, src_table_aux))
         return false;
-      }
     }
   }
   else {
@@ -403,10 +375,8 @@ bool double_key_bin_table_aux_check_foreign_key_master_bin_table_backward(DOUBLE
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint32 arg1 = unpack_arg1(args_array[i]);
         if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_1_status_map, arg1))
-          if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1)) {
-            //## RECORD THE ERROR
+          if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
             return false;
-          }
       }
     }
   }
@@ -422,10 +392,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KE
 
     if (count > 0) {
       uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > count) {
-        //## RECORD THE ERROR
+      if (src_size > count)
         return false;
-      }
 
       uint32 found = 0;
       uint64 *array = table_aux->insertions.array;
@@ -435,16 +403,12 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KE
           found++;
       }
 
-      if (src_size > found) {
-        //## RECORD THE ERROR
+      if (src_size > found)
         return false;
-      }
     }
     else {
-      if (!unary_table_aux_is_empty(src_table, src_table_aux)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_is_empty(src_table, src_table_aux))
         return false;
-      }
     }
   }
 
@@ -454,10 +418,8 @@ bool double_key_bin_table_aux_check_foreign_key_unary_table_2_backward(DOUBLE_KE
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 arg2 = unpack_arg2(args_array[i]);
       if (!col_update_status_map_inserted_flag_is_set(&table_aux->col_2_status_map, arg2))
-        if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-          //## RECORD THE ERROR
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2))
           return false;
-        }
     }
   }
 

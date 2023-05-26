@@ -45,7 +45,6 @@ void int_col_aux_delete_1(INT_COL *col, INT_COL_AUX *col_aux, uint32 index) {
 
 void int_col_aux_insert(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
   if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
-    //## TODO: RECORD THE ERROR
     col_aux->has_conflicts = true;
     return;
   }
@@ -60,7 +59,6 @@ void int_col_aux_insert(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 
 void int_col_aux_update(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 value) {
   if (int_col_contains_1(col, index)) {
     if (col_update_status_map_check_and_mark_update_return_previous_inserted_flag(&col_aux->status_map, index, col_aux->mem_pool)) {
-      //## TODO: RECORD THE ERROR
       col_aux->has_conflicts = true;
       return;
     }
@@ -69,7 +67,6 @@ void int_col_aux_update(INT_COL *col, INT_COL_AUX *col_aux, uint32 index, int64 
   }
   else {
     if (col_update_status_map_check_and_mark_insertion(&col_aux->status_map, index, col_aux->mem_pool)) {
-      //## TODO: RECORD THE ERROR
       col_aux->has_conflicts = true;
       return;
     }
@@ -155,51 +152,13 @@ void int_col_aux_apply_updates_and_insertions(INT_COL *col, INT_COL_AUX *col_aux
 
 //////////////////////////////////////////////////////////////////////////////
 
-// static void int_col_aux_record_col_1_key_violation(INT_COL_AUX *col_aux, uint32 idx, int64 value, int64 other_value, bool between_new) {
-// //   //## BUG: Stores may contain only part of the value (id(5) -> 5)
-// //   Obj key = store.surrToValue(idx);
-// //   Obj[] tuple1 = new Obj[] {key, value};
-// //   Obj[] tuple2 = new Obj[] {key, otherValue};
-// //   return new KeyViolationException(relvarName, KeyViolationException.key_1, tuple1, tuple2, betweenNew);
-
-//   //## IMPLEMENT IMPLEMENT IMPLEMENT
-// }
-
-// static void int_col_aux_record_col_1_key_violation(INT_COL *col, INT_COL_AUX *col_aux, uint32 idx, int64 value, bool between_new) {
-//   if (between_new) {
-//     uint32 count = col_aux->updates.count;
-//     uint32 *idxs = col_aux->updates.u32_array;
-//     for (uint32 i=0 ; i < count ; i++)
-//       if (idxs[i] == idx) {
-//         int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->updates.i64_array[i], between_new);
-//         return;
-//       }
-
-//     count = col_aux->insertions.count;
-//     idxs = col_aux->insertions.u32_array;
-//     for (uint32 i=0 ; i < count ; i++)
-//       if (idxs[i] == idx) {
-//         int_col_aux_record_col_1_key_violation(col_aux, idx, value, col_aux->insertions.i64_array[i], between_new);
-//         return;
-//       }
-
-//     internal_fail();
-//   }
-//   else
-//     int_col_aux_record_col_1_key_violation(col_aux, idx, value, int_col_lookup(col, idx), between_new);
-// }
-
-//////////////////////////////////////////////////////////////////////////////
-
 //## NEARLY IDENTICAL TO THE CORRESPONDING OBJ AND FLOAT VERSIONS
 bool int_col_aux_check_key_1(INT_COL *col, INT_COL_AUX *col_aux, STATE_MEM_POOL *mem_pool) {
   if (col_aux->has_conflicts)
     return false;
 
-  if (col_aux->undeleted_inserts > 0 && !col_aux->clear) {
-    //## TODO: RECORD THE ERROR
+  if (col_aux->undeleted_inserts > 0 && !col_aux->clear)
     return false;
-  }
 
   return true;
 }
@@ -234,10 +193,8 @@ bool int_col_aux_check_foreign_key_unary_table_1_forward(INT_COL *col, INT_COL_A
   if (num_ins > 0) {
     uint32 *arg1s = col_aux->insertions.u32_array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i])) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1s[i]))
         return false;
-      }
     }
   }
 
@@ -250,10 +207,8 @@ bool int_col_aux_check_foreign_key_master_bin_table_forward(INT_COL *col, INT_CO
   if (num_ins > 0) {
     uint32 *surrs = col_aux->insertions.u32_array;
     for (uint32 i=0 ; i < num_ins ; i++) {
-      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i])) {
-        //## RECORD THE ERROR
+      if (!master_bin_table_aux_contains_surr(target_table, target_table_aux, surrs[i]))
         return false;
-      }
     }
   }
 
@@ -269,10 +224,8 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_C
     uint32 ins_count = col_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count) {
-        //## TODO: RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       uint32 *surrs = col_aux->insertions.u32_array;
       uint32 found = 0;
@@ -281,18 +234,13 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_C
           found++;
       }
 
-      if (src_size > found) {
-        //## TODO: RECORD THE ERROR
+      if (src_size > found)
         return false;
-      }
 
       return true;
     }
     else {
       bool src_is_empty = master_bin_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -303,10 +251,8 @@ bool int_col_aux_check_foreign_key_master_bin_table_backward(INT_COL *col, INT_C
     for (uint32 i=0 ; i < num_dels ; i++) {
       uint32 surr = surrs[i];
       if (!col_update_status_map_inserted_flag_is_set(&col_aux->status_map, surr))
-        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-          //## RECORD THE ERROR
+        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, surr))
           return false;
-        }
     }
   }
 

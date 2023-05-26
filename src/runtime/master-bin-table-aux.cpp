@@ -856,10 +856,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_forward(MASTER_BIN_TAB
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg1 = insertions[i].x;
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg1)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg1))
         return false;
-      }
     }
   }
   return true;
@@ -871,10 +869,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_forward(MASTER_BIN_TAB
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 arg2 = insertions[i].y;
-      if (!unary_table_aux_contains(target_table, target_table_aux, arg2)) {
-        //## RECORD THE ERROR
+      if (!unary_table_aux_contains(target_table, target_table_aux, arg2))
         return false;
-      }
     }
   }
   return true;
@@ -888,10 +884,8 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_forward(MASTER_BIN_
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 surr = insertions[i].z;
-      if (!bin_table_aux_contains_1(target_table, &target_table_aux->slave_table_aux, surr)) {
-        //## RECORD THE ERROR
+      if (!bin_table_aux_contains_1(target_table, &target_table_aux->slave_table_aux, surr))
         return false;
-      }
     }
   }
   return true;
@@ -903,10 +897,8 @@ bool master_bin_table_aux_check_foreign_key_obj_col_forward(MASTER_BIN_TABLE *ta
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 surr = insertions[i].z;
-      if (!obj_col_aux_contains_1(target_col, target_col_aux, surr)) {
-        //## RECORD THE ERROR
+      if (!obj_col_aux_contains_1(target_col, target_col_aux, surr))
         return false;
-      }
     }
   }
   return true;
@@ -918,10 +910,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_forward(MASTER_BIN_TABLE *ta
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 surr = insertions[i].z;
-      if (!int_col_aux_contains_1(target_col, target_col_aux, surr)) {
-        //## RECORD THE ERROR
+      if (!int_col_aux_contains_1(target_col, target_col_aux, surr))
         return false;
-      }
     }
   }
   return true;
@@ -933,10 +923,8 @@ bool master_bin_table_aux_check_foreign_key_float_col_forward(MASTER_BIN_TABLE *
     TUPLE_3U32 *insertions = table_aux->insertions.array;
     for (uint32 i=0 ; i < num_ins ; i++) {
       uint32 surr = insertions[i].z;
-      if (!float_col_aux_contains_1(target_col, target_col_aux, surr)) {
-        //## RECORD THE ERROR
+      if (!float_col_aux_contains_1(target_col, target_col_aux, surr))
         return false;
-      }
     }
   }
   return true;
@@ -952,10 +940,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -971,16 +957,10 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
 
       assert(found <= src_size);
       bool ok = found == src_size;
-      if (!ok) {
-        //## RECORD THE ERROR
-      }
       return ok;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -991,10 +971,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 arg1 = arg1s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-        if (!master_bin_table_aux_was_inserted_1(table_aux, arg1)) {
-          //## RECORD THE ERROR
+        if (!master_bin_table_aux_was_inserted_1(table_aux, arg1))
           return false;
-        }
       }
     }
   }
@@ -1028,11 +1006,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
               if (count == 0)
                 count = master_bin_table_count_1(table, arg1);
               assert(count > 0);
-              if (count == 1) {
-                // No more references left
-                //## RECORD THE ERROR
-                return false;
-              }
+              if (count == 1)
+                return false; // No more references left
               else
                 trns_map_surr_u32_set(&remaining, arg1, count - 1);
             }
@@ -1062,11 +1037,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
                   if (count1 == 0)
                     count1 = master_bin_table_count_1(table, arg1);
                   assert(count1 > 0);
-                  if (count1 == 1) {
-                    // No more references left
-                    //## RECORD THE ERROR
-                    return false;
-                  }
+                  if (count1 == 1)
+                    return false; // No more references left
                   else
                     trns_map_surr_u32_set(&remaining, arg1, count1 - 1);
                 }
@@ -1092,10 +1064,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -1111,16 +1081,10 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
 
       assert(found <= src_size);
       bool all_src_elts_found = found == src_size;
-      if (!all_src_elts_found) {
-        //## RECORD THE ERROR
-      }
       return all_src_elts_found;
     }
     else {
       bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1131,10 +1095,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
     for (uint32 i=0 ; i < num_dels_2 ; i++) {
       uint32 arg2 = arg2s[i];
       if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-        if (!master_bin_table_aux_was_inserted_2(table_aux, arg2)) {
-          //## RECORD THE ERROR
+        if (!master_bin_table_aux_was_inserted_2(table_aux, arg2))
           return false;
-        }
       }
     }
   }
@@ -1168,11 +1130,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
               if (count == 0)
                 count = master_bin_table_count_2(table, arg2);
               assert(count > 0);
-              if (count == 1) {
-                // No more references left
-                //## RECORD THE ERROR
-                return false;
-              }
+              if (count == 1)
+                return false; // No more references left
               trns_map_surr_u32_set(&remaining, arg2, count - 1);
             }
           }
@@ -1201,11 +1160,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
                   if (count2 == 0)
                     count2 = master_bin_table_count_2(table, arg2);
                   assert(count2 > 0);
-                  if (count2 == 1) {
-                    // No more references left
-                    //## RECORD THE ERROR
-                    return false;
-                  }
+                  if (count2 == 1)
+                    return false; // No more references left
                   trns_map_surr_u32_set(&remaining, arg2, count2 - 1);
                 }
               }
@@ -1230,10 +1186,8 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = slave_tern_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -1249,16 +1203,10 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
 
       assert(found <= src_size);
       bool all_src_elts_found = found == src_size;
-      if (!all_src_elts_found) {
-        //## RECORD THE ERROR
-      }
       return all_src_elts_found;
     }
     else {
       bool src_is_empty = slave_tern_table_aux_is_empty(src_table, src_table_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1288,10 +1236,8 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
       if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-        if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-          //## RECORD THE ERROR
+        if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
           return false;
-        }
     }
   }
 
@@ -1310,10 +1256,8 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-              //## RECORD THE ERROR
+            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1334,10 +1278,8 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr)) {
-              //## RECORD THE ERROR
+            if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1354,10 +1296,8 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = obj_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -1373,16 +1313,10 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
 
       assert(found <= src_size);
       bool all_src_elts_found = found == src_size;
-      if (!all_src_elts_found) {
-        //## RECORD THE ERROR
-      }
       return all_src_elts_found;
     }
     else {
       bool src_is_empty = obj_col_aux_is_empty(src_col, src_col_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1412,10 +1346,8 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
       if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-        if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          //## RECORD THE ERROR
+        if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
-        }
     }
   }
 
@@ -1434,10 +1366,8 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1458,10 +1388,8 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (obj_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1477,10 +1405,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = int_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -1496,16 +1422,10 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
 
       assert(found <= src_size);
       bool all_src_elts_found = found == src_size;
-      if (!all_src_elts_found) {
-        //## RECORD THE ERROR
-      }
       return all_src_elts_found;
     }
     else {
       bool src_is_empty = int_col_aux_is_empty(src_col, src_col_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1535,10 +1455,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
       if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-        if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          //## RECORD THE ERROR
+        if (int_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
-        }
     }
   }
 
@@ -1557,10 +1475,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (int_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1581,10 +1497,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (int_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (int_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1600,10 +1514,8 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
     uint32 ins_count = table_aux->insertions.count;
     if (ins_count > 0) {
       uint32 src_size = float_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count) {
-        //## RECORD THE ERROR
+      if (src_size > ins_count)
         return false;
-      }
 
       STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
@@ -1619,16 +1531,10 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
 
       assert(found <= src_size);
       bool all_src_elts_found = found == src_size;
-      if (!all_src_elts_found) {
-        //## RECORD THE ERROR
-      }
       return all_src_elts_found;
     }
     else {
       bool src_is_empty = float_col_aux_is_empty(src_col, src_col_aux);
-      if (!src_is_empty) {
-        //## RECORD THE ERROR
-      }
       return src_is_empty;
     }
   }
@@ -1658,10 +1564,8 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
       if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-        if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-          //## RECORD THE ERROR
+        if (float_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
-        }
     }
   }
 
@@ -1680,10 +1584,8 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (float_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }
@@ -1704,10 +1606,8 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
           if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
-            if (float_col_aux_contains_1(src_col, src_col_aux, surr)) {
-              //## RECORD THE ERROR
+            if (float_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
-            }
         }
       }
     }

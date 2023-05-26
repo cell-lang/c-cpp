@@ -57,22 +57,8 @@ void loaded_one_way_bin_table_init(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem
 //////////////////////////////////////////////////////////////////////////////
 
 void loaded_one_way_bin_table_release(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  impl_fail(NULL); //## IMPLEMENT IMPLEMENT IMPLEMENT
+  impl_fail(NULL); //## IS THIS AT ALL NEEDED?
 }
-
-// struct ARRAY_MEM_POOL {
-//   uint64 *slots;
-//   uint32 size;
-//   uint32 head2, head4, head8, head16;
-//   bool alloc_double_space;
-// };
-
-// struct ONE_WAY_BIN_TABLE {
-//   ARRAY_MEM_POOL array_pool;
-//   uint64 *column;
-//   uint32 capacity;
-//   uint32 count;
-// };
 
 void loaded_one_way_bin_table_clear(ONE_WAY_BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
   array_mem_pool_clear(&table->array_pool, mem_pool);
