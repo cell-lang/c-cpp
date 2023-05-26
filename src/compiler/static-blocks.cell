@@ -1667,14 +1667,16 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     for k <- insert_checked_foreign_keys & update_checked_foreign_keys {
       check_expr = foreign_key_forward_check_expr(k, block);
-      check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
+      err_rec_instr = native_record_foreign_key_violation_code(k, block.tables(k.origin), block.tables(k.target));
+      check_code = (check_code | "if (!" & check_expr & ") {", "  " & err_rec_instr, "  return false;", "}");
     }
 
     check_code = (check_code | "") if delete_checked_foreign_keys != () and not ends_with_empty_line(check_code);
 
     for k <- delete_checked_foreign_keys {
       check_expr = foreign_key_backward_check_expr(k, block);
-      check_code = (check_code | "if (!" & check_expr & ")", "  return false;");
+      err_rec_instr = native_record_foreign_key_violation_code(k, block.tables(k.origin), block.tables(k.target));
+      check_code = (check_code | "if (!" & check_expr & ") {", "  " & err_rec_instr, "  return false;", "}");
     }
 
     check_code = () if skip_integrity_checks;
