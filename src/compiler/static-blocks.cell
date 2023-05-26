@@ -1646,13 +1646,18 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
         arity = arity(table);
         keys = keys(table);
         if arity == 2 and not is_symmetric(table) and keys == [[0], [1]] {
-          fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (v, pending_updates_var_ref_name(v), :mem_pool));
-          check_code = (check_code | "if (!" & fn_call & ")", "  return false;");
+          table_aux_name = pending_updates_var_ref_name(v);
+          fn_call = native_call_expr("double_key_bin_table_aux_check_keys", (v, table_aux_name, :mem_pool));
+          table_display_name = user_repr(original_rel_var(v));
+          args = (v, table_aux_name, db_auxiliary_arg_name & "->last_error_msg", _print_(table_display_name));
+          err_rec_instr = native_call("double_key_bin_table_aux_record_key_violation", args);
+          check_code = (check_code | "if (!" & fn_call & ") {", err_rec_instr, "  return false;", "}");
         }
         else {
           for k <- keys {
             fn_call = check_call(v, table, k);
-            check_code = (check_code | "if (!" & fn_call & ")", " return false;");
+            err_rec_instr = native_record_key_violation_code(v, table, k);
+            check_code = (check_code | "if (!" & fn_call & ") {", "  " & err_rec_instr, "  return false;", "}");
           }
         }
       }
