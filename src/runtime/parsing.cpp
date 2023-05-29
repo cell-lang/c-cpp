@@ -709,8 +709,12 @@ static bool read_string(PARSER *parser, OBJ *value) {
       max_char = next_char;
 
     if (length > capacity) {
-      //## IMPLEMENT IMPLEMENT IMPLEMENT
-      internal_fail();
+      //## TODO: IT MIGHT BE POSSIBLE TO OPTIMIZED THIS BY EXTENDING THE ARRAY
+      //## INSTEAD OF ALLOCATING A NEW ONE AND COPYING THE CONTENT OVER
+      uint16 *new_chars = new_uint16_array(2 * capacity);
+      memcpy(new_chars, chars, sizeof(uint16) * length);
+      chars = new_chars;
+      capacity *= 2;
     }
 
     chars[length++] = next_char;
