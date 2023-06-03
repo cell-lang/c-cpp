@@ -73,10 +73,10 @@ void semisym_slave_tern_table_aux_record_key_violation_3(BIN_TABLE *table, SLAVE
   snprintf(err_msg, 256, "The key on the third column of %s was violated", table_name);
 }
 
-void semisym_tern_table_aux_record_key_violation_12(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, char *err_msg, const char *table_name) {
+void semisym_tern_table_aux_record_key_violation_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, char *err_msg, const char *table_name) {
   snprintf(err_msg, 256, "The key on the first two columns of %s was violated", table_name);
 }
 
-void semisym_tern_table_aux_record_key_violation_3(BIN_TABLE *table, SLAVE_TERN_TABLE_AUX *table_aux, char *err_msg, const char *table_name) {
+void semisym_tern_table_aux_record_key_violation_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, char *err_msg, const char *table_name) {
   snprintf(err_msg, 256, "The key on the third column of %s was violated", table_name);
 }

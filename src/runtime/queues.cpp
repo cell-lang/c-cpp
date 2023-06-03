@@ -183,6 +183,10 @@ void queue_u64_reset(QUEUE_U64 *queue) {
 }
 
 void queue_u64_insert(QUEUE_U64 *queue, uint64 value) {
+  // An insertion destroys the order, but any sorting is supposed
+  // to happen only after all elements have already been inserted
+  assert(!queue->sorted);
+
   uint32 capacity = queue->capacity;
   uint32 count = queue->count;
   uint64 *array = queue->array;

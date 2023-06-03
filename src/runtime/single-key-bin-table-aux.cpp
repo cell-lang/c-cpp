@@ -376,24 +376,22 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_1_backward(SINGLE_KE
     // If no key violation was detected, then all insertions are unique
     //## MAYBE I SHOULD BE CHECKING THIS
     uint32 count = table_aux->insertions.count;
+    if (count == 0)
+      return unary_table_aux_is_empty(src_table, src_table_aux);
 
-    if (count > 0) {
-      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > count)
-        return false;
-
-      uint32 found = 0;
-      uint64 *array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg1 = unpack_arg1(array[i]);
-        if (unary_table_aux_contains(src_table, src_table_aux, arg1))
-          found++;
-      }
-      if (src_size > found)
-        return false;
-    }
-    else if (!unary_table_aux_is_empty(src_table, src_table_aux))
+    uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+    if (src_size > count)
       return false;
+
+    uint32 found = 0;
+    uint64 *array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 arg1 = unpack_arg1(array[i]);
+      if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+        found++;
+    }
+    assert(src_size >= found);
+    return src_size == found;
   }
   else {
     uint32 num_dels = table_aux->deletions_1.count;
@@ -427,9 +425,9 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_1_backward(SINGLE_KE
         }
       }
     }
-  }
 
-  return true;
+    return true;
+  }
 }
 
 bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, MASTER_BIN_TABLE *src_table, MASTER_BIN_TABLE_AUX *src_table_aux) {
@@ -439,24 +437,22 @@ bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE
     // If no key violation was detected, then all insertions are unique
     //## MAYBE I SHOULD BE CHECKING THIS
     uint32 count = table_aux->insertions.count;
+    if (count == 0)
+      return master_bin_table_aux_is_empty(src_table, src_table_aux);
 
-    if (count > 0) {
-      uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
-      if (src_size > count)
-        return false;
-
-      uint32 found = 0;
-      uint64 *array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg1 = unpack_arg1(array[i]);
-        if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
-          found++;
-      }
-      if (src_size > found)
-        return false;
-    }
-    else if (!master_bin_table_aux_is_empty(src_table, src_table_aux))
+    uint32 src_size = master_bin_table_aux_size(src_table, src_table_aux);
+    if (src_size > count)
       return false;
+
+    uint32 found = 0;
+    uint64 *array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 arg1 = unpack_arg1(array[i]);
+      if (master_bin_table_aux_contains_surr(src_table, src_table_aux, arg1))
+        found++;
+    }
+    assert(src_size >= found);
+    return src_size == found;
   }
   else {
     uint32 num_dels = table_aux->deletions_1.count;
@@ -490,9 +486,9 @@ bool single_key_bin_table_aux_check_foreign_key_master_bin_table_backward(SINGLE
         }
       }
     }
-  }
 
-  return true;
+    return true;
+  }
 }
 
 bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KEY_BIN_TABLE *table, SINGLE_KEY_BIN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
@@ -500,24 +496,22 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KE
     // If no key violation was detected, then all insertions are unique
     //## MAYBE I SHOULD BE CHECKING THIS
     uint32 count = table_aux->insertions.count;
+    if (count == 0)
+      return unary_table_aux_is_empty(src_table, src_table_aux);
 
-    if (count > 0) {
-      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > count)
-        return false;
-
-      uint32 found = 0;
-      uint64 *array = table_aux->insertions.array;
-      for (uint32 i=0 ; i < count ; i++) {
-        uint32 arg2 = unpack_arg2(array[i]);
-        if (unary_table_aux_contains(src_table, src_table_aux, arg2))
-          found++;
-      }
-      if (src_size > found)
-        return false;
-    }
-    else if (!unary_table_aux_is_empty(src_table, src_table_aux))
+    uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
+    if (src_size > count)
       return false;
+
+    uint32 found = 0;
+    uint64 *array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < count ; i++) {
+      uint32 arg2 = unpack_arg2(array[i]);
+      if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+        found++;
+    }
+    assert(src_size >= found);
+    return src_size > found;
   }
   else {
     uint32 num_dels_2 = table_aux->deletions_2.count;
@@ -564,7 +558,7 @@ bool single_key_bin_table_aux_check_foreign_key_unary_table_2_backward(SINGLE_KE
         }
       }
     }
-  }
 
-  return true;
+    return true;
+  }
 }

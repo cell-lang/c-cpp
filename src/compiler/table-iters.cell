@@ -232,6 +232,9 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       ignored   = "arg_1_" & unique_id,
       bound()   = undefined;
 
+    ## BUG BUG BUG: THIS SEEMS WRONG FOR SYMMETRIC TABLES. DOESN'T THIS ITERATE ONLY
+    ## THROUGH THE TUPLES FOR WHICH THE GIVEN ARGUMENT IS THE LOWER ONE IN THE PAIR?
+
     size_method = if symmetric then "sym_bin_table_size" else "bin_table_size";
     count_1_method = if symmetric then "sym_bin_table_count_lower" else "bin_table_count_1";
     range_restrict_1_method = if symmetric then "sym_bin_table_range_restrict_lower" else "bin_table_range_restrict_1";

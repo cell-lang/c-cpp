@@ -16,7 +16,9 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
       }
       else if is_deletion(target_action) {
         if deletion_checked {
-          check_expr, code = ternary_binary_foreign_key_target_deletion_check_expr(origin, target, origin_type, target_type);
+          res = binary_ternary_foreign_key_target_deletion_check_expr(origin, target, origin_type, target_type);
+          return nothing if res == nothing;
+          check_expr, code = value(res);
           return just((code | do_if(check_expr, (err_rec_instr, ret_val(false)))));
         }
       }
@@ -36,27 +38,73 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
 
   //////////////////////////////////////////////////////////////////////////////
 
-  (BoolExpr, Instr*) ternary_binary_foreign_key_target_deletion_check_expr(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type) {
+  Maybe[(BoolExpr, Instr*)] binary_ternary_foreign_key_target_deletion_check_expr(TableVar origin, TableVar target, AnyTable origin_type, AnyTable target_type) {
     target_aux_vars, maybe_target_status_var = table_var_aux_vars_map(target);
 
     if |target_aux_vars| == 3 {
-      arg1_aux_var = cast_loc_int32_var(target_aux_vars(0));
-      arg2_aux_var = cast_loc_int32_var(target_aux_vars(1));
-      check_expr = bin_table_aux_contains(origin, origin_type, (just(arg1_aux_var), just(arg2_aux_var)));
-      check_expr = and_then(value(maybe_target_status_var), check_expr) if maybe_target_status_var != nothing;
+      aux_var_1_or_none, aux_var_2_or_none, _ = target_aux_vars;
+      arg1 = if aux_var_1_or_none != :none then just(cast_loc_int32_var(aux_var_1_or_none)) else nothing;
+      arg2 = if aux_var_2_or_none != :none then just(cast_loc_int32_var(aux_var_2_or_none)) else nothing;
+      check_expr = bin_table_aux_contains(origin, origin_type, (arg1, arg2));
       code = ();
     }
     else {
-      assert |target_aux_vars| == 2;
-      assoc_surr_aux_var = cast_loc_int32_var(target_aux_vars(0));
-      check_expr, code = bin_table_aux_contains_surr(origin, cast_master_bin_table(origin_type), assoc_surr_aux_var);
-      if maybe_target_status_var != nothing {
-        target_status_var = value(maybe_target_status_var);
-        code = (do_if(target_status_var, code));
-        check_expr = and_then(target_status_var, check_expr);
+      assoc_surr_aux_var_or_none, aux_var_3_or_none = cast_pair(target_aux_vars);
+      if assoc_surr_aux_var_or_none != :none {
+        if aux_var_3_or_none != :none {
+          return nothing; ## IMPLEMENT IMPLEMENT IMPLEMENT
+        }
+        else {
+          assoc_surr_var = cast_loc_int32_var(target_aux_vars(0));
+          check_expr, code = bin_table_aux_contains_surr(origin, cast_master_bin_table(origin_type), assoc_surr_var);
+        }
+      }
+      else {
+        if aux_var_3_or_none != :none {
+          return nothing; ## IMPLEMENT IMPLEMENT IMPLEMENT
+
+          // target_keys = keys(target_type);
+          // assert target_keys == [[0, 1], 2] or not target_keys([2]);
+          // if target_keys == [[0, 1], [2]] {
+          //   assoc_surr_var = new_unique_int32_var(:unused);
+          //   code = (set_ivar32(assoc_surr_var, table_lookup(target, target_type, ())
+          //               table_lookup(table_var: AnyTableVar, table: AnySurrTable, args: Maybe[Int32Var]+),
+
+          //   );
+          // }
+
+
+          // arg1 = new_unique_int32_var(:unused);
+          // arg2 = new_unique_int32_var(:unused);
+          // arg3 = cast_loc_int32_var(aux_var_3_or_none);
+          // iter = tern_table_iter(target, target_type, (:read(arg1), :read(arg2), :bound(arg3)));
+          // check_expr = new_unique_bool_var(:unused);
+          // code = (
+          //   set_bvar(check_expr, false),
+          //   foreach(
+          //     iter,
+          //     do_if(
+          //       bin_table_aux_contains(origin, origin_type, (arg1, arg2)),
+          //       ( set_bvar(check_expr, true),
+          //         break_loop
+          //       )
+          //     )
+          //   )
+          // );
+        }
+        else {
+          check_expr = bin_table_aux_contains(origin, origin_type, (nothing, nothing));
+          code = ();
+        }
       }
     }
 
-    return (check_expr, code);
+    if maybe_target_status_var != nothing {
+      target_status_var = value(maybe_target_status_var);
+      code = opt_do_if(target_status_var, code);
+      check_expr = and_then(target_status_var, check_expr);
+    }
+
+    return just((check_expr, code));
   }
 }

@@ -740,10 +740,19 @@ static bool bin_table_aux_was_inserted_2(BIN_TABLE *table, BIN_TABLE_AUX *table_
 ////////////////////////////////////////////////////////////////////////////////
 
 uint32 bin_table_aux_size(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
-  uint32 size = table_aux->clear ? 0 : bin_table_size(table);
+  uint32 size = bin_table_size(table);
+
+  if (size == 0 || table_aux->clear) {
+    QUEUE_U64 *insertions = &table_aux->insertions;
+    uint32 ins_count = insertions->count;
+    if (ins_count > 1)
+      queue_u64_deduplicate(insertions);
+    return insertions->count;
+  }
 
   STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
   COL_UPDATE_BIT_MAP *bit_map = &table_aux->bit_map;
+  assert(!col_update_bit_map_is_dirty(bit_map));
 
   uint32 dels_count = table_aux->deletions.count;
   if (dels_count > 0) {
@@ -827,6 +836,113 @@ uint32 bin_table_aux_size(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
   return size;
 }
 
+uint32 bin_table_aux_count_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
+  uint32 count = bin_table_count_1(table, arg1);
+
+  if (table_aux->clear)
+    count = 0;
+
+  if (count > 0) {
+    uint32 dels_count_1 = table_aux->deletions_1.count;
+    if (dels_count_1 > 0) {
+      uint32 *arg1s = table_aux->deletions_1.array;
+      for (uint32 i=0 ; i < dels_count_1 ; i++)
+        if (arg1s[i] == arg1) {
+          count = 0;
+          break;
+        }
+    }
+  }
+
+  if (count == 0) {
+    uint32 ins_count = table_aux->insertions.count;
+    if (ins_count > 0) {
+      queue_u64_deduplicate(&table_aux->insertions);
+      ins_count = table_aux->insertions.count;
+      uint64 *args_array = table_aux->insertions.array;
+      for (uint32 i=0 ; i < ins_count ; i++) {
+        if (arg1 == unpack_arg1(args_array[i]))
+          count++;
+      }
+    }
+    return count;
+  }
+
+  // If we get here it means that arg1 was original present, the table
+  // was not cleared and no deletion of the form (arg1, *) took place,
+  // so now we need to count the individual deletions, and for each insertion
+  // check that it actually insert a tuple that wasn't already there
+
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
+  COL_UPDATE_BIT_MAP *bit_map = &table_aux->bit_map;
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 dels_count = table_aux->deletions.count;
+  if (dels_count > 0) {
+    uint64 *args_array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < dels_count ; i++) {
+      uint64 args = args_array[i];
+      uint32 del_arg1 = unpack_arg1(args);
+      if (del_arg1 == arg1) {
+        uint32 arg2 = unpack_arg2(args);
+        if (bin_table_contains(table, arg1, arg2) && !col_update_bit_map_check_and_set(bit_map, arg2, mem_pool))
+          if (--count == 0)
+            break;
+      }
+    }
+  }
+
+  if (count > 0) {
+    uint32 dels_count_2 = table_aux->deletions_2.count;
+    if (dels_count_2 > 0) {
+      uint32 *arg2s = table_aux->deletions_2.array;
+      for (uint32 i=0 ; i < dels_count_2 ; i++) {
+        uint32 arg2 = arg2s[i];
+        if (bin_table_contains(table, arg1, arg2) && !col_update_bit_map_check_and_set(bit_map, arg2, mem_pool))
+          if (--count)
+            break;
+      }
+    }
+  }
+
+  bool no_arg1_tuples_left_after_deletions = count == 0;
+
+  uint32 ins_count = table_aux->insertions.count;
+  if (ins_count > 0) {
+    queue_u64_deduplicate(&table_aux->insertions);
+    ins_count = table_aux->insertions.count;
+    uint64 *args_array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint64 args = args_array[i];
+      uint32 ins_arg1 = unpack_arg1(args);
+      if (ins_arg1 == arg1) {
+        uint32 arg2 = unpack_arg2(args);
+        if (no_arg1_tuples_left_after_deletions || !bin_table_contains(table, arg1, arg2) || col_update_bit_map_is_set(bit_map, arg2))
+          count++;
+      }
+    }
+  }
+
+  col_update_bit_map_clear(bit_map);
+
+  return count;
+}
+
+bool bin_table_aux_is_empty(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
+  if (table_aux->insertions.count > 0)
+    return false;
+
+  if (table_aux->clear)
+    return true;
+
+  if (bin_table_size(table) == 0)
+    return true;
+
+  return bin_table_aux_size(table, table_aux) == 0;
+}
+
 bool bin_table_aux_contains_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
   if (bin_table_aux_was_inserted_1(table, table_aux, arg1))
     return true;
@@ -851,21 +967,6 @@ bool bin_table_aux_contains_2(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32
     return false;
 
   return !bin_table_aux_was_fully_deleted_2(table, table_aux, arg2);
-}
-
-bool bin_table_aux_is_empty(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
-  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
-
-  if (table_aux->insertions.count > 0)
-    return false;
-
-  if (table_aux->clear)
-    return true;
-
-  if (bin_table_size(table) == 0)
-    return true;
-
-  return bin_table_aux_size(table, table_aux) == 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

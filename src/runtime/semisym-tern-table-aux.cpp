@@ -38,7 +38,7 @@ void semisym_tern_table_aux_delete_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX 
   }
 }
 
-void semisym_tern_table_aux_delete_13_23(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg12, uint32 arg3) {
+void semisym_tern_table_aux_delete_13(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg12, uint32 arg3) {
   uint32 count12 = sym_master_bin_table_count(&table->master, arg12);
   uint32 count3 = bin_table_count_2(&table->slave, arg3);
   if (count12 > 0 && count3 > 0) {
@@ -103,6 +103,33 @@ void semisym_tern_table_aux_insert(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *ta
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+uint32 semisym_tern_table_aux_size(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux) {
+  return bin_table_aux_size(&table->slave, &table_aux->slave);
+}
+
+uint32 semisym_tern_table_aux_count_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  uint32 assoc_surr = sym_master_bin_table_aux_lookup_surr(&table->master, &table_aux->master, arg1, arg2);
+  return assoc_surr != 0xFFFFFFFF ? bin_table_aux_count_1(&table->slave, &table_aux->slave, assoc_surr) : 0;
+}
+
+bool semisym_tern_table_aux_is_empty(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux) {
+  return bin_table_aux_is_empty(&table->slave, &table_aux->slave);
+}
+
+bool semisym_tern_table_aux_contains_12(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  uint32 assoc_surr = sym_master_bin_table_aux_lookup_surr(&table->master, &table_aux->master, arg1, arg2);
+  assert(assoc_surr == 0xFFFFFFFF || bin_table_aux_contains_1(&table->slave, &table_aux->slave, assoc_surr));
+  return assoc_surr != 0xFFFFFFFF;
+}
+
+bool semisym_tern_table_aux_contains_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, uint32 arg3) {
+  return bin_table_aux_contains_2(&table->slave, &table_aux->slave, arg3);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 void semisym_tern_table_aux_apply(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, void (*remove12)(void *, uint32, STATE_MEM_POOL *), void *store12, void (*remove3)(void *, uint32, STATE_MEM_POOL *), void *store3, STATE_MEM_POOL *mem_pool) {
   sym_master_bin_table_aux_apply_surrs_acquisition(&table->master, &table_aux->master);
@@ -147,18 +174,40 @@ bool semisym_tern_table_aux_check_key_3(TERN_TABLE *table, SEMISYM_TERN_TABLE_AU
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *) {
-  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_forward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, BIN_TABLE *target_table, SYM_BIN_TABLE_AUX *target_table_aux) {
+  uint32 num_ins = table_aux->master.insertions.count;
+  if (num_ins > 0) {
+    TUPLE_3U32 *insertions = table_aux->master.insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg1 = insertions[i].x;
+      uint32 arg2 = insertions[i].y;
+      if (!sym_bin_table_aux_contains(target_table, target_table_aux, arg1, arg2))
+        return false;
+    }
+  }
+  return true;
 }
 
-bool semisym_tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *) {
-  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool semisym_tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, UNARY_TABLE *target_table, UNARY_TABLE_AUX *target_table_aux) {
+  return bin_table_aux_check_foreign_key_unary_table_2_forward(&table->slave, &table_aux->slave, target_table, target_table_aux);
 }
 
-bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_backward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *) {
-  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+////////////////////////////////////////////////////////////////////////////////
+
+bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_backward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SYM_BIN_TABLE_AUX *src_table_aux) {
+  uint32 num_ins = table_aux->master.insertions.count;
+  if (num_ins > 0) {
+    TUPLE_3U32 *insertions = table_aux->master.insertions.array;
+    for (uint32 i=0 ; i < num_ins ; i++) {
+      uint32 arg1 = insertions[i].x;
+      uint32 arg2 = insertions[i].y;
+      if (sym_bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+        return false;
+    }
+  }
+  return true;
 }
 
-bool semisym_tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *) {
-  return true; //## IMPLEMENT IMPLEMENT IMPLEMENT
+bool semisym_tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
+  return bin_table_aux_check_foreign_key_unary_table_2_backward(&table->slave, &table_aux->slave, src_table, src_table_aux);
 }

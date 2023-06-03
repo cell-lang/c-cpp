@@ -362,15 +362,15 @@ implicit context : NativeContext {
       unary_ternary(i?)         |
       binary_unary(i?)          |
       ternary_unary(i?)         = "_" & _print_(i + 1),
+      unary_sym_ternary_3       |
+      sym_ternary_unary_3       = "_3",
       unary_unary               |
       binary_ternary            |
       ternary_binary            |
       unary_sym_binary          |
       unary_sym_ternary_12      |
-      unary_sym_ternary_3       |
       sym_binary_unary          |
       sym_ternary_unary_12      |
-      sym_ternary_unary_3       |
       sym_binary_sym_ternary    |
       sym_ternary_sym_binary    = "";
 

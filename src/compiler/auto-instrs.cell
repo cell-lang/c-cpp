@@ -628,14 +628,14 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
     [Bool+ -> String] sym_fn_names_by_args = [
       (true,  true)           -> "delete",
       (true,  false)          -> "delete_1",
-      // (false, true)           -> undefined,
+      (false, true)           -> "delete_1",
       (false, false)          -> "clear",
       (true,  true,  true)    -> "delete",
       (true,  true,  false)   -> "delete_12",
-      (true,  false, true)    -> "delete_13_23",
-      (false, true,  true)    -> "delete_13_23",
-      (true,  false, false)   -> "delete_1_2",
-      (false, true,  false)   -> "delete_1_2",
+      (true,  false, true)    -> "delete_13",
+      (false, true,  true)    -> "delete_13",
+      (true,  false, false)   -> "delete_1",
+      (false, true,  false)   -> "delete_1",
       (false, false, true)    -> "delete_3",
       (false, false, false)   -> "clear"
     ];
@@ -1004,15 +1004,18 @@ implicit context : NativeContext {
   String* native_check_foreign_key_code(BlockForeignKey key, AnyTable origin_type, AnyTable target_type, <forward, backward> direction) {
     if direction == :forward {
       method_name = foreign_key_forward_checker_name(key.type, origin_type, target_type);
-      args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
+      needs_origin_ref = match (origin_type)
+        table() t?  = arity(t) != 1,
+        _           = true;
+      args = (key.origin if needs_origin_ref, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
 
     }
     else {
       method_name = foreign_key_backward_checker_name(key.type, origin_type, target_type);
-      needs_origin_ref = match (target_type)
+      needs_target_ref = match (target_type)
         table() t?  = arity(t) != 1,
         _           = true;
-      args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
+      args = (key.target if needs_target_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
     }
 
     check_expr = native_call_expr(method_name, args);
@@ -1042,7 +1045,15 @@ implicit context : NativeContext {
   String* native_table_apply_code(TableVar table_var, Table table, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
     method_prefix = native_table_method_prefix(table) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
-    vs_args = value_stores_args(owned_value_stores);
+
+    non_redundant_owned_value_stores = owned_value_stores;
+    if table.symmetric {
+      assert table.value_stores(0) == table.value_stores(1);
+      assert owned_value_stores(1) == nothing;
+      non_redundant_owned_value_stores = (owned_value_stores(0), owned_value_stores(2) if arity(table) == 3);
+    }
+
+    vs_args = value_stores_args(non_redundant_owned_value_stores);
 
     full_args = (table_var, table_aux_name) & vs_args & (:mem_pool);
 

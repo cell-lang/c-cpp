@@ -1743,17 +1743,20 @@ implicit prg_data : PrgData, rel_vars_perm_map : [DBSymbol -> [RelVar -> [+Nat -
 
     String foreign_key_forward_check_expr(BlockForeignKey key, StaticBlock block) {
       method_name = foreign_key_forward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
-      args = (key.origin, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
+      needs_origin_ref = match (block.tables(key.origin))
+        table() t?  = arity(t) != 1,
+        _           = true;
+      args = (key.origin if needs_origin_ref, pending_updates_var_ref_name(key.origin), key.target, pending_updates_var_ref_name(key.target));
       return native_call_expr(method_name, args);
     }
 
 
     String foreign_key_backward_check_expr(BlockForeignKey key, StaticBlock block) {
       method_name = foreign_key_backward_checker_name(key.type, block.tables(key.origin), block.tables(key.target));
-      needs_origin_ref = match (block.tables(key.target))
+      needs_target_ref = match (block.tables(key.target))
         table() t?  = arity(t) != 1,
         _           = true;
-      args = (key.target if needs_origin_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
+      args = (key.target if needs_target_ref, pending_updates_var_ref_name(key.target), key.origin, pending_updates_var_ref_name(key.origin));
       return native_call_expr(method_name, args);
     }
 
