@@ -512,7 +512,7 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
       args = (aux_struct) & tuple;
     }
     else {
-      if forced {
+      if forced and keys != [] {
         method_name_action = "_aux_slave_update";
         method_name_action = method_name_action & "_12" if keys([0, 1]);
         method_name_action = method_name_action & "_3" if keys([2]);
