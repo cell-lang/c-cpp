@@ -72,7 +72,8 @@ implicit prg : CompiledPrg, prg_data : PrgData, typedefs : [TypeName -> NeType],
         code & indent_lines(native_code(wrapper.msg_inst_code, nothing, debug_mode=false, break_target=nothing), 2) |
         "    bool ok = " & native_call(method_name, ("&ptr->automaton", "&ptr->auxiliary", native_msg_expr, "ptr->env")),
         "    if (!ok) {",
-        "      throw std::runtime_error(\"\");", ## TODO: ADD INFORMATION ABOUT THE ERROR (WHICH OUGHT TO BE STORED IN THE AUXILIARY DATA STRUCTURE)
+        "      const char *err_msg = ptr->auxiliary.last_error_msg;",
+        "      throw std::runtime_error(err_msg);",
         "    }",
         "  }",
         "  catch (...) {",
