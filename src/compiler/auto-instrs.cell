@@ -805,11 +805,12 @@ implicit prg_data : PrgData, context : NativeContext, debug_mode : Bool, break_t
 
     String* opt_single_msg_run_check_and_apply_code(LinkedDBVar auto_var, DBSymbol auto_type, LocVar msg_var, Maybe[HandlerId] maybe_handler_id, Maybe[LocBoolVar] maybe_status_var) {
       if maybe_handler_id == nothing {
-        methods_array_name = msg_handler_array(auto_type);
+        methods_array_name = msg_opt_handler_array(auto_type);
         reset_methods_array_name = msg_handler_reset_array(auto_type);
         resolver_name = handler_dispatch_resolver_name(auto_type);
-        handler_name_or_method_pointer_lookup_expr = undefined; ## IMPLEMENT IMPLEMENT IMPLEMENT
-        reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+        method_arrays_index = "[" & resolver_name & "(" & native_expr(msg_var) & ")]";
+        handler_name_or_method_pointer_lookup_expr = methods_array_name & method_arrays_index;
+        reset_method_name_or_method_pointer_lookup_expr = reset_methods_array_name & method_arrays_index;
       }
       else {
         handler_id = value(maybe_handler_id);
