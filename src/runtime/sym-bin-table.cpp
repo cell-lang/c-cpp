@@ -3,8 +3,7 @@
 
 
 void sym_bin_table_init(BIN_TABLE *table, STATE_MEM_POOL *mem_pool) {
-  one_way_bin_table_init(&table->forward, mem_pool);
-  one_way_bin_table_init(&table->backward, mem_pool);
+  bin_table_init(table, mem_pool);
 }
 
 uint32 sym_bin_table_size(BIN_TABLE *table) {
@@ -56,6 +55,11 @@ uint32 sym_bin_table_lookup(BIN_TABLE *table, uint32 arg) {
   else if (one_way_bin_table_lookup(&table->backward, arg) != 0xFFFFFFFF)
     internal_fail();
   return other_arg;
+}
+
+uint32 sym_bin_table_lookup_unstable_surr(BIN_TABLE *table, uint32 arg1, uint32 arg2) {
+  sort_u32(arg1, arg2);
+  return one_way_bin_table_lookup_unstable_surr(&table->forward, arg1, arg2);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

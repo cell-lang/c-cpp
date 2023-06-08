@@ -195,17 +195,7 @@ bool semisym_tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *
 ////////////////////////////////////////////////////////////////////////////////
 
 bool semisym_tern_table_aux_check_foreign_key_sym_bin_table_backward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, BIN_TABLE *src_table, SYM_BIN_TABLE_AUX *src_table_aux) {
-  uint32 num_ins = table_aux->master.insertions.count;
-  if (num_ins > 0) {
-    TUPLE_3U32 *insertions = table_aux->master.insertions.array;
-    for (uint32 i=0 ; i < num_ins ; i++) {
-      uint32 arg1 = insertions[i].x;
-      uint32 arg2 = insertions[i].y;
-      if (sym_bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
-        return false;
-    }
-  }
-  return true;
+  return sym_master_bin_table_aux_check_foreign_key_sym_bin_table_backward(&table->master, &table_aux->master, src_table, src_table_aux);
 }
 
 bool semisym_tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *table, SEMISYM_TERN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {

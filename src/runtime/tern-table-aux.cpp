@@ -428,6 +428,10 @@ bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *table, T
 
 ////////////////////////////////////////////////////////////////////////////////
 
+bool tern_table_aux_check_foreign_key_bin_table_backward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, BIN_TABLE *src_table, BIN_TABLE_AUX *src_table_aux) {
+  return master_bin_table_aux_check_foreign_key_bin_table_backward(&table->master, &table_aux->master, src_table, src_table_aux);
+}
+
 bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *table, TERN_TABLE_AUX *table_aux, UNARY_TABLE *src_table, UNARY_TABLE_AUX *src_table_aux) {
   return bin_table_aux_check_foreign_key_unary_table_2_backward(&table->slave, &table_aux->slave, src_table, src_table_aux);
 }

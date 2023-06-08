@@ -214,6 +214,98 @@ bool sym_bin_table_aux_contains(BIN_TABLE *table, SYM_BIN_TABLE_AUX *table_aux, 
   return true;
 }
 
+uint32 sym_bin_table_aux_size(BIN_TABLE *table, SYM_BIN_TABLE_AUX *table_aux) {
+  uint32 size = sym_bin_table_size(table);
+
+  if (size == 0 || table_aux->clear) {
+    QUEUE_U64 *insertions = &table_aux->insertions;
+    uint32 ins_count = insertions->count;
+    if (ins_count > 1)
+      queue_u64_deduplicate(insertions);
+    return insertions->count;
+  }
+
+  STATE_MEM_POOL *mem_pool = bin_table_mem_pool(table);
+  COL_UPDATE_BIT_MAP *bit_map = &table_aux->bit_map;
+  assert(!col_update_bit_map_is_dirty(bit_map));
+
+  uint32 dels_count = table_aux->deletions.count;
+  if (dels_count > 0) {
+    uint64 *args_array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < dels_count ; i++) {
+      uint64 args = args_array[i];
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      assert(arg1 <= arg2);
+      uint32 unstable_surr = sym_bin_table_lookup_unstable_surr(table, arg1, arg2);
+      if (unstable_surr != 0xFFFFFFFF && !col_update_bit_map_check_and_set(bit_map, unstable_surr, mem_pool))
+        size--;
+    }
+  }
+
+  uint32 dels_count_1 = table_aux->deletions_1.count;
+  if (dels_count_1 > 0) {
+    uint32 *args = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < dels_count_1 ; i++) {
+      uint32 arg = args[i];
+      uint32 count = sym_bin_table_count(table, arg);
+      uint32 read = 0;
+      while (read < count) {
+        uint32 buffer[64];
+        UINT32_ARRAY array = sym_bin_table_range_restrict(table, arg, read, buffer, 64);
+        read += array.size;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 other_arg = array.array[j];
+          uint32 unstable_surr = sym_bin_table_lookup_unstable_surr(table, arg, other_arg);
+          assert(unstable_surr != 0xFFFFFFFF);
+          if (!col_update_bit_map_check_and_set(bit_map, unstable_surr, mem_pool))
+            size--;
+        }
+      }
+    }
+  }
+
+  uint32 ins_count = table_aux->insertions.count;
+  if (ins_count > 0) {
+    queue_u64_deduplicate(&table_aux->insertions);
+    ins_count = table_aux->insertions.count;
+    uint64 *args_array = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint64 args = args_array[i];
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      assert(arg1 <= arg2);
+      if (sym_bin_table_contains(table, arg1, arg2)) {
+        uint32 unstable_surr = sym_bin_table_lookup_unstable_surr(table, arg1, arg2);
+        assert(unstable_surr != 0xFFFFFFFF);
+        if (col_update_bit_map_is_set(bit_map, unstable_surr))
+          size++;
+      }
+      else
+        size++;
+    }
+  }
+
+  col_update_bit_map_clear(bit_map);
+
+  return size;
+}
+
+bool sym_bin_table_aux_is_empty(BIN_TABLE *table, SYM_BIN_TABLE_AUX *table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map));
+
+  if (table_aux->insertions.count > 0)
+    return false;
+
+  if (table_aux->clear)
+    return true;
+
+  if (sym_bin_table_size(table) == 0)
+    return true;
+
+  return sym_bin_table_aux_size(table, table_aux) == 0;
+}
+
 bool sym_bin_table_aux_contains_1(BIN_TABLE *table, SYM_BIN_TABLE_AUX *table_aux, uint32 arg) {
   //## TODO: IMPLEMENT FOR REAL
   //## SO FAR THIS IS ONLY USED INSIDE unary_table_aux_check_foreign_key_sym_bin_table_backward(..),

@@ -1534,6 +1534,7 @@ uint32 bin_table_aux_size(BIN_TABLE *, BIN_TABLE_AUX *);
 uint32 bin_table_aux_count_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_is_empty(BIN_TABLE *, BIN_TABLE_AUX *);
 
+bool bin_table_aux_contains(BIN_TABLE *, BIN_TABLE_AUX *, uint32, uint32);
 bool bin_table_aux_contains_1(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 bool bin_table_aux_contains_2(BIN_TABLE *, BIN_TABLE_AUX *, uint32);
 
@@ -1542,6 +1543,7 @@ bool bin_table_aux_check_foreign_key_unary_table_2_forward(BIN_TABLE *, BIN_TABL
 
 bool bin_table_aux_check_foreign_key_unary_table_1_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_unary_table_2_backward(BIN_TABLE *, BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
+bool bin_table_aux_check_foreign_key_bin_table_backward(BIN_TABLE *, BIN_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
 bool bin_table_aux_check_foreign_key_master_bin_table_backward(BIN_TABLE *, BIN_TABLE_AUX *, MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *);
 
 /////////////////////////// single-key-bin-table.cpp ///////////////////////////
@@ -1691,6 +1693,7 @@ uint32 sym_bin_table_restrict(BIN_TABLE *, uint32 arg, uint32 *other_args);
 UINT32_ARRAY sym_bin_table_range_restrict(BIN_TABLE *, uint32 arg, uint32 first, uint32 *other_args, uint32 capacity);
 UINT32_ARRAY sym_bin_table_range_restrict_lower(BIN_TABLE *, uint32 lower_arg, uint32 first, uint32 *other_args, uint32 capacity);
 uint32 sym_bin_table_lookup(BIN_TABLE *, uint32 arg);
+uint32 sym_bin_table_lookup_unstable_surr(BIN_TABLE *, uint32, uint32);
 
 bool sym_bin_table_insert(BIN_TABLE *, uint32 arg1, uint32 arg2, STATE_MEM_POOL *);
 bool sym_bin_table_delete(BIN_TABLE *, uint32 arg1, uint32 arg2);
@@ -1713,11 +1716,15 @@ void sym_bin_table_aux_clear(SYM_BIN_TABLE_AUX *);
 void sym_bin_table_aux_apply_deletions(BIN_TABLE *, SYM_BIN_TABLE_AUX *, DEALLOC, STATE_MEM_POOL *);
 void sym_bin_table_aux_apply_insertions(BIN_TABLE *, SYM_BIN_TABLE_AUX *, STATE_MEM_POOL *);
 
+uint32 sym_bin_table_aux_size(BIN_TABLE *, SYM_BIN_TABLE_AUX *);
+bool sym_bin_table_aux_is_empty(BIN_TABLE *, SYM_BIN_TABLE_AUX *);
+
 bool sym_bin_table_aux_contains(BIN_TABLE *, SYM_BIN_TABLE_AUX *, uint32 arg1, uint32 arg2);
 bool sym_bin_table_aux_contains_1(BIN_TABLE *, SYM_BIN_TABLE_AUX *, uint32);
 
 bool sym_bin_table_aux_check_foreign_key_unary_table_forward(BIN_TABLE *, SYM_BIN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool sym_bin_table_aux_check_foreign_key_semisym_tern_table_backward(BIN_TABLE *, SYM_BIN_TABLE_AUX *, TERN_TABLE *, SEMISYM_TERN_TABLE_AUX *);
+bool sym_bin_table_aux_check_foreign_key_sym_bin_table_backward(BIN_TABLE *, SYM_BIN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *);
 
 ///////////////////////////// master-bin-table.cpp /////////////////////////////
 
@@ -1820,6 +1827,8 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *,
 bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, FLOAT_COL *, FLOAT_COL_AUX *);
 bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, BIN_TABLE *, SLAVE_TERN_TABLE_AUX *);
 
+bool master_bin_table_aux_check_foreign_key_bin_table_backward(MASTER_BIN_TABLE *, MASTER_BIN_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
+
 /////////////////////////// sym-master-bin-table.cpp ///////////////////////////
 
 void sym_master_bin_table_init(MASTER_BIN_TABLE *, STATE_MEM_POOL *);
@@ -1862,6 +1871,8 @@ uint32 sym_master_bin_table_aux_lookup_surr(MASTER_BIN_TABLE *, SYM_MASTER_BIN_T
 void sym_master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *);
 void sym_master_bin_table_aux_apply_deletions(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *, DEALLOC, STATE_MEM_POOL *);
 void sym_master_bin_table_aux_apply_insertions(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *, STATE_MEM_POOL *);
+
+bool sym_master_bin_table_aux_check_foreign_key_sym_bin_table_backward(MASTER_BIN_TABLE *, SYM_MASTER_BIN_TABLE_AUX *, BIN_TABLE *, SYM_BIN_TABLE_AUX *);
 
 ///////////////////////////// slave-tern-table.cpp /////////////////////////////
 
@@ -2085,6 +2096,7 @@ bool tern_table_aux_check_foreign_key_unary_table_1_forward(TERN_TABLE *, TERN_T
 bool tern_table_aux_check_foreign_key_unary_table_2_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 bool tern_table_aux_check_foreign_key_unary_table_3_forward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
+bool tern_table_aux_check_foreign_key_bin_table_backward(TERN_TABLE *, TERN_TABLE_AUX *, BIN_TABLE *, BIN_TABLE_AUX *);
 bool tern_table_aux_check_foreign_key_unary_table_3_backward(TERN_TABLE *, TERN_TABLE_AUX *, UNARY_TABLE *, UNARY_TABLE_AUX *);
 
 bool tern_table_aux_contains_1(TERN_TABLE *, TERN_TABLE_AUX *, uint32);

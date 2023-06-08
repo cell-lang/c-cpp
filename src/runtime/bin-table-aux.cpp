@@ -671,6 +671,40 @@ static void bin_table_aux_build_full_deletion_map_2(BIN_TABLE *table, BIN_TABLE_
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool bin_table_aux_was_deleted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  assert(bin_table_contains(table, arg1, arg2));
+
+  //## TODO: IMPLEMENT FOR REAL
+
+  uint32 count_12 = table_aux->deletions.count;
+  uint32 count_1 = table_aux->deletions_1.count;
+  uint32 count_2 = table_aux->deletions_2.count;
+
+  if (count_12 > 0) {
+    uint64 packed_args = pack_args(arg1, arg2);
+    uint64 *array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < count_12 ; i++)
+      if (array[i] == packed_args)
+        return true;
+  }
+
+  if (count_1 > 0) {
+    uint32 *array = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < count_1 ; i++)
+      if (array[i] == arg1)
+        return true;
+  }
+
+  if (count_2 > 0) {
+    uint32 *array = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < count_2 ; i++)
+      if (array[i] == arg2)
+        return true;
+  }
+
+  return false;
+}
+
 static bool bin_table_aux_was_fully_deleted_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
   assert(bin_table_contains_1(table, arg1));
 
@@ -705,6 +739,26 @@ static bool bin_table_aux_was_fully_deleted_2(BIN_TABLE *table, BIN_TABLE_AUX *t
     bin_table_aux_build_full_deletion_map_2(table, table_aux);
 
   return col_update_bit_map_is_set(&table_aux->full_deletion_map_2, arg2);
+}
+
+static bool bin_table_aux_was_inserted(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  QUEUE_U64 *insertions = &table_aux->insertions;
+  uint32 num_ins = insertions->count;
+  if (num_ins == 0)
+    return false;
+
+  //## TODO: IMPLEMENT FOR REAL
+
+  uint64 *args_array = insertions->array;
+  for (uint32 i=0 ; i < num_ins ; i++) {
+    uint64 args = args_array[i];
+    uint32 curr_arg1 = unpack_arg1(args);
+    uint32 curr_arg2 = unpack_arg2(args);
+    if (arg1 == curr_arg1 && arg2 == curr_arg2)
+      return true;
+  }
+
+  return false;
 }
 
 static bool bin_table_aux_was_inserted_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {
@@ -941,6 +995,19 @@ bool bin_table_aux_is_empty(BIN_TABLE *table, BIN_TABLE_AUX *table_aux) {
     return true;
 
   return bin_table_aux_size(table, table_aux) == 0;
+}
+
+bool bin_table_aux_contains(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1, uint32 arg2) {
+  if (bin_table_aux_was_inserted(table, table_aux, arg1, arg2))
+    return true;
+
+  if (table_aux->clear)
+    return false;
+
+  if (!bin_table_contains(table, arg1, arg2))
+    return false;
+
+  return !bin_table_aux_was_deleted(table, table_aux, arg1, arg2);
 }
 
 bool bin_table_aux_contains_1(BIN_TABLE *table, BIN_TABLE_AUX *table_aux, uint32 arg1) {

@@ -186,7 +186,7 @@ static void master_bin_table_aux_build_col_2_insertion_bitmap(MASTER_BIN_TABLE_A
   }
 }
 
-static void master_bin_table_aux_build_surr_insertion_bitmap(MASTER_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
+static void master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(MASTER_BIN_TABLE_AUX *table_aux, COL_UPDATE_BIT_MAP *bit_map, STATE_MEM_POOL *mem_pool) {
   assert(!col_update_bit_map_is_dirty(bit_map));
 
   uint32 count = table_aux->insertions.count;
@@ -195,7 +195,16 @@ static void master_bin_table_aux_build_surr_insertion_bitmap(MASTER_BIN_TABLE_AU
     for (uint32 i=0 ; i < count ; i++)
       col_update_bit_map_set(bit_map, insertions[i].z, mem_pool);
   }
+
+  count = table_aux->reinsertions.count;
+  if (count > 0) {
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < count ; i++)
+      col_update_bit_map_set(bit_map, reinsertions[i].z, mem_pool);
+  }
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 void master_bin_table_aux_apply_surrs_acquisition(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux) {
   assert(table->table.forward.count == table->table.backward.count);
@@ -938,31 +947,37 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return unary_table_aux_is_empty(src_table, src_table_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = unary_table_aux_size(src_table, src_table_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 arg1 = insertions[i].x;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, mem_pool))
-          if (unary_table_aux_contains(src_table, src_table_aux, arg1))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool ok = found == src_size;
-      return ok;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 arg1 = insertions[i].x;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, arg1, mem_pool))
+        if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 arg1 = reinsertions[i].x;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, arg1, mem_pool))
+        if (unary_table_aux_contains(src_table, src_table_aux, arg1))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted <= unary_table_aux_size(src_table, src_table_aux));
+    return unaccounted == 0;
   }
 
   uint32 num_dels_1 = table_aux->deletions_1.count;
@@ -983,10 +998,13 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
   if (num_dels > 0 | num_dels_2 > 0) {
     STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
+    assert(!col_update_bit_map_is_dirty(surrs_ins_and_reins_bit_map));
     if (table_aux->insertions.count > 0)
-      master_bin_table_aux_build_col_1_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+      master_bin_table_aux_build_col_1_insertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
 
     COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
+    assert(!col_update_bit_map_is_dirty(surr_deleted_bit_map));
 
     TRNS_MAP_SURR_U32 remaining;
     trns_map_surr_u32_init(&remaining);
@@ -996,12 +1014,12 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
         uint32 arg1 = unpack_arg1(args);
-        if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
+        if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, arg1)) {
           if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
             uint32 arg2 = unpack_arg2(args);
             assert(master_bin_table_contains(table, arg1, arg2));
             uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-            if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surr, mem_pool)) {
+            if (!col_update_bit_map_check_and_set(surr_deleted_bit_map, surr, mem_pool)) {
               uint32 count = trns_map_surr_u32_lookup(&remaining, arg1, 0);
               if (count == 0)
                 count = master_bin_table_count_1(table, arg1);
@@ -1030,9 +1048,9 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
           uint32 *surrs = array.array + array.offset;
           for (uint32 j=0 ; j < array.size ; j++) {
             uint32 arg1 = array.array[j];
-            if (!col_update_bit_map_is_set(&table_aux->bit_map, arg1)) {
+            if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, arg1)) {
               if (unary_table_aux_contains(src_table, src_table_aux, arg1)) {
-                if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surrs[j], mem_pool)) {
+                if (!col_update_bit_map_check_and_set(surr_deleted_bit_map, surrs[j], mem_pool)) {
                   uint32 count1 = trns_map_surr_u32_lookup(&remaining, arg1, 0);
                   if (count1 == 0)
                     count1 = master_bin_table_count_1(table, arg1);
@@ -1049,8 +1067,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_1_backward(MASTER_BIN_TA
       }
     }
 
-    col_update_bit_map_clear(&table_aux->bit_map);
-    col_update_bit_map_clear(&table_aux->another_bit_map);
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+    col_update_bit_map_clear(surr_deleted_bit_map);
   }
 
   return true;
@@ -1062,31 +1080,37 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = unary_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return unary_table_aux_is_empty(src_table, src_table_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = unary_table_aux_size(src_table, src_table_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 arg2 = insertions[i].y;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg2, mem_pool))
-          if (unary_table_aux_contains(src_table, src_table_aux, arg2))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool all_src_elts_found = found == src_size;
-      return all_src_elts_found;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 arg2 = insertions[i].y;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, arg2, mem_pool))
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = unary_table_aux_is_empty(src_table, src_table_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 arg2 = reinsertions[i].y;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, arg2, mem_pool))
+        if (unary_table_aux_contains(src_table, src_table_aux, arg2))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted <= unary_table_aux_size(src_table, src_table_aux));
+    return unaccounted == 0;
   }
 
   uint32 num_dels_2 = table_aux->deletions_2.count;
@@ -1107,10 +1131,13 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
   if (num_dels > 0 | num_dels_1 > 0) {
     STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
+    COL_UPDATE_BIT_MAP *col_2_ins_and_reins_bitmap = &table_aux->bit_map;
+    assert(!col_update_bit_map_is_dirty(col_2_ins_and_reins_bitmap));
     if (table_aux->insertions.count > 0)
-      master_bin_table_aux_build_col_2_insertion_bitmap(table_aux, &table_aux->bit_map, mem_pool);
+      master_bin_table_aux_build_col_2_insertion_bitmap(table_aux, col_2_ins_and_reins_bitmap, mem_pool);
 
     COL_UPDATE_BIT_MAP *surr_deleted_bit_map = &table_aux->another_bit_map;
+    assert(!col_update_bit_map_is_dirty(surr_deleted_bit_map));
 
     TRNS_MAP_SURR_U32 remaining;
     trns_map_surr_u32_init(&remaining);
@@ -1120,12 +1147,12 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
       for (uint32 i=0 ; i < num_dels ; i++) {
         uint64 args = args_array[i];
         uint32 arg2 = unpack_arg2(args);
-        if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
+        if (!col_update_bit_map_is_set(col_2_ins_and_reins_bitmap, arg2)) {
           if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
             uint32 arg1 = unpack_arg1(args);
             assert(master_bin_table_contains(table, arg2, arg1));
             uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-            if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surr, mem_pool)) {
+            if (!col_update_bit_map_check_and_set(surr_deleted_bit_map, surr, mem_pool)) {
               uint32 count = trns_map_surr_u32_lookup(&remaining, arg2, 0);
               if (count == 0)
                 count = master_bin_table_count_2(table, arg2);
@@ -1153,9 +1180,9 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
           uint32 *surrs = array.array + array.offset;
           for (uint32 j=0 ; j < array.size ; j++) {
             uint32 arg2 = array.array[j];
-            if (!col_update_bit_map_is_set(&table_aux->bit_map, arg2)) {
+            if (!col_update_bit_map_is_set(col_2_ins_and_reins_bitmap, arg2)) {
               if (unary_table_aux_contains(src_table, src_table_aux, arg2)) {
-                if (!col_update_bit_map_check_and_set(&table_aux->another_bit_map, surrs[j], mem_pool)) {
+                if (!col_update_bit_map_check_and_set(surr_deleted_bit_map, surrs[j], mem_pool)) {
                   uint32 count2 = trns_map_surr_u32_lookup(&remaining, arg2, 0);
                   if (count2 == 0)
                     count2 = master_bin_table_count_2(table, arg2);
@@ -1171,8 +1198,8 @@ bool master_bin_table_aux_check_foreign_key_unary_table_2_backward(MASTER_BIN_TA
       }
     }
 
-    col_update_bit_map_clear(&table_aux->bit_map);
-    col_update_bit_map_clear(&table_aux->another_bit_map);
+    col_update_bit_map_clear(col_2_ins_and_reins_bitmap);
+    col_update_bit_map_clear(surr_deleted_bit_map);
   }
 
   return true;
@@ -1184,31 +1211,37 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = slave_tern_table_aux_size(src_table, src_table_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return slave_tern_table_aux_is_empty(src_table, src_table_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = slave_tern_table_aux_size(src_table, src_table_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i].z;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
-          if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool all_src_elts_found = found == src_size;
-      return all_src_elts_found;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = insertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = slave_tern_table_aux_is_empty(src_table, src_table_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = reinsertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted <= slave_tern_table_aux_size(src_table, src_table_aux));
+    return unaccounted == 0;
   }
 
   uint32 num_dels = table_aux->deletions.count;
@@ -1220,9 +1253,9 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
 
   STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
   if (table_aux->insertions.count > 0)
-    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+    master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
 
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
@@ -1235,7 +1268,7 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
       //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
-      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+      if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
         if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
           return false;
     }
@@ -1255,7 +1288,7 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
               return false;
         }
@@ -1277,13 +1310,15 @@ bool master_bin_table_aux_check_foreign_key_slave_tern_table_backward(MASTER_BIN
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (slave_tern_table_aux_contains_surr(src_table, src_table_aux, surr))
               return false;
         }
       }
     }
   }
+
+  col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
 
   return true;
 }
@@ -1294,31 +1329,37 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = obj_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return obj_col_aux_is_empty(src_col, src_col_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = obj_col_aux_size(src_col, src_col_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i].z;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
-          if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool all_src_elts_found = found == src_size;
-      return all_src_elts_found;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = insertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = obj_col_aux_is_empty(src_col, src_col_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = reinsertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted <= obj_col_aux_size(src_col, src_col_aux)); // Checking for underflows
+    return unaccounted == 0;
   }
 
   uint32 num_dels = table_aux->deletions.count;
@@ -1330,9 +1371,9 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
 
   STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
   if (table_aux->insertions.count > 0)
-    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+    master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
 
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
@@ -1345,7 +1386,7 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
       //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
-      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+      if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
         if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
     }
@@ -1365,7 +1406,7 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
@@ -1387,13 +1428,15 @@ bool master_bin_table_aux_check_foreign_key_obj_col_backward(MASTER_BIN_TABLE *t
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (obj_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
       }
     }
   }
+
+  col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
 
   return true;
 }
@@ -1403,31 +1446,37 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = int_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return int_col_aux_is_empty(src_col, src_col_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = int_col_aux_size(src_col, src_col_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i].z;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
-          if (int_col_aux_contains_1(src_col, src_col_aux, surr))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool all_src_elts_found = found == src_size;
-      return all_src_elts_found;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = insertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (int_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = int_col_aux_is_empty(src_col, src_col_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = reinsertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (int_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted << int_col_aux_size(src_col, src_col_aux));
+    return unaccounted == 0;
   }
 
   uint32 num_dels = table_aux->deletions.count;
@@ -1439,9 +1488,9 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
 
   STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
   if (table_aux->insertions.count > 0)
-    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+    master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
 
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
@@ -1454,7 +1503,7 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
       //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
-      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+      if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
         if (int_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
     }
@@ -1474,7 +1523,7 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (int_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
@@ -1496,13 +1545,15 @@ bool master_bin_table_aux_check_foreign_key_int_col_backward(MASTER_BIN_TABLE *t
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (int_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
       }
     }
   }
+
+  col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
 
   return true;
 }
@@ -1512,31 +1563,37 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
 
   if (table_aux->clear) {
     uint32 ins_count = table_aux->insertions.count;
-    if (ins_count > 0) {
-      uint32 src_size = float_col_aux_size(src_col, src_col_aux);
-      if (src_size > ins_count)
-        return false;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return float_col_aux_is_empty(src_col, src_col_aux);
 
-      STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    uint32 unaccounted = float_col_aux_size(src_col, src_col_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
 
-      TUPLE_3U32 *insertions = table_aux->insertions.array;
-      uint32 found = 0;
-      for (uint32 i=0 ; i < ins_count ; i++) {
-        uint32 surr = insertions[i].z;
-        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, mem_pool))
-          if (float_col_aux_contains_1(src_col, src_col_aux, surr))
-            found++;
-      }
-      col_update_bit_map_clear(&table_aux->bit_map);
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
 
-      assert(found <= src_size);
-      bool all_src_elts_found = found == src_size;
-      return all_src_elts_found;
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = insertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (float_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
-    else {
-      bool src_is_empty = float_col_aux_is_empty(src_col, src_col_aux);
-      return src_is_empty;
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      uint32 surr = reinsertions[i].z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool))
+        if (float_col_aux_contains_1(src_col, src_col_aux, surr))
+          unaccounted--;
     }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted < float_col_aux_size(src_col, src_col_aux));
+    return unaccounted == 0;
   }
 
   uint32 num_dels = table_aux->deletions.count;
@@ -1548,9 +1605,9 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
 
   STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
 
-  COL_UPDATE_BIT_MAP *surrs_ins_bit_map = &table_aux->bit_map;
+  COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
   if (table_aux->insertions.count > 0)
-    master_bin_table_aux_build_surr_insertion_bitmap(table_aux, surrs_ins_bit_map, mem_pool);
+    master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
 
   if (num_dels > 0) {
     uint64 *args_array = table_aux->deletions.array;
@@ -1563,7 +1620,7 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
       //## TO THE INSERTION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
       assert(surr != 0xFFFFFFFF);
-      if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+      if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
         if (float_col_aux_contains_1(src_col, src_col_aux, surr))
           return false;
     }
@@ -1583,7 +1640,7 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (float_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
@@ -1605,13 +1662,144 @@ bool master_bin_table_aux_check_foreign_key_float_col_backward(MASTER_BIN_TABLE 
         uint32 *surrs = array.array + array.offset;
         for (uint32 j=0 ; j < array.size ; j++) {
           uint32 surr = surrs[j];
-          if (!col_update_bit_map_is_set(surrs_ins_bit_map, surr))
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
             if (float_col_aux_contains_1(src_col, src_col_aux, surr))
               return false;
         }
       }
     }
   }
+
+  col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+  return true;
+}
+
+bool master_bin_table_aux_check_foreign_key_bin_table_backward(MASTER_BIN_TABLE *table, MASTER_BIN_TABLE_AUX *table_aux, BIN_TABLE *src_table, BIN_TABLE_AUX *src_table_aux) {
+  assert(!col_update_bit_map_is_dirty(&table_aux->bit_map) && !col_update_bit_map_is_dirty(&table_aux->another_bit_map));
+
+  if (table_aux->clear) {
+    uint32 ins_count = table_aux->insertions.count;
+    uint32 reins_count = table_aux->reinsertions.count;
+    if (ins_count == 0 && reins_count == 0)
+      return bin_table_aux_is_empty(src_table, src_table_aux);
+
+    uint32 unaccounted = bin_table_aux_size(src_table, src_table_aux);
+    if (unaccounted > ins_count + reins_count)
+      return false;
+
+    STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+    COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
+
+    TUPLE_3U32 *insertions = table_aux->insertions.array;
+    for (uint32 i=0 ; i < ins_count ; i++) {
+      TUPLE_3U32 insertion = insertions[i];
+      uint32 surr = insertion.z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool)) {
+        uint32 arg1 = insertion.x;
+        uint32 arg2 = insertion.y;
+        if (bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+          unaccounted--;
+      }
+    }
+
+    TUPLE_3U32 *reinsertions = table_aux->reinsertions.array;
+    for (uint32 i=0 ; i < reins_count ; i++) {
+      TUPLE_3U32 reinsertion = reinsertions[i];
+      uint32 surr = reinsertion.z;
+      if (!col_update_bit_map_check_and_set(surrs_ins_and_reins_bit_map, surr, mem_pool)) {
+        uint32 arg1 = reinsertion.x;
+        uint32 arg2 = reinsertion.y;
+        if (bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+          unaccounted--;
+      }
+    }
+
+    col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
+
+    assert(unaccounted <= bin_table_aux_size(src_table, src_table_aux));
+    return unaccounted == 0;
+  }
+
+  uint32 num_dels = table_aux->deletions.count;
+  uint32 num_dels_1 = table_aux->deletions_1.count;
+  uint32 num_dels_2 = table_aux->deletions_2.count;
+
+  if (num_dels == 0 & num_dels_1 == 0 & num_dels_2 == 0)
+    return true;
+
+  STATE_MEM_POOL *mem_pool = table_aux->mem_pool;
+
+  COL_UPDATE_BIT_MAP *surrs_ins_and_reins_bit_map = &table_aux->bit_map;
+  if (table_aux->insertions.count > 0)
+    master_bin_table_aux_build_surr_insertion_and_reinsertion_bitmap(table_aux, surrs_ins_and_reins_bit_map, mem_pool);
+
+  if (num_dels > 0) {
+    uint64 *args_array = table_aux->deletions.array;
+    for (uint32 i=0 ; i < num_dels ; i++) {
+      uint64 args = args_array[i];
+      uint32 arg1 = unpack_arg1(args);
+      uint32 arg2 = unpack_arg2(args);
+      assert(master_bin_table_contains(table, arg1, arg2));
+      //## BAD BAD BAD: SINCE WE CHECK THAT THE TUPLE EXISTS BEFORE ADDING IT
+      //## TO THE DELETION LIST, WE MAY AS WELL LOOKUP THE SURROGATE THEN
+      uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
+      assert(surr != 0xFFFFFFFF);
+      if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr))
+        if (bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+          return false;
+    }
+  }
+
+  if (num_dels_1 > 0) {
+    uint32 *arg1s = table_aux->deletions_1.array;
+    for (uint32 i=0 ; i < num_dels_1 ; i++) {
+      uint32 arg1 = arg1s[i];
+      uint32 count1 = master_bin_table_count_1(table, arg1);
+      uint32 read = 0;
+      while (read < count1) {
+        uint32 buffer[128];
+        UINT32_ARRAY array = master_bin_table_range_restrict_1_with_surrs(table, arg1, read, buffer, 64);
+        read += array.size;
+        uint32 *arg2s = array.array;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr)) {
+            uint32 arg2 = arg2s[j];
+            if (bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+              return false;
+          }
+        }
+      }
+    }
+  }
+
+  if (num_dels_2 > 0) {
+    uint32 *arg2s = table_aux->deletions_2.array;
+    for (uint32 i=0 ; i < num_dels_2 ; i++) {
+      uint32 arg2 = arg2s[i];
+      uint32 count2 = master_bin_table_count_2(table, arg2);
+      uint32 read = 0;
+      while (read < count2) {
+        uint32 buffer[128];
+        UINT32_ARRAY array = master_bin_table_range_restrict_2_with_surrs(table, arg2, read, buffer, 64);
+        read += array.size;
+        uint32 *arg1s = array.array;
+        uint32 *surrs = array.array + array.offset;
+        for (uint32 j=0 ; j < array.size ; j++) {
+          uint32 surr = surrs[j];
+          if (!col_update_bit_map_is_set(surrs_ins_and_reins_bit_map, surr)) {
+            uint32 arg1 = arg1s[j];
+            if (bin_table_aux_contains(src_table, src_table_aux, arg1, arg2))
+              return false;
+          }
+        }
+      }
+    }
+  }
+
+  col_update_bit_map_clear(surrs_ins_and_reins_bit_map);
 
   return true;
 }
