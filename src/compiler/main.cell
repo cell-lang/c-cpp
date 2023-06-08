@@ -26,7 +26,7 @@ Int Main(String* args) {
       "Cell to C/C++ compiler version " & version & "\n" &
       "Usage: cellc <options> <project file> <output directory>\n" &
       "Options:\n" &
-      "  -o             optimize message handlers (experimental)" &
+      "  -o             optimize message handlers (experimental)\n" &
       "  -d             debug mode\n" &
       "  -ia            ignore assertions\n" &
       "  -g <filename>  generate C++ classes for all types listed in <filename>\n"
