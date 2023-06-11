@@ -241,21 +241,18 @@ type PrgData =  prg_data(
     )
   );
 
-  wrappers_impls = (
-    std_includes,
-    ( "#include \"generated.cpp\"",
-      "#include \"conversion.h\"",
-      "#include \"wrappers.h\"",
-      "",
-      "",
-      "namespace cell_lang {",
-      data_exchange_types,
-      wrappers_impls,
-      "}"
-    )
+  wrappers_impls = std_includes & (
+    "#include \"conversion.h\"",
+    "#include \"wrappers.h\"",
+    "",
+    "",
+    "namespace cell_lang {",
+    data_exchange_types,
+    wrappers_impls,
+    "}"
   );
 
-  gen_content = (gen_content | wrappers_impls) if not has_main;
+  gen_content = (gen_content, wrappers_impls) if not has_main;
 
   return [
     "generated.cpp" -> flatten(gen_content),
