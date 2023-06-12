@@ -32,6 +32,7 @@ src_files = [
   'int-store.cpp',
   'iolib.cpp',
   'key-checking-utils.cpp',
+  "key-violation-recording.cpp",
   'loaded-one-way-bin-table.cpp',
   'loaded-overflow-table.cpp',
   'master-bin-table-aux.cpp',
@@ -57,6 +58,7 @@ src_files = [
   'raw-int-col.cpp',
   'raw-obj-col-aux.cpp',
   'raw-obj-col.cpp',
+  "releasing.cpp",
   'semisym-slave-tern-table-aux.cpp',
   'semisym-slave-tern-table.cpp',
   'semisym-tern-table-aux.cpp',
@@ -312,6 +314,10 @@ code_str = '\n'.join(code)
 out_file = open(out_fname, 'w')
 out_file.write(code_str)
 out_file.close()
+
+
+
+
 
 
 
