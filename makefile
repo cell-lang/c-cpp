@@ -4,10 +4,18 @@ cellcd:
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
 	g++ -ggdb -DNEDEBUG -Isrc/runtime/ tmp/cellc/cellc.cpp src/hacks.cpp objs/dbg/*.o -o cellc
 
+cellc:
+	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
+	bin/cellc -t project/compiler.txt tmp/cellc/
+	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc.cpp
+	g++ -ggdb -DNEDEBUG tmp/cellc/cellc.cpp -o cellc
+
 cellcr:
 	@rm -rf tmp/cellc/ && mkdir -p tmp/cellc/
 	bin/cellc -t project/compiler.txt tmp/cellc/
 	bin/apply-hacks < tmp/cellc/generated.cpp > tmp/cellc/cellc.cpp
+	grep -v include src/hacks.cpp >> tmp/cellc/cellc.cpp
 	g++ -O3 -flto -DNDEBUG tmp/cellc/cellc.cpp -o cellcr
 
 update-cellcd:

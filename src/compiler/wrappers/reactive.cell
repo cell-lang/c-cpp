@@ -232,7 +232,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "    " & auto_class_name & "();",
       "    ~" & auto_class_name & "();",
       "",
-      "    void set_input(Input input, string &value);" if inputs != (),
+      "    void set_input(Input input, const string &value);" if inputs != (),
       "    string read_output(Output output);" if outputs != (),
       "" if is_time_sensitive,
       "    void set_elapsed_millisecs(unsigned int);" if is_time_sensitive,
@@ -240,7 +240,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "",
       "    " & apply_ret_type & " apply();",
       "    string read_state();",
-      "    void set_state(string &state);",
+      "    void set_state(const string &state);",
       "",
       "    vector<Output> changed_outputs();" if outputs != ()
     );
@@ -271,6 +271,8 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "",
       "",
       auto_class_name & "::" & auto_class_name & "() {",
+      "  init_runtime();",
+      "",
       "  " & data_struct_name & " *ptr = new " & data_struct_name & "();",
       "  this->ptr = ptr;",
       "  memset(&ptr->env, 0, sizeof(ENV));",
@@ -286,7 +288,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       apply_ret_type & " " & auto_class_name & "::" & " apply() {",
       "  " & typed_ptr_def,
       "  " & native_call(apply_method_name(block.name), (auto_ref, env_ref), context=:wrapper),
-      "  return " & auto_ref & ".elapsed_time == 0;" if is_time_sensitive,
+      "  return ptr->automaton.elapsed_time == 0;" if is_time_sensitive,
       "}",
       "",
       "std::string " & auto_class_name & "::" & "read_state() {",
@@ -295,7 +297,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
       "  return export_as_text(state);",
       "}",
       "",
-      "void " & auto_class_name & "::" & "set_state(std::string &state) {",
+      "void " & auto_class_name & "::" & "set_state(const std::string &state) {",
       "  " & typed_ptr_def,
       "  if (!ptr->automaton.is_new)", ## BUG BUG BUG: WHY WAS THIS NOT NEGATED?
       "    throw std::runtime_error(\"The state of an automaton can only be set right after instantiation\");",
@@ -327,7 +329,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
     if inputs != () {
       class_impl = (class_impl |
         "",
-        "void " & auto_class_name & "::set_input(Input input, std::string &value) {",
+        "void " & auto_class_name & "::set_input(Input input, const std::string &value) {",
       "  " & typed_ptr_def,
         "  OBJ obj = import_obj(value);",
         "  switch (input) {"
