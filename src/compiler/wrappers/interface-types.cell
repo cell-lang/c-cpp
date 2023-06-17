@@ -215,8 +215,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
   }
 
 
-  ([Symbol -> DeclInterType], [Symbol, Symbol])
-  type_decls(NeType type, BasicTypeSymbol type_id) =
+  ([Symbol -> DeclInterType], [Symbol, Symbol]) type_decls(NeType type, BasicTypeSymbol type_id) =
     union_type(ts?) = union_type_type_decls(ts, type_id),
     type_ref(ts?)   = if not generated(ts)
                         then type_decls(nonempty_type(expand_type_ref(ts, typedefs)), type_id)
@@ -227,8 +226,7 @@ implicit prg : CompiledPrg, typedefs : [TypeName -> NeType], generated : [BasicT
                       };
 
 
-  ([Symbol -> DeclInterType], [Symbol, Symbol])
-  union_type_type_decls([+NeType] types, BasicTypeSymbol type_id) {
+  ([Symbol -> DeclInterType], [Symbol, Symbol]) union_type_type_decls([+NeType] types, BasicTypeSymbol type_id) {
     decls : [Symbol -> DeclInterType];
     hierarchy : [Symbol, Symbol]*;
 
@@ -284,7 +282,6 @@ implicit typedefs : [TypeName -> NeType] {
     Bool tag_obj_type_is_decl(TagType tag_type, NeType obj_type) {
       return false if tag_type == atom_type;
       return match (obj_type)
-        tuple_type()        = true,
         ne_record_type(fs?) = not (_ f <- fs : f.optional),
         _                   = false;
     }
@@ -303,7 +300,6 @@ implicit typedefs : [TypeName -> NeType] {
         else if t :: TagObjType {
           return false if t.tag_type == atom_type;
           is_decl = match (t.obj_type)
-            tuple_type()        = true,
             ne_record_type(fs?) = not (_ f <- fs : f.optional),
             _                   = false;
           return false if not is_decl;
