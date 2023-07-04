@@ -1121,9 +1121,9 @@ implicit context : NativeContext {
 
 
   String* native_table_apply_code(TableVar table_var, SlaveColumn column, Maybe[(ValueStoreId, ValueStoreType)]+ owned_value_stores, [+<insertion, update, deletion>] actions) {
-    assert owned_value_stores == (nothing, nothing);
+    assert owned_value_stores == (nothing, nothing, nothing);
 
-    method_prefix = native_table_method_prefix(column) & "_aux";
+    method_prefix = native_table_method_prefix(column) & "_aux_";
     table_aux_name = pending_updates_var_ref_name(table_var);
     vs_args = value_stores_args((nothing));
 

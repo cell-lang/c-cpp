@@ -2589,6 +2589,10 @@ void obj_col_aux_record_key_violation_1(OBJ_COL *, OBJ_COL_AUX *, char *, const 
 void int_col_aux_record_key_violation_1(INT_COL *, INT_COL_AUX *, char *, const char *);
 void float_col_aux_record_key_violation_1(FLOAT_COL *, FLOAT_COL_AUX *, char *, const char *);
 
+void obj_col_aux_record_key_violation_12(OBJ_COL *, OBJ_COL_AUX *, char *, const char *);
+void int_col_aux_record_key_violation_12(INT_COL *, INT_COL_AUX *, char *, const char *);
+void float_col_aux_record_key_violation_12(FLOAT_COL *, FLOAT_COL_AUX *, char *, const char *);
+
 void raw_obj_col_aux_record_key_violation_1(RAW_OBJ_COL *, OBJ_COL_AUX *, char *, const char *);
 void raw_int_col_aux_record_key_violation_1(RAW_INT_COL *, INT_COL_AUX *, char *, const char *);
 void raw_float_col_aux_record_key_violation_1(RAW_FLOAT_COL *, FLOAT_COL_AUX *, char *, const char *);

@@ -480,7 +480,7 @@ static uint32 master_bin_table_aux_number_of_deletions_1(MASTER_BIN_TABLE *table
         assert(master_bin_table_contains(table, arg1, arg2));
         uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
         assert(surr != 0xFFFFFFFF);
-        if (col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
           num_unique_deletions++;
       }
     }
@@ -493,7 +493,7 @@ static uint32 master_bin_table_aux_number_of_deletions_1(MASTER_BIN_TABLE *table
       uint32 arg2 = arg2s[i];
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2s[i]);
       if (surr != 0xFFFFFFFF)
-        if (col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
           num_unique_deletions++;
     }
   }
@@ -519,7 +519,7 @@ static uint32 master_bin_table_aux_number_of_deletions_2(MASTER_BIN_TABLE *table
         assert(master_bin_table_contains(table, arg1, arg2));
         uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
         assert(surr != 0xFFFFFFFF);
-        if (col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table_aux->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, arg1, table_aux->mem_pool))
           num_unique_deletions++;
       }
     }
@@ -531,7 +531,7 @@ static uint32 master_bin_table_aux_number_of_deletions_2(MASTER_BIN_TABLE *table
     for (uint32 i=0 ; i < num_dels_1 ; i++) {
       uint32 surr = master_bin_table_lookup_surr(table, arg1s[i], arg2);
       if (surr != 0xFFFFFFFF)
-        if (col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
+        if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
           num_unique_deletions++;
     }
   }
@@ -555,7 +555,7 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
       uint32 arg2 = unpack_arg2(args);
       assert(master_bin_table_contains(table, arg1, arg2));
       uint32 surr = master_bin_table_lookup_surr(table, arg1, arg2);
-      if (col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
+      if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surr, table_aux->mem_pool))
         num_unique_deletions++;
     }
   }
@@ -574,7 +574,7 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
         read += array1.size;
         uint32 *surrs = array1.array + array1.offset;
         for (uint32 j=0 ; j < array1.size ; j++)
-          if (col_update_bit_map_check_and_set(&table_aux->bit_map, surrs[j], table_aux->mem_pool))
+          if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surrs[j], table_aux->mem_pool))
             num_unique_deletions++;
       }
     }
@@ -594,7 +594,7 @@ static uint32 master_bin_table_aux_number_of_deletions(MASTER_BIN_TABLE *table, 
         read += array2.size;
         uint32 *surrs = array2.array + array2.offset;
         for (uint32 j=0 ; j < array2.size ; j++)
-          if (col_update_bit_map_check_and_set(&table_aux->bit_map, surrs[j], table_aux->mem_pool))
+          if (!col_update_bit_map_check_and_set(&table_aux->bit_map, surrs[j], table_aux->mem_pool))
             num_unique_deletions++;
       }
     }

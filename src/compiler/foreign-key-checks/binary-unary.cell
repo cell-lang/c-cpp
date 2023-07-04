@@ -5,6 +5,8 @@ implicit table_var_aux_vars_map : [TableVar -> (OptAuxTableVar+, Maybe[LocBoolVa
     foreign_key = foreign_key(origin, target, :binary_unary(origin_col_idx));
     err_rec_instr = record_foreign_key_violation(foreign_key, origin_type, target_type);
 
+    return nothing if tables(origin, _) and |tables(origin)| != 1;
+
     // First we check if there's a deletion from the target, which is the most complicated case
     if tables(target, _) {
       target_effects_info = tables(target);

@@ -29,6 +29,18 @@ void float_col_aux_record_key_violation_1(FLOAT_COL *table, FLOAT_COL_AUX *table
   snprintf(err_msg, 256, "The key on the first column of %s was violated", table_name);
 }
 
+void obj_col_aux_record_key_violation_12(OBJ_COL *table, OBJ_COL_AUX *table_aux, char *err_msg, const char *table_name) {
+  snprintf(err_msg, 256, "The key on the first two columns of %s was violated", table_name);
+}
+
+void int_col_aux_record_key_violation_12(INT_COL *table, INT_COL_AUX *table_aux, char *err_msg, const char *table_name) {
+  snprintf(err_msg, 256, "The key on the first two columns of %s was violated", table_name);
+}
+
+void float_col_aux_record_key_violation_12(FLOAT_COL *table, FLOAT_COL_AUX *table_aux, char *err_msg, const char *table_name) {
+  snprintf(err_msg, 256, "The key on the first two columns of %s was violated", table_name);
+}
+
 void raw_obj_col_aux_record_key_violation_1(RAW_OBJ_COL *table, OBJ_COL_AUX *table_aux, char *err_msg, const char *table_name) {
   snprintf(err_msg, 256, "The key on the first column of %s was violated", table_name);
 }
